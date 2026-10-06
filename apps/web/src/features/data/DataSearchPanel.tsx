@@ -2,7 +2,9 @@ import type { EntitySummary } from '@boh/data5e';
 import { Panel } from '@boh/ui';
 import { Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { AppLink } from '../../app/AppLink';
 import { dataWorker } from '../../app/data/client';
+import { entityPath } from '../../app/data/entities';
 import { useSourceList } from '../../app/data/sourceList';
 import { disabledSourceIds, useSourcePrefs } from '../../app/data/sourcePrefs';
 import { typeLabel } from '../../app/format';
@@ -80,7 +82,11 @@ export function DataSearchPanel() {
           <tbody className="divide-y divide-border">
             {shown.map((r) => (
               <tr key={r.key}>
-                <td className="py-1.5 pr-2 font-medium">{r.name}</td>
+                <td className="py-1.5 pr-2 font-medium">
+                  <AppLink to={entityPath(r.key)} className="text-link hover:underline">
+                    {r.name}
+                  </AppLink>
+                </td>
                 <td className="py-1.5 pr-2 text-muted">{typeLabel(r.type)}</td>
                 <td className="py-1.5 whitespace-nowrap text-muted">
                   {r.source}

@@ -20,6 +20,7 @@ import { Route as HomebrewRouteImport } from './routes/homebrew'
 import { Route as MapsRouteImport } from './routes/maps'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as VaultRouteImport } from './routes/vault'
+import { Route as CompendiumKeyRouteImport } from './routes/compendium_.$key'
 import { Route as SettingsDataRouteImport } from './routes/settings_.data'
 
 const IndexRoute = IndexRouteImport.update({
@@ -77,6 +78,11 @@ const VaultRoute = VaultRouteImport.update({
   path: '/vault',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CompendiumKeyRoute = CompendiumKeyRouteImport.update({
+  id: '/compendium_/$key',
+  path: '/compendium/$key',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsDataRoute = SettingsDataRouteImport.update({
   id: '/settings_/data',
   path: '/settings/data',
@@ -95,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/maps': typeof MapsRoute
   '/settings': typeof SettingsRoute
   '/vault': typeof VaultRoute
+  '/compendium/$key': typeof CompendiumKeyRoute
   '/settings/data': typeof SettingsDataRoute
 }
 export interface FileRoutesByTo {
@@ -109,6 +116,7 @@ export interface FileRoutesByTo {
   '/maps': typeof MapsRoute
   '/settings': typeof SettingsRoute
   '/vault': typeof VaultRoute
+  '/compendium/$key': typeof CompendiumKeyRoute
   '/settings/data': typeof SettingsDataRoute
 }
 export interface FileRoutesById {
@@ -124,6 +132,7 @@ export interface FileRoutesById {
   '/maps': typeof MapsRoute
   '/settings': typeof SettingsRoute
   '/vault': typeof VaultRoute
+  '/compendium_/$key': typeof CompendiumKeyRoute
   '/settings_/data': typeof SettingsDataRoute
 }
 export interface FileRouteTypes {
@@ -140,6 +149,7 @@ export interface FileRouteTypes {
     | '/maps'
     | '/settings'
     | '/vault'
+    | '/compendium/$key'
     | '/settings/data'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -154,6 +164,7 @@ export interface FileRouteTypes {
     | '/maps'
     | '/settings'
     | '/vault'
+    | '/compendium/$key'
     | '/settings/data'
   id:
     | '__root__'
@@ -168,6 +179,7 @@ export interface FileRouteTypes {
     | '/maps'
     | '/settings'
     | '/vault'
+    | '/compendium_/$key'
     | '/settings_/data'
   fileRoutesById: FileRoutesById
 }
@@ -183,6 +195,7 @@ export interface RootRouteChildren {
   MapsRoute: typeof MapsRoute
   SettingsRoute: typeof SettingsRoute
   VaultRoute: typeof VaultRoute
+  CompendiumKeyRoute: typeof CompendiumKeyRoute
   SettingsDataRoute: typeof SettingsDataRoute
 }
 
@@ -265,6 +278,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VaultRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/compendium_/$key': {
+      id: '/compendium_/$key'
+      path: '/compendium/$key'
+      fullPath: '/compendium/$key'
+      preLoaderRoute: typeof CompendiumKeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings_/data': {
       id: '/settings_/data'
       path: '/settings/data'
@@ -287,6 +307,7 @@ const rootRouteChildren: RootRouteChildren = {
   MapsRoute: MapsRoute,
   SettingsRoute: SettingsRoute,
   VaultRoute: VaultRoute,
+  CompendiumKeyRoute: CompendiumKeyRoute,
   SettingsDataRoute: SettingsDataRoute,
 }
 export const routeTree = rootRouteImport

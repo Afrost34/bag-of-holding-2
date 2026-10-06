@@ -26,17 +26,58 @@ import type { DataStatus, DataWorkerApi, InstallSummary, LocalFile } from './pro
 let storage: DataStatus['storage'] = 'persistent';
 let controller: AbortController | null = null;
 
-const indexPromise: Promise<EntityIndex> = (async () => {
+/**
+ * Only one worker per browser profile may open the database: SQLite's OPFS "SAH pool" takes
+ * exclusive file handles, and a second opener can fail or damage the pool. An exclusive Web Lock,
+ * held for the worker's whole life, guarantees that. Other tabs wait for it and report `busy`.
+ */
+const DB_LOCK = 'boh-5etools-index';
+
+function holdLock(ifAvailable: boolean): Promise<boolean> {
+  return new Promise((resolve) => {
+    void navigator.locks.request(DB_LOCK, { ifAvailable }, (lock) => {
+      if (!lock) {
+        resolve(false);
+        return undefined;
+      }
+      resolve(true);
+      // Never settles: the lock is released when this worker (its tab) goes away.
+      return new Promise<void>(() => undefined);
+    });
+  });
+}
+
+/** Settles once we know whether this worker owns the database or must wait for another tab. */
+let markLockChecked: () => void = () => undefined;
+const lockChecked = new Promise<void>((resolve) => {
+  markLockChecked = resolve;
+});
+
+async function openIndex(): Promise<EntityIndex> {
   let db: SqlDatabase;
   try {
+    const owned = !('locks' in navigator) || (await holdLock(true));
+    if (!owned) storage = 'busy';
+    markLockChecked();
+    if (!owned) {
+      await holdLock(false); // wait until the other tab or window closes
+      storage = 'persistent';
+    }
     db = await openOpfsDatabase('5etools-index.sqlite3');
   } catch (error) {
+    markLockChecked();
     console.warn('OPFS unavailable; the 5etools index will only last this session.', error);
     storage = 'memory';
     db = await openMemoryDatabase();
   }
   return EntityIndex.open(db);
-})();
+}
+
+const indexPromise: Promise<EntityIndex> = openIndex();
+let readyIndex: EntityIndex | null = null;
+void indexPromise.then((index) => {
+  readyIndex = index;
+});
 
 function summarize(result: InstallResult): InstallSummary {
   return {
@@ -91,6 +132,10 @@ async function readLocalFiles(files: LocalFile[]): Promise<[string, Uint8Array][
 
 const api: DataWorkerApi = {
   async status() {
+    await lockChecked;
+    if (!readyIndex && storage === 'busy') {
+      return { storage, installed: false, entities: 0, types: {} };
+    }
     const index = await indexPromise;
     const version = index.getMeta(META.version);
     const origin = index.getMeta(META.origin);
@@ -167,6 +212,11 @@ const api: DataWorkerApi = {
 
   async entity(key) {
     return (await indexPromise).getEntity(key);
+  },
+
+  async resolve(candidateLists) {
+    const index = await indexPromise;
+    return candidateLists.map((c) => index.resolveCandidates(c) ?? null);
   },
 
   async checkReferences(references) {

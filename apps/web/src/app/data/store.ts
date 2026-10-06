@@ -1,6 +1,7 @@
 import { DEFAULT_REPO, type InstallProgress } from '@boh/data5e';
 import { create } from 'zustand';
 import { dataWorker, proxy } from './client';
+import { clearEntityCaches } from './entities';
 import type { DataStatus, InstallSummary, LocalFile, UpdateCheck } from './protocol';
 
 interface DataStore {
@@ -49,6 +50,7 @@ export const useData = create<DataStore>()((set, get) => {
     } catch (error) {
       set({ error: message(error) });
     } finally {
+      clearEntityCaches();
       set({ busy: false, progress: null, update: null });
       await get().refresh();
     }
@@ -67,7 +69,12 @@ export const useData = create<DataStore>()((set, get) => {
 
     refresh: async () => {
       try {
-        set({ status: await dataWorker().status() });
+        const status = await dataWorker().status();
+        set({ status });
+        // Another tab owns the data: check again until it closes.
+        if (status.storage === 'busy') {
+          setTimeout(() => void get().refresh(), 2000);
+        }
       } catch (error) {
         set({ error: message(error) });
       }
@@ -98,6 +105,7 @@ export const useData = create<DataStore>()((set, get) => {
 
     clear: async () => {
       await dataWorker().clear();
+      clearEntityCaches();
       set({ lastInstall: null, update: null });
       await get().refresh();
     },

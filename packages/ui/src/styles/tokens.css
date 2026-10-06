@@ -31,6 +31,8 @@
   --boh-chrome-muted: #a3a6b1;
   --boh-link: #1f5fbf;
   --boh-focus: #2f6fdd;
+  --boh-readaloud: #f3ead6;
+  --boh-readaloud-border: #c9b48a;
   --boh-dice-bg: #fdecdc;
   --boh-dice-fg: #b4520f;
   --boh-dice-border: #e9a46b;
@@ -67,6 +69,8 @@
     --boh-chrome-muted: #8d909a;
     --boh-link: #7aa7ff;
     --boh-focus: #7aa7ff;
+    --boh-readaloud: #2a2519;
+    --boh-readaloud-border: #6b5a36;
     --boh-dice-bg: #3a2414;
     --boh-dice-fg: #f5a65f;
     --boh-dice-border: #8a5a30;
@@ -97,6 +101,8 @@
   --boh-chrome-muted: #8d909a;
   --boh-link: #7aa7ff;
   --boh-focus: #7aa7ff;
+  --boh-readaloud: #2a2519;
+  --boh-readaloud-border: #6b5a36;
   --boh-dice-bg: #3a2414;
   --boh-dice-fg: #f5a65f;
   --boh-dice-border: #8a5a30;
@@ -128,6 +134,8 @@
   --color-header-fg: var(--boh-header-fg);
   --color-link: var(--boh-link);
   --color-focus: var(--boh-focus);
+  --color-readaloud: var(--boh-readaloud);
+  --color-readaloud-border: var(--boh-readaloud-border);
   --color-dice-bg: var(--boh-dice-bg);
   --color-dice-fg: var(--boh-dice-fg);
   --color-dice-border: var(--boh-dice-border);

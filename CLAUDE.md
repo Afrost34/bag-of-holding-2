@@ -38,10 +38,17 @@ apps/desktop/          Tauri 2 shell (Rust); no app logic lives here
 packages/ui/           design tokens (tokens.css) and shared components
 packages/storage/      FileStore interface + memory / OPFS / Tauri implementations
 packages/data5e/       5etools download, extraction, keys, _copy resolution, SQLite index
+packages/dice/         dice notation parser + secure roller (pure TypeScript)
+packages/renderer/     5etools entries, {@tags} and entity views → React (no app knowledge)
 docs/adr/              architecture decision records
 ```
 
-Packages still to come, per the plan: `renderer`, `rules`, `dice`, `vault`.
+Packages still to come, per the plan: `rules`, `vault`.
+
+The renderer never navigates, rolls or loads data itself: the app supplies `RendererServices`
+(links with hover previews, roll chips, embedded entities, image URLs) in
+`apps/web/src/app/renderer/services.tsx`. Anything that renders 5etools text goes through
+`<Entries>` / `<RichText>` / `<EntityView>` so links and rolls work everywhere. See ADR 0004.
 
 The 5etools index lives in a Web Worker (`apps/web/src/app/data/data.worker.ts`); the UI talks to
 it through `DataWorkerApi` (`protocol.ts`) via Comlink. Never query SQLite from the main thread.

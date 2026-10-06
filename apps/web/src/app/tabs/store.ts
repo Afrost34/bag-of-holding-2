@@ -5,6 +5,9 @@ import * as model from './model';
 const makeId = () => crypto.randomUUID();
 
 interface TabsStore extends model.TabsState {
+  /** Titles pages set for their URL (e.g. an entity name); falls back to the module name. */
+  titles: Record<string, string>;
+  setTitle: (path: string, title: string) => void;
   setActivePath: (path: string) => void;
   /** Opens a tab and returns its path so the caller can navigate to it. */
   openTab: (path: string) => string;
@@ -28,6 +31,16 @@ export const useTabs = create<TabsStore>()(
       };
       return {
         ...model.initialTabsState(makeId),
+        titles: {},
+        setTitle: (path, title) => {
+          if (get().titles[path] === title) return;
+          // Keep titles only for open tabs so the map doesn't grow forever.
+          const open = new Set(get().tabs.map((tab) => tab.path));
+          const titles = Object.fromEntries(
+            Object.entries(get().titles).filter(([p]) => open.has(p)),
+          );
+          set({ titles: { ...titles, [path]: title } });
+        },
         setActivePath: (path) => apply(model.setActivePath(get(), path)),
         openTab: (path) => apply(model.openTab(get(), path, makeId())),
         activateTab: (id) => apply(model.activateTab(get(), id)),
@@ -40,11 +53,21 @@ export const useTabs = create<TabsStore>()(
       name: 'boh.tabs',
       version: 1,
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ tabs: state.tabs, activeId: state.activeId }),
+      partialize: (state) => ({ tabs: state.tabs, activeId: state.activeId, titles: state.titles }),
       merge: (persisted, current) => ({
         ...current,
         ...model.sanitizeTabsState(persisted, makeId),
+        titles: sanitizeTitles(persisted),
       }),
     },
   ),
 );
+
+function sanitizeTitles(persisted: unknown): Record<string, string> {
+  if (typeof persisted !== 'object' || persisted === null) return {};
+  const titles = (persisted as { titles?: unknown }).titles;
+  if (typeof titles !== 'object' || titles === null) return {};
+  return Object.fromEntries(
+    Object.entries(titles).filter((e): e is [string, string] => typeof e[1] === 'string'),
+  );
+}

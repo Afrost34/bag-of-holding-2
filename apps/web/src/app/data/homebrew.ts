@@ -2,6 +2,7 @@ import { gitBlobSha, type HomebrewPack, type SourceInfo } from '@boh/data5e';
 import { create } from 'zustand';
 import { userStore } from '../userStore';
 import { dataWorker } from './client';
+import { clearEntityCaches } from './entities';
 
 export const HOMEBREW_DIR = 'homebrew';
 
@@ -65,6 +66,7 @@ export const useHomebrew = create<HomebrewStore>()((set, get) => ({
     try {
       const packs = await readPacks();
       await dataWorker().syncHomebrew(packs);
+      clearEntityCaches();
       const sources = await dataWorker().sources();
       const infos: PackInfo[] = [];
       for (const pack of packs) {
