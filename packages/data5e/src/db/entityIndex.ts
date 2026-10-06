@@ -5,7 +5,7 @@ import type { RawEntity } from '../identity';
 import { parseKey } from '../keys';
 import type { RegistryEntry } from '../sourceRegistry';
 import { buildSourceCatalog, indexSources, sourceFromMetadata, type SourceInfo } from '../sources';
-import type { Category } from '../lists/categories';
+import { SUPPORT_TYPES, type Category } from '../lists/categories';
 import { buildRow, spellClassLookup, type ListRow } from '../lists/rows';
 import { migrate } from './schema';
 import type { SqlDatabase, SqlValue } from './types';
@@ -48,7 +48,7 @@ export const REGISTRY_FILE = 'js/parser.js';
 const REGISTRY_AUX = 'sourceRegistry';
 
 const SUMMARY_COLUMNS = 'key, type, name, source, edition, page, layer';
-const DEFAULT_EXCLUDED_TYPES = ['bookData', 'adventureData'];
+const DEFAULT_EXCLUDED_TYPES = ['bookData', 'adventureData', ...SUPPORT_TYPES];
 
 function placeholders(n: number): string {
   return Array.from({ length: n }, () => '?').join(', ');

@@ -56,6 +56,7 @@ export {
 export type { SqlDatabase, SqlValue, SqlParams } from './db/types';
 export {
   CATEGORIES,
+  SUPPORT_TYPES,
   categoryById,
   categoryForType,
   type Category,

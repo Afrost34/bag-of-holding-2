@@ -262,6 +262,17 @@ export const CATEGORIES: readonly Category[] = [
   },
 ]; // prettier-ignore
 
+/**
+ * Support data: templates, lookup tables and generator inputs that only appear inside other
+ * pages. Never shown in search results or lists.
+ */
+export const SUPPORT_TYPES: readonly string[] = [
+  'monsterTemplate', 'legendaryGroupTemplate', 'itemEntry', 'itemType', 'itemTypeAdditionalEntries',
+  'languageScript', 'lifeBackground', 'lifeClass', 'name', 'encounter', 'encounterShape',
+  'magicItems', 'artObjects', 'gems', 'hoard', 'individual', 'dragon', 'raceFeature',
+  'makebrewCreatureTrait', 'makebrewCreatureAction',
+]; // prettier-ignore
+
 export function categoryById(id: string): Category | undefined {
   return CATEGORIES.find((c) => c.id === id);
 }

@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { LocalDataSource } from './dataSource';
-import { CATEGORIES, categoryById } from './lists/categories';
+import { CATEGORIES, categoryById, SUPPORT_TYPES } from './lists/categories';
 import { EntityIndex } from './db/entityIndex';
 import { openMemoryDatabase } from './db/sqlite-wasm';
 import { installData, type InstallResult } from './installer';
@@ -19,11 +19,9 @@ import {
 
 /** Types that are support data rather than things to browse (they appear inside other pages). */
 const NOT_BROWSABLE = new Set([
-  'book', 'adventure', 'bookData', 'adventureData', 'classFeature', 'subclassFeature',
-  'itemEntry', 'itemType', 'itemTypeAdditionalEntries', 'itemGroup', 'monsterTemplate',
-  'legendaryGroupTemplate', 'languageScript', 'lifeBackground', 'lifeClass', 'name',
-  'encounter', 'encounterShape', 'magicItems', 'artObjects', 'gems', 'hoard', 'individual',
-  'dragon', 'raceFeature', 'crochetPattern', 'tableGroup',
+  ...SUPPORT_TYPES,
+  // Shown through the book reader and class pages rather than lists.
+  'book', 'adventure', 'bookData', 'adventureData', 'classFeature', 'subclassFeature', 'crochetPattern',
 ]); // prettier-ignore
 
 describe.runIf(hasLocalData())('full 5etools install', () => {

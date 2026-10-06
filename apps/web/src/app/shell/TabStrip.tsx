@@ -1,8 +1,9 @@
 import { cn, IconButton } from '@boh/ui';
 import { useRouter } from '@tanstack/react-router';
-import { Menu, Plus, X } from 'lucide-react';
+import { Menu, Plus, Search, X } from 'lucide-react';
 import { useEffect, useRef, type DragEvent, type Ref } from 'react';
 import { moduleForPath, titleForPath } from '../nav';
+import { useSearchPalette } from '../search/store';
 import { HOME_PATH, type Tab } from '../tabs/model';
 import { useTabs } from '../tabs/store';
 
@@ -15,6 +16,7 @@ export function TabStrip({ onOpenMenu }: TabStripProps) {
   const router = useRouter();
   const { tabs, activeId, openTab, activateTab, closeTab, moveTab } = useTabs();
   const activeRef = useRef<HTMLDivElement>(null);
+  const openSearch = useSearchPalette((s) => s.setOpen);
 
   const go = (path: string) => {
     if (router.state.location.href !== path) router.history.push(path);
@@ -72,6 +74,18 @@ export function TabStrip({ onOpenMenu }: TabStripProps) {
         icon={<Plus className="h-4 w-4" />}
         onClick={() => {
           go(openTab(HOME_PATH));
+        }}
+      />
+      <span className="flex-1" />
+      <IconButton
+        className="mb-1"
+        variant="chrome"
+        size="icon-sm"
+        label="Search (Ctrl+K)"
+        tooltipSide="bottom"
+        icon={<Search className="h-4 w-4" />}
+        onClick={() => {
+          openSearch(true);
         }}
       />
     </div>
