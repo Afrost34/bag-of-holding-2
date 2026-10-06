@@ -11,7 +11,7 @@ import {
   spellDuration,
   spellLevelSchool,
   spellRange,
-} from '../../format';
+} from '@boh/data5e/format';
 import { Entries } from '../Entries';
 import { registerInlineEntity } from '../inlineEntity';
 import { RichText } from '../RichText';

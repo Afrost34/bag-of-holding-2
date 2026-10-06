@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { LocalDataSource } from './dataSource';
+import { CATEGORIES, categoryById } from './lists/categories';
 import { EntityIndex } from './db/entityIndex';
 import { openMemoryDatabase } from './db/sqlite-wasm';
 import { installData, type InstallResult } from './installer';
@@ -15,6 +16,15 @@ import {
   localDataDir,
   PINNED_5ETOOLS_VERSION,
 } from './testing/localData';
+
+/** Types that are support data rather than things to browse (they appear inside other pages). */
+const NOT_BROWSABLE = new Set([
+  'book', 'adventure', 'bookData', 'adventureData', 'classFeature', 'subclassFeature',
+  'itemEntry', 'itemType', 'itemTypeAdditionalEntries', 'itemGroup', 'monsterTemplate',
+  'legendaryGroupTemplate', 'languageScript', 'lifeBackground', 'lifeClass', 'name',
+  'encounter', 'encounterShape', 'magicItems', 'artObjects', 'gems', 'hoard', 'individual',
+  'dragon', 'raceFeature', 'crochetPattern', 'tableGroup',
+]); // prettier-ignore
 
 describe.runIf(hasLocalData())('full 5etools install', () => {
   let index: EntityIndex;
@@ -56,6 +66,37 @@ describe.runIf(hasLocalData())('full 5etools install', () => {
       edition: '2024',
     });
     expect(sources.filter((s) => s.name === s.id).map((s) => s.id)).toEqual(['Generic']);
+  });
+
+  it('builds every compendium list quickly, with useful fields', () => {
+    for (const category of CATEGORIES) {
+      const started = performance.now();
+      const rows = index.listRows(category);
+      const ms = performance.now() - started;
+      expect(rows.length, category.id).toBeGreaterThan(0);
+      expect(ms, `${category.id} took ${ms.toFixed(0)} ms`).toBeLessThan(3000);
+    }
+    const spellsCategory = categoryById('spells');
+    const creaturesCategory = categoryById('creatures');
+    if (!spellsCategory || !creaturesCategory) throw new Error('categories missing');
+    const spells = index.listRows(spellsCategory);
+    const withClasses = spells.filter((r) => (r.f.classes as string[]).length > 0).length;
+    expect(withClasses / spells.length).toBeGreaterThan(0.8);
+    const fireball = spells.find((r) => r.key === 'spell:fireball@xphb');
+    expect(fireball?.f.level).toBe(3);
+    expect(fireball?.f.school).toBe('Evocation');
+    expect(fireball?.f.classes).toContain('Wizard');
+    const creatures = index.listRows(creaturesCategory);
+    // Summoned spirits and the like legitimately have no CR.
+    expect(creatures.filter((r) => r.f.cr === null).length / creatures.length).toBeLessThan(0.05);
+  });
+
+  it('puts every browsable entity type in a list', () => {
+    const listed = new Set(CATEGORIES.flatMap((c) => c.types));
+    const unlisted = Object.keys(index.countsByType()).filter(
+      (t) => !listed.has(t) && !t.endsWith('Fluff') && !NOT_BROWSABLE.has(t),
+    );
+    expect(unlisted).toEqual([]);
   });
 
   it('is a no-op when re-run with the same files', async () => {

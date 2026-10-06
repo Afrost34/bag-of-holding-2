@@ -1,5 +1,6 @@
 import type {
   EntityDetail,
+  ListRow,
   EntitySummary,
   HomebrewPack,
   HomebrewResult,
@@ -71,6 +72,10 @@ export interface DataWorkerApi {
   sources(): Promise<SourceSummary[]>;
   search(text: string, options?: SearchOptions): Promise<EntitySummary[]>;
   entity(key: string): Promise<EntityDetail | undefined>;
+  /** All rows of a compendium list category (every source; filter in the UI). */
+  listRows(categoryId: string): Promise<ListRow[]>;
+  /** Number of entries per list category. */
+  categoryCounts(): Promise<Record<string, number>>;
   /** For each candidate list, the first key that exists (link resolution). */
   resolve(candidateLists: string[][]): Promise<(string | null)[]>;
   checkReferences(references: { key: string; usedIn: string }[]): Promise<ReferenceReport>;

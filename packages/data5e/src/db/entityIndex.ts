@@ -5,6 +5,8 @@ import type { RawEntity } from '../identity';
 import { parseKey } from '../keys';
 import type { RegistryEntry } from '../sourceRegistry';
 import { buildSourceCatalog, indexSources, sourceFromMetadata, type SourceInfo } from '../sources';
+import type { Category } from '../lists/categories';
+import { buildRow, spellClassLookup, type ListRow } from '../lists/rows';
 import { migrate } from './schema';
 import type { SqlDatabase, SqlValue } from './types';
 
@@ -480,7 +482,46 @@ export class EntityIndex {
   }
 
   // endregion
+
+  // region Lists
+
+  /** Rows for a compendium list (all sources; the UI filters by enabled sources). */
+  listRows(category: Category): ListRow[] {
+    const lookupCache = new Map<string, Record<string, unknown> | undefined>();
+    const spellClasses = spellClassLookup((source) => {
+      if (!lookupCache.has(source)) {
+        lookupCache.set(
+          source,
+          this.getAux(SPELL_LOOKUP_FILE, source) as Record<string, unknown> | undefined,
+        );
+      }
+      return lookupCache.get(source);
+    });
+    const rows = this.db.all<EntitySummary & { raw: string; resolved: string | null }>(
+      `SELECT ${SUMMARY_COLUMNS}, raw, resolved FROM entities
+       WHERE type IN (${placeholders(category.types.length)})`,
+      [...category.types],
+    );
+    return rows.map(({ raw, resolved, ...summary }) =>
+      buildRow({ ...summary, data: JSON.parse(resolved ?? raw) as RawEntity }, { spellClasses }),
+    );
+  }
+
+  /** Entity counts per list category, for the compendium landing page. */
+  countTypes(types: readonly string[]): number {
+    return (
+      this.db.get<{ n: number }>(
+        `SELECT COUNT(*) AS n FROM entities WHERE type IN (${placeholders(types.length)})`,
+        [...types],
+      )?.n ?? 0
+    );
+  }
+
+  // endregion
 }
+
+/** 5etools' generated spell → class lookup, kept as aux data keyed by source. */
+const SPELL_LOOKUP_FILE = 'data/generated/gendata-spell-source-lookup.json';
 
 function likeEscape(value: string): string {
   return value.replace(/[\\%_]/g, (c) => `\\${c}`);
