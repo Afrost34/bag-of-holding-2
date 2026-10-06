@@ -1,7 +1,7 @@
-import { cn, Panel } from '@boh/ui';
-import { Database, Download } from 'lucide-react';
+import { cn } from '@boh/ui';
 import { AppLink } from '../../app/AppLink';
 import { navModules } from '../../app/nav';
+import { DataStatusCard } from './DataStatusCard';
 
 export function HomePage() {
   const modules = navModules.filter((m) => m.path !== '/' && m.footer !== true);
@@ -13,21 +13,7 @@ export function HomePage() {
         <p className="mt-1 text-muted">Everything for your table, in one place, online or off.</p>
       </header>
 
-      <Panel title="5etools data">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Database className="h-8 w-8 shrink-0 text-faint" aria-hidden />
-          <div className="flex-1">
-            <p className="font-medium">Not downloaded yet</p>
-            <p className="text-sm text-muted">
-              Downloading and updating the 5etools data arrives in milestone 1. It is stored on this
-              device only and never uploaded.
-            </p>
-          </div>
-          <span className="inline-flex items-center gap-1.5 self-start rounded-md border border-dashed border-border px-2.5 py-1 text-xs text-faint sm:self-center">
-            <Download className="h-3.5 w-3.5" aria-hidden /> Coming in M1
-          </span>
-        </div>
-      </Panel>
+      <DataStatusCard />
 
       <section aria-labelledby="modules-heading">
         <h2 id="modules-heading" className="mb-3 font-serif text-lg font-bold">

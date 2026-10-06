@@ -19,6 +19,13 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
   },
+  // SQLite ships its own .wasm next to its JS; pre-bundling would break that lookup.
+  optimizeDeps: {
+    exclude: ['@sqlite.org/sqlite-wasm'],
+  },
+  worker: {
+    format: 'es',
+  },
   plugins: [
     tanstackRouter({ target: 'react', autoCodeSplitting: true }),
     react(),
@@ -48,7 +55,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff,woff2}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff,woff2,wasm}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       },
     }),

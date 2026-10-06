@@ -7,6 +7,7 @@ import tseslint from 'typescript-eslint';
 export default tseslint.config(
   {
     ignores: [
+      '.data/**',
       '**/dist/**',
       '**/coverage/**',
       '**/node_modules/**',
@@ -58,8 +59,13 @@ export default tseslint.config(
     languageOptions: { globals: { ...globals.node } },
   },
   {
-    files: ['**/*.js', '**/*.cjs'],
+    files: ['**/*.js', '**/*.cjs', '**/*.mjs'],
     ...tseslint.configs.disableTypeChecked,
+  },
+  {
+    files: ['**/scripts/**/*.mjs'],
+    languageOptions: { globals: { ...globals.node } },
+    rules: { 'no-console': 'off' },
   },
   {
     files: ['**/*.cjs'],

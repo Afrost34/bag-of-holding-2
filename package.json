@@ -19,7 +19,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "pnpm --filter @boh/web e2e",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm deps:check && pnpm test"
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm deps:check && pnpm test",
+    "data:fetch": "node packages/data5e/scripts/fetch-data.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

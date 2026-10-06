@@ -20,6 +20,7 @@ import { Route as HomebrewRouteImport } from './routes/homebrew'
 import { Route as MapsRouteImport } from './routes/maps'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as VaultRouteImport } from './routes/vault'
+import { Route as SettingsDataRouteImport } from './routes/settings_.data'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -76,6 +77,11 @@ const VaultRoute = VaultRouteImport.update({
   path: '/vault',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsDataRoute = SettingsDataRouteImport.update({
+  id: '/settings_/data',
+  path: '/settings/data',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -89,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/maps': typeof MapsRoute
   '/settings': typeof SettingsRoute
   '/vault': typeof VaultRoute
+  '/settings/data': typeof SettingsDataRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -102,6 +109,7 @@ export interface FileRoutesByTo {
   '/maps': typeof MapsRoute
   '/settings': typeof SettingsRoute
   '/vault': typeof VaultRoute
+  '/settings/data': typeof SettingsDataRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/maps': typeof MapsRoute
   '/settings': typeof SettingsRoute
   '/vault': typeof VaultRoute
+  '/settings_/data': typeof SettingsDataRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/maps'
     | '/settings'
     | '/vault'
+    | '/settings/data'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/maps'
     | '/settings'
     | '/vault'
+    | '/settings/data'
   id:
     | '__root__'
     | '/'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/maps'
     | '/settings'
     | '/vault'
+    | '/settings_/data'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -171,6 +183,7 @@ export interface RootRouteChildren {
   MapsRoute: typeof MapsRoute
   SettingsRoute: typeof SettingsRoute
   VaultRoute: typeof VaultRoute
+  SettingsDataRoute: typeof SettingsDataRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -252,6 +265,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VaultRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings_/data': {
+      id: '/settings_/data'
+      path: '/settings/data'
+      fullPath: '/settings/data'
+      preLoaderRoute: typeof SettingsDataRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -267,6 +287,7 @@ const rootRouteChildren: RootRouteChildren = {
   MapsRoute: MapsRoute,
   SettingsRoute: SettingsRoute,
   VaultRoute: VaultRoute,
+  SettingsDataRoute: SettingsDataRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

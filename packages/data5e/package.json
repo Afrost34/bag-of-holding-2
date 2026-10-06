@@ -1,0 +1,21 @@
+{
+  "name": "@boh/data5e",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./sqlite": "./src/db/sqlite-wasm.ts",
+    "./testing": "./src/testing/fixtures.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@sqlite.org/sqlite-wasm": "3.53.4-build2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "vitest": "^5.0.3"
+  }
+}
