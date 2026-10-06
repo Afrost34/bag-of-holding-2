@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import tailwindcss from '@tailwindcss/vite';
 import { tanstackRouter } from '@tanstack/router-plugin/vite';
@@ -9,11 +10,26 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
   version: string;
 };
 
+/** Short commit and date of this build, shown in Settings → About to tell versions apart. */
+function buildId(): string {
+  const date = new Date().toISOString().slice(0, 16).replace('T', ' ');
+  let commit = process.env.GITHUB_SHA?.slice(0, 7);
+  if (!commit) {
+    try {
+      commit = execSync('git rev-parse --short HEAD').toString().trim();
+    } catch {
+      commit = 'dev';
+    }
+  }
+  return `${date} UTC · ${commit}`;
+}
+
 export default defineConfig({
   // Relative base: the same build runs on GitHub Pages (/bag-of-holding-2/), in Tauri and locally.
   base: './',
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
+    __APP_BUILD__: JSON.stringify(buildId()),
   },
   server: {
     port: 5173,

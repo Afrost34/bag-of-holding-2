@@ -5,6 +5,7 @@ export default defineProject({
   plugins: [react()],
   define: {
     __APP_VERSION__: JSON.stringify('test'),
+    __APP_BUILD__: JSON.stringify('test'),
   },
   test: {
     name: 'web',

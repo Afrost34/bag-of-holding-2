@@ -92,6 +92,8 @@ export function SettingsPage() {
         <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
           <dt className="text-muted">Version</dt>
           <dd>{__APP_VERSION__}</dd>
+          <dt className="text-muted">Build</dt>
+          <dd>{__APP_BUILD__}</dd>
           <dt className="text-muted">Running as</dt>
           <dd>{platform === 'desktop' ? 'Desktop app' : 'Web app'}</dd>
           <dt className="text-muted">Local storage</dt>

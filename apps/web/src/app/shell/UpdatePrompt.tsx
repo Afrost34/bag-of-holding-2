@@ -1,6 +1,6 @@
 import { Button } from '@boh/ui';
-import { Sparkles } from 'lucide-react';
-import { useEffect } from 'react';
+import { Loader2, Sparkles } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { isDesktop } from '../platform';
 
@@ -8,6 +8,8 @@ import { isDesktop } from '../platform';
 const APPLY_SILENTLY_WITHIN_MS = 15_000;
 const CHECK_EVERY_MS = 60 * 60 * 1000;
 const openedAt = Date.now();
+/** If the page is still here this long after clicking, the switch-over failed. */
+const STALLED_AFTER_MS = 8000;
 
 /**
  * Activates whichever new version is waiting and reloads into it. Done by hand rather than with
@@ -51,38 +53,74 @@ function WebUpdatePrompt() {
     },
   });
 
+  const [phase, setPhase] = useState<'idle' | 'updating' | 'stalled'>('idle');
+
+  const startUpdate = () => {
+    setPhase('updating');
+    void applyUpdate();
+    setTimeout(() => {
+      setPhase('stalled');
+    }, STALLED_AFTER_MS);
+  };
+
   useEffect(() => {
-    if (needRefresh && Date.now() - openedAt < APPLY_SILENTLY_WITHIN_MS) {
-      void applyUpdate();
-    }
+    if (!needRefresh || Date.now() - openedAt >= APPLY_SILENTLY_WITHIN_MS) return;
+    const timer = setTimeout(startUpdate, 0);
+    return () => {
+      clearTimeout(timer);
+    };
   }, [needRefresh]);
 
   if (!needRefresh && !offlineReady) return null;
+
+  const message =
+    phase === 'updating'
+      ? 'Updating Bag of Holding…'
+      : phase === 'stalled'
+        ? 'The update is taking longer than expected. Close every Bag of Holding tab or window and open it again.'
+        : needRefresh
+          ? 'A new version of Bag of Holding is ready.'
+          : 'Ready to work offline.';
 
   return (
     <div
       role="status"
       className="fixed inset-x-4 bottom-4 z-50 flex items-center gap-3 rounded-lg border-2 border-accent bg-surface p-3 text-sm shadow-card sm:inset-x-auto sm:right-4 sm:max-w-sm"
     >
-      {needRefresh && <Sparkles className="h-5 w-5 shrink-0 text-accent" aria-hidden />}
-      <span className="flex-1">
-        {needRefresh ? 'A new version of Bag of Holding is ready.' : 'Ready to work offline.'}
-      </span>
-      {needRefresh && (
-        <Button variant="primary" size="sm" onClick={() => void applyUpdate()}>
+      {phase === 'updating' ? (
+        <Loader2 className="h-5 w-5 shrink-0 animate-spin text-accent" aria-hidden />
+      ) : (
+        needRefresh && <Sparkles className="h-5 w-5 shrink-0 text-accent" aria-hidden />
+      )}
+      <span className="flex-1">{message}</span>
+      {needRefresh && phase === 'idle' && (
+        <Button variant="primary" size="sm" onClick={startUpdate}>
           Update now
         </Button>
       )}
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => {
-          setNeedRefresh(false);
-          setOfflineReady(false);
-        }}
-      >
-        {needRefresh ? 'Later' : 'OK'}
-      </Button>
+      {phase === 'stalled' && (
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() => {
+            window.location.reload();
+          }}
+        >
+          Reload
+        </Button>
+      )}
+      {phase !== 'updating' && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            setNeedRefresh(false);
+            setOfflineReady(false);
+          }}
+        >
+          {needRefresh ? 'Later' : 'OK'}
+        </Button>
+      )}
     </div>
   );
 }
