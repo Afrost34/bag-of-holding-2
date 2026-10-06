@@ -1,0 +1,24 @@
+@import 'tailwindcss';
+@import '@boh/ui/tokens.css';
+
+@source '../../../packages/ui/src';
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    overscroll-behavior: none;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

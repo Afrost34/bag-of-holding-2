@@ -1,0 +1,155 @@
+/*
+ * Bag of Holding design tokens.
+ * Import AFTER `@import "tailwindcss";` so the @theme block below is picked up.
+ * Light is the default; dark applies when the OS prefers it (unless the user forced light)
+ * or when <html data-theme="dark"> is set.
+ */
+@import '@fontsource-variable/inter';
+@import '@fontsource/merriweather/400.css';
+@import '@fontsource/merriweather/700.css';
+
+:root {
+  color-scheme: light;
+  --boh-bg: #f3f1ee;
+  --boh-surface: #ffffff;
+  --boh-surface-2: #f8f7f5;
+  --boh-sunken: #ebe8e3;
+  --boh-border: #dcd8d1;
+  --boh-border-strong: #c4bfb6;
+  --boh-text: #1d1d22;
+  --boh-text-muted: #5f5b55;
+  --boh-text-faint: #8a857d;
+  --boh-accent: #c53131;
+  --boh-accent-hover: #a82828;
+  --boh-accent-fg: #ffffff;
+  --boh-accent-soft: rgb(197 49 49 / 0.1);
+  --boh-chrome: #22252e;
+  --boh-chrome-2: #2c303b;
+  --boh-chrome-fg: #f2f2f4;
+  --boh-header: #22252e;
+  --boh-header-fg: #f2f2f4;
+  --boh-chrome-muted: #a3a6b1;
+  --boh-link: #1f5fbf;
+  --boh-focus: #2f6fdd;
+  --boh-dice-bg: #fdecdc;
+  --boh-dice-fg: #b4520f;
+  --boh-dice-border: #e9a46b;
+  --boh-str: #d43c3c;
+  --boh-dex: #2e9e4f;
+  --boh-con: #e07b1a;
+  --boh-int: #2f7fd8;
+  --boh-wis: #8a4fd0;
+  --boh-cha: #c99712;
+  --boh-shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 2px 8px rgb(0 0 0 / 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --boh-bg: #0f1013;
+    --boh-surface: #1a1c22;
+    --boh-surface-2: #22252c;
+    --boh-sunken: #0e0f12;
+    --boh-border: #2e313a;
+    --boh-border-strong: #424653;
+    --boh-text: #ecebe8;
+    --boh-text-muted: #a6a39c;
+    --boh-text-faint: #77746e;
+    --boh-accent: #e5484d;
+    --boh-accent-hover: #f06367;
+    --boh-accent-fg: #ffffff;
+    --boh-accent-soft: rgb(229 72 77 / 0.14);
+    --boh-chrome: #1d2027;
+    --boh-chrome-2: #2a2e38;
+    --boh-chrome-fg: #ecebe8;
+    --boh-header: #2a2e38;
+    --boh-header-fg: #ecebe8;
+    --boh-chrome-muted: #8d909a;
+    --boh-link: #7aa7ff;
+    --boh-focus: #7aa7ff;
+    --boh-dice-bg: #3a2414;
+    --boh-dice-fg: #f5a65f;
+    --boh-dice-border: #8a5a30;
+    --boh-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 2px 8px rgb(0 0 0 / 0.3);
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --boh-bg: #0f1013;
+  --boh-surface: #1a1c22;
+  --boh-surface-2: #22252c;
+  --boh-sunken: #0e0f12;
+  --boh-border: #2e313a;
+  --boh-border-strong: #424653;
+  --boh-text: #ecebe8;
+  --boh-text-muted: #a6a39c;
+  --boh-text-faint: #77746e;
+  --boh-accent: #e5484d;
+  --boh-accent-hover: #f06367;
+  --boh-accent-fg: #ffffff;
+  --boh-accent-soft: rgb(229 72 77 / 0.14);
+  --boh-chrome: #1d2027;
+  --boh-chrome-2: #2a2e38;
+  --boh-chrome-fg: #ecebe8;
+  --boh-header: #2a2e38;
+  --boh-header-fg: #ecebe8;
+  --boh-chrome-muted: #8d909a;
+  --boh-link: #7aa7ff;
+  --boh-focus: #7aa7ff;
+  --boh-dice-bg: #3a2414;
+  --boh-dice-fg: #f5a65f;
+  --boh-dice-border: #8a5a30;
+  --boh-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 2px 8px rgb(0 0 0 / 0.3);
+}
+
+@theme inline {
+  --font-sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: 'Merriweather', Georgia, 'Times New Roman', serif;
+
+  --color-bg: var(--boh-bg);
+  --color-surface: var(--boh-surface);
+  --color-surface-2: var(--boh-surface-2);
+  --color-sunken: var(--boh-sunken);
+  --color-border: var(--boh-border);
+  --color-border-strong: var(--boh-border-strong);
+  --color-text: var(--boh-text);
+  --color-muted: var(--boh-text-muted);
+  --color-faint: var(--boh-text-faint);
+  --color-accent: var(--boh-accent);
+  --color-accent-hover: var(--boh-accent-hover);
+  --color-accent-fg: var(--boh-accent-fg);
+  --color-accent-soft: var(--boh-accent-soft);
+  --color-chrome: var(--boh-chrome);
+  --color-chrome-2: var(--boh-chrome-2);
+  --color-chrome-fg: var(--boh-chrome-fg);
+  --color-chrome-muted: var(--boh-chrome-muted);
+  --color-header: var(--boh-header);
+  --color-header-fg: var(--boh-header-fg);
+  --color-link: var(--boh-link);
+  --color-focus: var(--boh-focus);
+  --color-dice-bg: var(--boh-dice-bg);
+  --color-dice-fg: var(--boh-dice-fg);
+  --color-dice-border: var(--boh-dice-border);
+  --color-str: var(--boh-str);
+  --color-dex: var(--boh-dex);
+  --color-con: var(--boh-con);
+  --color-int: var(--boh-int);
+  --color-wis: var(--boh-wis);
+  --color-cha: var(--boh-cha);
+  --shadow-card: var(--boh-shadow);
+}
+
+@layer base {
+  html,
+  body {
+    background: var(--boh-bg);
+    color: var(--boh-text);
+    font-family: var(--font-sans);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--boh-focus);
+    outline-offset: 2px;
+  }
+}

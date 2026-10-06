@@ -1,0 +1,8 @@
+pnpm-lock.yaml
+dist
+coverage
+apps/desktop/src-tauri/target
+apps/desktop/src-tauri/gen
+apps/web/src/routeTree.gen.ts
+playwright-report
+test-results

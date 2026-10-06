@@ -1,0 +1,38 @@
+{
+  "name": "bag-of-holding-2",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.34.6",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @boh/web dev",
+    "build": "pnpm --filter @boh/web build",
+    "desktop:dev": "pnpm --filter @boh/desktop dev",
+    "desktop:build": "pnpm --filter @boh/desktop build",
+    "typecheck": "tsc -p tsconfig.json && pnpm -r --parallel typecheck",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "deps:check": "depcruise apps packages --config .dependency-cruiser.cjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "pnpm --filter @boh/web e2e",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm deps:check && pnpm test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.4",
+    "@vitest/coverage-v8": "^5.0.3",
+    "dependency-cruiser": "^18.5.0",
+    "eslint": "^10.12.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.9",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.71.1",
+    "vitest": "^5.0.3"
+  }
+}

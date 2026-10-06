@@ -1,0 +1,87 @@
+import { expect, test, type Page } from '@playwright/test';
+
+const isPhone = (page: Page) => (page.viewportSize()?.width ?? 1280) < 768;
+
+/** Opens the navigation (drawer on phones) and returns the nav landmark. */
+async function openNav(page: Page) {
+  if (isPhone(page)) await page.getByRole('button', { name: 'Open menu' }).click();
+  return page.getByRole('navigation', { name: 'Main' });
+}
+
+test.beforeEach(async ({ page }) => {
+  await page.goto('./');
+});
+
+test('home page lists every module', async ({ page }) => {
+  await expect(page.getByRole('heading', { level: 1, name: 'Bag of Holding' })).toBeVisible();
+  for (const name of ['Compendium', 'Campaigns', 'Vault', 'Characters', 'Boards', 'Maps']) {
+    await expect(
+      page.getByRole('main').getByRole('link', { name: new RegExp(name) }),
+    ).toBeVisible();
+  }
+});
+
+test('navigating updates the URL and the active tab', async ({ page }) => {
+  const nav = await openNav(page);
+  await nav.getByRole('link', { name: /Compendium/ }).click();
+  await expect(page).toHaveURL(/#\/compendium$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Compendium' })).toBeVisible();
+  await expect(page.getByRole('tab', { selected: true })).toHaveText(/Compendium/);
+  await expect(page.getByRole('tab')).toHaveCount(1);
+});
+
+test('deep links open the right page', async ({ page }) => {
+  await page.goto('./#/maps');
+  await expect(page.getByRole('heading', { level: 1, name: 'Maps' })).toBeVisible();
+  await page.goto('./#/no-such-page');
+  await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
+});
+
+test('tabs open, switch, close and survive a reload', async ({ page }) => {
+  test.skip(isPhone(page), 'Ctrl+click is a desktop gesture');
+  const nav = page.getByRole('navigation', { name: 'Main' });
+
+  await nav.getByRole('link', { name: /Vault/ }).click();
+  await nav.getByRole('link', { name: /Maps/ }).click({ modifiers: ['Control'] });
+
+  const tabs = page.getByRole('tab');
+  await expect(tabs).toHaveCount(2);
+  await expect(page.getByRole('tab', { selected: true })).toHaveText(/Maps/);
+  await expect(page).toHaveURL(/#\/maps$/);
+
+  await tabs.filter({ hasText: 'Vault' }).click();
+  await expect(page).toHaveURL(/#\/vault$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Vault' })).toBeVisible();
+
+  await page.reload();
+  await expect(tabs).toHaveCount(2);
+  await expect(page.getByRole('tab', { selected: true })).toHaveText(/Vault/);
+
+  await page.getByRole('button', { name: 'Close Vault' }).click();
+  await expect(tabs).toHaveCount(1);
+  await expect(page).toHaveURL(/#\/maps$/);
+
+  await page.getByRole('button', { name: 'New tab' }).click();
+  await expect(tabs).toHaveCount(2);
+  await expect(page.getByRole('tab', { selected: true })).toHaveText(/Home/);
+});
+
+test('theme choice applies and persists', async ({ page }) => {
+  await page.goto('./#/settings');
+  await page.getByRole('radio', { name: 'Dark' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.getByRole('radio', { name: 'Dark' })).toHaveAttribute('aria-checked', 'true');
+
+  await page.getByRole('radio', { name: 'System' }).click();
+  await expect(page.locator('html')).not.toHaveAttribute('data-theme');
+});
+
+test('phone drawer navigates and closes', async ({ page }) => {
+  test.skip(!isPhone(page), 'Drawer only exists on small screens');
+  const nav = await openNav(page);
+  await nav.getByRole('link', { name: /Settings/ }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Main' })).toBeHidden();
+});

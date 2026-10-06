@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#22252e" />
+    <meta
+      name="description"
+      content="D&D compendium, characters, boards, maps and campaign notes."
+    />
+    <link rel="icon" href="./favicon.ico" sizes="48x48" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon-180x180.png" />
+    <title>Bag of Holding</title>
+    <script>
+      // Apply the saved theme before first paint to avoid a light/dark flash.
+      try {
+        var saved = JSON.parse(localStorage.getItem('boh.theme') || 'null');
+        var mode = saved && saved.state && saved.state.mode;
+        if (mode === 'light' || mode === 'dark') document.documentElement.dataset.theme = mode;
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,24 @@
+node_modules/
+dist/
+dist-ssr/
+coverage/
+*.local
+.env
+.env.*
+!.env.example
+# Tauri
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+# 5etools data must never be committed
+.data/
+**/5etools-data/
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
