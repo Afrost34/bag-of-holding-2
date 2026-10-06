@@ -10,6 +10,27 @@ const CHECK_EVERY_MS = 60 * 60 * 1000;
 const openedAt = Date.now();
 
 /**
+ * Activates whichever new version is waiting and reloads into it. Done by hand rather than with
+ * the plugin's `updateServiceWorker`, which only reloads for the version it was tracking: if a
+ * second deploy lands while the page is open, its button silently did nothing.
+ */
+async function applyUpdate(): Promise<void> {
+  let reloaded = false;
+  const reload = () => {
+    if (reloaded) return;
+    reloaded = true;
+    window.location.reload();
+  };
+  navigator.serviceWorker.addEventListener('controllerchange', reload, { once: true });
+  const registration = await navigator.serviceWorker.getRegistration();
+  const waiting = registration?.waiting;
+  if (waiting) waiting.postMessage({ type: 'SKIP_WAITING' });
+  else reload(); // Already activated (e.g. by another window): just load it.
+  // Safety net if the switch-over event never arrives.
+  setTimeout(reload, 3000);
+}
+
+/**
  * New-version handling for the web app. The service worker keeps serving the cached version
  * until a new one is activated, so without this a deploy would stay invisible.
  * The desktop app ships its files locally and updates through its own installer.
@@ -22,7 +43,6 @@ function WebUpdatePrompt() {
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     offlineReady: [offlineReady, setOfflineReady],
-    updateServiceWorker,
   } = useRegisterSW({
     onRegisteredSW(_url, registration) {
       if (registration) {
@@ -33,9 +53,9 @@ function WebUpdatePrompt() {
 
   useEffect(() => {
     if (needRefresh && Date.now() - openedAt < APPLY_SILENTLY_WITHIN_MS) {
-      void updateServiceWorker(true);
+      void applyUpdate();
     }
-  }, [needRefresh, updateServiceWorker]);
+  }, [needRefresh]);
 
   if (!needRefresh && !offlineReady) return null;
 
@@ -49,7 +69,7 @@ function WebUpdatePrompt() {
         {needRefresh ? 'A new version of Bag of Holding is ready.' : 'Ready to work offline.'}
       </span>
       {needRefresh && (
-        <Button variant="primary" size="sm" onClick={() => void updateServiceWorker(true)}>
+        <Button variant="primary" size="sm" onClick={() => void applyUpdate()}>
           Update now
         </Button>
       )}
