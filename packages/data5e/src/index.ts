@@ -1,0 +1,56 @@
+export { makeKey, parseKey, isEntityKey, type EntityKey, type ParsedKey } from './keys';
+export { identify, type RawEntity, type Identity } from './identity';
+export { EDITION_2024_START, type Edition } from './editions';
+export { isDataFile, contentFile } from './files';
+export {
+  extractFile,
+  type EntityRecord,
+  type AuxRecord,
+  type ExtractIssue,
+  type ExtractResult,
+  type ExtractContext,
+} from './extract';
+export { CopyResolver, CopyError } from './copy';
+export { parseSourceRegistry, type RegistryEntry } from './sourceRegistry';
+export { buildSourceCatalog, isPlaytestSource, type SourceInfo, type SourceKind } from './sources';
+export {
+  DEFAULT_REPO,
+  GitHubDataSource,
+  LocalDataSource,
+  latestReleaseTag,
+  normaliseLocalPath,
+  versionFromPackageJson,
+  type DataSource,
+  type RemoteFile,
+  type Fetch,
+} from './dataSource';
+export { gitBlobSha } from './gitsha';
+export {
+  installData,
+  planInstall,
+  META,
+  type InstallOptions,
+  type InstallPhase,
+  type InstallPlan,
+  type InstallProgress,
+  type InstallResult,
+} from './installer';
+export {
+  homebrewSources,
+  indexHomebrew,
+  syncHomebrew,
+  HomebrewError,
+  type HomebrewPack,
+  type HomebrewResult,
+} from './homebrew';
+export { checkReferences, type BrokenReference, type ReferenceReport } from './references';
+export {
+  EntityIndex,
+  toFtsQuery,
+  type EntityDetail,
+  type EntitySummary,
+  type Layer,
+  type SearchOptions,
+  type SourceSummary,
+} from './db/entityIndex';
+export type { SqlDatabase, SqlValue, SqlParams } from './db/types';

@@ -45,6 +45,21 @@ module.exports = {
       },
     },
     {
+      name: 'data5e-is-ui-free',
+      severity: 'error',
+      comment:
+        'The data layer is plain TypeScript (runs in a worker and in Node): no React, no UI.',
+      from: { path: '^packages/data5e/' },
+      to: { path: '(^packages/(ui|storage)/)|(node_modules/(react|react-dom)/)' },
+    },
+    {
+      name: 'test-fixtures-only-in-tests',
+      severity: 'error',
+      comment: 'Test fixtures and local-data helpers are for tests and e2e only.',
+      from: { pathNot: '(\\.(test|testkit)\\.tsx?$)|(/e2e/)|(/testing/)' },
+      to: { path: '/src/testing/' },
+    },
+    {
       name: 'no-test-code-in-prod',
       severity: 'error',
       from: { pathNot: '\\.(test|testkit)\\.tsx?$' },

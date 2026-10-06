@@ -1,6 +1,7 @@
 import { cn, Panel } from '@boh/ui';
 import { OpfsFileStore } from '@boh/storage';
-import { Monitor, Moon, Sun, type LucideIcon } from 'lucide-react';
+import { ChevronRight, Database, Monitor, Moon, Sun, type LucideIcon } from 'lucide-react';
+import { AppLink } from '../../app/AppLink';
 import { currentPlatform } from '../../app/platform';
 import { useTheme, type ThemeMode } from '../../app/theme';
 
@@ -48,6 +49,22 @@ export function SettingsPage() {
             ))}
           </div>
         </fieldset>
+      </Panel>
+
+      <Panel title="Data">
+        <AppLink
+          to="/settings/data"
+          className="flex items-center gap-3 rounded-md p-1 hover:bg-sunken"
+        >
+          <Database className="h-5 w-5 shrink-0 text-muted" aria-hidden />
+          <span className="flex-1">
+            <span className="block text-sm font-medium">Data & sources</span>
+            <span className="block text-sm text-muted">
+              Download or update 5etools data, choose sources, add homebrew.
+            </span>
+          </span>
+          <ChevronRight className="h-4 w-4 text-faint" aria-hidden />
+        </AppLink>
       </Panel>
 
       <Panel title="About">

@@ -19,6 +19,7 @@ pnpm dev              # web app at http://localhost:5173
 pnpm desktop:dev      # desktop app (needs Rust)
 pnpm check            # format + lint + typecheck + boundaries + unit tests — run before every commit
 pnpm e2e              # Playwright against the production build
+pnpm data:fetch       # download the pinned 5etools release into .data/ (for conformance tests)
 pnpm format           # fix formatting
 ```
 
@@ -36,10 +37,15 @@ apps/web/              the app (React + Vite + TanStack Router, hash history)
 apps/desktop/          Tauri 2 shell (Rust); no app logic lives here
 packages/ui/           design tokens (tokens.css) and shared components
 packages/storage/      FileStore interface + memory / OPFS / Tauri implementations
+packages/data5e/       5etools download, extraction, keys, _copy resolution, SQLite index
 docs/adr/              architecture decision records
 ```
 
-Packages still to come, per the plan: `data5e`, `renderer`, `rules`, `dice`, `vault`.
+Packages still to come, per the plan: `renderer`, `rules`, `dice`, `vault`.
+
+The 5etools index lives in a Web Worker (`apps/web/src/app/data/data.worker.ts`); the UI talks to
+it through `DataWorkerApi` (`protocol.ts`) via Comlink. Never query SQLite from the main thread.
+See ADR 0003 for how the index is built.
 
 ## Hard rules
 
@@ -55,7 +61,10 @@ Packages still to come, per the plan: `data5e`, `renderer`, `rules`, `dice`, `va
    `apps/web/src/app/tabs/model.ts` + its test), and keep React components thin.
 5. **Every FileStore implementation passes `contract.testkit.ts`.** Extend the contract when you
    add behaviour.
-6. **Offline first.** No runtime CDN requests for code, fonts or styles; everything is bundled and
+6. **Conformance suites run on real data.** `packages/data5e/src/*conformance*.test.ts` process
+   the whole pinned 5etools release. When bumping `PINNED_5ETOOLS_VERSION`, fix what they report;
+   never loosen them.
+7. **Offline first.** No runtime CDN requests for code, fonts or styles; everything is bundled and
    precached by the service worker.
 
 ## UI conventions

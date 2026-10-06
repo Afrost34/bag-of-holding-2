@@ -25,7 +25,17 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm deps:check
+      # Conformance suites run against the real, pinned 5etools release (never committed).
+      - uses: actions/cache@v4
+        with:
+          path: .data/5etools
+          key: 5etools-${{ hashFiles('packages/data5e/src/testing/localData.ts') }}
+      - run: pnpm data:fetch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: pnpm test
+        env:
+          REQUIRE_5ETOOLS_DATA: 'true'
 
   e2e:
     name: End-to-end tests
