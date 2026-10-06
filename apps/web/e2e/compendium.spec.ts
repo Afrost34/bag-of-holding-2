@@ -28,17 +28,39 @@ test('search opens an entity page with a working roll', async ({ page }) => {
   await expect(results.getByText(/1d20 \+ 4 →/)).toBeVisible();
 });
 
-test('rolls from the dice tray land in the session log', async ({ page }) => {
+test('dice tray: pick dice, advantage via right-click, roll everything', async ({ page }) => {
   await page.goto('./#/');
-  await page.getByRole('button', { name: 'Dice tray' }).click();
-  await page.getByRole('button', { name: 'Add d20' }).click();
+  await page.getByRole('button', { name: 'Dice', exact: true }).click();
+  await page.getByRole('button', { name: 'Add d6' }).click();
+  await page.getByRole('button', { name: 'Add d6' }).click();
+  await page.getByRole('button', { name: 'Add d20' }).click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Add with advantage' }).click();
   await page.getByRole('button', { name: 'Increase modifier' }).click();
-  await page.getByRole('radio', { name: 'advantage', exact: true }).click();
-  await page.getByRole('button', { name: 'Roll', exact: true }).click();
-  await expect(
-    page.getByRole('list', { name: 'Roll results' }).getByText(/1d20 \+ 1 → \[/),
-  ).toBeVisible();
+  await expect(page.getByTestId('dice-pool')).toHaveText('d20 (adv) + 2d6 + 1');
 
-  await page.getByRole('button', { name: /Log \(1\)/ }).click();
-  await expect(page.getByText('Dice tray').last()).toBeVisible();
+  await page.getByRole('button', { name: 'Roll', exact: true }).click();
+  const results = page.getByRole('list', { name: 'Roll results' });
+  await expect(results.getByText(/2d20kh1 \+ 2d6 \+ 1 → \[/)).toBeVisible();
+  // The pool empties and the column closes after a roll.
+  await expect(page.getByTestId('dice-pool')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Dice', exact: true }).click();
+  await page.getByRole('button', { name: 'Roll log' }).click();
+  await expect(page.getByText('Rolls this session (1)')).toBeVisible();
+});
+
+test('clicking a roll just rolls; right-click offers advantage', async ({ page }) => {
+  await page.goto('./#/compendium');
+  await page.getByLabel('Search the compendium').fill('goblin boss');
+  await page.getByRole('link', { name: /Goblin Boss/ }).click();
+
+  const chip = page.getByRole('button', { name: '+4', exact: true }).first();
+  await chip.click();
+  await expect(page.getByRole('menu')).toHaveCount(0);
+  const results = page.getByRole('list', { name: 'Roll results' });
+  await expect(results.getByText(/1d20 \+ 4 →/)).toBeVisible();
+
+  await chip.click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Roll with advantage' }).click();
+  await expect(results.getByText('Adv').first()).toBeVisible();
 });
