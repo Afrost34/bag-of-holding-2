@@ -3,6 +3,7 @@ import { OpfsFileStore } from '@boh/storage';
 import { ChevronRight, Database, Monitor, Moon, Sun, type LucideIcon } from 'lucide-react';
 import { AppLink } from '../../app/AppLink';
 import { currentPlatform } from '../../app/platform';
+import { useDiceSettings } from '../../app/dice/store';
 import { useTheme, type ThemeMode } from '../../app/theme';
 
 const themeOptions: { mode: ThemeMode; label: string; icon: LucideIcon }[] = [
@@ -14,6 +15,7 @@ const themeOptions: { mode: ThemeMode; label: string; icon: LucideIcon }[] = [
 export function SettingsPage() {
   const { mode, setMode } = useTheme();
   const platform = currentPlatform();
+  const { threeD, setThreeD } = useDiceSettings();
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-6 md:px-8 md:py-10">
@@ -49,6 +51,25 @@ export function SettingsPage() {
             ))}
           </div>
         </fieldset>
+      </Panel>
+
+      <Panel title="Dice">
+        <label className="flex items-center gap-3 text-sm">
+          <input
+            type="checkbox"
+            checked={threeD}
+            onChange={(e) => {
+              setThreeD(e.target.checked);
+            }}
+            className="h-4 w-4 accent-[var(--boh-accent)]"
+          />
+          <span>
+            <span className="block font-medium">Show 3D dice</span>
+            <span className="block text-muted">
+              Dice tumble across the screen before the result appears. Turn off on slower devices.
+            </span>
+          </span>
+        </label>
       </Panel>
 
       <Panel title="Data">

@@ -1,5 +1,10 @@
 import { Outlet, useRouterState } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
+import { Dice3DLayer } from '../dice/Dice3DLayer';
+import { DiceTray } from '../dice/DiceTray';
+import { RollInputDialog } from '../dice/RollInputDialog';
+import { RollResults } from '../dice/RollResults';
+import { AppRendererProvider } from '../renderer/services';
 import { useTabs } from '../tabs/store';
 import { useApplyTheme } from '../theme';
 import { Sidebar } from './Sidebar';
@@ -29,8 +34,10 @@ export function AppShell() {
             setDrawerOpen(true);
           }}
         />
-        <main className="min-h-0 flex-1 overflow-y-auto">
-          <Outlet />
+        <main className="min-h-0 flex-1 overflow-y-auto pb-16">
+          <AppRendererProvider>
+            <Outlet />
+          </AppRendererProvider>
         </main>
       </div>
 
@@ -54,6 +61,10 @@ export function AppShell() {
         </div>
       )}
 
+      <Dice3DLayer />
+      <RollResults />
+      <DiceTray />
+      <RollInputDialog />
       <UpdatePrompt />
     </div>
   );

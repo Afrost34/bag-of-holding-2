@@ -57,6 +57,18 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff,woff2,wasm}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        // 5etools art is fetched on demand from its image mirror and kept for offline use.
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/raw\.githubusercontent\.com\/5etools-mirror-3\/5etools-img\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: '5etools-images',
+              expiration: { maxEntries: 4000, purgeOnQuotaError: true },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
       },
     }),
   ],

@@ -1,55 +1,10 @@
-import { createHash } from 'node:crypto';
-import { fixtureFiles } from '@boh/data5e/testing';
 import { expect, test, type Page } from '@playwright/test';
+import { mockGitHub, TAG } from './helpers/github';
 
 /**
  * The data flow end to end, with GitHub replaced by the fixture dataset: download, sources,
  * search, persistence, homebrew and deletion. Never touches the network.
  */
-
-const REPO = '5etools-mirror-3/5etools-src';
-const TAG = 'v9.9.9';
-
-function serialise(content: unknown): Buffer {
-  return Buffer.from(typeof content === 'string' ? content : JSON.stringify(content));
-}
-
-async function mockGitHub(page: Page) {
-  const files = fixtureFiles();
-  const tree = Object.entries(files).map(([path, content]) => {
-    const body = serialise(content);
-    const sha = createHash('sha1')
-      .update(Buffer.concat([Buffer.from(`blob ${String(body.length)}\0`), body]))
-      .digest('hex');
-    return { path, type: 'blob', sha, size: body.length };
-  });
-  const json = (body: unknown) => ({
-    contentType: 'application/json',
-    headers: { 'access-control-allow-origin': '*' },
-    body: JSON.stringify(body),
-  });
-
-  await page
-    .context()
-    .route(`https://api.github.com/repos/${REPO}/releases/latest`, (route) =>
-      route.fulfill(json({ tag_name: TAG })),
-    );
-  await page
-    .context()
-    .route(`https://api.github.com/repos/${REPO}/git/trees/**`, (route) =>
-      route.fulfill(json({ tree, truncated: false })),
-    );
-  await page.context().route(`https://raw.githubusercontent.com/${REPO}/${TAG}/**`, (route) => {
-    const path = new URL(route.request().url()).pathname.split(`/${TAG}/`)[1] ?? '';
-    const content = files[path];
-    return content === undefined
-      ? route.fulfill({ status: 404 })
-      : route.fulfill({
-          headers: { 'access-control-allow-origin': '*' },
-          body: serialise(content),
-        });
-  });
-}
 
 async function search(page: Page, text: string) {
   await page.getByLabel('Search the data').fill(text);

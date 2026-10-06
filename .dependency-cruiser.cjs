@@ -53,6 +53,21 @@ module.exports = {
       to: { path: '(^packages/(ui|storage)/)|(node_modules/(react|react-dom)/)' },
     },
     {
+      name: 'dice-is-pure',
+      severity: 'error',
+      comment: 'The dice engine is plain TypeScript: no React, no data layer, no app.',
+      from: { path: '^packages/dice/src/', pathNot: '\\.test\\.ts$' },
+      to: { path: '(^packages/(ui|storage|data5e|renderer)/)|(node_modules/(react|react-dom)/)' },
+    },
+    {
+      name: 'renderer-is-app-agnostic',
+      severity: 'error',
+      comment:
+        'The renderer draws 5etools content only; links, rolls and data loading come from the app through RendererServices.',
+      from: { path: '^packages/renderer/' },
+      to: { path: '(^packages/storage/)|(node_modules/(@tanstack|zustand|comlink)/)' },
+    },
+    {
       name: 'test-fixtures-only-in-tests',
       severity: 'error',
       comment: 'Test fixtures and local-data helpers are for tests and e2e only.',

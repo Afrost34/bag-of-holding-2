@@ -13,8 +13,11 @@ import type {
 /** Shared between the data worker and the UI. Everything crosses the worker boundary by value. */
 
 export interface DataStatus {
-  /** `persistent`: OPFS database survives reloads. `memory`: this browser lacks OPFS. */
-  storage: 'persistent' | 'memory';
+  /**
+   * `persistent`: OPFS database survives reloads. `memory`: this browser lacks OPFS.
+   * `busy`: the app is open in another tab or window, which owns the database.
+   */
+  storage: 'persistent' | 'memory' | 'busy';
   installed: boolean;
   version?: string;
   origin?: string;
@@ -68,5 +71,7 @@ export interface DataWorkerApi {
   sources(): Promise<SourceSummary[]>;
   search(text: string, options?: SearchOptions): Promise<EntitySummary[]>;
   entity(key: string): Promise<EntityDetail | undefined>;
+  /** For each candidate list, the first key that exists (link resolution). */
+  resolve(candidateLists: string[][]): Promise<(string | null)[]>;
   checkReferences(references: { key: string; usedIn: string }[]): Promise<ReferenceReport>;
 }

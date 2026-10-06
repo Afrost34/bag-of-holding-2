@@ -382,6 +382,26 @@ export class EntityIndex {
     return { ...summary, data: JSON.parse(resolved ?? raw) as RawEntity };
   }
 
+  /**
+   * The first candidate that exists. A `*` in a candidate matches any run of characters within
+   * one identity part (link tags that omit a parent source or pantheon).
+   */
+  resolveCandidates(candidates: readonly string[]): string | undefined {
+    for (const candidate of candidates) {
+      if (!candidate.includes('*')) {
+        if (this.hasKey(candidate)) return candidate;
+        continue;
+      }
+      const pattern = likeEscape(candidate).replaceAll('*', '%');
+      const row = this.db.get<{ key: string }>(
+        "SELECT key FROM entities WHERE key LIKE ? ESCAPE '\\' ORDER BY key LIMIT 1",
+        [pattern],
+      );
+      if (row) return row.key;
+    }
+    return undefined;
+  }
+
   hasKey(key: string): boolean {
     return this.db.get('SELECT 1 AS x FROM entities WHERE key = ?', [key]) !== undefined;
   }

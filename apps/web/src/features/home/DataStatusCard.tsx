@@ -2,6 +2,7 @@ import { Panel } from '@boh/ui';
 import { CheckCircle2, Database, Download } from 'lucide-react';
 import { useEffect } from 'react';
 import { AppLink } from '../../app/AppLink';
+import { BusyNotice } from '../../app/data/BusyNotice';
 import { useData } from '../../app/data/store';
 import { formatNumber } from '../../app/format';
 
@@ -14,6 +15,14 @@ export function DataStatusCard() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  if (status?.storage === 'busy') {
+    return (
+      <Panel title="5etools data">
+        <BusyNotice />
+      </Panel>
+    );
+  }
 
   if (status?.installed && !busy) {
     return (

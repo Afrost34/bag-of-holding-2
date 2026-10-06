@@ -1,6 +1,7 @@
 import { Button, cn, Panel } from '@boh/ui';
 import { AlertTriangle, CheckCircle2, Download, FolderOpen, RefreshCw, X } from 'lucide-react';
 import { useRef, useState, type ChangeEvent } from 'react';
+import { BusyNotice } from '../../app/data/BusyNotice';
 import type { LocalFile } from '../../app/data/protocol';
 import { useData } from '../../app/data/store';
 import { formatBytes, formatDate, formatDuration, formatNumber } from '../../app/format';
@@ -33,7 +34,9 @@ export function DataStatusPanel() {
           </p>
         )}
 
-        {busy ? (
+        {status?.storage === 'busy' ? (
+          <BusyNotice />
+        ) : busy ? (
           <InstallProgressView />
         ) : !status ? (
           <p className="text-sm text-muted">Opening the local index…</p>
@@ -105,7 +108,7 @@ export function DataStatusPanel() {
           </p>
         )}
 
-        {!busy && (
+        {!busy && status?.storage !== 'busy' && (
           <LocalImport
             onFiles={(files) => void installFromFiles(files)}
             label={

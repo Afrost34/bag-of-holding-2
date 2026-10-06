@@ -50,6 +50,11 @@ export default tseslint.config(
     },
   },
   {
+    // Hot-reload rules only matter for the app; packages export hooks and constants beside components.
+    files: ['packages/**/*.tsx'],
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
+  {
     // Route files export a `Route` object, which is fine for fast refresh.
     files: ['apps/web/src/routes/**/*.tsx'],
     rules: { 'react-refresh/only-export-components': 'off' },

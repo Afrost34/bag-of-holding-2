@@ -90,7 +90,8 @@ interface TabButtonProps {
 
 function TabButton({ tab, active, canClose, ref, onSelect, onClose, onDrop }: TabButtonProps) {
   const Icon = moduleForPath(tab.path)?.icon;
-  const title = titleForPath(tab.path);
+  const pageTitle = useTabs((st) => st.titles[tab.path]);
+  const title = pageTitle ?? titleForPath(tab.path);
 
   return (
     <div
