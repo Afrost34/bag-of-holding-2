@@ -2,8 +2,8 @@ import type { BookSummary } from '@boh/data5e';
 import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { AppLink } from '../../app/AppLink';
+import { ArtImage } from '../../app/ArtImage';
 import { useLibrary } from '../../app/data/books';
-import { IMAGE_BASE } from '../../app/renderer/services';
 import { readerPath } from '../../app/renderer/referenceTarget';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 
@@ -74,10 +74,10 @@ export function LibraryPage({ kind }: { kind: 'book' | 'adventure' }) {
                 <AppLink to={readerPath(kind, b.id)} className="group block">
                   <div className="aspect-[3/4] overflow-hidden rounded-md border border-border bg-sunken shadow-card transition-transform group-hover:-translate-y-0.5">
                     {b.coverPath ? (
-                      <img
-                        src={`${IMAGE_BASE}${b.coverPath}`}
-                        alt=""
-                        loading="lazy"
+                      <ArtImage
+                        path={b.coverPath}
+                        widths={[240, 400]}
+                        sizes="(min-width: 1024px) 180px, 45vw"
                         className="h-full w-full object-cover"
                       />
                     ) : (

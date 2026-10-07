@@ -4,11 +4,11 @@ import { useNavigate } from '@tanstack/react-router';
 import { ChevronDown, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
+import { ArtImage } from '../../app/ArtImage';
 import { entityPath } from '../../app/data/entities';
 import { useListRows } from '../../app/data/lists';
 import { useSourceList } from '../../app/data/sourceList';
 import { disabledSourceIds, useSourcePrefs } from '../../app/data/sourcePrefs';
-import { IMAGE_BASE } from '../../app/renderer/services';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 import { LegacyBadge } from './LegacyBadge';
 import { PageHeading } from './PageHeading';
@@ -125,13 +125,14 @@ function ArtCard({ row, sourceName }: { row: ListRow; sourceName: string }) {
   const card = row.card;
   const image = card?.image;
   return (
-    <div className="relative h-full pb-4">
+    // Cards off screen are not laid out or painted until scrolled near (long species lists).
+    <div className="relative h-full pb-4 [contain-intrinsic-size:auto_20rem] [content-visibility:auto]">
       <article className="relative flex h-full min-h-[19rem] flex-col overflow-hidden rounded-lg border border-border bg-surface-2">
         {image && (
-          <img
-            src={`${IMAGE_BASE}${image.split('/').map(encodeURIComponent).join('/')}`}
-            alt=""
-            loading="lazy"
+          <ArtImage
+            path={image}
+            widths={[320, 480, 720]}
+            sizes="(min-width: 1024px) 300px, (min-width: 640px) 40vw, 80vw"
             className="absolute inset-y-0 right-0 h-full w-3/4 object-cover object-top"
           />
         )}

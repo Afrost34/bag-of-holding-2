@@ -15,8 +15,11 @@ export interface RendererServices {
     reference: Extract<TagModel, { kind: 'reference' }>;
     children: ReactNode;
   }>;
-  /** URL of a 5etools image given its repo-relative path (`bestiary/MM/Goblin.webp`). */
-  imageUrl: (path: string) => string;
+  /**
+   * URL of a 5etools image given its repo-relative path (`bestiary/MM/Goblin.webp`): the
+   * original, or a copy at most `width` pixels wide when the app can provide one.
+   */
+  imageUrl: (path: string, width?: number) => string;
   /**
    * Rolls and records a roll, resolving to its total (random tables highlight the row it lands
    * on). Null when there is no dice roller, e.g. in print.

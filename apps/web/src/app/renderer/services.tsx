@@ -3,14 +3,12 @@ import * as HoverCard from '@radix-ui/react-hover-card';
 import * as Popover from '@radix-ui/react-popover';
 import { useRef, useState, type ComponentProps, type ReactNode } from 'react';
 import { AppLink } from '../AppLink';
+import { originalImageUrl, resizedImageUrl } from '../images';
 import { entityPath, useEntity, useResolvedLink } from '../data/entities';
 import { RollChip } from '../dice/RollChip';
 import { useDice } from '../dice/store';
 import { EntityCard } from './EntityCard';
 import { referencePath } from './referenceTarget';
-
-/** 5etools images, fetched on demand and cached by the service worker. */
-export const IMAGE_BASE = 'https://raw.githubusercontent.com/5etools-mirror-3/5etools-img/main/';
 
 function EntityLink({
   candidates,
@@ -187,7 +185,8 @@ const services: Partial<RendererServices> = {
   RollButton: RollChip,
   EmbeddedEntity,
   ReferenceLink,
-  imageUrl: (path) => `${IMAGE_BASE}${path.split('/').map(encodeURIComponent).join('/')}`,
+  imageUrl: (path, width) =>
+    width === undefined ? originalImageUrl(path) : resizedImageUrl(path, width),
   rollDice: async (roll) => (await useDice.getState().roll(roll))?.total ?? null,
 };
 

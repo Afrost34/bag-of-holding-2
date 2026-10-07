@@ -4,7 +4,7 @@ import { cn } from '@boh/ui';
 import type { ReactNode } from 'react';
 import { PageTools } from '../../../app/annotations/PageTools';
 import { EntityMeta } from '../../../app/renderer/EntityCard';
-import { IMAGE_BASE } from '../../../app/renderer/services';
+import { ArtImage } from '../../../app/ArtImage';
 import { scrollToSection } from './scroll';
 
 export interface TocItem {
@@ -117,9 +117,10 @@ export function EntityHero({
           )}
         </div>
         {image && (
-          <img
-            src={`${IMAGE_BASE}${image.path.split('/').map(encodeURIComponent).join('/')}`}
-            alt=""
+          <ArtImage
+            path={image.path}
+            widths={[320, 480, 720]}
+            sizes="(min-width: 640px) 224px, 100vw"
             className="max-h-72 w-full rounded-lg border border-border object-cover object-top sm:w-56"
           />
         )}
