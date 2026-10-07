@@ -2,7 +2,7 @@
  * Conformance: runs the extractor over the real, pinned 5etools data. Skipped when the data has
  * not been downloaded (`pnpm data:fetch`); CI always downloads it.
  */
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { CopyResolver } from './copy';
 import { extractFile, type EntityRecord, type ExtractIssue } from './extract';
 import { isDataFile } from './files';
@@ -15,6 +15,9 @@ import {
   readLocalJson,
   readLocalText,
 } from './testing/localData';
+
+// Each test walks the whole 5etools release: allow time on slower CI machines.
+vi.setConfig({ testTimeout: 120_000 });
 
 describe.runIf(hasLocalData())('5etools conformance', () => {
   const entities = new Map<string, EntityRecord & { file: string }>();

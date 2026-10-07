@@ -56,7 +56,7 @@ export function SubclassSelect({
           {title}
         </span>
         <span className={cn('min-w-0 flex-1 truncate font-medium', !current && 'text-faint')}>
-          {current?.name ?? `Choose a ${title.toLowerCase()}`}
+          {current?.name ?? `Choose ${/^[aeiou]/i.test(title) ? 'an' : 'a'} ${title.toLowerCase()}`}
         </span>
         <ChevronDown className="h-4 w-4 shrink-0 text-muted" aria-hidden />
       </Popover.Trigger>

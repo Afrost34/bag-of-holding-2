@@ -3,8 +3,11 @@
  * Skipped without local data (`pnpm data:fetch`).
  */
 import { hasLocalData, listLocalDataFiles, readLocalJson } from '@boh/data5e/testing/local';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { evaluate, parseAlternatives, requiredInputs, sequenceRng } from './index';
+
+// Each test walks the whole 5etools release: allow time on slower CI machines.
+vi.setConfig({ testTimeout: 120_000 });
 
 /** Tag name → how to turn its first argument(s) into dice expressions. */
 const DICE_TAGS: Record<string, (args: string[]) => string[]> = {

@@ -4,7 +4,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { headerKeys, namedEntries } from './books';
 import { LocalDataSource } from './dataSource';
 import { CATEGORIES, categoryById, SUPPORT_TYPES } from './lists/categories';
@@ -17,6 +17,9 @@ import {
   localDataDir,
   PINNED_5ETOOLS_VERSION,
 } from './testing/localData';
+
+// Each test walks the whole 5etools release: allow time on slower CI machines.
+vi.setConfig({ testTimeout: 120_000 });
 
 /** Types that are support data rather than things to browse (they appear inside other pages). */
 const NOT_BROWSABLE = new Set([

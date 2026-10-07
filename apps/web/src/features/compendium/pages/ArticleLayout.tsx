@@ -62,25 +62,40 @@ function firstImagePath(fluff: EntityDetail | undefined): { path: string; title?
   return { path: href.path, ...(typeof title === 'string' ? { title } : {}) };
 }
 
-/** Title, source and art, with the lore's opening paragraph. */
+/** 5etools often wraps lore in a section named after the entity; the page title already says it. */
+function withoutRepeatedTitle(entries: unknown[], title: string): unknown[] {
+  const [first, ...rest] = entries;
+  if (typeof first !== 'object' || first === null) return entries;
+  const { name, entries: inner } = first as { name?: unknown; entries?: unknown };
+  if (!Array.isArray(inner)) return entries;
+  // Unwrap an untitled lone wrapper, or a first section titled with the page's own name.
+  if ((name === undefined && rest.length === 0) || name === title) {
+    return [...(inner as unknown[]), ...rest];
+  }
+  return entries;
+}
+
+/**
+ * Title, source and art, then the controls passed as children (e.g. the subclass picker), then
+ * the lore in full as the page's description.
+ */
 export function EntityHero({
   entity,
   fluff,
   tagline = false,
-  fullLore = false,
   children,
 }: {
   entity: EntityDetail;
   fluff?: EntityDetail | undefined;
   /** Show the art's title as a tagline (class art carries "A Master of All Arms and Armor"). */
   tagline?: boolean;
-  /** All of the lore as the description, rather than its opening paragraphs. */
-  fullLore?: boolean;
   children?: ReactNode;
 }) {
   const image = firstImagePath(fluff);
-  const lore = Array.isArray(fluff?.data.entries) ? fluff.data.entries : [];
-  const intro = fullLore ? lore : firstParagraphs(lore);
+  const lore = withoutRepeatedTitle(
+    Array.isArray(fluff?.data.entries) ? fluff.data.entries : [],
+    entity.name,
+  );
   return (
     <header className="mb-6">
       <div className="flex flex-col-reverse gap-5 sm:flex-row">
@@ -92,12 +107,12 @@ export function EntityHero({
           {tagline && image?.title && (
             <p className="mt-3 font-serif text-lg italic">{image.title}</p>
           )}
-          {intro.length > 0 && (
-            <div className="mt-2 text-muted">
-              <Entries entries={intro} depth={2} />
+          {children}
+          {lore.length > 0 && (
+            <div className="mt-3">
+              <Entries entries={lore} depth={2} />
             </div>
           )}
-          {children}
         </div>
         {image && (
           <img
@@ -109,27 +124,6 @@ export function EntityHero({
       </div>
     </header>
   );
-}
-
-/** The first one or two plain paragraphs of a lore tree. */
-function firstParagraphs(entries: unknown[]): string[] {
-  const out: string[] = [];
-  const visit = (list: unknown[]) => {
-    for (const e of list) {
-      if (out.length >= 2) return;
-      if (typeof e === 'string') out.push(e);
-      else if (
-        typeof e === 'object' &&
-        e !== null &&
-        Array.isArray((e as { entries?: unknown }).entries)
-      ) {
-        if (out.length > 0) return; // stay within the first section
-        visit((e as { entries: unknown[] }).entries);
-      }
-    }
-  };
-  visit(entries);
-  return out;
 }
 
 /** A class or subclass feature: "Level 2: Action Surge" and its text. */
@@ -169,18 +163,5 @@ export function FeatureSection({
       )}
       {children}
     </section>
-  );
-}
-
-/** Full lore, folded away at the end of the page. */
-export function LoreSection({ fluff }: { fluff?: EntityDetail | undefined }) {
-  if (!fluff || !Array.isArray(fluff.data.entries)) return null;
-  return (
-    <details id="lore" className="mt-10 rounded-lg border border-border bg-surface p-4">
-      <summary className="cursor-pointer font-serif text-xl font-bold">Lore</summary>
-      <div className="mt-3">
-        <Entries entries={fluff.data.entries} depth={1} />
-      </div>
-    </details>
   );
 }

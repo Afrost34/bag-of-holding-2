@@ -50,7 +50,7 @@ export function SpeciesPage({ entityKey }: { entityKey: string }) {
 
   return (
     <ArticleLayout toc={toc}>
-      <EntityHero entity={race} fluff={fluff} fullLore />
+      <EntityHero entity={race} fluff={fluff} />
       <section id="traits" className="scroll-mt-4">
         <h2 className="border-b border-border pb-1 font-serif text-2xl font-bold">
           {race.name} Traits
