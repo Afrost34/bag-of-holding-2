@@ -68,6 +68,9 @@ importers:
       '@boh/renderer':
         specifier: workspace:*
         version: link:../../packages/renderer
+      '@boh/rules':
+        specifier: workspace:*
+        version: link:../../packages/rules
       '@boh/storage':
         specifier: workspace:*
         version: link:../../packages/storage

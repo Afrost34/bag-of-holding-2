@@ -23,7 +23,13 @@ import { makeKey, parseKey } from '../keys';
 import type { RegistryEntry } from '../sourceRegistry';
 import { buildSourceCatalog, indexSources, sourceFromMetadata, type SourceInfo } from '../sources';
 import { SUPPORT_TYPES, type Category } from '../lists/categories';
-import { buildRow, markLegacy, spellClassLookup, type ListRow } from '../lists/rows';
+import {
+  buildRow,
+  markLegacy,
+  spellClassLookup,
+  type ListRow,
+  type SpellClassLookup,
+} from '../lists/rows';
 import { generateSpecificVariants } from '../itemVariants';
 import { migrate } from './schema';
 import type { SqlDatabase, SqlValue } from './types';
@@ -598,10 +604,10 @@ export class EntityIndex {
 
   // region Lists
 
-  /** Rows for a compendium list (all sources; the UI filters by enabled sources). */
-  listRows(category: Category): ListRow[] {
+  /** The classes (lowercase names) whose spell list holds a spell, by spell name and source. */
+  spellClasses(): SpellClassLookup {
     const lookupCache = new Map<string, Record<string, unknown> | undefined>();
-    const spellClasses = spellClassLookup((source) => {
+    return spellClassLookup((source) => {
       if (!lookupCache.has(source)) {
         lookupCache.set(
           source,
@@ -610,6 +616,11 @@ export class EntityIndex {
       }
       return lookupCache.get(source);
     });
+  }
+
+  /** Rows for a compendium list (all sources; the UI filters by enabled sources). */
+  listRows(category: Category): ListRow[] {
+    const spellClasses = this.spellClasses();
     const rows = this.db.all<EntitySummary & { raw: string; resolved: string | null }>(
       `SELECT ${SUMMARY_COLUMNS}, raw, resolved FROM entities
        WHERE type IN (${placeholders(category.types.length)})`,

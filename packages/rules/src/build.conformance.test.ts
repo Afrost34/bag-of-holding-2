@@ -2,7 +2,7 @@
  * The builder over the pinned 5etools release: every class and subclass to level 20, every
  * species and background, and Glubs (a real level 3 character) rebuilt from decisions alone.
  */
-import type { EntityIndex } from '@boh/data5e';
+import type { EntityDetail, EntityIndex } from '@boh/data5e';
 import { openLocalIndex } from '@boh/data5e/testing/index';
 import { hasLocalData } from '@boh/data5e/testing/local';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
@@ -16,21 +16,46 @@ import {
   type RulesData,
 } from './build';
 import { GLUBS } from './glubs.fixture';
+import { optionsFor, type OptionCatalog } from './options';
 import { computeSheet } from './sheet';
 
 vi.setConfig({ testTimeout: 300_000 });
 
 /** Answers every open choice that has fixed options with its first options, until none are left. */
-function autoBuild(data: RulesData, start: CharacterDecisions): BuiltCharacter {
+function autoBuild(
+  data: RulesData,
+  start: CharacterDecisions,
+  /** With a catalog, choices with filtered options are answered too (first options listed). */
+  catalog?: OptionCatalog,
+): BuiltCharacter {
   const decisions = structuredClone(start);
   let built = buildCharacter(data, decisions);
   for (let round = 0; round < 12; round++) {
-    const open = built.pending.filter((c) => c.options && c.options.length > 0);
+    const open = built.pending.flatMap((c) => {
+      const ids = c.options ?? (catalog ? optionsFor(c, built, catalog).map((o) => o.id) : []);
+      return ids.length > 0 && !(ids.length === 1 && ids[0] === decisions.choices[c.id]?.[0])
+        ? [{ c, ids }]
+        : [];
+    });
     if (open.length === 0) break;
-    for (const c of open) decisions.choices[c.id] = c.options?.slice(0, c.count) ?? [];
+    for (const { c, ids } of open) decisions.choices[c.id] = ids.slice(0, c.count);
     built = buildCharacter(data, decisions);
   }
   return built;
+}
+
+/** Entity lists for option filters, cached per type like the data worker does. */
+function catalogOf(index: EntityIndex): OptionCatalog {
+  const types = new Map<string, EntityDetail[]>();
+  return {
+    get: (key) => index.getEntity(key),
+    ofType: (type) => {
+      let list = types.get(type);
+      if (!list) types.set(type, (list = index.ofType(type)));
+      return list;
+    },
+    spellClasses: index.spellClasses(),
+  };
 }
 
 describe.runIf(hasLocalData())('the builder over the pinned 5etools release', () => {
@@ -104,6 +129,20 @@ describe.runIf(hasLocalData())('the builder over the pinned 5etools release', ()
       }
     }
     expect(problems).toEqual([]);
+  });
+
+  it('offers options for every choice a level 5 character of each class makes', () => {
+    const catalog = catalogOf(index);
+    const empty: string[] = [];
+    for (const cls of index.ofType('class')) {
+      if (cls.data.isSidekick === true || cls.source.startsWith('UA')) continue;
+      const decisions = { ...newCharacter(cls.edition), classes: [{ class: cls.key, levels: 5 }] };
+      const built = autoBuild(data, decisions, catalog);
+      for (const c of built.choices)
+        if (optionsFor(c, built, catalog).length === 0 && c.kind !== 'subclass')
+          empty.push(`${cls.key}: ${c.label} (${c.id})`);
+    }
+    expect(empty).toEqual([]);
   });
 
   it('builds every species and background', () => {

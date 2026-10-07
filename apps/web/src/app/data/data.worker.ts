@@ -17,12 +17,22 @@ import {
   normaliseLocalPath,
   syncHomebrew,
   versionFromPackageJson,
+  type EntityDetail,
   type InstallResult,
   type SqlDatabase,
 } from '@boh/data5e';
 import { openMemoryDatabase, openOpfsDatabase } from '@boh/data5e/sqlite';
 import * as Comlink from 'comlink';
 import { unzipSync } from 'fflate';
+import {
+  buildCharacter,
+  computeSheet,
+  FOUNDRY_FILE,
+  makeRulesData,
+  optionsFor,
+  type OptionCatalog,
+  type RulesData,
+} from '@boh/rules';
 import type { DataStatus, DataWorkerApi, InstallSummary, LocalFile } from './protocol';
 
 let storage: DataStatus['storage'] = 'persistent';
@@ -86,6 +96,43 @@ let readyIndex: EntityIndex | null = null;
 
 /** List rows are built once per category and reused until the data changes. */
 const rowCache = new Map<string, ListRow[]>();
+
+/** Rules data and option lists, built once per index state (cleared with the row cache). */
+let rulesCache: { data: RulesData; catalog: OptionCatalog } | null = null;
+const typeCache = new Map<string, EntityDetail[]>();
+
+async function rules(): Promise<{ data: RulesData; catalog: OptionCatalog }> {
+  const index = await indexPromise;
+  if (rulesCache) return rulesCache;
+  const data = makeRulesData(index.lookup, {
+    classFeature: index.getAux(FOUNDRY_FILE, 'classFeature'),
+    subclassFeature: index.getAux(FOUNDRY_FILE, 'subclassFeature'),
+  });
+  const spellClasses = index.spellClasses();
+  rulesCache = {
+    data,
+    catalog: {
+      get: (key) => index.getEntity(key),
+      ofType: (type) => {
+        let list = typeCache.get(type);
+        if (!list) {
+          list = index.ofType(type);
+          typeCache.set(type, list);
+        }
+        return list;
+      },
+      spellClasses,
+    },
+  };
+  return rulesCache;
+}
+
+/** Forgets cached rows, option lists and rules data after the index changed. */
+function clearCaches(): void {
+  rowCache.clear();
+  typeCache.clear();
+  rulesCache = null;
+}
 void indexPromise.then((index) => {
   readyIndex = index;
 });
@@ -114,7 +161,7 @@ async function runInstall(
     return summarize(await run(await indexPromise, controller.signal));
   } finally {
     controller = null;
-    rowCache.clear();
+    clearCaches();
   }
 }
 
@@ -203,7 +250,7 @@ const api: DataWorkerApi = {
   },
 
   async clear() {
-    rowCache.clear();
+    clearCaches();
     (await indexPromise).clear();
   },
 
@@ -212,7 +259,7 @@ const api: DataWorkerApi = {
   },
 
   async syncHomebrew(packs) {
-    rowCache.clear();
+    clearCaches();
     return syncHomebrew(await indexPromise, packs);
   },
 
@@ -270,6 +317,25 @@ const api: DataWorkerApi = {
 
   async checkReferences(references) {
     return checkReferences(await indexPromise, references);
+  },
+
+  async character(decisions, campaignRules) {
+    const { data } = await rules();
+    const built = buildCharacter(data, decisions, campaignRules);
+    const sheet = computeSheet(data, decisions, built);
+    const { entities, ...rest } = built;
+    return {
+      ...rest,
+      entities: [...entities.values()].map(({ data: _data, ...summary }) => summary),
+      sheet,
+    };
+  },
+
+  async choiceOptions(decisions, choiceId, campaignRules) {
+    const { data, catalog } = await rules();
+    const built = buildCharacter(data, decisions, campaignRules);
+    const choice = built.choices.find((c) => c.id === choiceId);
+    return choice ? optionsFor(choice, built, catalog) : [];
   },
 };
 

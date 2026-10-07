@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { flushAnnotations, reloadAnnotations } from '../annotations/store';
 import { reloadCampaigns } from '../campaigns/store';
+import { useCharacters } from '../characters/store';
 import { useHomebrew } from '../data/homebrew';
 import { forgetAllAttachments } from '../journal/attachments';
 import { useJournal } from '../journal/store';
@@ -96,6 +97,7 @@ export const useSync = create<SyncStore>()((set) => ({
         // Everything typed so far goes along.
         await useJournal.getState().flush();
         await flushAnnotations();
+        await useCharacters.getState().flush();
         const result = await syncStore(await userStore(), repoFor(settings), {
           remoteId: `${settings.repository}@${settings.branch}`,
           device: settings.device || 'a device',
@@ -126,6 +128,7 @@ async function refreshAfterSync(paths: string[]): Promise<void> {
     await useJournal.getState().refresh();
   }
   if (touched(/^homebrew\//)) await useHomebrew.getState().load();
+  if (touched(/^characters\//)) await useCharacters.getState().reload();
 }
 
 const EVERY_MS = 3 * 60 * 1000;

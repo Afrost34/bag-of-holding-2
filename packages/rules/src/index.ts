@@ -50,3 +50,10 @@ export {
   type SkillLine,
   type Spellcasting,
 } from './sheet';
+export {
+  matchesItemFilter,
+  matchesSpellFilter,
+  optionsFor,
+  type OptionCatalog,
+  type OptionSummary,
+} from './options';

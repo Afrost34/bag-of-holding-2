@@ -134,6 +134,16 @@ function startingProficiencies(block: unknown, id: string, issues: Issues): Extr
   return out;
 }
 
+/**
+ * Subclasses that cast from another class's list (their text says so; the data does not). The
+ * conformance suite fails if a subclass caster's spell choices find no spells.
+ */
+const SUBCLASS_SPELL_LISTS: Record<string, string> = {
+  'eldritch knight': 'Wizard',
+  'arcane trickster': 'Wizard',
+  'warrior of the mystic arts': 'Sorcerer',
+};
+
 export interface ClassLevelOptions {
   /** The first class: saving throws, full proficiencies and starting equipment. */
   first: boolean;
@@ -169,7 +179,10 @@ export function readClassLevel(
   const out = emptyExtraction();
   const id = `${key}/level:${String(level)}`;
   const isSubclass = typeof entity.className === 'string';
-  const className = String(isSubclass ? entity.className : entity.name);
+  // Whose spell list the class's spells come from (subclass casters borrow another's).
+  const className = isSubclass
+    ? (SUBCLASS_SPELL_LISTS[String(entity.name).toLowerCase()] ?? String(entity.className))
+    : String(entity.name);
 
   if (!isSubclass && level === 1) {
     if (options.first) {
