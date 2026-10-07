@@ -15,7 +15,7 @@ import {
 import { Button, cn } from '@boh/ui';
 import { ArrowDown, ArrowUp, Code2, LayoutGrid, List, Plus, Search, Table2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { isImage } from '../../app/journal/attachments';
+import { isImage } from '../attachments';
 import { useJournalView } from './context';
 import { useAttachmentUrl } from './useAttachmentUrl';
 

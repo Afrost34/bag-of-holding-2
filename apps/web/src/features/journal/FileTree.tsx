@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useState, type DragEvent } from 'react';
 import { buildTree, moveTarget, type TreeNode } from './tree';
-import { DRAG_TYPE } from './dnd';
+import { DRAG_TYPE } from '../../app/journal/notes/dnd';
 import { NoteTypeIcon } from './NoteTypeIcon';
 
 export interface FileTreeProps {
