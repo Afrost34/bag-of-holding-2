@@ -13,6 +13,8 @@ export const STEPS = [
   { id: 'abilities', label: 'Abilities' },
   { id: 'equipment', label: 'Equipment' },
   { id: 'spells', label: 'Spells' },
+  { id: 'details', label: 'Details' },
+  { id: 'sheet', label: 'Sheet' },
 ] as const;
 
 export type StepId = (typeof STEPS)[number]['id'];

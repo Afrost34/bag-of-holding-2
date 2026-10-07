@@ -36,6 +36,27 @@ export interface CharacterFile {
   rolls?: number[];
   decisions: CharacterDecisions;
   details: CharacterDetails;
+  /** Coins carried. */
+  coins: Coins;
+}
+
+export interface Coins {
+  cp: number;
+  sp: number;
+  ep: number;
+  gp: number;
+  pp: number;
+}
+
+export const NO_COINS: Coins = { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 };
+
+/** Copper pieces as the fewest coins: 1900 → 19 gp. */
+export function coinsFromCopper(cp: number): Coins {
+  return { pp: 0, gp: Math.floor(cp / 100), ep: 0, sp: Math.floor((cp % 100) / 10), cp: cp % 10 };
+}
+
+export function addCoins(a: Coins, b: Coins): Coins {
+  return { cp: a.cp + b.cp, sp: a.sp + b.sp, ep: a.ep + b.ep, gp: a.gp + b.gp, pp: a.pp + b.pp };
 }
 
 export function characterPath(id: string): string {
@@ -69,6 +90,7 @@ export function newCharacterFile(
     abilityMethod: 'standard',
     decisions: { ...newCharacter(edition), baseScores: standardArrayDefault() },
     details: {},
+    coins: { ...NO_COINS },
   };
 }
 
@@ -113,6 +135,7 @@ export function parseCharacter(text: string | null, id: string): CharacterFile |
       : {}),
     decisions,
     details: isObj(json.details) ? json.details : {},
+    coins: { ...NO_COINS, ...(isObj(json.coins) ? (json.coins as Partial<Coins>) : {}) },
   };
 }
 

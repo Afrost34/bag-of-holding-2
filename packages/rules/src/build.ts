@@ -61,8 +61,12 @@ export interface CharacterDecisions {
 }
 
 export interface InventoryItem {
-  /** Item key (`item:dagger@xphb`; mundane items resolve to `baseitem`). */
+  /**
+   * Item key (`item:dagger@xphb`; mundane items resolve to `baseitem`). Empty for things that are
+   * not in the data ("a set of weighted dice"), which carry a `name` instead.
+   */
   key: string;
+  name?: string;
   quantity: number;
   equipped?: boolean;
   attuned?: boolean;

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   newCharacterFile,
   parseCharacter,
+  addCoins,
+  coinsFromCopper,
   pointsSpent,
   rollAbility,
   serializeCharacter,
@@ -68,5 +70,12 @@ describe('summary line', () => {
       ]),
     ).toBe('Level 5 Fighter 3 / Wizard 2');
     expect(summaryLine(0, undefined, [])).toBe('Not built yet');
+  });
+});
+
+describe('coins', () => {
+  it('turns copper into the fewest coins and adds purses', () => {
+    expect(coinsFromCopper(1925)).toEqual({ pp: 0, gp: 19, ep: 0, sp: 2, cp: 5 });
+    expect(addCoins(coinsFromCopper(100), coinsFromCopper(1500)).gp).toBe(16);
   });
 });

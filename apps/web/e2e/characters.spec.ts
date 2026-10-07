@@ -46,6 +46,18 @@ test('a character is built from its choices and kept', async ({ page }) => {
   await page.getByLabel('Charisma base score').selectOption('15');
   await expect(page.getByRole('status')).toHaveCount(0);
 
+  // The sheet: numbers from the rules, with their parts, and a value set by hand.
+  await page.getByRole('link', { name: /Sheet/ }).click();
+  await page.getByRole('button', { name: 'Details: Armor Class' }).click();
+  const details = page.getByRole('region', { name: 'Armor Class details' });
+  await expect(details).toContainText('Dexterity');
+  await expect(details).toContainText('13');
+  await details.getByRole('spinbutton').fill('15');
+  await details.getByRole('button', { name: 'Set' }).click();
+  await page.getByRole('button', { name: 'Details: Armor Class' }).click();
+  await expect(details).toContainText('By the rules');
+  await details.getByRole('button', { name: /Use the rules value/ }).click();
+
   // Everything is kept: after a reload the choices are still there.
   await page.reload();
   await page.getByRole('link', { name: /Class/ }).click();

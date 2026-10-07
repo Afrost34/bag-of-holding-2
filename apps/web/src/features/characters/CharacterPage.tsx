@@ -11,6 +11,9 @@ import { useData } from '../../app/data/store';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 import { AbilitiesStep } from './AbilitiesStep';
+import { DetailsStep } from './DetailsStep';
+import { InventoryPanel } from './InventoryPanel';
+import { SheetView } from './SheetView';
 import { BackgroundStep, ChoiceList, ClassStep, SpeciesStep } from './OriginSteps';
 import { choicesByStep, rootOf, STEPS, stepOf, type StepId } from './steps';
 import { useCharacterView } from './useCharacterView';
@@ -220,10 +223,22 @@ export function CharacterPage({ id, step }: { id: string; step: StepId }) {
       {step === 'background' && <BackgroundStep {...stepProps} />}
       {step === 'abilities' && <AbilitiesStep character={character} view={view} save={save} />}
       {step === 'equipment' && (
-        <ChoiceList {...stepProps} empty="Pick a class and a background first." />
+        <div className="space-y-5">
+          <ChoiceList {...stepProps} />
+          <InventoryPanel
+            character={character}
+            view={view}
+            save={save}
+            disabledSources={[...disabled]}
+          />
+        </div>
       )}
       {step === 'spells' && (
         <ChoiceList {...stepProps} empty="This character has no spells to choose yet." />
+      )}
+      {step === 'details' && <DetailsStep character={character} save={save} />}
+      {step === 'sheet' && view && (
+        <SheetView view={view} decisions={character.decisions} update={update} />
       )}
     </div>
   );
