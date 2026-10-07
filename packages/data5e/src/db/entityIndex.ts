@@ -1,3 +1,10 @@
+import {
+  bookSummary,
+  tocFromContents,
+  type BookContent,
+  type BookKind,
+  type BookSummary,
+} from '../books';
 import { CopyError, CopyResolver } from '../copy';
 import { entityEdition, type Edition } from '../editions';
 import type { ExtractContext, ExtractResult } from '../extract';
@@ -518,7 +525,73 @@ export class EntityIndex {
   }
 
   // endregion
+
+  // region Books and adventures
+
+  /** Every book or adventure with text, newest first. */
+  library(kind: 'book' | 'adventure'): BookSummary[] {
+    const rows = this.db.all<{ raw: string }>('SELECT raw FROM entities WHERE type = ?', [kind]);
+    const textType = kind === 'book' ? 'bookData' : 'adventureData';
+    const withText = new Set(
+      this.db
+        .all<{ key: string }>('SELECT key FROM entities WHERE type = ?', [textType])
+        .map((r) => (r.key.split(':')[1] ?? '').split('@')[0] ?? ''),
+    );
+    return rows
+      .map((r) => bookSummary(kind, JSON.parse(r.raw) as RawEntity))
+      .filter((b) => b.id !== '' && withText.has(b.id.toLowerCase()))
+      .sort(
+        (a, b) =>
+          (b.published ?? '').localeCompare(a.published ?? '') || a.name.localeCompare(b.name),
+      );
+  }
+
+  /** Contents and chapter text of a book, adventure or the quick reference. */
+  bookContent(kind: BookKind, id: string): BookContent | undefined {
+    if (kind === 'quickref') {
+      const reference = this.getAux(QUICKREF_FILE, 'reference') as
+        Record<string, RawEntity> | undefined;
+      const data = this.getAux(QUICKREF_FILE, 'data') as Record<string, unknown[]> | undefined;
+      const meta = reference?.[id];
+      const chapters = data?.[id];
+      if (!meta || !chapters) return undefined;
+      return {
+        kind,
+        id,
+        name: typeof meta.name === 'string' ? meta.name : id,
+        source: 'PHB',
+        toc: tocFromContents(meta.contents),
+        chapters,
+      };
+    }
+    const metaRow = this.db
+      .all<{ raw: string }>('SELECT raw FROM entities WHERE type = ?', [kind])
+      .map((r) => JSON.parse(r.raw) as RawEntity)
+      .find((m) => typeof m.id === 'string' && m.id.toLowerCase() === id.toLowerCase());
+    if (!metaRow) return undefined;
+    const textType = kind === 'book' ? 'bookData' : 'adventureData';
+    const textRow = this.db.get<{ raw: string }>(
+      "SELECT raw FROM entities WHERE type = ? AND key LIKE ? ESCAPE '\\'",
+      [textType, `${likeEscape(`${textType.toLowerCase()}:${id.toLowerCase()}`)}@%`],
+    );
+    if (!textRow) return undefined;
+    const summary = bookSummary(kind, metaRow);
+    const body = JSON.parse(textRow.raw) as RawEntity;
+    return {
+      kind,
+      id: summary.id,
+      name: summary.name,
+      source: summary.source,
+      toc: tocFromContents(metaRow.contents),
+      chapters: Array.isArray(body.data) ? body.data : [],
+    };
+  }
+
+  // endregion
 }
+
+/** The 5etools quick reference: a book stored as generated aux data. */
+const QUICKREF_FILE = 'data/generated/bookref-quick.json';
 
 /** 5etools' generated spell → class lookup, kept as aux data keyed by source. */
 const SPELL_LOOKUP_FILE = 'data/generated/gendata-spell-source-lookup.json';

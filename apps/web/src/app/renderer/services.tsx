@@ -5,6 +5,7 @@ import { AppLink } from '../AppLink';
 import { entityPath, useEntity, useResolvedLink } from '../data/entities';
 import { RollChip } from '../dice/RollChip';
 import { EntityCard } from './EntityCard';
+import { referencePath } from './referenceTarget';
 
 /** 5etools images, fetched on demand and cached by the service worker. */
 export const IMAGE_BASE = 'https://raw.githubusercontent.com/5etools-mirror-3/5etools-img/main/';
@@ -94,15 +95,13 @@ function EmbeddedEntity({ candidates, name }: { candidates: string[]; tag: strin
   return <EntityCard entity={entity.entity} />;
 }
 
-function ReferenceLink({ children }: ComponentProps<RendererServices['ReferenceLink']>) {
-  // Book chapters, adventure areas, quick-reference and filtered lists arrive with the compendium (M3).
+function ReferenceLink({ reference, children }: ComponentProps<RendererServices['ReferenceLink']>) {
+  const path = referencePath(reference.ref, reference.args);
+  if (!path) return <span>{children}</span>;
   return (
-    <span
-      className="underline decoration-dotted underline-offset-2"
-      title="Book and adventure links arrive with the compendium"
-    >
+    <AppLink to={path} className="font-medium text-link hover:underline">
       {children}
-    </span>
+    </AppLink>
   );
 }
 

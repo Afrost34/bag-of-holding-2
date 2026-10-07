@@ -1,4 +1,7 @@
 import type {
+  BookContent,
+  BookKind,
+  BookSummary,
   EntityDetail,
   ListRow,
   EntitySummary,
@@ -74,6 +77,10 @@ export interface DataWorkerApi {
   entity(key: string): Promise<EntityDetail | undefined>;
   /** All rows of a compendium list category (every source; filter in the UI). */
   listRows(categoryId: string): Promise<ListRow[]>;
+  /** Books or adventures with text, newest first. */
+  library(kind: 'book' | 'adventure'): Promise<BookSummary[]>;
+  /** Contents and chapters of a book, adventure or the quick reference. */
+  bookContent(kind: BookKind, id: string): Promise<BookContent | undefined>;
   /** Number of entries per list category. */
   categoryCounts(): Promise<Record<string, number>>;
   /** For each candidate list, the first key that exists (link resolution). */

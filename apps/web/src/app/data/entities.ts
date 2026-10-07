@@ -1,6 +1,7 @@
 import type { EntityDetail } from '@boh/data5e';
 import { useEffect, useState } from 'react';
 import { dataWorker } from './client';
+import { clearBookCaches } from './books';
 import { clearListCaches } from './lists';
 
 /**
@@ -96,6 +97,7 @@ export function clearEntityCaches(): void {
   entityCache.clear();
   resolved.clear();
   clearListCaches();
+  clearBookCaches();
 }
 
 export type EntityState =

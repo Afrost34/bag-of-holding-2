@@ -56,7 +56,7 @@ function TitledParagraphs({
 }) {
   const [first, ...rest] = entries;
   const titleNode = (
-    <strong className="font-bold italic">
+    <strong className="font-bold italic" data-title={stripTags(title)}>
       <RichText text={title} />
       {/[.!?:]$/.test(stripTags(title)) ? '' : '.'}{' '}
     </strong>
@@ -105,11 +105,11 @@ export function EntryView({ entry, depth = 0 }: { entry: Entry; depth?: number }
       ) : level <= 1 ? (
         <>
           {level <= 0 ? (
-            <h2 className={HEADING[level]}>
+            <h2 className={HEADING[level]} data-title={stripTags(name)}>
               <RichText text={name} />
             </h2>
           ) : (
-            <h3 className={HEADING[level]}>
+            <h3 className={HEADING[level]} data-title={stripTags(name)}>
               <RichText text={name} />
             </h3>
           )}

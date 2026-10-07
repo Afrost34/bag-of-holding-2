@@ -34,3 +34,17 @@
     display: none;
   }
 }
+
+/* Briefly highlights the section a link or the contents scrolled to. */
+@keyframes boh-flash {
+  from {
+    background-color: color-mix(in oklab, var(--boh-accent) 18%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+.boh-flash {
+  animation: boh-flash 1.6s ease-out;
+  scroll-margin-top: 1rem;
+}

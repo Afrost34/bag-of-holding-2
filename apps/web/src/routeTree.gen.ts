@@ -22,7 +22,11 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as VaultRouteImport } from './routes/vault'
 import { Route as CompendiumKeyRouteImport } from './routes/compendium_.$key'
 import { Route as SettingsDataRouteImport } from './routes/settings_.data'
+import { Route as CompendiumAdventureIdRouteImport } from './routes/compendium_.adventure.$id'
+import { Route as CompendiumBookIdRouteImport } from './routes/compendium_.book.$id'
+import { Route as CompendiumLibraryKindRouteImport } from './routes/compendium_.library.$kind'
 import { Route as CompendiumListCategoryRouteImport } from './routes/compendium_.list.$category'
+import { Route as CompendiumQuickrefIdRouteImport } from './routes/compendium_.quickref.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -89,9 +93,29 @@ const SettingsDataRoute = SettingsDataRouteImport.update({
   path: '/settings/data',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CompendiumAdventureIdRoute = CompendiumAdventureIdRouteImport.update({
+  id: '/compendium_/adventure/$id',
+  path: '/compendium/adventure/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompendiumBookIdRoute = CompendiumBookIdRouteImport.update({
+  id: '/compendium_/book/$id',
+  path: '/compendium/book/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompendiumLibraryKindRoute = CompendiumLibraryKindRouteImport.update({
+  id: '/compendium_/library/$kind',
+  path: '/compendium/library/$kind',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CompendiumListCategoryRoute = CompendiumListCategoryRouteImport.update({
   id: '/compendium_/list/$category',
   path: '/compendium/list/$category',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CompendiumQuickrefIdRoute = CompendiumQuickrefIdRouteImport.update({
+  id: '/compendium_/quickref/$id',
+  path: '/compendium/quickref/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -109,7 +133,11 @@ export interface FileRoutesByFullPath {
   '/vault': typeof VaultRoute
   '/compendium/$key': typeof CompendiumKeyRoute
   '/settings/data': typeof SettingsDataRoute
+  '/compendium/adventure/$id': typeof CompendiumAdventureIdRoute
+  '/compendium/book/$id': typeof CompendiumBookIdRoute
+  '/compendium/library/$kind': typeof CompendiumLibraryKindRoute
   '/compendium/list/$category': typeof CompendiumListCategoryRoute
+  '/compendium/quickref/$id': typeof CompendiumQuickrefIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -125,7 +153,11 @@ export interface FileRoutesByTo {
   '/vault': typeof VaultRoute
   '/compendium/$key': typeof CompendiumKeyRoute
   '/settings/data': typeof SettingsDataRoute
+  '/compendium/adventure/$id': typeof CompendiumAdventureIdRoute
+  '/compendium/book/$id': typeof CompendiumBookIdRoute
+  '/compendium/library/$kind': typeof CompendiumLibraryKindRoute
   '/compendium/list/$category': typeof CompendiumListCategoryRoute
+  '/compendium/quickref/$id': typeof CompendiumQuickrefIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -142,7 +174,11 @@ export interface FileRoutesById {
   '/vault': typeof VaultRoute
   '/compendium_/$key': typeof CompendiumKeyRoute
   '/settings_/data': typeof SettingsDataRoute
+  '/compendium_/adventure/$id': typeof CompendiumAdventureIdRoute
+  '/compendium_/book/$id': typeof CompendiumBookIdRoute
+  '/compendium_/library/$kind': typeof CompendiumLibraryKindRoute
   '/compendium_/list/$category': typeof CompendiumListCategoryRoute
+  '/compendium_/quickref/$id': typeof CompendiumQuickrefIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -160,7 +196,11 @@ export interface FileRouteTypes {
     | '/vault'
     | '/compendium/$key'
     | '/settings/data'
+    | '/compendium/adventure/$id'
+    | '/compendium/book/$id'
+    | '/compendium/library/$kind'
     | '/compendium/list/$category'
+    | '/compendium/quickref/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -176,7 +216,11 @@ export interface FileRouteTypes {
     | '/vault'
     | '/compendium/$key'
     | '/settings/data'
+    | '/compendium/adventure/$id'
+    | '/compendium/book/$id'
+    | '/compendium/library/$kind'
     | '/compendium/list/$category'
+    | '/compendium/quickref/$id'
   id:
     | '__root__'
     | '/'
@@ -192,7 +236,11 @@ export interface FileRouteTypes {
     | '/vault'
     | '/compendium_/$key'
     | '/settings_/data'
+    | '/compendium_/adventure/$id'
+    | '/compendium_/book/$id'
+    | '/compendium_/library/$kind'
     | '/compendium_/list/$category'
+    | '/compendium_/quickref/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -209,7 +257,11 @@ export interface RootRouteChildren {
   VaultRoute: typeof VaultRoute
   CompendiumKeyRoute: typeof CompendiumKeyRoute
   SettingsDataRoute: typeof SettingsDataRoute
+  CompendiumAdventureIdRoute: typeof CompendiumAdventureIdRoute
+  CompendiumBookIdRoute: typeof CompendiumBookIdRoute
+  CompendiumLibraryKindRoute: typeof CompendiumLibraryKindRoute
   CompendiumListCategoryRoute: typeof CompendiumListCategoryRoute
+  CompendiumQuickrefIdRoute: typeof CompendiumQuickrefIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -305,11 +357,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsDataRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/compendium_/adventure/$id': {
+      id: '/compendium_/adventure/$id'
+      path: '/compendium/adventure/$id'
+      fullPath: '/compendium/adventure/$id'
+      preLoaderRoute: typeof CompendiumAdventureIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/compendium_/book/$id': {
+      id: '/compendium_/book/$id'
+      path: '/compendium/book/$id'
+      fullPath: '/compendium/book/$id'
+      preLoaderRoute: typeof CompendiumBookIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/compendium_/library/$kind': {
+      id: '/compendium_/library/$kind'
+      path: '/compendium/library/$kind'
+      fullPath: '/compendium/library/$kind'
+      preLoaderRoute: typeof CompendiumLibraryKindRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/compendium_/list/$category': {
       id: '/compendium_/list/$category'
       path: '/compendium/list/$category'
       fullPath: '/compendium/list/$category'
       preLoaderRoute: typeof CompendiumListCategoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/compendium_/quickref/$id': {
+      id: '/compendium_/quickref/$id'
+      path: '/compendium/quickref/$id'
+      fullPath: '/compendium/quickref/$id'
+      preLoaderRoute: typeof CompendiumQuickrefIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -329,7 +409,11 @@ const rootRouteChildren: RootRouteChildren = {
   VaultRoute: VaultRoute,
   CompendiumKeyRoute: CompendiumKeyRoute,
   SettingsDataRoute: SettingsDataRoute,
+  CompendiumAdventureIdRoute: CompendiumAdventureIdRoute,
+  CompendiumBookIdRoute: CompendiumBookIdRoute,
+  CompendiumLibraryKindRoute: CompendiumLibraryKindRoute,
   CompendiumListCategoryRoute: CompendiumListCategoryRoute,
+  CompendiumQuickrefIdRoute: CompendiumQuickrefIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
