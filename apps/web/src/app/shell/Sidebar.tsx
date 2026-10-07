@@ -10,6 +10,7 @@ import {
   type CompendiumLink,
 } from '../compendiumLinks';
 import { moduleForPath, navModules, type NavModule } from '../nav';
+import { CampaignSwitcher } from './CampaignSwitcher';
 import { LogoMark } from './Logo';
 
 export interface SidebarProps {
@@ -41,6 +42,8 @@ export function Sidebar({ collapsed, onToggleCollapsed, onNavigate, className }:
           <span className="font-serif text-[15px] leading-tight font-bold">Bag of Holding</span>
         )}
       </div>
+
+      {!collapsed && <CampaignSwitcher {...(onNavigate ? { onNavigate } : {})} />}
 
       <ul className="flex-1 space-y-0.5 overflow-y-auto px-2 py-2">
         {main.map((m) => (

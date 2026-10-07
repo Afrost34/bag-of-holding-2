@@ -1,5 +1,6 @@
 import { Outlet, useRouterState } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
+import { useCampaigns } from '../campaigns/store';
 import { Dice3DLayer } from '../dice/Dice3DLayer';
 import { DiceTray } from '../dice/DiceTray';
 import { RollInputDialog } from '../dice/RollInputDialog';
@@ -19,6 +20,11 @@ export function AppShell() {
   const setActivePath = useTabs((s) => s.setActivePath);
   const { collapsed, toggle } = useSidebarPrefs();
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // The open campaign decides which sources are on and whose notes show, on every page.
+  useEffect(() => {
+    void useCampaigns.getState().load();
+  }, []);
 
   // The URL is the source of truth for the active tab (deep links, back/forward).
   useEffect(() => {

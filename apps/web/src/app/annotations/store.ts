@@ -9,11 +9,13 @@ import {
   type Annotations,
 } from './model';
 
-/** Where bookmarks and notes live in the user's data (moves into the campaign in M4). */
-export const ANNOTATIONS_FILE = 'annotations.json';
+/** Bookmarks and notes before any campaign exists; moved into the first campaign. */
+export const ROOT_ANNOTATIONS_FILE = 'annotations.json';
 const SAVE_AFTER_MS = 400;
 
 interface AnnotationsStore extends Annotations {
+  /** The file these belong to: the active campaign's, or the root one without a campaign. */
+  file: string;
   loaded: boolean;
   load: () => Promise<void>;
   toggleBookmark: (path: string, label: string) => void;
@@ -21,36 +23,41 @@ interface AnnotationsStore extends Annotations {
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
-let loading: Promise<void> | null = null;
+let loading: { file: string; promise: Promise<void> } | null = null;
 
-function scheduleSave(get: () => Annotations): void {
-  if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    saveTimer = null;
-    const { version, bookmarks, notes } = get();
-    void userStore()
-      .then((store) =>
-        store.writeFile(ANNOTATIONS_FILE, serializeAnnotations({ version, bookmarks, notes })),
-      )
-      .catch((error: unknown) => {
-        console.warn('Could not save bookmarks and notes', error);
-      });
-  }, SAVE_AFTER_MS);
+function writeNow(file: string, a: Annotations): Promise<void> {
+  return userStore()
+    .then((store) => store.writeFile(file, serializeAnnotations(a)))
+    .catch((error: unknown) => {
+      console.warn('Could not save bookmarks and notes', error);
+    });
 }
 
-/** Bookmarks and personal notes, loaded once and saved shortly after each change. */
+/** Bookmarks and personal notes of the active campaign, saved shortly after each change. */
 export const useAnnotations = create<AnnotationsStore>()((set, get) => {
+  const scheduleSave = () => {
+    if (saveTimer) clearTimeout(saveTimer);
+    const { file, version, bookmarks, notes } = get();
+    saveTimer = setTimeout(() => {
+      saveTimer = null;
+      void writeNow(file, { version, bookmarks, notes });
+    }, SAVE_AFTER_MS);
+  };
   const apply = (next: Annotations) => {
     set({ version: next.version, bookmarks: next.bookmarks, notes: next.notes });
-    scheduleSave(get);
+    scheduleSave();
   };
   return {
     ...EMPTY_ANNOTATIONS,
+    file: ROOT_ANNOTATIONS_FILE,
     loaded: false,
     load: () => {
-      loading ??= userStore()
-        .then((store) => store.readText(ANNOTATIONS_FILE))
+      const file = get().file;
+      if (loading?.file === file) return loading.promise;
+      const promise = userStore()
+        .then((store) => store.readText(file))
         .then((text) => {
+          if (get().file !== file) return; // switched campaign meanwhile
           // Changes made before the file finished loading win over what it held.
           const fromFile = parseAnnotations(text);
           set((s) => ({
@@ -66,7 +73,8 @@ export const useAnnotations = create<AnnotationsStore>()((set, get) => {
           console.warn('Could not load bookmarks and notes', error);
           set({ loaded: true });
         });
-      return loading;
+      loading = { file, promise };
+      return promise;
     },
     toggleBookmark: (path, label) => {
       apply(toggleBookmark(get(), path, label, new Date().toISOString()));
@@ -76,3 +84,19 @@ export const useAnnotations = create<AnnotationsStore>()((set, get) => {
     },
   };
 });
+
+/**
+ * Points bookmarks and notes at another file (switching campaign). Pending changes to the old
+ * file are written first.
+ */
+export async function switchAnnotationsFile(file: string): Promise<void> {
+  const state = useAnnotations.getState();
+  if (state.file === file) return;
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    await writeNow(state.file, state);
+  }
+  useAnnotations.setState({ ...EMPTY_ANNOTATIONS, file, loaded: false });
+  await useAnnotations.getState().load();
+}

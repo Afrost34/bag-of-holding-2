@@ -2,14 +2,10 @@ import type { SourceSummary } from '@boh/data5e';
 import { Button, cn, Panel } from '@boh/ui';
 import { ChevronRight, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import {
-  SOURCE_GROUPS,
-  sourceGroup,
-  useSourceList,
-  type SourceGroupId,
-} from '../../app/data/sourceList';
-import { isSourceEnabled, useSourcePrefs } from '../../app/data/sourcePrefs';
-import { formatNumber } from '../../app/format';
+import { SOURCE_GROUPS, sourceGroup, useSourceList, type SourceGroupId } from './sourceList';
+import { useActiveCampaign } from '../campaigns/store';
+import { isSourceEnabled, useSourcePrefs } from './sourcePrefs';
+import { formatNumber } from '../format';
 
 /** Groups open by default; adventures and "other" are long lists. */
 const OPEN_BY_DEFAULT = new Set<SourceGroupId>(['core2024', 'core2014', 'homebrew']);
@@ -17,6 +13,7 @@ const OPEN_BY_DEFAULT = new Set<SourceGroupId>(['core2024', 'core2014', 'homebre
 export function SourcesPanel() {
   const sources = useSourceList((s) => s.sources);
   const { overrides, setEnabled, reset } = useSourcePrefs();
+  const campaign = useActiveCampaign();
   const [filter, setFilter] = useState('');
 
   const groups = useMemo(() => {
@@ -43,7 +40,7 @@ export function SourcesPanel() {
 
   return (
     <Panel
-      title="Sources"
+      title={campaign ? `Sources · ${campaign.name}` : 'Sources'}
       actions={
         <span className="text-xs text-header-fg/70">
           {enabledCount} of {total} on
@@ -51,9 +48,10 @@ export function SourcesPanel() {
       }
     >
       <p className="mb-3 text-sm text-muted">
-        Turned-off sources are hidden everywhere in the app. 2014 and 2024 versions are listed
-        separately; turn off the edition you don&apos;t use. Playtest material is off until you turn
-        it on. Each campaign will get its own list later.
+        {campaign
+          ? `These are the sources of ${campaign.name}: turned-off sources are hidden everywhere while it is open, and each campaign keeps its own list.`
+          : 'Turned-off sources are hidden everywhere in the app; once you create a campaign, it keeps its own list.'}{' '}
+        2014 and 2024 versions are listed separately. Playtest material is off until you turn it on.
       </p>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <label className="relative min-w-48 flex-1">

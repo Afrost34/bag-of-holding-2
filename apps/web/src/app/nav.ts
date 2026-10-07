@@ -46,7 +46,6 @@ export const navModules: readonly NavModule[] = [
     label: 'Campaigns',
     icon: Castle,
     description: 'Edition, sources and rules for each campaign, created from templates.',
-    milestone: 4,
   },
   {
     path: '/vault',
