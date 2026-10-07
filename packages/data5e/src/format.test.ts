@@ -18,6 +18,7 @@ import {
   spellDuration,
   spellLevelSchool,
   spellRange,
+  withInheritedProperties,
 } from './format';
 
 const fireball = {
@@ -134,5 +135,27 @@ describe('prerequisites', () => {
     ).toBe('Increase one ability score of your choice by 1, to a maximum of 30.');
     expect(featAbility([{ choose: { from: ['str'], amount: 2 }, hidden: true }])).toBe('');
     expect(featAbility(undefined)).toBe('');
+  });
+
+  it('shows a generic variant with its inherited fields and filled templates', () => {
+    const generic = withInheritedProperties({
+      name: '+1 Weapon',
+      type: 'GV|DMG',
+      property: ['V'],
+      inherits: {
+        namePrefix: '+1 ',
+        rarity: 'uncommon',
+        bonusWeapon: '+1',
+        propertyAdd: ['F'],
+        entries: ['You have a {=bonusWeapon} bonus.'],
+      },
+    });
+    expect(generic).toMatchObject({
+      name: '+1 Weapon',
+      rarity: 'uncommon',
+      property: ['V', 'F'],
+      entries: ['You have a +1 bonus.'],
+    });
+    expect(generic.namePrefix).toBeUndefined();
   });
 });

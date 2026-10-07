@@ -59,7 +59,10 @@ export function planInstall(installed: Map<string, string>, remote: RemoteFile[]
     else if (sha !== file.sha) plan.changed.push(file);
     else plan.unchanged++;
   }
-  for (const path of installed.keys()) if (!remotePaths.has(path)) plan.removed.push(path);
+  for (const path of installed.keys()) {
+    // Derived files (`$generated/…`) are rebuilt from others, never downloaded.
+    if (!remotePaths.has(path) && !path.startsWith('$')) plan.removed.push(path);
+  }
   return plan;
 }
 
@@ -138,6 +141,7 @@ export async function installData(
   report({ phase: 'linking', currentFile: undefined });
   if (foundation.length > 0 && plan.unchanged > 0) index.recomputeEditions(ctx);
   const copyErrors = index.resolveCopies();
+  index.regenerateItemVariants(ctx);
   index.rebuildSources();
 
   index.setMeta(META.version, source.version);

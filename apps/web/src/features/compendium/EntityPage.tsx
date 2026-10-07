@@ -2,7 +2,8 @@ import { makeKey } from '@boh/data5e';
 import { Entries, EntityView, RichText } from '@boh/renderer';
 import { useEffect } from 'react';
 import { AppLink } from '../../app/AppLink';
-import { useEntity } from '../../app/data/entities';
+import { entityPath, useEntity } from '../../app/data/entities';
+import { useSpecificVariants } from '../../app/data/pages';
 import { useSourceList } from '../../app/data/sourceList';
 import { BusyNotice } from '../../app/data/BusyNotice';
 import { useData } from '../../app/data/store';
@@ -77,9 +78,19 @@ export function EntityPage({ entityKey }: { entityKey: string }) {
         </div>
       )}
 
+      {isObj(entity.data.genericVariant) && typeof entity.data.baseItem === 'string' && (
+        <p className="mb-3 text-sm text-muted">
+          <RichText
+            text={`A {@item ${String(entity.data.genericVariant.name)}|${String(entity.data.genericVariant.source)}} made from {@item ${entity.data.baseItem}}.`}
+          />
+        </p>
+      )}
+
       <div className="text-[15px] leading-relaxed">
         <EntityView type={entity.type} data={entity.data} edition={entity.edition} />
       </div>
+
+      {entity.type === 'magicvariant' && <AppliesTo entityKey={entity.key} />}
 
       {lore !== undefined && (
         <section className="clear-both mt-8">
@@ -93,5 +104,34 @@ export function EntityPage({ entityKey }: { entityKey: string }) {
         </section>
       )}
     </article>
+  );
+}
+
+const isObj = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/** The specific items a generic variant makes ("+1 Weapon" → "+1 Longsword", …). */
+function AppliesTo({ entityKey }: { entityKey: string }) {
+  const state = useSpecificVariants(entityKey);
+  if (state.status !== 'found' || state.page.length === 0) return null;
+  return (
+    <section className="mt-8">
+      <h2 className="mb-2 border-b border-border font-serif text-xl font-bold">
+        Applies to ({state.page.length})
+      </h2>
+      <ul className="flex flex-wrap gap-1.5">
+        {state.page.map((item) => (
+          <li key={item.key}>
+            <AppLink
+              to={entityPath(item.key)}
+              className="inline-block rounded-md border border-border bg-surface px-2 py-1 text-sm hover:border-accent hover:text-accent"
+            >
+              {item.name}
+              <span className="ml-1.5 text-xs text-faint">{item.source}</span>
+            </AppLink>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

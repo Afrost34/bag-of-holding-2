@@ -192,6 +192,25 @@ describe.runIf(hasLocalData())('full 5etools install', () => {
     );
   });
 
+  it('generates specific magic item variants like 5etools', () => {
+    const longsword = index.getEntity('item:+1 longsword@dmg');
+    expect(longsword?.data).toMatchObject({
+      name: '+1 Longsword',
+      dmg1: '1d8',
+      rarity: 'uncommon',
+      baseItem: 'Longsword|PHB',
+      genericVariant: { name: '+1 Weapon', source: 'DMG' },
+    });
+    expect(longsword?.edition).toBe('2014');
+    expect(index.getEntity('item:+1 longsword@xdmg')?.data.baseItem).toBe('Longsword|XPHB');
+    expect(index.hasKey('item:adamantine breastplate@dmg')).toBe(true);
+    expect(index.hasKey('item:vicious greataxe@dmg')).toBe(true);
+    // A 2024 variant only applies to 2024 base items.
+    expect(index.hasKey('item:+1 longsword|phb@xdmg')).toBe(false);
+    const generated = Object.entries(index.countsByType()).find(([t]) => t === 'item')?.[1] ?? 0;
+    expect(generated).toBeGreaterThan(4000);
+  });
+
   it('puts every browsable entity type in a list', () => {
     const listed = new Set(CATEGORIES.flatMap((c) => c.types));
     const unlisted = Object.keys(index.countsByType()).filter(

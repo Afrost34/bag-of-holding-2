@@ -16,6 +16,7 @@ import {
   spellRange,
 } from '../format';
 import { arr, isObj, num, text, type Obj } from '../json';
+import { SPECIFIC_VARIANT_FLAG } from '../itemVariants';
 import { buildCard, type CardInfo } from './cards';
 import { stripTagsPlain } from './strip';
 
@@ -37,6 +38,8 @@ export interface ListRow {
   legacy?: boolean;
   /** Art card for the `cards` layout (classes, species). */
   card?: CardInfo;
+  /** A generated specific magic item variant ("+1 Longsword"): linked and searchable, not listed. */
+  generated?: boolean;
 }
 
 /** Spell → class names, from 5etools' generated lookup: `[source][spell name] → classes`. */
@@ -400,6 +403,7 @@ export function buildRow(
   const sub = subtitle(entity.type, entity.data, f);
   if (sub) row.sub = sub;
   if (arr(entity.data.reprintedAs).length > 0) row.legacy = true;
+  if (entity.data[SPECIFIC_VARIANT_FLAG] === true) row.generated = true;
   if (ctx.fluff && (entity.type === 'class' || entity.type === 'race')) {
     row.card = buildCard(
       entity.type,

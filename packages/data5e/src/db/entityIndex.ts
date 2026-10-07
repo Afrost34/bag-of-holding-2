@@ -24,6 +24,7 @@ import type { RegistryEntry } from '../sourceRegistry';
 import { buildSourceCatalog, indexSources, sourceFromMetadata, type SourceInfo } from '../sources';
 import { SUPPORT_TYPES, type Category } from '../lists/categories';
 import { buildRow, markLegacy, spellClassLookup, type ListRow } from '../lists/rows';
+import { generateSpecificVariants } from '../itemVariants';
 import { migrate } from './schema';
 import type { SqlDatabase, SqlValue } from './types';
 
@@ -51,6 +52,11 @@ const REGISTRY_AUX = 'sourceRegistry';
 
 const SUMMARY_COLUMNS = 'key, type, name, source, edition, page, layer';
 const DEFAULT_EXCLUDED_TYPES = ['bookData', 'adventureData', ...SUPPORT_TYPES];
+
+/** Derived file holding generated specific item variants. */
+export const GENERATED_ITEMS_FILE = '$generated/item-variants';
+/** Bump when the generator changes, so existing installs rebuild their variants. */
+const ITEM_VARIANTS_VERSION = 'v1';
 
 function placeholders(n: number): string {
   return Array.from({ length: n }, () => '?').join(', ');
@@ -278,6 +284,48 @@ export class EntityIndex {
   // region Copies
 
   /**
+   * Builds the specific magic item variants (`+1 Longsword`) from base items and generic variants,
+   * stored as a derived file. Rebuilt only when either input file changed.
+   */
+  regenerateItemVariants(ctx: ExtractContext): number {
+    const shas = this.fileShas('5etools');
+    const sha = [
+      ITEM_VARIANTS_VERSION,
+      shas.get('data/items-base.json') ?? '',
+      shas.get('data/magicvariants.json') ?? '',
+    ].join('+');
+    if (shas.get(GENERATED_ITEMS_FILE) === sha) return 0;
+    const ofType = (type: string) =>
+      this.db
+        .all<{ raw: string; resolved: string | null }>(
+          "SELECT raw, resolved FROM entities WHERE type = ? AND layer = '5etools'",
+          [type],
+        )
+        .map((r) => JSON.parse(r.resolved ?? r.raw) as RawEntity);
+    const entities = generateSpecificVariants(ofType('baseitem'), ofType('magicvariant')).flatMap(
+      (data) => {
+        const name = typeof data.name === 'string' ? data.name : '';
+        const source = typeof data.source === 'string' ? data.source : '';
+        if (!name || !source) return [];
+        return [
+          {
+            key: makeKey('item', [name], source),
+            type: 'item',
+            name,
+            source,
+            page: typeof data.page === 'number' ? data.page : null,
+            edition: ctx.sourceEdition(source) ?? '2014',
+            data,
+          },
+        ];
+      },
+    );
+    // Real items win over generated ones with the same name; those are simply not added.
+    this.replaceFile(GENERATED_ITEMS_FILE, sha, '5etools', { entities, aux: [], issues: [] });
+    return entities.length;
+  }
+
+  /**
    * Resolves `_copy` entities (all, or one layer's); returns the ones that failed (they keep
    * their raw form). Official data never copies homebrew, so a homebrew change only needs its own.
    */
@@ -405,6 +453,19 @@ export class EntityIndex {
       get: (key) => this.getEntity(key),
       withKeySuffix: (type, suffix) => this.withKeySuffix(type, suffix),
     };
+  }
+
+  /** The specific items a generic variant ("+1 Weapon") was applied to, by name. */
+  specificVariantsOf(key: string): EntitySummary[] {
+    const generic = this.getEntity(key);
+    if (generic?.type !== 'magicvariant') return [];
+    return this.db.all<EntitySummary>(
+      `SELECT ${SUMMARY_COLUMNS} FROM entities
+       WHERE file = ? AND json_extract(raw, '$.genericVariant.name') = ?
+         AND json_extract(raw, '$.genericVariant.source') = ?
+       ORDER BY name`,
+      [GENERATED_ITEMS_FILE, generic.name, generic.source],
+    );
   }
 
   /** A class with its features in level order and its subclasses. */

@@ -72,7 +72,13 @@ async function openIndex(): Promise<EntityIndex> {
     storage = 'memory';
     db = await openMemoryDatabase();
   }
-  return EntityIndex.open(db);
+  const index = EntityIndex.open(db);
+  // Installs made before an app update may lack derived data (generated magic item variants);
+  // this is a no-op when it is already up to date.
+  if (index.getMeta(META.version) !== undefined) {
+    index.regenerateItemVariants(index.extractContext());
+  }
+  return index;
 }
 
 const indexPromise: Promise<EntityIndex> = openIndex();
@@ -251,6 +257,10 @@ const api: DataWorkerApi = {
 
   async speciesPage(key) {
     return (await indexPromise).speciesPage(key);
+  },
+
+  async specificVariants(key) {
+    return (await indexPromise).specificVariantsOf(key);
   },
 
   async resolve(candidateLists) {

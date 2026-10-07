@@ -4,6 +4,7 @@
  */
 
 import { arr, isObj, num, text, type Obj } from './json';
+import { applyAllProperties } from './templates';
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export const ABILITIES = ['str', 'dex', 'con', 'int', 'wis', 'cha'] as const;
@@ -470,6 +471,47 @@ export function featAbility(ability: unknown): string {
     })
     .filter(Boolean)
     .join(' ');
+}
+
+// endregion
+
+// region Generic item variants
+
+/** `inherits` fields that are merged specially, or meaningless on the generic item itself. */
+const NOT_SHOWN_ON_GENERIC = new Set([
+  'entries',
+  'propertyAdd',
+  'namePrefix',
+  'nameSuffix',
+  'propertyRemove',
+]);
+
+/**
+ * A generic variant ("+1 Weapon") as 5etools displays it: its `inherits` (rarity, bonuses, text)
+ * copied onto itself, with `{=bonusWeapon}`-style templates filled in. A port of
+ * `Renderer.item._genericVariants_addInheritedPropertiesToSelf`.
+ */
+export function withInheritedProperties(variant: Obj): Obj {
+  if (!isObj(variant.inherits)) return variant;
+  const inherits = variant.inherits;
+  const out: Obj = { ...variant };
+  for (const [prop, val] of Object.entries(inherits)) {
+    if (NOT_SHOWN_ON_GENERIC.has(prop)) continue;
+    const current = out[prop];
+    out[prop] =
+      val === null
+        ? undefined
+        : Array.isArray(current) && Array.isArray(val)
+          ? [...(current as unknown[]), ...(val as unknown[])]
+          : val;
+  }
+  if (out.entries === undefined && Array.isArray(inherits.entries)) {
+    out.entries = applyAllProperties(inherits.entries, inherits);
+  }
+  if (Array.isArray(inherits.propertyAdd)) {
+    out.property = [...arr(out.property), ...(inherits.propertyAdd as unknown[])];
+  }
+  return out;
 }
 
 // endregion

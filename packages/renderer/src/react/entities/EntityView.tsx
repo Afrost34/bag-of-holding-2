@@ -12,6 +12,7 @@ import {
   spellDuration,
   spellLevelSchool,
   spellRange,
+  withInheritedProperties,
 } from '@boh/data5e/format';
 import { Entries } from '../Entries';
 import { registerInlineEntity } from '../inlineEntity';
@@ -43,7 +44,7 @@ export function EntityView({ type, data, edition = '2014' }: EntityViewProps) {
     case 'baseitem':
     case 'magicvariant':
     case 'itemGroup':
-      return <ItemView data={data} />;
+      return <ItemView data={withInheritedProperties(data)} />;
     case 'feat':
       return <FeatView data={data} />;
     case 'background':
@@ -114,14 +115,12 @@ function ItemView({ data }: { data: Obj }) {
           ['Properties', itemProperties(data)],
           [
             'Mastery',
-            <RichText
-              key="m"
-              text={
-                Array.isArray(data.mastery)
-                  ? data.mastery.map((m) => `{@itemMastery ${String(m)}}`).join(', ')
-                  : ''
-              }
-            />,
+            Array.isArray(data.mastery) ? (
+              <RichText
+                key="m"
+                text={data.mastery.map((m) => `{@itemMastery ${String(m)}}`).join(', ')}
+              />
+            ) : null,
           ],
           ['Weight', itemWeight(data.weight)],
           ['Value', itemValue(data.value)],
