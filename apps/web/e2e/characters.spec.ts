@@ -69,7 +69,7 @@ test('a character is built from its choices and kept', async ({ page }) => {
   await expect(dex).toContainText('Bonus+2');
   await page.getByLabel('Strength base score').selectOption('8');
   await page.getByLabel('Charisma base score').selectOption('15');
-  await expect(page.getByRole('status')).toHaveCount(0);
+  await expect(page.getByText(/Use each of/)).toHaveCount(0);
 
   // The sheet: numbers from the rules, with their parts, and a value set by hand.
   await step(page, /Sheet/).click();

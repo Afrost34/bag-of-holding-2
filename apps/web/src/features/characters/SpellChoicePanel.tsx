@@ -32,13 +32,15 @@ export function SpellChoicePanel({
   isEnabled: (source: string | undefined) => boolean;
   onChange: (picks: string[]) => void;
 }) {
-  const [adding, setAdding] = useState(choice.picks.length < choice.count);
+  // The saved decisions, not the engine's answer: that one can lag behind quick changes.
+  const picks = decisions.choices[choice.id] ?? choice.picks;
+  const [adding, setAdding] = useState(picks.length < choice.count);
   const [query, setQuery] = useState('');
   const [level, setLevel] = useState<number | null>(null);
   const options = useChoiceOptions(decisions, choice.id, true);
   const rows = useListRows('spells');
   const known = useKnownSpells();
-  const full = choice.picks.length >= choice.count;
+  const full = picks.length >= choice.count;
   const byKey = useMemo(() => new Map((rows ?? []).map((r) => [r.key, r])), [rows]);
 
   const levels = useMemo(
@@ -49,14 +51,14 @@ export function SpellChoicePanel({
     const q = query.trim().toLowerCase();
     return (options ?? []).filter(
       (o) =>
-        !choice.picks.includes(o.id) &&
+        !picks.includes(o.id) &&
         isEnabled(o.source) &&
         (level === null || o.level === level) &&
         (!q || o.name.toLowerCase().includes(q)),
     );
-  }, [options, choice.picks, isEnabled, level, query]);
+  }, [options, picks, isEnabled, level, query]);
   const option = (id: string) => (options ?? []).find((o) => o.id === id);
-  const twice = choice.picks.filter((id) => otherSources(known, id, choice.id).length > 0);
+  const twice = picks.filter((id) => otherSources(known, id, choice.id).length > 0);
   // "Cantrips", "Level 1 spell": what the pick is, rather than "Choose a spell".
   const only = levels.length === 1 ? levels[0] : undefined;
   const title =
@@ -75,7 +77,7 @@ export function SpellChoicePanel({
       <div className="flex items-center gap-3 rounded-md bg-sunken px-3 py-2">
         <h4 className="flex-1 font-semibold">{title}</h4>
         <span className={cn('text-sm font-bold', full ? 'text-text' : 'text-accent')}>
-          {choice.picks.length}/{choice.count}
+          {picks.length}/{choice.count}
         </span>
         <button
           type="button"
@@ -102,9 +104,9 @@ export function SpellChoicePanel({
         </p>
       )}
 
-      {choice.picks.length > 0 && (
+      {picks.length > 0 && (
         <ul className="space-y-1.5">
-          {choice.picks.map((id) => (
+          {picks.map((id) => (
             <SpellRowCard
               key={id}
               id={id}
@@ -113,7 +115,7 @@ export function SpellChoicePanel({
               alsoFrom={otherSources(known, id, choice.id)}
               action="Remove"
               onAction={() => {
-                onChange(choice.picks.filter((p) => p !== id));
+                onChange(picks.filter((p) => p !== id));
               }}
             />
           ))}
@@ -179,7 +181,7 @@ export function SpellChoicePanel({
                   action="Learn"
                   disabled={full}
                   onAction={() => {
-                    onChange([...choice.picks, o.id]);
+                    onChange([...picks, o.id]);
                   }}
                 />
               ))}
