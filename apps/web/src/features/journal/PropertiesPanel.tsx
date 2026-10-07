@@ -4,11 +4,12 @@ import {
   removeProperty,
   renameProperty,
   setProperty,
+  type FieldDef,
   type PropertyValue,
 } from '@boh/journal';
 import { cn } from '@boh/ui';
 import { ChevronRight, Code2, ExternalLink, Plus, X } from 'lucide-react';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 
 const LINK = /^\[\[([^\]]+)\]\]$/;
 
@@ -24,6 +25,11 @@ export function PropertiesPanel({
   openLink,
   showSource,
   onToggleSource,
+  fieldFor = () => undefined,
+  suggest = () => [],
+  asLink = () => null,
+  missingFields = [],
+  typeLabel,
 }: {
   text: string;
   onChange: (text: string) => void;
@@ -32,6 +38,15 @@ export function PropertiesPanel({
   openLink: (inner: string, newTab: boolean) => void;
   showSource: boolean;
   onToggleSource: () => void;
+  /** What the note's kind (NPC, location…) says about a property. */
+  fieldFor?: (key: string) => FieldDef | undefined;
+  /** Values to suggest for a property (its usual values, or notes to link to). */
+  suggest?: (key: string) => string[];
+  /** `[[Note]]` when the text names a note, else null: typed names become links. */
+  asLink?: (text: string) => string | null;
+  /** Fields of the note's kind that it does not have yet, and the kind's name. */
+  missingFields?: readonly FieldDef[];
+  typeLabel?: string | undefined;
 }) {
   const fm = parseFrontmatter(text);
   const entries = Object.entries(fm.data);
@@ -120,8 +135,25 @@ export function PropertiesPanel({
               }}
               openTag={openTag}
               openLink={openLink}
+              field={fieldFor(key)}
+              options={suggest(key)}
+              asLink={asLink}
             />
           ))}
+          {missingFields.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                apply((t) =>
+                  missingFields.reduce((acc, f) => setProperty(acc, f.key, f.initial ?? null), t),
+                );
+              }}
+              className="flex items-center gap-1 rounded px-1 py-1 text-xs text-faint hover:bg-sunken hover:text-text"
+            >
+              <Plus className="h-3.5 w-3.5" aria-hidden /> Add the usual {typeLabel ?? ''} fields (
+              {missingFields.map((f) => f.key).join(', ')})
+            </button>
+          )}
           {adding ? (
             <NewProperty
               taken={entries.map(([k]) => k)}
@@ -158,7 +190,13 @@ function PropertyRow({
   onRemove,
   openTag,
   openLink,
+  field,
+  options,
+  asLink,
 }: {
+  field: FieldDef | undefined;
+  options: string[];
+  asLink: (text: string) => string | null;
   name: string;
   value: unknown;
   onRename: (to: string) => void;
@@ -168,7 +206,15 @@ function PropertyRow({
   openLink: (inner: string, newTab: boolean) => void;
 }) {
   const [key, setKey] = useState(name);
-  const kind = propertyKind(value);
+  const kind =
+    field?.kind === 'checkbox'
+      ? 'boolean'
+      : field?.kind === 'links' || field?.kind === 'list'
+        ? 'list'
+        : field?.kind === 'number' && (value === null || typeof value === 'number')
+          ? 'number'
+          : propertyKind(value);
+  const linky = field?.kind === 'link' || field?.kind === 'links';
   return (
     <div className="group flex items-start gap-2">
       <input
@@ -199,7 +245,9 @@ function PropertyRow({
         ) : kind === 'list' ? (
           <ListValue
             name={name}
-            items={(value as unknown[]).map((v) => String(v))}
+            items={(Array.isArray(value) ? value : value ? [value] : []).map((v) => String(v))}
+            options={options}
+            asLink={linky ? asLink : undefined}
             onSet={onSet}
             onOpen={(item) => {
               const link = LINK.exec(item)?.[1];
@@ -214,6 +262,9 @@ function PropertyRow({
             name={name}
             value={typeof value === 'string' || typeof value === 'number' ? String(value) : ''}
             number={kind === 'number'}
+            date={field?.kind === 'date'}
+            options={options}
+            asLink={linky ? asLink : undefined}
             onSet={onSet}
             openLink={openLink}
           />
@@ -235,27 +286,38 @@ function TextValue({
   name,
   value,
   number,
+  date,
+  options,
+  asLink,
   onSet,
   openLink,
 }: {
   name: string;
   value: string;
   number: boolean;
+  date: boolean;
+  options: string[];
+  asLink: ((text: string) => string | null) | undefined;
   onSet: (value: PropertyValue) => void;
   openLink: (inner: string, newTab: boolean) => void;
 }) {
   const [draft, setDraft] = useState(value);
+  const listId = useId();
   const link = LINK.exec(value)?.[1];
   const commit = () => {
     if (draft === value) return;
     const n = Number(draft);
-    onSet(number && draft.trim() !== '' && Number.isFinite(n) ? n : draft);
+    if (number && draft.trim() !== '' && Number.isFinite(n)) onSet(n);
+    else if (draft.trim() === '') onSet(null);
+    else onSet(asLink?.(draft.trim()) ?? draft);
   };
   return (
     <>
       <input
         aria-label={name}
         value={draft}
+        type={date ? 'date' : 'text'}
+        list={options.length > 0 ? listId : undefined}
         inputMode={number ? 'decimal' : undefined}
         onChange={(e) => {
           setDraft(e.target.value);
@@ -266,6 +328,13 @@ function TextValue({
         }}
         className={inputClass}
       />
+      {options.length > 0 && (
+        <datalist id={listId}>
+          {options.map((o) => (
+            <option key={o} value={o} />
+          ))}
+        </datalist>
+      )}
       {link && (
         <button
           type="button"
@@ -285,18 +354,23 @@ function TextValue({
 function ListValue({
   name,
   items,
+  options,
+  asLink,
   onSet,
   onOpen,
 }: {
   name: string;
   items: string[];
+  options: string[];
+  asLink: ((text: string) => string | null) | undefined;
   onSet: (value: PropertyValue) => void;
   onOpen: (item: string) => void;
 }) {
   const [draft, setDraft] = useState('');
+  const listId = useId();
   const add = () => {
     const v = draft.trim();
-    if (v) onSet([...items, v]);
+    if (v) onSet([...items, asLink?.(v) ?? v]);
     setDraft('');
   };
   return (
@@ -330,6 +404,7 @@ function ListValue({
       <input
         aria-label={`Add to ${name}`}
         value={draft}
+        list={options.length > 0 ? listId : undefined}
         placeholder="Add…"
         onChange={(e) => {
           setDraft(e.target.value);
@@ -340,6 +415,15 @@ function ListValue({
         }}
         className="w-20 min-w-0 flex-1 bg-transparent px-1 py-0.5 text-xs focus:outline-none"
       />
+      {options.length > 0 && (
+        <datalist id={listId}>
+          {options
+            .filter((o) => !items.includes(o))
+            .map((o) => (
+              <option key={o} value={o} />
+            ))}
+        </datalist>
+      )}
     </div>
   );
 }

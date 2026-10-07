@@ -56,7 +56,7 @@ export function parseCompendiumRef(target: string): CompendiumRef | null {
   return ref;
 }
 
-const ATTACHMENT = /\.(png|jpe?g|gif|webp|svg|bmp|avif|pdf|mp3|wav|ogg|mp4|webm)$/i;
+const ATTACHMENT = /\.(base|png|jpe?g|gif|webp|svg|bmp|avif|pdf|mp3|wav|ogg|mp4|webm)$/i;
 
 export function isAttachment(target: string): boolean {
   return ATTACHMENT.test(target);

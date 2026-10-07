@@ -30,3 +30,37 @@ export {
   type PropertyValue,
 } from './properties';
 export { applyTemplate, formatDate, templatePaths } from './templates';
+export {
+  compareValues,
+  isFile,
+  isLink,
+  parseExpr,
+  toValue,
+  valueText,
+  type LinkValue,
+  type NoteInfo,
+  type Value,
+} from './bases/expr';
+export {
+  defaultColumnName,
+  parseBase,
+  propertiesForNew,
+  runView,
+  type BaseFile,
+  type BaseGroup,
+  type BaseResult,
+  type BaseRow,
+  type BaseView,
+  type Column,
+} from './bases/base';
+export {
+  ALIGNMENTS,
+  baseFor,
+  baseListsType,
+  NOTE_TYPES,
+  newNoteText,
+  noteType,
+  type FieldDef,
+  type FieldKind,
+  type NoteType,
+} from './noteTypes';

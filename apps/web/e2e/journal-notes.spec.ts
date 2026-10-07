@@ -19,7 +19,7 @@ test('properties are edited in a panel instead of as YAML', async ({ page }) => 
   await page.getByRole('button', { name: 'Add property' }).click();
   await page.getByLabel('New property name').fill('type');
   await page.getByLabel('New property name').press('Enter');
-  const value = page.getByRole('textbox', { name: 'type', exact: true });
+  const value = page.getByLabel('type', { exact: true });
   await value.fill('npc');
   await value.press('Enter');
   await expect(value).toHaveValue('npc');
@@ -31,7 +31,7 @@ test('properties are edited in a panel instead of as YAML', async ({ page }) => 
   // Survives a reload (notes are saved shortly after each change).
   await page.waitForTimeout(700);
   await page.reload();
-  await expect(page.getByRole('textbox', { name: 'type', exact: true })).toHaveValue('npc');
+  await expect(page.getByLabel('type', { exact: true })).toHaveValue('npc');
 });
 
 test('tags in notes are listed in the Tags pane', async ({ page }) => {
@@ -58,16 +58,16 @@ test('a note can start from a template', async ({ page }) => {
   await files.getByRole('button', { name: 'Actions for Templates' }).click();
   await page.getByRole('menuitem', { name: 'New note here' }).click();
   const title = page.getByLabel('Note title');
-  await title.fill('NPC');
+  await title.fill('Villain');
   await title.press('Enter');
-  await expect(page).toHaveURL(/note=Templates(%2F|\/)NPC\.md/);
+  await expect(page).toHaveURL(/note=Templates(%2F|\/)Villain\.md/);
   await editor(page).click();
   await page.keyboard.type('Name: {{title}}');
   await leaveEditor(page);
 
   await showFiles(page);
   await files.getByRole('button', { name: 'New note from template' }).click();
-  await page.getByRole('menuitem', { name: 'NPC' }).click();
+  await page.getByRole('menuitem', { name: 'Villain' }).click();
   await page.getByLabel('Name of the new note').fill('Laeral');
   await page.getByRole('button', { name: 'Create' }).click();
   await expect(page.getByLabel('Note title')).toHaveValue('Laeral');

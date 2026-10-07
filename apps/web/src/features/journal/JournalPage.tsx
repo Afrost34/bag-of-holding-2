@@ -1,16 +1,25 @@
 import {
   applyTemplate,
   bannerOf,
+  baseFor,
+  baseListsType,
   buildIndex,
   isAttachment,
   linkTargetFor,
+  newNoteText,
+  NOTE_TYPES,
   noteName,
+  noteType,
   noteTags,
   parseCompendiumRef,
   parseFrontmatter,
   parseLinkInner,
+  parseWikiLinks,
   resolveLinkPath,
+  setProperty,
   templatePaths,
+  type NoteInfo,
+  type NoteType,
 } from '@boh/journal';
 import { Button, cn } from '@boh/ui';
 import { FilePlus, FolderTree, Link2, Trash2, X } from 'lucide-react';
@@ -28,10 +37,12 @@ import { useJournal } from '../../app/journal/store';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 import { forgetAttachment } from '../../app/journal/attachments';
-import { JournalViewContext, useJournalView, type JournalView } from './context';
+import { BaseView } from './BaseView';
+import { JournalViewContext, useJournalView, type JournalView, type NewNoteSpec } from './context';
 import type { JournalEditorOptions } from './editor/setup';
 import { FileTree } from './FileTree';
-import { JournalEmbed } from './JournalEmbed';
+import { NoteTypeIcon } from './NoteTypeIcon';
+import { EmbedContent } from './JournalEmbed';
 import { LinkPreviewContent, LinkPreviews } from './LinkPreview';
 import { NoteEditor } from './NoteEditor';
 import { PropertiesPanel } from './PropertiesPanel';
@@ -40,6 +51,14 @@ import { buildTagTree, moveTarget } from './tree';
 import { useAttachmentUrl } from './useAttachmentUrl';
 
 const folderOf = (path: string) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '');
+/** A note's or base's name without its extension. */
+const displayName = (path: string) => noteName(path).replace(/\.base$/i, '');
+const isBasePath = (path: string) => path.toLowerCase().endsWith('.base');
+/** A folder's own name as words: `05_NPCs` → `NPCs`, for matching it to a kind of note. */
+const folderWords = (path: string) => (path.split('/').pop() ?? '').replace(/[_\d-]+/g, ' ');
+
+/** What the "new note" form is making. */
+type Creating = { kind: 'template'; path: string } | { kind: 'type'; type: NoteType };
 
 /** The open campaign's notes: file tree, live-preview editor and backlinks. */
 export function JournalPage({ note }: { note: string | undefined }) {
@@ -57,9 +76,9 @@ export function JournalPage({ note }: { note: string | undefined }) {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   // Per session: show the raw frontmatter in the editor instead of hiding it.
   const [showSource, setShowSource] = useState(false);
-  const [templating, setTemplating] = useState<string | null>(null);
+  const [creating, setCreating] = useState<Creating | null>(null);
 
-  usePageTitle(note ? noteName(note) : 'Journal');
+  usePageTitle(note ? displayName(note) : 'Journal');
   useEffect(() => {
     void useCampaigns.getState().load();
   }, []);
@@ -73,6 +92,22 @@ export function JournalPage({ note }: { note: string | undefined }) {
   const tagTree = useMemo(
     () => buildTagTree(new Map([...journal.notes].map(([p, t]) => [p, noteTags(t)]))),
     [journal.notes],
+  );
+  const noteInfos = useMemo<NoteInfo[]>(
+    () =>
+      [...journal.notes].map(([path, t]) => ({
+        path,
+        properties: parseFrontmatter(t).data,
+        tags: noteTags(t),
+        links: parseWikiLinks(t).map((l) => l.target),
+      })),
+    [journal.notes],
+  );
+  const attachments = journal.attachments;
+  const resolve = useMemo(
+    () => (target: string, from: string) =>
+      resolveLinkPath(target, isAttachment(target) ? attachments : paths, from),
+    [attachments, paths],
   );
 
   if (!campaignsLoaded || (campaign && !journal.loaded)) {
@@ -125,11 +160,15 @@ export function JournalPage({ note }: { note: string | undefined }) {
 
   const rename = async (path: string, newName: string) => {
     const isFolder = journal.folders.includes(path);
-    const clean = newName.replace(/[\\/:*?"<>|]/g, '-').replace(/\.md$/i, '');
-    const target = `${folderOf(path) ? `${folderOf(path)}/` : ''}${clean}${isFolder ? '' : '.md'}`;
+    // Notes keep `.md` and other files their own extension.
+    const ext = isFolder ? '' : (/\.[^./]+$/.exec(path)?.[0] ?? '');
+    const clean = newName.replace(/[\\/:*?"<>|]/g, '-');
+    const stem =
+      ext && clean.toLowerCase().endsWith(ext.toLowerCase()) ? clean.slice(0, -ext.length) : clean;
+    const target = `${folderOf(path) ? `${folderOf(path)}/` : ''}${stem}${ext}`;
     const clash = existing.some((p) => p.toLowerCase() === target.toLowerCase());
     if (clash && target.toLowerCase() !== path.toLowerCase()) {
-      setMessage(`There is already something called “${clean}” here.`);
+      setMessage(`There is already something called “${stem}” here.`);
       return;
     }
     await relocate(path, target);
@@ -187,23 +226,59 @@ export function JournalPage({ note }: { note: string | undefined }) {
       title: name,
       now: new Date(),
     });
-    setTemplating(null);
+    setCreating(null);
     open(await journal.createNote(note ? folderOf(note) : '', name, body));
+  };
+
+  /** The first base listing a kind of note is made with its first note, so it shows at once. */
+  const ensureBase = async (type: NoteType) => {
+    if ([...journal.bases.values()].some((t) => baseListsType(t, type))) return;
+    const folder =
+      journal.folders.find((f) => /\b(bases|databases)\b/i.test(folderWords(f))) ?? 'Bases';
+    let path = `${folder}/${type.plural}.base`;
+    for (let n = 1; journal.attachments.includes(path); n++) {
+      path = `${folder}/${type.plural} ${String(n)}.base`;
+    }
+    await journal.saveBase(path, baseFor(type));
+  };
+
+  const createNote = async ({ name, type, properties }: NewNoteSpec) => {
+    let body = type ? newNoteText(type, name) : '';
+    for (const [key, value] of Object.entries(properties ?? {})) {
+      body = setProperty(body, key, value);
+    }
+    // A kind of note goes in its folder: an existing one (`05_NPCs`) or a new one (`NPCs`).
+    const folder = type
+      ? (journal.folders.find((f) => type.folderMatch.test(folderWords(f))) ?? type.folder)
+      : note && !isBasePath(note)
+        ? folderOf(note)
+        : '';
+    const path = await journal.createNote(folder, name, body);
+    if (type) await ensureBase(type);
+    setCreating(null);
+    open(path);
   };
 
   const view: JournalView = {
     campaignId: campaign.id,
     edition: campaign.edition,
     notes: journal.notes,
-    attachments: journal.attachments,
+    attachments,
+    bases: journal.bases,
+    noteInfos,
     notePath: note,
+    resolve,
     isResolved: (target) => resolveLinkPath(target, paths, note) !== null,
     openLink: (inner, newTab) => void openLink(inner, newTab),
+    openPath: (path, newTab) => {
+      open(path, newTab);
+    },
     openUrl: (url) => {
       window.open(url, '_blank', 'noopener,noreferrer');
     },
     openTag,
-    Embed: JournalEmbed,
+    createNote: (spec) => createNote(spec),
+    Embed: EmbedContent,
   };
 
   const editorOptions: JournalEditorOptions = {
@@ -232,11 +307,49 @@ export function JournalPage({ note }: { note: string | undefined }) {
 
   const templates = templatePaths(paths);
 
+  // The open note's kind (NPC, location…) shapes its properties panel.
+  const data = text !== undefined ? parseFrontmatter(text).data : {};
+  const kind = noteType(data.type);
+  const fieldFor = (key: string) => kind?.fields.find((f) => f.key === key);
+  const linkTo = (path: string) => `[[${linkTargetFor(path, paths)}]]`;
+  const suggest = (key: string): string[] => {
+    const field = fieldFor(key);
+    if (field?.kind === 'link' || field?.kind === 'links') {
+      return noteInfos
+        .filter(
+          (n) =>
+            n.path !== note &&
+            (!field.linkType || String(n.properties.type).toLowerCase() === field.linkType),
+        )
+        .map((n) => linkTo(n.path))
+        .sort((a, b) => a.localeCompare(b));
+    }
+    const values = new Set<string>(field?.options ?? []);
+    for (const n of noteInfos) {
+      const raw = key === 'tags' ? n.tags : n.properties[key];
+      for (const v of Array.isArray(raw) ? raw : [raw]) {
+        if (typeof v === 'string' && v.trim() && values.size < 60) values.add(v.trim());
+      }
+    }
+    return [...values];
+  };
+  const asLink = (value: string) => {
+    if (/^\[\[[^\]]+\]\]$/.test(value)) return value;
+    const path = resolveLinkPath(value, paths, note);
+    return path ? linkTo(path) : null;
+  };
+  const missingFields = kind ? kind.fields.filter((f) => !(f.key in data)) : [];
+
   const fileTree = (
     <FileTree
       templates={templates}
+      noteTypes={NOTE_TYPES}
       onNewFromTemplate={(p) => {
-        setTemplating(p);
+        setCreating({ kind: 'template', path: p });
+        setFilesOpen(false);
+      }}
+      onNewOfType={(type) => {
+        setCreating({ kind: 'type', type });
         setFilesOpen(false);
       }}
       notes={paths}
@@ -369,17 +482,35 @@ export function JournalPage({ note }: { note: string | undefined }) {
               </div>
             )}
 
-            {templating && (
+            {creating && (
               <TemplateForm
-                template={noteName(templating)}
-                onCreate={(name) => void newFromTemplate(templating, name)}
+                key={creating.kind === 'type' ? creating.type.id : creating.path}
+                label={
+                  creating.kind === 'type'
+                    ? `New ${creating.type.label}`
+                    : `New note from the “${noteName(creating.path)}” template`
+                }
+                onCreate={(name) => {
+                  if (creating.kind === 'type') void createNote({ name, type: creating.type });
+                  else void newFromTemplate(creating.path, name);
+                }}
                 onCancel={() => {
-                  setTemplating(null);
+                  setCreating(null);
                 }}
               />
             )}
 
-            {note !== undefined && text !== undefined ? (
+            {note !== undefined && isBasePath(note) && journal.bases.has(note) ? (
+              <article>
+                <NoteTitle key={note} path={note} onRename={(name) => void rename(note, name)} />
+                {folderOf(note) && <p className="mb-2 text-xs text-faint">{folderOf(note)}</p>}
+                <BaseFilePage
+                  key={note}
+                  yaml={journal.bases.get(note) ?? ''}
+                  onSave={(yaml) => journal.saveBase(note, yaml)}
+                />
+              </article>
+            ) : note !== undefined && text !== undefined ? (
               <article>
                 <Banner text={text} />
                 <NoteTitle key={note} path={note} onRename={(name) => void rename(note, name)} />
@@ -396,6 +527,11 @@ export function JournalPage({ note }: { note: string | undefined }) {
                   onToggleSource={() => {
                     setShowSource(!showSource);
                   }}
+                  fieldFor={fieldFor}
+                  suggest={suggest}
+                  asLink={asLink}
+                  missingFields={missingFields}
+                  typeLabel={kind?.label}
                 />
                 <div ref={editorBox}>
                   <NoteEditor
@@ -415,6 +551,9 @@ export function JournalPage({ note }: { note: string | undefined }) {
                 count={paths.length}
                 missing={note !== undefined}
                 onNew={() => void newNote('')}
+                onNewOfType={(type) => {
+                  setCreating({ kind: 'type', type });
+                }}
               />
             )}
           </div>
@@ -480,11 +619,11 @@ function Banner({ text }: { text: string }) {
 }
 
 function TemplateForm({
-  template,
+  label,
   onCreate,
   onCancel,
 }: {
-  template: string;
+  label: string;
   onCreate: (name: string) => void;
   onCancel: () => void;
 }) {
@@ -492,14 +631,14 @@ function TemplateForm({
   const clean = name.replace(/[\\/:*?"<>|]/g, '-').trim();
   return (
     <form
-      aria-label="New note from template"
+      aria-label={label}
       onSubmit={(e) => {
         e.preventDefault();
         if (clean) onCreate(clean);
       }}
       className="mb-4 flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface p-3 text-sm"
     >
-      <span className="w-full text-muted">New note from the “{template}” template</span>
+      <span className="w-full font-medium">{label}</span>
       <input
         autoFocus
         aria-label="Name of the new note"
@@ -530,11 +669,11 @@ function snippet(text: string, at: number): string {
 }
 
 function NoteTitle({ path, onRename }: { path: string; onRename: (name: string) => void }) {
-  const [name, setName] = useState(noteName(path));
+  const [name, setName] = useState(displayName(path));
   const commit = () => {
     const trimmed = name.trim();
-    if (trimmed && trimmed !== noteName(path)) onRename(trimmed);
-    else setName(noteName(path));
+    if (trimmed && trimmed !== displayName(path)) onRename(trimmed);
+    else setName(displayName(path));
   };
   return (
     <input
@@ -557,11 +696,13 @@ function EmptyJournal({
   count,
   missing,
   onNew,
+  onNewOfType,
 }: {
   campaign: string;
   count: number;
   missing: boolean;
   onNew: () => void;
+  onNewOfType: (type: NoteType) => void;
 }) {
   return (
     <div className="mx-auto max-w-md py-16 text-center">
@@ -578,6 +719,76 @@ function EmptyJournal({
       <Button variant="primary" className={cn('mt-4')} onClick={onNew}>
         <FilePlus className="h-4 w-4" aria-hidden /> New note
       </Button>
+      {!missing && (
+        <div className="mt-6">
+          <p className="text-xs font-semibold tracking-wide text-muted uppercase">Or start a…</p>
+          <div className="mt-2 flex flex-wrap justify-center gap-2">
+            {NOTE_TYPES.map((t) => (
+              <Button
+                key={t.id}
+                size="sm"
+                onClick={() => {
+                  onNewOfType(t);
+                }}
+              >
+                <NoteTypeIcon type={t} /> {t.label}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+/** A `.base` file: its views, and its YAML to edit. */
+function BaseFilePage({ yaml, onSave }: { yaml: string; onSave: (yaml: string) => Promise<void> }) {
+  const [editing, setEditing] = useState<string | null>(null);
+  if (editing !== null) {
+    return (
+      <div className="space-y-2">
+        <textarea
+          aria-label="Base YAML"
+          value={editing}
+          spellCheck={false}
+          onChange={(e) => {
+            setEditing(e.target.value);
+          }}
+          rows={Math.min(30, Math.max(10, editing.split('\n').length + 1))}
+          className="w-full rounded-md border border-border bg-surface p-3 font-mono text-sm focus:border-accent focus:outline-none"
+        />
+        <div className="flex gap-2">
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => {
+              void onSave(editing).then(() => {
+                setEditing(null);
+              });
+            }}
+          >
+            Save
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setEditing(null);
+            }}
+          >
+            Cancel
+          </Button>
+        </div>
+        <BaseView yaml={editing} />
+      </div>
+    );
+  }
+  return (
+    <BaseView
+      yaml={yaml}
+      onEditSource={() => {
+        setEditing(yaml);
+      }}
+    />
   );
 }
