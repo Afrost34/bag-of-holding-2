@@ -201,7 +201,7 @@ function PortraitDialog({
             )}
           </div>
           {problem && (
-            <p role="alert" className="text-sm text-accent">
+            <p role="alert" className="text-sm text-accent-ink">
               {problem}
             </p>
           )}

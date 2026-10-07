@@ -109,7 +109,7 @@ export function NoteEditor({
         getView={() => view.current}
         host={{ pickImages: () => latest.current.pickImages?.() ?? Promise.resolve([]) }}
       />
-      <div ref={host} className="min-h-[60vh]" aria-label="Note text" />
+      <div ref={host} className="min-h-[60vh]" />
       {embeds.portals((embed) => (
         <EmbedContent embed={embed} editable />
       ))}

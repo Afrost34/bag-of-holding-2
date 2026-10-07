@@ -190,7 +190,7 @@ export function NoteWizard({
         className="flex max-h-full w-full flex-col overflow-hidden rounded-t-xl bg-surface shadow-card sm:max-w-lg sm:rounded-xl"
       >
         <header className="flex items-center gap-2 border-b border-border px-4 py-3">
-          {type && <NoteTypeIcon type={type} className="h-5 w-5 text-accent" />}
+          {type && <NoteTypeIcon type={type} className="h-5 w-5 text-accent-ink" />}
           <h2 id={titleId} className="flex-1 font-serif text-lg font-bold">
             {verb} {type ? type.label : 'note'}
             {mode === 'edit' && name ? `: ${name}` : ''}
@@ -425,7 +425,7 @@ function ChipsField({
         {items.map((item, i) => (
           <span
             key={`${String(i)}:${item}`}
-            className="inline-flex items-center gap-1 rounded-full bg-accent-soft py-0.5 pr-1 pl-2.5 text-sm text-accent"
+            className="inline-flex items-center gap-1 rounded-full bg-accent-soft py-0.5 pr-1 pl-2.5 text-sm text-accent-ink"
           >
             {linkText(item)}
             <button

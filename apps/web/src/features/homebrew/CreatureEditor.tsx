@@ -237,7 +237,7 @@ export function CreatureEditor({
                     className={cn(
                       'w-full rounded-full border px-1 py-0.5 text-xs',
                       proficient
-                        ? 'border-accent bg-accent-soft text-accent'
+                        ? 'border-accent bg-accent-soft text-accent-ink'
                         : 'border-border text-muted hover:border-accent',
                     )}
                   >
@@ -273,7 +273,7 @@ export function CreatureEditor({
                     level === 2
                       ? 'border-accent bg-accent text-accent-fg'
                       : level === 1
-                        ? 'border-accent bg-accent-soft text-accent'
+                        ? 'border-accent bg-accent-soft text-accent-ink'
                         : 'border-border text-muted hover:border-accent',
                   )}
                 >
@@ -516,7 +516,7 @@ function Chips({
               className={cn(
                 'rounded-full border px-2.5 py-0.5 text-sm',
                 on
-                  ? 'border-accent bg-accent-soft text-accent'
+                  ? 'border-accent bg-accent-soft text-accent-ink'
                   : 'border-border text-muted hover:border-accent',
               )}
             >

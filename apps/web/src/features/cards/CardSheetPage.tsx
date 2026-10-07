@@ -146,7 +146,7 @@ export function CardSheetPage({ id }: { id: string }) {
                           {e ? typeLabel(e.type) : entitiesLoaded ? 'Not in your data' : ''}
                           {!c.hidden && pageOf.has(c.id) && ` · page ${String(pageOf.get(c.id))}`}
                           {packing.tooTall.has(c.id) && (
-                            <span className="text-accent">
+                            <span className="text-accent-ink">
                               {' '}
                               <AlertTriangle className="inline h-3 w-3" aria-hidden /> too tall for
                               a page
@@ -218,7 +218,7 @@ export function CardSheetPage({ id }: { id: string }) {
                   navigate('/cards');
                 });
             }}
-            className="mt-6 inline-flex items-center gap-1 text-sm text-muted hover:text-accent"
+            className="mt-6 inline-flex items-center gap-1 text-sm text-muted hover:text-accent-ink"
           >
             <Trash2 className="h-4 w-4" aria-hidden /> Delete this sheet
           </button>
@@ -268,7 +268,7 @@ function IconAction({
       onClick={onClick}
       className={cn(
         'rounded p-1 text-muted hover:bg-sunken hover:text-text disabled:opacity-30',
-        pressed && 'text-accent',
+        pressed && 'text-accent-ink',
       )}
     >
       {children}

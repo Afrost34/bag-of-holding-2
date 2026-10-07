@@ -62,7 +62,7 @@ function TagItem({
         }}
         className={cn(
           'flex w-full items-center gap-1 rounded-md py-1 pr-2 text-left hover:bg-sunken',
-          sel === tag && 'bg-accent-soft text-accent',
+          sel === tag && 'bg-accent-soft text-accent-ink',
         )}
         style={{ paddingLeft: `${String(0.25 + depth * 0.85)}rem` }}
       >

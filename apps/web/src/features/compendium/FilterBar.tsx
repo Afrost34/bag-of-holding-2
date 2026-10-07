@@ -96,7 +96,7 @@ export function FilterBar({
             <button
               type="button"
               onClick={onReset}
-              className="text-xs font-semibold tracking-wide text-accent uppercase hover:underline"
+              className="text-xs font-semibold tracking-wide text-accent-ink uppercase hover:underline"
             >
               Reset all filters
             </button>
@@ -110,7 +110,7 @@ export function FilterBar({
           onClick={onToggleAdvanced}
           className={cn(
             '-mt-px rounded-b-md border border-t-0 border-border bg-surface-2 px-5 py-1.5',
-            'text-xs font-semibold tracking-wide text-accent uppercase hover:text-accent-hover',
+            'text-xs font-semibold tracking-wide text-accent-ink uppercase hover:text-accent-hover',
           )}
         >
           {advanced ? 'Hide advanced filters' : 'Show advanced filters'}

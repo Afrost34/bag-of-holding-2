@@ -170,7 +170,7 @@ export function CharactersPage() {
                 <PortraitImage character={c} size={48} />
                 <AppLink
                   to={`/characters/${c.id}?step=class`}
-                  className="min-w-0 flex-1 hover:text-accent"
+                  className="min-w-0 flex-1 hover:text-accent-ink"
                 >
                   <span className="block truncate font-serif text-lg font-bold">{c.name}</span>
                   <span className="block truncate text-sm text-muted">

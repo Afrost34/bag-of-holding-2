@@ -248,7 +248,7 @@ export function CharacterPage({ id, step }: { id: string; step: StepId }) {
           >
             {warnings.map((w) => (
               <p key={`${w.kind}:${w.ref}`} className="flex gap-2">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden />{' '}
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-accent-ink" aria-hidden />{' '}
                 {w.message}
               </p>
             ))}

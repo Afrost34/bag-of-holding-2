@@ -147,7 +147,7 @@ function DiceBody({ card }: { card: Extract<BoardCard, { kind: 'dice' }> }) {
               onClick={() => {
                 rollIt(f);
               }}
-              className="px-2 py-1 text-xs font-semibold hover:text-accent"
+              className="px-2 py-1 text-xs font-semibold hover:text-accent-ink"
             >
               {f}
             </button>

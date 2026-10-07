@@ -167,7 +167,7 @@ function EmbeddedImage({
             onClick={() => {
               onResize(s.width);
             }}
-            className="rounded px-2 py-1 hover:bg-sunken aria-pressed:bg-accent-soft aria-pressed:text-accent"
+            className="rounded px-2 py-1 hover:bg-sunken aria-pressed:bg-accent-soft aria-pressed:text-accent-ink"
           >
             {s.label}
           </button>

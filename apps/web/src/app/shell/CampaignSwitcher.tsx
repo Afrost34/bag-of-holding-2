@@ -34,7 +34,7 @@ export function CampaignSwitcher({ onNavigate }: { onNavigate?: () => void }) {
         aria-label={`Campaign: ${active.name}. Switch campaign`}
         className="mx-2 flex h-12 items-center gap-2.5 rounded-md bg-chrome-2/60 px-3 text-left hover:bg-chrome-2"
       >
-        <Castle className="h-4 w-4 shrink-0 text-accent" aria-hidden />
+        <Castle className="h-4 w-4 shrink-0 text-accent-ink" aria-hidden />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold text-chrome-fg">{active.name}</span>
           <span className="block truncate text-[11px] text-chrome-muted">
@@ -59,7 +59,7 @@ export function CampaignSwitcher({ onNavigate }: { onNavigate?: () => void }) {
               className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 outline-none data-[highlighted]:bg-sunken"
             >
               <span className="w-4">
-                {c.id === active.id && <Check className="h-4 w-4 text-accent" aria-hidden />}
+                {c.id === active.id && <Check className="h-4 w-4 text-accent-ink" aria-hidden />}
               </span>
               <span className="flex-1 truncate">{c.name}</span>
             </Menu.Item>

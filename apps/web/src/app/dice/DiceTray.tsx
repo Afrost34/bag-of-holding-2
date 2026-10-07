@@ -230,8 +230,8 @@ function DieButton({
             className={cn(
               'relative flex h-12 w-12 animate-[fade-in_120ms_ease-out] flex-col items-center justify-center rounded-full border bg-surface shadow-card transition-colors',
               count > 0
-                ? 'border-accent text-accent'
-                : 'border-border text-text hover:border-accent hover:text-accent',
+                ? 'border-accent text-accent-ink'
+                : 'border-border text-text hover:border-accent hover:text-accent-ink',
             )}
           >
             <DieIcon faces={faces} className="h-7 w-7" />

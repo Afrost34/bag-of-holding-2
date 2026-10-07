@@ -77,7 +77,7 @@ export function ImportPanel({
       className="mb-4 rounded-lg border border-border bg-surface p-4 text-sm"
     >
       <div className="mb-3 flex items-center gap-2">
-        <FolderInput className="h-5 w-5 text-accent" aria-hidden />
+        <FolderInput className="h-5 w-5 text-accent-ink" aria-hidden />
         <h2 className="flex-1 font-serif text-lg font-bold">Import from Obsidian</h2>
         <button
           type="button"
@@ -238,7 +238,7 @@ function Done({
   return (
     <div className="space-y-3">
       <p className="flex items-center gap-2 font-medium">
-        <CheckCircle2 className="h-5 w-5 text-accent" aria-hidden />
+        <CheckCircle2 className="h-5 w-5 text-accent-ink" aria-hidden />
         Imported {written} files.
       </p>
       <p className="text-muted">

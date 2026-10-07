@@ -131,7 +131,7 @@ function AppliesTo({ entityKey }: { entityKey: string }) {
           <li key={item.key}>
             <AppLink
               to={entityPath(item.key)}
-              className="inline-block rounded-md border border-border bg-surface px-2 py-1 text-sm hover:border-accent hover:text-accent"
+              className="inline-block rounded-md border border-border bg-surface px-2 py-1 text-sm hover:border-accent hover:text-accent-ink"
             >
               {item.name}
               <span className="ml-1.5 text-xs text-faint">{item.source}</span>

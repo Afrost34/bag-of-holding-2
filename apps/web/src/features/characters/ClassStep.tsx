@@ -270,7 +270,7 @@ function ClassPanel({
           onClick={() => {
             if (window.confirm(`Remove ${name} and the choices made for it?`)) onRemove();
           }}
-          className="rounded p-1 text-accent hover:bg-sunken"
+          className="rounded p-1 text-accent-ink hover:bg-sunken"
         >
           <X className="h-5 w-5" aria-hidden />
         </button>
@@ -295,7 +295,7 @@ function ClassPanel({
             className={cn(
               '-mb-px border-b-2 py-1.5',
               tab === t
-                ? 'border-accent text-accent'
+                ? 'border-accent text-accent-ink'
                 : 'border-transparent text-muted hover:text-text',
             )}
           >
@@ -502,7 +502,7 @@ function HitPoints({
                       );
                   });
                 }}
-                className="rounded p-0.5 text-muted hover:text-accent"
+                className="rounded p-0.5 text-muted hover:text-accent-ink"
               >
                 <Dices className="h-4 w-4" aria-hidden />
               </button>

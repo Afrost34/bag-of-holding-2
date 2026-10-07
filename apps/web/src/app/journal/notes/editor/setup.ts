@@ -289,11 +289,13 @@ export function journalViewerExtensions(
     linkClicks(opts.openLink, opts.openUrl, opts.openTag),
     theme,
     EditorView.theme({ '.cm-content': { padding: '0 !important' }, '&': { fontSize: '14px' } }),
+    EditorView.contentAttributes.of({ 'aria-label': 'Note' }),
   ];
 }
 
 export function journalExtensions(opts: JournalEditorOptions): Extension[] {
   const editing: Extension[] = [
+    EditorView.contentAttributes.of({ 'aria-label': 'Note text' }),
     history(),
     drawSelection(),
     closeBrackets(),

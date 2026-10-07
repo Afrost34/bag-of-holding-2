@@ -125,10 +125,10 @@ function Tiles({ label, links }: { label: string; links: readonly CompendiumLink
               to={to}
               className="group flex items-center gap-3 rounded-lg border border-border bg-surface px-4 py-3.5 transition-colors hover:border-accent"
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-ink">
                 <Icon className="h-5 w-5" aria-hidden />
               </span>
-              <span className="font-semibold group-hover:text-accent">{name}</span>
+              <span className="font-semibold group-hover:text-accent-ink">{name}</span>
             </AppLink>
           </li>
         ))}

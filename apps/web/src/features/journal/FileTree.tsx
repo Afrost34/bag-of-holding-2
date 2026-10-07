@@ -238,7 +238,7 @@ function TreeItem({
         {...(node.kind === 'folder' ? {} : zone)}
         className={cn(
           'group flex items-center gap-1 rounded-md pr-1',
-          selected ? 'bg-accent-soft text-accent' : 'hover:bg-sunken',
+          selected ? 'bg-accent-soft text-accent-ink' : 'hover:bg-sunken',
         )}
         style={{ paddingLeft: `${String(0.25 + depth * 0.85)}rem` }}
       >

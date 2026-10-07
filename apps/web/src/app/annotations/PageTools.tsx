@@ -42,7 +42,7 @@ function ToolButton({
       className={cn(
         'inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-sm font-medium transition-colors',
         pressed
-          ? 'border-accent bg-accent-soft text-accent'
+          ? 'border-accent bg-accent-soft text-accent-ink'
           : 'border-border bg-surface text-muted hover:border-border-strong hover:text-text',
       )}
     >
@@ -168,7 +168,7 @@ export function PageTools({ noteId, label }: { noteId: string; label: string }) 
             <button
               type="button"
               onClick={finishEditing}
-              className="text-xs font-semibold tracking-wide text-accent uppercase hover:underline"
+              className="text-xs font-semibold tracking-wide text-accent-ink uppercase hover:underline"
             >
               Done
             </button>

@@ -282,7 +282,7 @@ function Section({
   if (entries.length === 0) return null;
   return (
     <section className="mt-3">
-      <h4 className="mb-1 border-b border-accent/40 font-serif text-base font-bold text-accent">
+      <h4 className="mb-1 border-b border-accent/40 font-serif text-base font-bold text-accent-ink">
         {title}
       </h4>
       <Entries entries={intro} depth={2} />

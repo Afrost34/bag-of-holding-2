@@ -42,11 +42,14 @@ export function TabStrip({ onOpenMenu }: TabStripProps) {
         icon={<Menu className="h-5 w-5" />}
         onClick={onOpenMenu}
       />
+      {/* The tabs belong to this list (aria-owns); their close buttons sit beside them, outside it. */}
       <div
         role="tablist"
         aria-label="Open pages"
-        className="scrollbar-none flex min-w-0 items-end gap-1 overflow-x-auto"
-      >
+        aria-owns={tabs.map((t) => tabElementId(t.id)).join(' ')}
+        className="hidden"
+      />
+      <div className="scrollbar-none flex min-w-0 items-end gap-1 overflow-x-auto">
         {tabs.map((tab, index) => (
           <TabButton
             key={tab.id}
@@ -110,11 +113,11 @@ function TabButton({ tab, active, canClose, ref, onSelect, onClose, onDrop }: Ta
   const title = pageTitle ?? titleForPath(tab.path);
 
   return (
+    // The tab itself is the label; its close button sits beside it (not inside: a control in a
+    // control is lost to screen readers).
     <div
       ref={ref}
-      role="tab"
-      aria-selected={active}
-      tabIndex={active ? 0 : -1}
+      role="presentation"
       draggable
       title={title}
       onDragStart={(event) => {
@@ -132,17 +135,25 @@ function TabButton({ tab, active, canClose, ref, onSelect, onClose, onDrop }: Ta
           onClose();
         }
       }}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') onSelect();
-        if (event.key === 'Delete' && canClose) onClose();
-      }}
       className={cn(
         'group flex h-9 max-w-52 min-w-28 shrink-0 cursor-default items-center gap-2 rounded-t-lg pr-1.5 pl-3 text-sm select-none',
         active ? 'bg-bg text-text' : 'text-chrome-muted hover:bg-chrome-2 hover:text-chrome-fg',
       )}
     >
       {Icon && <Icon className="h-4 w-4 shrink-0" aria-hidden />}
-      <span className="flex-1 truncate">{title}</span>
+      <span
+        id={tabElementId(tab.id)}
+        role="tab"
+        aria-selected={active}
+        tabIndex={active ? 0 : -1}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') onSelect();
+          if (event.key === 'Delete' && canClose) onClose();
+        }}
+        className="flex-1 truncate outline-none focus-visible:underline"
+      >
+        {title}
+      </span>
       {canClose && (
         <button
           type="button"
@@ -162,3 +173,5 @@ function TabButton({ tab, active, canClose, ref, onSelect, onClose, onDrop }: Ta
     </div>
   );
 }
+
+const tabElementId = (id: string) => `app-tab-${id}`;

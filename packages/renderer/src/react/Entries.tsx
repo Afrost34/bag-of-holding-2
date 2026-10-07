@@ -424,7 +424,7 @@ function ListView({ entry, depth }: { entry: Obj; depth: number }) {
     <ul
       className={cn(
         'my-2 space-y-1',
-        LIST_STYLES[style] ?? 'list-disc pl-5 marker:text-accent',
+        LIST_STYLES[style] ?? 'list-disc pl-5 marker:text-accent-ink',
         columns > 1 && 'gap-x-6 sm:columns-2',
       )}
     >

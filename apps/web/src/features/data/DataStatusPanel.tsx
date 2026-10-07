@@ -29,7 +29,7 @@ export function DataStatusPanel() {
       <div className="space-y-4">
         {error && (
           <p role="alert" className="flex items-start gap-2 rounded-md bg-accent-soft p-3 text-sm">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden />
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-accent-ink" aria-hidden />
             <span>{error}</span>
           </p>
         )}

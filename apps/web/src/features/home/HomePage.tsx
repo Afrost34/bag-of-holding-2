@@ -31,7 +31,7 @@ export function HomePage() {
                     'hover:border-accent/60 hover:bg-surface-2',
                   )}
                 >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-accent-soft text-accent">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-accent-soft text-accent-ink">
                     <Icon className="h-5 w-5" aria-hidden />
                   </span>
                   <span className="min-w-0 flex-1">
