@@ -41,16 +41,17 @@ test('bookmark a page and keep a note on it, across reloads', async ({ page }) =
   await expect(page.getByRole('heading', { level: 1, name: 'Magic Missile' })).toBeVisible();
 });
 
-test('"Send to" offers card sheets now and later milestones disabled', async ({ page }) => {
+test('"Send to" offers card sheets and boards now, later milestones disabled', async ({ page }) => {
   await page.goto('./#/compendium/spell%3Amagic%20missile%40phb');
   await page.getByRole('button', { name: 'Send to' }).click();
-  await expect(page.getByRole('menuitem', { name: /Board/ })).toHaveAttribute(
+  await expect(page.getByRole('menuitem', { name: /Encounter/ })).toHaveAttribute(
     'aria-disabled',
     'true',
   );
   await expect(
     page.getByRole('menuitem', { name: /New card sheet with Magic Missile/ }),
   ).toBeEnabled();
+  await expect(page.getByRole('menuitem', { name: /New board with Magic Missile/ })).toBeEnabled();
 });
 
 test('roll on a random table', async ({ page }) => {

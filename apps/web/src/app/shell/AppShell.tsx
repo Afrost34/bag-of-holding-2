@@ -1,5 +1,6 @@
 import { Outlet, useRouterState } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
+import { PLAYER_ROUTE } from '../boards/player';
 import { useCampaigns } from '../campaigns/store';
 import { Dice3DLayer } from '../dice/Dice3DLayer';
 import { DiceTray } from '../dice/DiceTray';
@@ -21,6 +22,8 @@ export function AppShell() {
   const setActivePath = useTabs((s) => s.setActivePath);
   const { collapsed, toggle } = useSidebarPrefs();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // The player window (a second window the DM shows things in) is not a full app.
+  const player = href.split(/[?#]/, 1)[0] === PLAYER_ROUTE;
 
   // The open campaign decides which sources are on and whose notes show, on every page.
   useEffect(() => {
@@ -29,14 +32,25 @@ export function AppShell() {
       .getState()
       .load()
       .then(() => {
-        startAutoSync();
+        if (!player) startAutoSync();
       });
+    // Once: a window does not turn into the player window.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // The URL is the source of truth for the active tab (deep links, back/forward).
+  // (Not the player window's: tabs are shared with the DM's window through localStorage.)
   useEffect(() => {
-    setActivePath(href);
-  }, [href, setActivePath]);
+    if (!player) setActivePath(href);
+  }, [href, setActivePath, player]);
+
+  // The player window shows only what the DM sends it: no sidebar, tabs or dice tray.
+  if (player)
+    return (
+      <AppRendererProvider>
+        <Outlet />
+      </AppRendererProvider>
+    );
 
   return (
     <div className="flex h-full overflow-hidden">

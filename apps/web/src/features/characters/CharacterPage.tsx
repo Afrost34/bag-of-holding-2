@@ -65,7 +65,9 @@ export function CharacterPage({ id, step }: { id: string; step: StepId }) {
     if (!character || !view) return;
     const species = view.entities.find((e) => e.key === character.decisions.species)?.name;
     const line = summaryLine(view.level, species, view.classes);
-    if (line !== character.summary) save({ ...character, summary: line });
+    // The character as stored now: a pick made since this render must not be written over.
+    const latest = useCharacters.getState().characters.find((c) => c.id === character.id);
+    if (latest && line !== latest.summary) save({ ...latest, summary: line });
   }, [view, character, save]);
 
   if (!loaded) return <p className="p-8 text-muted">Loading…</p>;

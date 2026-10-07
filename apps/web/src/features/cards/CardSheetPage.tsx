@@ -1,4 +1,3 @@
-import type { EntitySummary } from '@boh/data5e';
 import { Button, cn } from '@boh/ui';
 import {
   AlertTriangle,
@@ -8,7 +7,6 @@ import {
   Eye,
   EyeOff,
   Printer,
-  Search,
   SeparatorHorizontal,
   Trash2,
 } from 'lucide-react';
@@ -18,11 +16,9 @@ import { AppLink } from '../../app/AppLink';
 import { addCards, moveCard, updateCard, type CardSheet } from '../../app/cards/model';
 import { useCardSheet, useCardSheets } from '../../app/cards/store';
 import { useEntities } from '../../app/cards/useEntities';
-import { dataWorker } from '../../app/data/client';
-import { useSourceList } from '../../app/data/sourceList';
-import { disabledSourceIds, useSourcePrefs } from '../../app/data/sourcePrefs';
 import { typeLabel } from '../../app/format';
 import { useAppNavigate } from '../../app/navigation';
+import { EntitySearch } from '../../app/search/EntitySearch';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 import { CardPagesView } from './CardPages';
 import { useCardPacking } from './packing';
@@ -120,7 +116,7 @@ export function CardSheetPage({ id }: { id: string }) {
           aria-label="Cards"
           className="overflow-y-auto border-b border-border p-4 lg:border-r lg:border-b-0"
         >
-          <AddCard
+          <EntitySearch
             onAdd={(key) => {
               set(addCards(sheet, [key]));
             }}
@@ -277,77 +273,5 @@ function IconAction({
     >
       {children}
     </button>
-  );
-}
-
-/** Finds anything in the compendium (spells, items, creatures, features…) and adds it. */
-function AddCard({ onAdd }: { onAdd: (key: string) => void }) {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<EntitySummary[]>([]);
-  const { sources, load } = useSourceList();
-  const overrides = useSourcePrefs((s) => s.overrides);
-  useEffect(() => {
-    void load();
-  }, [load]);
-  useEffect(() => {
-    const q = query.trim();
-    if (q.length < 2) return;
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      void dataWorker()
-        .search(q, { excludeSources: disabledSourceIds(sources, overrides), limit: 15 })
-        .then((r) => {
-          if (!cancelled) setResults(r);
-        });
-    }, 150);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [query, sources, overrides]);
-  const shown = query.trim().length < 2 ? [] : results;
-  return (
-    <div>
-      <label className="relative block">
-        <Search
-          className="pointer-events-none absolute top-2.5 left-2.5 h-4 w-4 text-faint"
-          aria-hidden
-        />
-        <input
-          type="search"
-          value={query}
-          placeholder="Add a card: spell, item, creature…"
-          aria-label="Add a card"
-          onChange={(e) => {
-            setQuery(e.target.value);
-          }}
-          className="w-full rounded-md border border-border bg-surface py-2 pr-3 pl-8 text-base focus:border-accent focus:outline-none sm:text-sm"
-        />
-      </label>
-      {shown.length > 0 && (
-        <ul
-          aria-label="Found"
-          className="mt-1 max-h-72 overflow-y-auto rounded-md border border-border bg-surface"
-        >
-          {shown.map((r) => (
-            <li key={r.key}>
-              <button
-                type="button"
-                onClick={() => {
-                  onAdd(r.key);
-                  setQuery('');
-                }}
-                className="flex w-full items-baseline gap-2 px-3 py-1.5 text-left text-sm hover:bg-sunken"
-              >
-                <span className="font-medium">{r.name}</span>
-                <span className="ml-auto text-xs text-muted">
-                  {typeLabel(r.type)} · {r.source}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
   );
 }

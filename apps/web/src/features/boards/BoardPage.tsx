@@ -1,0 +1,547 @@
+import { Button } from '@boh/ui';
+import * as Menu from '@radix-ui/react-dropdown-menu';
+import {
+  Background,
+  Controls,
+  MiniMap,
+  ReactFlow,
+  ReactFlowProvider,
+  applyNodeChanges,
+  useReactFlow,
+  type NodeChange,
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+import { ArrowLeft, MonitorUp, Plus, Trash2, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { AppLink } from '../../app/AppLink';
+import {
+  addBoardCards,
+  COLLAPSED_H,
+  dropCard,
+  moveBoardCards,
+  removeBoardCard,
+  setFrame,
+  SIZES,
+  unstack,
+  updateBoardCard,
+  type Board,
+  type BoardCard,
+  type CardContent,
+} from '../../app/boards/model';
+import { openPlayerWindow, showToPlayers } from '../../app/boards/player';
+import { useBoard, useBoards } from '../../app/boards/store';
+import { useCampaigns } from '../../app/campaigns/store';
+import { entityPath, loadEntity } from '../../app/data/entities';
+import { journalPath } from '../../app/journal/paths';
+import { useJournal } from '../../app/journal/store';
+import { useAppNavigate } from '../../app/navigation';
+import { EntitySearch } from '../../app/search/EntitySearch';
+import { shrinkImage } from '../../app/shrinkImage';
+import { usePageTitle } from '../../app/tabs/usePageTitle';
+import { useTheme } from '../../app/theme';
+import { BoardActionsContext, type BoardActions } from './context';
+import { KIND_ICONS, KIND_LABELS, type CardNodeType } from './kinds';
+import { CardNode, FrameNode, StackNode } from './nodes';
+import { NotesProvider } from './noteView';
+
+const NODE_TYPES = { card: CardNode, stack: StackNode, frame: FrameNode };
+
+/** One board: an infinite canvas of cards. */
+export function BoardPage({ id }: { id: string }) {
+  const { loaded, load } = useBoards();
+  const board = useBoard(id);
+  const { campaigns, loaded: campaignsLoaded, load: loadCampaigns } = useCampaigns();
+  usePageTitle(board?.name ?? 'Board');
+  useEffect(() => {
+    if (!loaded) void load();
+    if (!campaignsLoaded) void loadCampaigns();
+  }, [loaded, load, campaignsLoaded, loadCampaigns]);
+
+  if (!loaded) return <p className="p-8 text-muted">Loading…</p>;
+  if (!board) return <p className="p-8">This board does not exist (any more).</p>;
+  const campaign = campaigns.find((c) => c.id === board.campaign);
+  return (
+    <div className="flex h-full flex-col">
+      <ReactFlowProvider>
+        <NotesProvider campaign={campaign}>
+          <BoardEditor board={board} />
+        </NotesProvider>
+      </ReactFlowProvider>
+    </div>
+  );
+}
+
+/** Nodes for the cards, frames first (React Flow wants parents before their children). */
+function toNodes(cards: readonly BoardCard[], cache: WeakMap<BoardCard, CardNodeType>) {
+  const byId = new Map(cards.map((c) => [c.id, c]));
+  const drawn = cards.filter((c) => !c.inStack);
+  const ordered = [
+    ...drawn.filter((c) => c.kind === 'frame'),
+    ...drawn.filter((c) => c.kind !== 'frame'),
+  ];
+  return ordered.map((card): CardNodeType => {
+    const cached = card.kind === 'stack' ? undefined : cache.get(card);
+    if (cached) return cached;
+    const node: CardNodeType = {
+      id: card.id,
+      type: card.kind === 'frame' ? 'frame' : card.kind === 'stack' ? 'stack' : 'card',
+      position: { x: card.x, y: card.y },
+      data: {
+        card,
+        ...(card.kind === 'stack'
+          ? {
+              members: card.items.flatMap((i) => {
+                const m = byId.get(i);
+                return m ? [m] : [];
+              }),
+            }
+          : {}),
+      },
+      width: card.w,
+      height: card.collapsed ? COLLAPSED_H : card.h,
+      dragHandle: '.card-drag',
+      ...(card.parent && byId.has(card.parent) ? { parentId: card.parent } : {}),
+      ...(card.kind === 'frame' ? { zIndex: -1 } : {}),
+    };
+    cache.set(card, node);
+    return node;
+  });
+}
+
+function BoardEditor({ board }: { board: Board }) {
+  const navigate = useAppNavigate();
+  const flow = useReactFlow();
+  const theme = useTheme((s) => s.mode);
+  const wrapper = useRef<HTMLDivElement>(null);
+  const boardId = board.id;
+  const campaignId = board.campaign;
+
+  /** Changes the board as it is now (not as it was at the last render). */
+  const commit = useCallback(
+    (change: (b: Board) => Board) => {
+      const s = useBoards.getState();
+      const current = s.boards.find((b) => b.id === boardId);
+      if (current) s.save(change(current));
+    },
+    [boardId],
+  );
+
+  const actions = useMemo<BoardActions>(
+    () => ({
+      update: (id, change) => {
+        commit((b) => updateBoardCard(b, id, change));
+      },
+      remove: (id) => {
+        commit((b) => removeBoardCard(b, id));
+      },
+      unstack: (id) => {
+        commit((b) => unstack(b, id));
+      },
+      unframe: (id) => {
+        commit((b) => setFrame(b, id, null));
+      },
+      show: (card) => {
+        if (card.kind === 'entity')
+          void loadEntity(card.key).then((entity) => {
+            if (entity) showToPlayers({ kind: 'entity', entity });
+          });
+        else if (card.kind === 'image')
+          showToPlayers({
+            kind: 'image',
+            src: card.src,
+            ...(card.caption ? { caption: card.caption } : {}),
+            ...(campaignId ? { campaignId } : {}),
+          });
+        else if (card.kind === 'text')
+          showToPlayers({
+            kind: 'text',
+            text: card.text,
+            ...(card.title ? { title: card.title } : {}),
+          });
+        else if (card.kind === 'note' && campaignId)
+          showToPlayers({ kind: 'note', campaignId, path: card.path });
+      },
+      open: (card, newTab) => {
+        if (card.kind === 'entity') navigate(entityPath(card.key), { newTab });
+        if (card.kind === 'note') navigate(journalPath(card.path), { newTab });
+      },
+    }),
+    [commit, navigate, campaignId],
+  );
+
+  // React Flow moves nodes while dragging; the board is saved when a drag ends.
+  // Unchanged cards keep their node objects, so React Flow redraws only what changed.
+  const [cache] = useState(() => new WeakMap<BoardCard, CardNodeType>());
+  const derived = useMemo(() => toNodes(board.cards, cache), [board.cards, cache]);
+  const [nodes, setNodes] = useState(derived);
+  const [shownFrom, setShownFrom] = useState(derived);
+  if (shownFrom !== derived) {
+    setShownFrom(derived);
+    const selected = new Set(nodes.filter((n) => n.selected).map((n) => n.id));
+    setNodes(derived.map((n) => (selected.has(n.id) ? { ...n, selected: true } : n)));
+  }
+  const onNodesChange = useCallback((changes: NodeChange<CardNodeType>[]) => {
+    setNodes((ns) => applyNodeChanges(changes, ns));
+  }, []);
+
+  const centre = () => {
+    const r = wrapper.current?.getBoundingClientRect();
+    return r
+      ? flow.screenToFlowPosition({ x: r.left + r.width / 2, y: r.top + r.height / 2 })
+      : { x: 0, y: 0 };
+  };
+  /** Adds cards in the free place nearest the middle of the screen, and brings them into view. */
+  const add = (contents: CardContent[]) => {
+    const first = contents[0];
+    const s = useBoards.getState();
+    const current = s.boards.find((b) => b.id === boardId);
+    const r = wrapper.current?.getBoundingClientRect();
+    if (!first || !current || !r) return;
+    const c = centre();
+    const size = SIZES[first.kind];
+    const { board: next, ids } = addBoardCards(current, contents, {
+      x: c.x - size.w / 2,
+      y: c.y - size.h / 2,
+    });
+    s.save(next);
+    const card = next.cards.find((x) => x.id === ids[0]);
+    if (!card) return;
+    const topLeft = flow.screenToFlowPosition({ x: r.left, y: r.top });
+    const bottomRight = flow.screenToFlowPosition({ x: r.right, y: r.bottom });
+    const seen =
+      card.x >= topLeft.x &&
+      card.y >= topLeft.y &&
+      card.x + Math.min(card.w, bottomRight.x - topLeft.x) <= bottomRight.x &&
+      card.y + 40 <= bottomRight.y;
+    if (!seen)
+      void flow.setCenter(
+        card.x + card.w / 2,
+        card.y + Math.min(card.h, (bottomRight.y - topLeft.y) / 2),
+        {
+          zoom: flow.getZoom(),
+          duration: 200,
+        },
+      );
+  };
+
+  const [panel, setPanel] = useState<'entity' | 'note' | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  return (
+    <BoardActionsContext.Provider value={actions}>
+      <Toolbar
+        board={board}
+        onRename={(name) => {
+          commit((b) => ({ ...b, name }));
+        }}
+        onAdd={add}
+        onPanel={setPanel}
+        onDelete={() => {
+          setConfirmDelete(true);
+        }}
+      />
+      {confirmDelete && (
+        <div
+          role="alertdialog"
+          aria-label="Delete this board?"
+          className="flex flex-wrap items-center gap-2 border-b border-border bg-surface px-4 py-2 text-sm"
+        >
+          <span className="flex-1">Delete “{board.name}” and all its cards?</span>
+          <Button
+            variant="primary"
+            onClick={() => {
+              void useBoards
+                .getState()
+                .remove(board.id)
+                .then(() => {
+                  navigate('/boards');
+                });
+            }}
+          >
+            Delete
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setConfirmDelete(false);
+            }}
+          >
+            Cancel
+          </Button>
+        </div>
+      )}
+      <div ref={wrapper} className="relative min-h-0 flex-1">
+        {panel && (
+          <Panel
+            title={panel === 'entity' ? 'Add from the compendium' : 'Add a journal note'}
+            onClose={() => {
+              setPanel(null);
+            }}
+          >
+            {panel === 'entity' ? (
+              <EntitySearch
+                label="Find a compendium entry"
+                placeholder="Spell, item, creature…"
+                onAdd={(key) => {
+                  add([{ kind: 'entity', key }]);
+                }}
+              />
+            ) : (
+              <NotePicker
+                onPick={(path) => {
+                  add([{ kind: 'note', path }]);
+                }}
+              />
+            )}
+          </Panel>
+        )}
+        {board.cards.length === 0 && (
+          <p className="pointer-events-none absolute inset-x-0 top-1/3 z-10 mx-auto max-w-md px-4 text-center text-muted">
+            An empty board. Add cards with <strong>Add</strong>, or with “Send to → Board” on any
+            compendium page. Drop a card’s title bar on another card’s to stack them; drop it in a
+            frame to group it.
+          </p>
+        )}
+        <ReactFlow
+          nodes={nodes}
+          nodeTypes={NODE_TYPES}
+          onNodesChange={onNodesChange}
+          onNodeDragStop={(_, node, dragged) => {
+            const moved = new Map(dragged.map((n) => [n.id, n.position]));
+            commit((b) => {
+              const next = moveBoardCards(b, moved);
+              return dragged.length === 1 ? dropCard(next, node.id) : next;
+            });
+          }}
+          onMoveEnd={(_, vp) => {
+            commit((b) => ({
+              ...b,
+              viewport: { x: Math.round(vp.x), y: Math.round(vp.y), zoom: vp.zoom },
+            }));
+          }}
+          {...(board.viewport
+            ? { defaultViewport: board.viewport }
+            : { fitView: true, fitViewOptions: { maxZoom: 1 } })}
+          minZoom={0.05}
+          maxZoom={2}
+          onlyRenderVisibleElements
+          deleteKeyCode={null}
+          nodesConnectable={false}
+          zoomOnDoubleClick={false}
+          colorMode={theme}
+          aria-label="Board canvas"
+        >
+          <Background gap={24} />
+          <Controls showInteractive={false} />
+          <MiniMap pannable zoomable className="!hidden md:!block" />
+        </ReactFlow>
+      </div>
+    </BoardActionsContext.Provider>
+  );
+}
+
+const SIMPLE: { label: string; content: () => CardContent }[] = [
+  { label: KIND_LABELS.text, content: () => ({ kind: 'text', text: '' }) },
+  { label: KIND_LABELS.dice, content: () => ({ kind: 'dice', formulas: [] }) },
+  { label: KIND_LABELS.timer, content: () => ({ kind: 'timer', seconds: 600, elapsed: 0 }) },
+  {
+    label: KIND_LABELS.initiative,
+    content: () => ({ kind: 'initiative', rows: [], turn: 0, round: 1 }),
+  },
+  { label: KIND_LABELS.frame, content: () => ({ kind: 'frame', title: 'Frame' }) },
+];
+
+const itemClass =
+  'flex items-center gap-2 rounded px-2 py-1.5 text-sm outline-none data-[highlighted]:bg-sunken data-[disabled]:text-faint';
+
+function Toolbar({
+  board,
+  onRename,
+  onAdd,
+  onPanel,
+  onDelete,
+}: {
+  board: Board;
+  onRename: (name: string) => void;
+  onAdd: (contents: CardContent[]) => void;
+  onPanel: (panel: 'entity' | 'note') => void;
+  onDelete: () => void;
+}) {
+  const addAttachment = useJournal((s) => s.addAttachment);
+  const journalFor = useJournal((s) => s.campaignId);
+  const [name, setName] = useState(board.name);
+  const pickPicture = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      void (async () => {
+        // A campaign's pictures go with its journal files, full size; others are kept smaller.
+        const src =
+          board.campaign && journalFor === board.campaign
+            ? `journal:${await addAttachment(file.name, new Uint8Array(await file.arrayBuffer()))}`
+            : await shrinkImage(file, 1600);
+        onAdd([{ kind: 'image', src }]);
+      })();
+    };
+    input.click();
+  };
+  const AddIcon = (kind: keyof typeof KIND_ICONS) => {
+    const I = KIND_ICONS[kind];
+    return <I className="h-4 w-4" aria-hidden />;
+  };
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-b border-border bg-surface px-3 py-2">
+      <AppLink
+        to="/boards"
+        aria-label="All boards"
+        className="rounded p-1 text-muted hover:bg-sunken hover:text-text"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden />
+      </AppLink>
+      <input
+        value={name}
+        aria-label="Board name"
+        onChange={(e) => {
+          setName(e.target.value);
+        }}
+        onBlur={() => {
+          if (name.trim() && name !== board.name) onRename(name.trim());
+        }}
+        className="min-w-0 flex-1 rounded bg-transparent px-1 font-serif text-lg font-bold focus:bg-sunken focus:outline-none"
+      />
+      <span className="hidden text-sm text-muted sm:inline">
+        {board.cards.filter((c) => c.kind !== 'stack' && c.kind !== 'frame').length} cards
+      </span>
+      <Menu.Root>
+        <Menu.Trigger asChild>
+          <Button variant="primary">
+            <Plus className="h-4 w-4" aria-hidden /> Add
+          </Button>
+        </Menu.Trigger>
+        <Menu.Portal>
+          <Menu.Content
+            align="end"
+            sideOffset={4}
+            className="z-50 min-w-52 rounded-md border border-border bg-surface p-1 text-text shadow-card"
+          >
+            <Menu.Item
+              className={itemClass}
+              onSelect={() => {
+                onPanel('entity');
+              }}
+            >
+              {AddIcon('entity')} Compendium entry…
+            </Menu.Item>
+            <Menu.Item
+              className={itemClass}
+              disabled={!board.campaign}
+              onSelect={() => {
+                onPanel('note');
+              }}
+            >
+              {AddIcon('note')} Journal note…
+            </Menu.Item>
+            <Menu.Item className={itemClass} onSelect={pickPicture}>
+              {AddIcon('image')} Picture…
+            </Menu.Item>
+            <Menu.Separator className="my-1 h-px bg-border" />
+            {SIMPLE.map((s) => {
+              const content = s.content();
+              return (
+                <Menu.Item
+                  key={s.label}
+                  className={itemClass}
+                  onSelect={() => {
+                    onAdd([s.content()]);
+                  }}
+                >
+                  {AddIcon(content.kind)} {s.label}
+                </Menu.Item>
+              );
+            })}
+          </Menu.Content>
+        </Menu.Portal>
+      </Menu.Root>
+      <Button variant="ghost" onClick={openPlayerWindow}>
+        <MonitorUp className="h-4 w-4" aria-hidden />
+        <span className="hidden sm:inline">Player window</span>
+        <span className="sr-only sm:hidden">Player window</span>
+      </Button>
+      <Button variant="ghost" aria-label="Delete board" onClick={onDelete}>
+        <Trash2 className="h-4 w-4" aria-hidden />
+      </Button>
+    </div>
+  );
+}
+
+function Panel({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <section
+      aria-label={title}
+      className="absolute top-2 right-2 left-2 z-20 rounded-lg border border-border bg-surface p-3 shadow-card sm:left-auto sm:w-96"
+    >
+      <div className="mb-2 flex items-center">
+        <h2 className="flex-1 font-serif font-bold">{title}</h2>
+        <button
+          type="button"
+          aria-label="Close"
+          onClick={onClose}
+          className="rounded p-1 text-muted hover:bg-sunken"
+        >
+          <X className="h-4 w-4" aria-hidden />
+        </button>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function NotePicker({ onPick }: { onPick: (path: string) => void }) {
+  const notes = useJournal((s) => s.notes);
+  const [query, setQuery] = useState('');
+  const q = query.trim().toLowerCase();
+  const found = [...notes.keys()]
+    .filter((p) => !q || p.toLowerCase().includes(q))
+    .sort((a, b) => a.localeCompare(b, 'en'))
+    .slice(0, 50);
+  return (
+    <div>
+      <input
+        type="search"
+        value={query}
+        aria-label="Find a note"
+        placeholder="Note name…"
+        onChange={(e) => {
+          setQuery(e.target.value);
+        }}
+        className="w-full rounded-md border border-border bg-surface px-3 py-2 text-base focus:border-accent focus:outline-none sm:text-sm"
+      />
+      <ul aria-label="Notes" className="mt-1 max-h-72 overflow-y-auto">
+        {found.map((p) => (
+          <li key={p}>
+            <button
+              type="button"
+              onClick={() => {
+                onPick(p);
+              }}
+              className="w-full truncate px-2 py-1.5 text-left text-sm hover:bg-sunken"
+            >
+              {p.replace(/\.md$/i, '')}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
