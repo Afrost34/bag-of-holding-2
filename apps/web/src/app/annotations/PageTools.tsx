@@ -10,7 +10,6 @@ import {
   StickyNote,
   Star,
   Swords,
-  type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { AppLink } from '../AppLink';
@@ -18,12 +17,9 @@ import { useActiveCampaign } from '../campaigns/store';
 import { useBoards } from '../boards/store';
 import { useCardSheets } from '../cards/store';
 import { useEncounters } from '../encounters/store';
+import { addEntityPin } from '../maps/model';
+import { useMaps } from '../maps/store';
 import { useAnnotations } from './store';
-
-/** Where "Send to" will deliver an entry, and the milestone that builds each target. */
-const SEND_TARGETS: { label: string; icon: LucideIcon; milestone: number }[] = [
-  { label: 'Map', icon: MapIcon, milestone: 11 },
-];
 
 function ToolButton({
   pressed,
@@ -127,24 +123,12 @@ export function PageTools({ noteId, label }: { noteId: string; label: string }) 
             >
               <SendToCards entityKey={isKey ? noteId : null} label={label} onSent={setSent} />
               <SendToBoards entityKey={isKey ? noteId : null} label={label} onSent={setSent} />
+              <SendToMaps entityKey={isKey ? noteId : null} label={label} onSent={setSent} />
               <SendToEncounters
                 entityKey={noteId.startsWith('monster:') ? noteId : null}
                 label={label}
                 onSent={setSent}
               />
-              {SEND_TARGETS.map(({ label: target, icon: Icon, milestone }) => (
-                <Menu.Item
-                  key={target}
-                  disabled
-                  className="flex items-center gap-2 rounded px-2 py-1.5 text-muted outline-none data-[disabled]:cursor-default"
-                >
-                  <Icon className="h-4 w-4" aria-hidden />
-                  <span className="flex-1">{target}</span>
-                  <span className="rounded bg-sunken px-1.5 text-[10px] font-semibold">
-                    M{milestone}
-                  </span>
-                </Menu.Item>
-              ))}
             </Menu.Content>
           </Menu.Portal>
         </Menu.Root>
@@ -372,6 +356,63 @@ function SendToEncounters({
         }}
       >
         New encounter with {label}
+      </Menu.Item>
+      <Menu.Separator className="my-1 h-px bg-border" />
+    </Menu.Group>
+  );
+}
+
+/** "Send to → Map": a pin for the entry on a map of the open campaign, or on a new map. */
+function SendToMaps({
+  entityKey,
+  label,
+  onSent,
+}: {
+  entityKey: string | null;
+  label: string;
+  onSent: (sent: { to: string; name: string }) => void;
+}) {
+  const { maps, loaded, load, save, create } = useMaps();
+  const campaign = useActiveCampaign();
+  useEffect(() => {
+    if (!loaded) void load();
+  }, [loaded, load]);
+  const mine = maps.filter((m) => (m.campaign ?? null) === (campaign?.id ?? null));
+  const itemClass =
+    'flex items-center gap-2 rounded px-2 py-1.5 outline-none data-[highlighted]:bg-sunken';
+  if (!entityKey)
+    return (
+      <Menu.Item disabled className={cn(itemClass, 'text-muted')}>
+        <MapIcon className="h-4 w-4" aria-hidden /> Map
+      </Menu.Item>
+    );
+  return (
+    <Menu.Group aria-label="Maps">
+      <Menu.Label className="flex items-center gap-2 px-2 pt-1.5 pb-0.5 text-xs font-semibold text-muted uppercase">
+        <MapIcon className="h-3.5 w-3.5" aria-hidden /> Maps
+      </Menu.Label>
+      {mine.map((map) => (
+        <Menu.Item
+          key={map.id}
+          className={cn(itemClass, 'pl-7')}
+          onSelect={() => {
+            save(addEntityPin(map, entityKey, label));
+            onSent({ to: `/maps/${map.id}`, name: map.name });
+          }}
+        >
+          {map.name}
+        </Menu.Item>
+      ))}
+      <Menu.Item
+        className={cn(itemClass, 'pl-7')}
+        onSelect={() => {
+          void create(campaign ? `${campaign.name} map` : 'Map', campaign?.id).then((map) => {
+            save(addEntityPin(map, entityKey, label));
+            onSent({ to: `/maps/${map.id}`, name: map.name });
+          });
+        }}
+      >
+        New map with {label}
       </Menu.Item>
       <Menu.Separator className="my-1 h-px bg-border" />
     </Menu.Group>

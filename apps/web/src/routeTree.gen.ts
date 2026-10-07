@@ -28,6 +28,7 @@ import { Route as CharactersIdRouteImport } from './routes/characters_.$id'
 import { Route as CompendiumKeyRouteImport } from './routes/compendium_.$key'
 import { Route as EncountersIdRouteImport } from './routes/encounters_.$id'
 import { Route as HomebrewPackRouteImport } from './routes/homebrew_.$pack'
+import { Route as MapsIdRouteImport } from './routes/maps_.$id'
 import { Route as SettingsDataRouteImport } from './routes/settings_.data'
 import { Route as SettingsSyncRouteImport } from './routes/settings_.sync'
 import { Route as CharactersIdPrintRouteImport } from './routes/characters_.$id_.print'
@@ -132,6 +133,11 @@ const HomebrewPackRoute = HomebrewPackRouteImport.update({
   path: '/homebrew/$pack',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MapsIdRoute = MapsIdRouteImport.update({
+  id: '/maps_/$id',
+  path: '/maps/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsDataRoute = SettingsDataRouteImport.update({
   id: '/settings_/data',
   path: '/settings/data',
@@ -193,6 +199,7 @@ export interface FileRoutesByFullPath {
   '/compendium/$key': typeof CompendiumKeyRoute
   '/encounters/$id': typeof EncountersIdRoute
   '/homebrew/$pack': typeof HomebrewPackRoute
+  '/maps/$id': typeof MapsIdRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/sync': typeof SettingsSyncRoute
   '/characters/$id/print': typeof CharactersIdPrintRoute
@@ -222,6 +229,7 @@ export interface FileRoutesByTo {
   '/compendium/$key': typeof CompendiumKeyRoute
   '/encounters/$id': typeof EncountersIdRoute
   '/homebrew/$pack': typeof HomebrewPackRoute
+  '/maps/$id': typeof MapsIdRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/sync': typeof SettingsSyncRoute
   '/characters/$id/print': typeof CharactersIdPrintRoute
@@ -252,6 +260,7 @@ export interface FileRoutesById {
   '/compendium_/$key': typeof CompendiumKeyRoute
   '/encounters_/$id': typeof EncountersIdRoute
   '/homebrew_/$pack': typeof HomebrewPackRoute
+  '/maps_/$id': typeof MapsIdRoute
   '/settings_/data': typeof SettingsDataRoute
   '/settings_/sync': typeof SettingsSyncRoute
   '/characters_/$id_/print': typeof CharactersIdPrintRoute
@@ -283,6 +292,7 @@ export interface FileRouteTypes {
     | '/compendium/$key'
     | '/encounters/$id'
     | '/homebrew/$pack'
+    | '/maps/$id'
     | '/settings/data'
     | '/settings/sync'
     | '/characters/$id/print'
@@ -312,6 +322,7 @@ export interface FileRouteTypes {
     | '/compendium/$key'
     | '/encounters/$id'
     | '/homebrew/$pack'
+    | '/maps/$id'
     | '/settings/data'
     | '/settings/sync'
     | '/characters/$id/print'
@@ -341,6 +352,7 @@ export interface FileRouteTypes {
     | '/compendium_/$key'
     | '/encounters_/$id'
     | '/homebrew_/$pack'
+    | '/maps_/$id'
     | '/settings_/data'
     | '/settings_/sync'
     | '/characters_/$id_/print'
@@ -371,6 +383,7 @@ export interface RootRouteChildren {
   CompendiumKeyRoute: typeof CompendiumKeyRoute
   EncountersIdRoute: typeof EncountersIdRoute
   HomebrewPackRoute: typeof HomebrewPackRoute
+  MapsIdRoute: typeof MapsIdRoute
   SettingsDataRoute: typeof SettingsDataRoute
   SettingsSyncRoute: typeof SettingsSyncRoute
   CharactersIdPrintRoute: typeof CharactersIdPrintRoute
@@ -516,6 +529,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HomebrewPackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/maps_/$id': {
+      id: '/maps_/$id'
+      path: '/maps/$id'
+      fullPath: '/maps/$id'
+      preLoaderRoute: typeof MapsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings_/data': {
       id: '/settings_/data'
       path: '/settings/data'
@@ -595,6 +615,7 @@ const rootRouteChildren: RootRouteChildren = {
   CompendiumKeyRoute: CompendiumKeyRoute,
   EncountersIdRoute: EncountersIdRoute,
   HomebrewPackRoute: HomebrewPackRoute,
+  MapsIdRoute: MapsIdRoute,
   SettingsDataRoute: SettingsDataRoute,
   SettingsSyncRoute: SettingsSyncRoute,
   CharactersIdPrintRoute: CharactersIdPrintRoute,

@@ -28,7 +28,39 @@ const PROFICIENCY_LABELS: Record<0 | 0.5 | 1 | 2, string> = {
 interface Selected {
   path: string;
   label: string;
+  /** As it was when opened: shown until the sheet has the value again. */
   value: SheetValue;
+}
+
+/**
+ * A value of the sheet by its override path, read from the sheet now: the details stay right
+ * when the sheet is computed again (after setting a value by hand).
+ */
+function valueAt(sheet: CharacterView['sheet'], path: string): SheetValue | undefined {
+  const [head, ...rest] = path.split('.');
+  const tail = rest.join('.');
+  switch (head) {
+    case 'ac':
+      return sheet.ac;
+    case 'hp':
+      return sheet.hp;
+    case 'initiative':
+      return sheet.initiative;
+    case 'passive':
+      return tail === 'perception' ? sheet.passive.perception : undefined;
+    case 'score':
+    case 'save': {
+      const a = ABILITIES.find((x) => x === tail);
+      if (!a) return undefined;
+      return head === 'score' ? sheet.abilities[a].score : sheet.abilities[a].save;
+    }
+    case 'skill':
+      return sheet.skills[tail];
+    case 'spell':
+      return sheet.spellcasting.find((x) => `dc.${x.from}` === tail)?.dc;
+    default:
+      return undefined;
+  }
 }
 
 /**
@@ -66,7 +98,7 @@ export function SheetView({
     <div className="space-y-5">
       {selected && (
         <ValueDetails
-          selected={selected}
+          selected={{ ...selected, value: valueAt(sheet, selected.path) ?? selected.value }}
           onClose={() => {
             setSelected(null);
           }}
