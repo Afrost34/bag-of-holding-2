@@ -22,7 +22,7 @@ function threeTabs(): TabsState {
     tabs: [
       { id: 'a', path: '/' },
       { id: 'b', path: '/compendium' },
-      { id: 'c', path: '/vault' },
+      { id: 'c', path: '/journal' },
     ],
     activeId: 'b',
   };
@@ -37,7 +37,7 @@ describe('tab model', () => {
 
   it('navigates inside the active tab only', () => {
     const state = setActivePath(threeTabs(), '/compendium/spells');
-    expect(state.tabs.map((t) => t.path)).toEqual(['/', '/compendium/spells', '/vault']);
+    expect(state.tabs.map((t) => t.path)).toEqual(['/', '/compendium/spells', '/journal']);
   });
 
   it('returns the same object when nothing changes', () => {
@@ -72,7 +72,7 @@ describe('tab model', () => {
 
   it('closes other tabs', () => {
     expect(closeOtherTabs(threeTabs(), 'c')).toEqual({
-      tabs: [{ id: 'c', path: '/vault' }],
+      tabs: [{ id: 'c', path: '/journal' }],
       activeId: 'c',
     });
   });

@@ -14,7 +14,7 @@ test.beforeEach(async ({ page }) => {
 
 test('home page lists every module', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1, name: 'Bag of Holding' })).toBeVisible();
-  for (const name of ['Compendium', 'Campaigns', 'Vault', 'Characters', 'Boards', 'Maps']) {
+  for (const name of ['Compendium', 'Campaigns', 'Journal', 'Characters', 'Boards', 'Maps']) {
     await expect(
       page.getByRole('main').getByRole('link', { name: new RegExp(name) }),
     ).toBeVisible();
@@ -41,7 +41,7 @@ test('tabs open, switch, close and survive a reload', async ({ page }) => {
   test.skip(isPhone(page), 'Ctrl+click is a desktop gesture');
   const nav = page.getByRole('navigation', { name: 'Main' });
 
-  await nav.getByRole('link', { name: /Vault/ }).click();
+  await nav.getByRole('link', { name: /Boards/ }).click();
   await nav.getByRole('link', { name: /Maps/ }).click({ modifiers: ['Control'] });
 
   const tabs = page.getByRole('tab');
@@ -49,15 +49,15 @@ test('tabs open, switch, close and survive a reload', async ({ page }) => {
   await expect(page.getByRole('tab', { selected: true })).toHaveText(/Maps/);
   await expect(page).toHaveURL(/#\/maps$/);
 
-  await tabs.filter({ hasText: 'Vault' }).click();
-  await expect(page).toHaveURL(/#\/vault$/);
-  await expect(page.getByRole('heading', { level: 1, name: 'Vault' })).toBeVisible();
+  await tabs.filter({ hasText: 'Boards' }).click();
+  await expect(page).toHaveURL(/#\/boards$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Boards' })).toBeVisible();
 
   await page.reload();
   await expect(tabs).toHaveCount(2);
-  await expect(page.getByRole('tab', { selected: true })).toHaveText(/Vault/);
+  await expect(page.getByRole('tab', { selected: true })).toHaveText(/Boards/);
 
-  await page.getByRole('button', { name: 'Close Vault' }).click();
+  await page.getByRole('button', { name: 'Close Boards' }).click();
   await expect(tabs).toHaveCount(1);
   await expect(page).toHaveURL(/#\/maps$/);
 

@@ -60,6 +60,14 @@ module.exports = {
       to: { path: '(^packages/(ui|storage|data5e|renderer)/)|(node_modules/(react|react-dom)/)' },
     },
     {
+      name: 'journal-is-pure',
+      comment:
+        'Journal (notes) parsing is plain TypeScript: no React, no storage, no app; the app does I/O.',
+      severity: 'error',
+      from: { path: '^packages/journal/src/', pathNot: '\\.test\\.ts$' },
+      to: { path: '(^packages/(ui|storage|renderer)/)|(node_modules/(react|react-dom)/)' },
+    },
+    {
       name: 'renderer-is-app-agnostic',
       severity: 'error',
       comment:

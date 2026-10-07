@@ -58,7 +58,7 @@ export function NewCampaign({ first, onDone }: { first: boolean; onDone: () => v
         {first ? 'Create your first campaign' : 'New campaign'}
       </h2>
       <p className="mt-1 text-sm text-muted">
-        A campaign keeps its own sources, rules, notes and bookmarks (and later its vault,
+        A campaign keeps its own sources, rules, notes, bookmarks and journal (and later its
         characters, boards and maps). Everything can be changed later in its settings.
         {first && ' Your current source choices, bookmarks and notes move into it.'}
       </p>

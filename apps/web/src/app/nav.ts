@@ -48,8 +48,8 @@ export const navModules: readonly NavModule[] = [
     description: 'Edition, sources and rules for each campaign, created from templates.',
   },
   {
-    path: '/vault',
-    label: 'Vault',
+    path: '/journal',
+    label: 'Journal',
     icon: NotebookPen,
     description: 'Campaign notes in Markdown, linked to each other and to the compendium.',
     milestone: 4,
