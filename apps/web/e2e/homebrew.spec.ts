@@ -117,3 +117,29 @@ test('a creature is made with its numbers worked out', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1, name: 'Rust Goblin' })).toBeVisible();
   await expect(page.getByRole('main')).toContainText('Melee Attack Roll');
 });
+
+test('a spell is made and shows like the book ones', async ({ page }) => {
+  await page.goto('./#/homebrew');
+  await page.getByRole('button', { name: 'New pack' }).click();
+  await page.getByRole('form', { name: 'New pack' }).getByLabel('Name').fill('Spells');
+  await page.getByRole('button', { name: 'Create pack' }).click();
+  await page.getByRole('button', { name: 'New spell' }).click();
+  const form = page.getByRole('form', { name: 'Spell' });
+  await form.getByLabel('Name', { exact: true }).fill('Rust Burst');
+  await form.getByLabel('Level', { exact: true }).selectOption('3');
+  await form.getByLabel('Range', { exact: true }).selectOption('area');
+  await form.getByLabel('Feet').fill('15');
+  await form.getByLabel('Area', { exact: true }).selectOption('cone');
+  await form.getByRole('button', { name: 'Wizard' }).click();
+  await form
+    .getByLabel('What the spell does')
+    .fill(
+      'Each creature in the cone makes a Dexterity saving throw (DC 15) or takes 6d6 fire damage.',
+    );
+  const preview = page.getByRole('complementary', { name: 'Preview' });
+  await expect(preview).toContainText('Self (15-foot cone)');
+  await expect(preview.getByRole('button', { name: '6d6' })).toBeVisible();
+  await form.getByRole('button', { name: 'Save spell' }).click();
+  await page.getByRole('link', { name: 'Rust Burst' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Rust Burst' })).toBeVisible();
+});

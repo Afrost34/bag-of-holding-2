@@ -142,3 +142,16 @@ export {
   type Feature,
 } from './brew/creatures';
 export { tagStatText, untagStatText } from './brew/statText';
+export {
+  AREA_SHAPES,
+  CASTING_UNITS,
+  DURATION_KINDS,
+  emptySpell,
+  formToSpell,
+  RANGE_KINDS,
+  SPELL_CLASSES,
+  SPELL_SCHOOLS,
+  spellTags,
+  spellToForm,
+  type SpellForm,
+} from './brew/spells';
