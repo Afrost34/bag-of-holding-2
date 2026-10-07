@@ -1,4 +1,11 @@
-import { gitBlobSha, type HomebrewPack, type SourceInfo } from '@boh/data5e';
+import {
+  gitBlobSha,
+  newPack,
+  type HomebrewPack,
+  type PackMeta,
+  type RawEntity,
+  type SourceInfo,
+} from '@boh/data5e';
 import { create } from 'zustand';
 import { userStore } from '../userStore';
 import { dataWorker } from './client';
@@ -11,6 +18,8 @@ export interface PackInfo {
   fileName: string;
   sources: SourceInfo[];
   entities: number;
+  /** The pack file's content (5etools homebrew JSON). */
+  json: RawEntity;
 }
 
 interface HomebrewStore {
@@ -22,6 +31,10 @@ interface HomebrewStore {
   /** Validates and saves a pack file, then indexes it. Returns an error message on failure. */
   importFile: (file: File) => Promise<string | null>;
   remove: (path: string) => Promise<void>;
+  /** Makes a new, empty pack; returns its path. */
+  createPack: (meta: PackMeta) => Promise<string>;
+  /** Writes a pack's new content, then indexes it (its entries show everywhere at once). */
+  savePack: (path: string, json: RawEntity) => Promise<void>;
 }
 
 const encoder = new TextEncoder();
@@ -79,6 +92,7 @@ export const useHomebrew = create<HomebrewStore>()((set, get) => ({
           entities: sources
             .filter((s) => ids.has(s.id.toLowerCase()))
             .reduce((sum, s) => sum + s.entities, 0),
+          json: pack.json as RawEntity,
         });
       }
       set({ packs: infos, loaded: true, error: null });
@@ -106,6 +120,24 @@ export const useHomebrew = create<HomebrewStore>()((set, get) => ({
     );
     await get().load();
     return null;
+  },
+
+  createPack: async (meta) => {
+    const store = await userStore();
+    const taken = new Set(get().packs.map((p) => p.path.toLowerCase()));
+    const base = packFileName(meta.name).replace(/\.json$/, '');
+    let path = `${HOMEBREW_DIR}/${base}.json`;
+    for (let n = 2; taken.has(path.toLowerCase()); n++)
+      path = `${HOMEBREW_DIR}/${base}-${String(n)}.json`;
+    await store.writeFile(path, JSON.stringify(newPack(meta), null, 2));
+    await get().load();
+    return path;
+  },
+
+  savePack: async (path, json) => {
+    const store = await userStore();
+    await store.writeFile(path, JSON.stringify(json, null, 2));
+    await get().load();
   },
 
   remove: async (path) => {
