@@ -3,6 +3,10 @@ import { createCampaign, installData } from './helpers/journal';
 
 /** Characters: build one step by step; every choice the rules ask for is tracked and kept. */
 
+/** A 1×1 PNG. */
+const PNG =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
 test.beforeEach(async ({ page }) => {
   await installData(page);
 });
@@ -144,6 +148,17 @@ test('a multiclass character in a campaign, with rolled hit points, copied to th
 
 test('a companion is a stat block attached to the character', async ({ page }) => {
   await newCharacter(page, 'Wren', '2024 rules');
+  // A portrait from the device, kept small in the character file.
+  await page.getByRole('button', { name: 'Change portrait' }).click();
+  await page
+    .getByRole('dialog', { name: 'Portrait' })
+    .getByLabel('Portrait file')
+    .setInputFiles({
+      name: 'wren.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from(PNG, 'base64'),
+    });
+  await expect(page.getByRole('img', { name: 'Portrait of Wren' })).toBeVisible();
   await step(page, /Sheet/).click();
   await page.getByRole('searchbox', { name: 'Add a creature' }).fill('gobl');
   await page.getByRole('list', { name: 'Creatures found' }).getByRole('button').first().click();

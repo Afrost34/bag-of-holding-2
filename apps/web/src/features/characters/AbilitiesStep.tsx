@@ -14,6 +14,7 @@ import {
   type CharacterFile,
 } from '../../app/characters/model';
 import type { CharacterView } from '../../app/data/protocol';
+import { useDice } from '../../app/dice/store';
 import { selectClass } from './styles';
 import { StepTitle } from './ui';
 
@@ -60,6 +61,20 @@ export function AbilitiesStep({
     method === 'standard' ? STANDARD_ARRAY : method === 'rolled' ? (character.rolls ?? []) : [];
   const poolOk = pool.length === 6 && usesPool(scores, pool);
   const spent = pointsSpent(scores);
+  const roll = useDice((s) => s.roll);
+  // Six rolls of 4d6 keeping the highest three, in the dice tray like any other roll.
+  const rollScores = async () => {
+    const out: number[] = [];
+    for (let i = 0; i < 6; i++) {
+      const entry = await roll({
+        kind: 'dice',
+        expression: '4d6kh3',
+        label: `Ability score ${String(i + 1)}`,
+      });
+      out.push(entry?.total ?? rollAbility(() => secureRng(6)));
+    }
+    return out;
+  };
 
   return (
     <div className="space-y-5">
@@ -94,12 +109,13 @@ export function AbilitiesStep({
           <Button
             variant="primary"
             onClick={() => {
-              const rolls = Array.from({ length: 6 }, () => rollAbility(() => secureRng(6)));
-              const sorted = [...rolls].sort((a, b) => b - a);
-              const placed = Object.fromEntries(
-                ABILITIES.map((a, i) => [a, sorted[i] ?? 10]),
-              ) as Record<Ability, number>;
-              save({ ...character, rolls, decisions: { ...decisions, baseScores: placed } });
+              void rollScores().then((rolls) => {
+                const sorted = [...rolls].sort((a, b) => b - a);
+                const placed = Object.fromEntries(
+                  ABILITIES.map((a, i) => [a, sorted[i] ?? 10]),
+                ) as Record<Ability, number>;
+                save({ ...character, rolls, decisions: { ...decisions, baseScores: placed } });
+              });
             }}
           >
             <Dices className="h-4 w-4" aria-hidden />{' '}

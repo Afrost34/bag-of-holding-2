@@ -18,7 +18,16 @@ function modeFromEvent(event: MouseEvent): RollMode {
  * Every roll in the app. Click just rolls. For d20 rolls, right-click (long-press on touch)
  * opens a menu to roll with advantage or disadvantage.
  */
-export function RollChip({ roll, children }: { roll: RollSpec; children: ReactNode }) {
+export function RollChip({
+  roll,
+  children,
+  plain = false,
+}: {
+  roll: RollSpec;
+  children: ReactNode;
+  /** No dice colours: for numbers on a character sheet, which are all rollable. */
+  plain?: boolean;
+}) {
   const doRoll = useDice((s) => s.roll);
   const [menuOpen, setMenuOpen] = useState(false);
   const pressTimer = useRef<number | null>(null);
@@ -63,8 +72,12 @@ export function RollChip({ roll, children }: { roll: RollSpec; children: ReactNo
         setMenuOpen(true);
       }}
       className={cn(
-        'mx-px inline rounded-sm border-b border-dashed border-dice-border bg-dice-bg px-1 font-medium text-dice-fg',
-        'cursor-pointer transition-colors hover:border-solid hover:bg-dice-border/40 focus-visible:outline-2',
+        plain
+          ? 'inline cursor-pointer rounded-sm px-0.5 hover:bg-sunken focus-visible:outline-2'
+          : cn(
+              'mx-px inline rounded-sm border-b border-dashed border-dice-border bg-dice-bg px-1 font-medium text-dice-fg',
+              'cursor-pointer transition-colors hover:border-solid hover:bg-dice-border/40 focus-visible:outline-2',
+            ),
       )}
     >
       {children}

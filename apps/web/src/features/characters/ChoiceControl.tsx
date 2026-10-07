@@ -2,6 +2,7 @@ import type { AnsweredChoice, CharacterDecisions, OptionSummary } from '@boh/rul
 import { cn } from '@boh/ui';
 import { useId } from 'react';
 import { pickName } from './steps';
+import { SpellChoicePanel } from './SpellChoicePanel';
 import { selectClass } from './styles';
 import { useChoiceOptions } from './useCharacterView';
 
@@ -10,7 +11,22 @@ import { useChoiceOptions } from './useCharacterView';
  * twice for "choose 2"). Options already taken in another dropdown of the same choice are left
  * out, except "any skill"-style groups, which can be taken more than once.
  */
-export function ChoiceControl({
+export function ChoiceControl(props: ChoiceControlProps) {
+  // Spells get the spell list's rows, whatever asks for them (a class, Magic Initiate…).
+  if (props.choice.kind === 'spell') return <SpellChoicePanel {...props} />;
+  return <DropdownChoice {...props} />;
+}
+
+interface ChoiceControlProps {
+  choice: AnsweredChoice;
+  decisions: CharacterDecisions;
+  isEnabled: (source: string | undefined) => boolean;
+  onChange: (picks: string[]) => void;
+  /** The label is already the heading around it. */
+  hideLabel?: boolean;
+}
+
+function DropdownChoice({
   choice,
   decisions,
   isEnabled,

@@ -5,7 +5,7 @@ import { Check, ChevronDown } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSourceList } from '../../../app/data/sourceList';
 import { disabledSourceIds, useSourcePrefs } from '../../../app/data/sourcePrefs';
-import { LegacyBadge } from '../LegacyBadge';
+import { LegacyBadge } from '../../../app/lists/LegacyBadge';
 
 /** Pick the subclass whose features appear on the class page. */
 export function SubclassSelect({

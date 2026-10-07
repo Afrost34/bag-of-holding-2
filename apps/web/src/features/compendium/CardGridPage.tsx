@@ -10,7 +10,7 @@ import { useListRows } from '../../app/data/lists';
 import { useSourceList } from '../../app/data/sourceList';
 import { disabledSourceIds, useSourcePrefs } from '../../app/data/sourcePrefs';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
-import { LegacyBadge } from './LegacyBadge';
+import { LegacyBadge } from '../../app/lists/LegacyBadge';
 import { PageHeading } from './PageHeading';
 import { groupBySource, matchesNameOrSource } from './cardModel';
 

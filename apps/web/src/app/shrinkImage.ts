@@ -1,4 +1,4 @@
-/** Longest side of pictures kept in packs: big enough for a page, small enough to sync. */
+/** Longest side of pictures kept in user data (packs, portraits): big enough, small enough to sync. */
 const MAX_SIDE = 800;
 
 /**

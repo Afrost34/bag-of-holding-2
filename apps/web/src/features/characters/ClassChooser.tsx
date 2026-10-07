@@ -277,7 +277,7 @@ function ConfirmClass({
         role="dialog"
         aria-modal="true"
         aria-label={`Add ${row.name}`}
-        className="flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-lg bg-surface shadow-xl"
+        className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-surface shadow-xl"
         onClick={(e) => {
           e.stopPropagation();
         }}

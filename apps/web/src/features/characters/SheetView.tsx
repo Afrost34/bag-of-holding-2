@@ -125,7 +125,7 @@ export function SheetView({
             return (
               <div key={a} className="rounded-lg border border-border p-2 text-center">
                 <p className="text-xs font-semibold tracking-wide text-muted uppercase">{name}</p>
-                <RollChip roll={d20(line.check.value, `${name} check`)}>
+                <RollChip plain roll={d20(line.check.value, `${name} check`)}>
                   <span className="text-2xl font-bold">
                     {abilityDisplay === 'scores' ? line.score.value : signed(line.modifier)}
                   </span>
@@ -141,7 +141,7 @@ export function SheetView({
                 </p>
                 <p className="mt-1 flex items-center justify-center gap-1 border-t border-border pt-1 text-xs text-muted">
                   Save{' '}
-                  <RollChip roll={d20(line.save.value, `${name} save`)}>
+                  <RollChip plain roll={d20(line.save.value, `${name} save`)}>
                     <span className={cn(line.save.proficient && 'font-bold text-text')}>
                       {signed(line.save.value)}
                     </span>
@@ -178,7 +178,9 @@ export function SheetView({
                   {title(skill)}{' '}
                   <span className="text-xs text-muted uppercase">{line.ability}</span>
                 </span>
-                <RollChip roll={d20(line.value, title(skill))}>{signed(line.value)}</RollChip>
+                <RollChip plain roll={d20(line.value, title(skill))}>
+                  {signed(line.value)}
+                </RollChip>
                 <InfoButton
                   label={title(skill)}
                   onClick={() => {
@@ -208,7 +210,7 @@ export function SheetView({
                       {atk.name}
                     </AppLink>
                     {atk.toHit && (
-                      <RollChip roll={d20(atk.toHit.value, `${atk.name} attack`)}>
+                      <RollChip plain roll={d20(atk.toHit.value, `${atk.name} attack`)}>
                         {signed(atk.toHit.value)}
                       </RollChip>
                     )}
@@ -250,7 +252,7 @@ export function SheetView({
                   </span>
                   <span className="flex items-center gap-1">
                     Attack{' '}
-                    <RollChip roll={d20(s.attack.value, 'Spell attack')}>
+                    <RollChip plain roll={d20(s.attack.value, 'Spell attack')}>
                       {signed(s.attack.value)}
                     </RollChip>
                   </span>
@@ -403,7 +405,13 @@ function Stat({
     <div className="rounded-lg border border-border bg-surface p-2 text-center">
       <p className="text-xs font-semibold tracking-wide text-muted uppercase">{label}</p>
       <p className={cn('text-2xl font-bold', value.computed !== undefined && 'text-accent')}>
-        {roll ? <RollChip roll={roll}>{text}</RollChip> : text}
+        {roll ? (
+          <RollChip plain roll={roll}>
+            {text}
+          </RollChip>
+        ) : (
+          text
+        )}
       </p>
       {onInfo && <InfoButton label={label} onClick={onInfo} />}
     </div>
