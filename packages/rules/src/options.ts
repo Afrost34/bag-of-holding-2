@@ -18,6 +18,8 @@ export interface OptionSummary {
   edition?: Edition;
   /** A newer printing exists. */
   legacy?: boolean;
+  /** Spell level (0 for cantrips), for spells. */
+  level?: number;
   /** One short line: "Level 1 Enchantment", "General feat", "Artisan's tools"… */
   note?: string;
 }
@@ -249,7 +251,10 @@ export function optionsFor(
         .map((s) => {
           const lvl = typeof s.data.level === 'number' ? s.data.level : 0;
           const school = SCHOOLS[String(s.data.school)] ?? '';
-          return summary(s, lvl === 0 ? `${school} cantrip` : `Level ${String(lvl)} ${school}`);
+          return {
+            ...summary(s, lvl === 0 ? `${school} cantrip` : `Level ${String(lvl)} ${school}`),
+            level: lvl,
+          };
         })
         .sort(byName);
     }

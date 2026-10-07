@@ -15,14 +15,46 @@ export const CHARACTERS_DIR = 'characters';
 
 export type AbilityMethod = 'standard' | 'pointBuy' | 'rolled' | 'manual';
 
+/** What only the player writes, as on a paper sheet. All optional, all plain text. */
 export interface CharacterDetails {
   player?: string;
   alignment?: string;
+  faith?: string;
+  lifestyle?: string;
+  hair?: string;
+  skin?: string;
+  eyes?: string;
+  height?: string;
+  weight?: string;
+  age?: string;
+  gender?: string;
   appearance?: string;
   personality?: string;
+  ideals?: string;
+  bonds?: string;
+  flaws?: string;
+  organizations?: string;
+  allies?: string;
+  enemies?: string;
   backstory?: string;
   notes?: string;
 }
+
+/** How the builder treats this character (D&D Beyond's "Character Preferences"). */
+export interface CharacterPreferences {
+  /** Multiclassing: classes whose ability requirements are not met cannot be added. */
+  multiclassRequirements: boolean;
+  /** 2014 optional rule: a feat instead of an Ability Score Improvement. */
+  feats: boolean;
+  /** Ability blocks show the modifier large (as on the 2024 sheet) or the score. */
+  abilityDisplay: 'modifiers' | 'scores';
+}
+
+export const DEFAULT_PREFERENCES: CharacterPreferences = {
+  multiclassRequirements: true,
+  feats: true,
+  abilityDisplay: 'modifiers',
+};
 
 export interface CharacterFile {
   version: 1;
@@ -41,6 +73,7 @@ export interface CharacterFile {
   coins: Coins;
   /** Creatures that go with the character, by stat block. */
   companions: Companion[];
+  preferences: CharacterPreferences;
   /** The campaign it belongs to; absent in the library. Not stored: it is where the file is. */
   campaign?: string;
 }
@@ -115,6 +148,7 @@ export function newCharacterFile(
     details: {},
     coins: { ...NO_COINS },
     companions: [],
+    preferences: { ...DEFAULT_PREFERENCES },
   };
 }
 
@@ -170,6 +204,10 @@ export function parseCharacter(
             isObj(c) && typeof c.key === 'string' && typeof c.kind === 'string',
         )
       : [],
+    preferences: {
+      ...DEFAULT_PREFERENCES,
+      ...(isObj(json.preferences) ? (json.preferences as Partial<CharacterPreferences>) : {}),
+    },
     ...(campaign ? { campaign } : {}),
   };
 }

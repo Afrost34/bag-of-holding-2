@@ -51,6 +51,16 @@ const at = (list: unknown, level: number): number => {
   return typeof v === 'number' ? v : 0;
 };
 
+/** How many picks a progression has given by a level: `[1, 3, 3…]` or `{ "3": 2, "7": 3 }`. */
+export function progressionTotal(progression: unknown, level: number): number {
+  if (Array.isArray(progression)) return at(progression, level);
+  if (!isObj(progression)) return 0;
+  let best = 0;
+  for (const [k, v] of Object.entries(progression))
+    if (k !== '*' && Number(k) <= level && typeof v === 'number') best = Math.max(best, v);
+  return best;
+}
+
 /** How many picks a progression adds at a level: arrays and `{ "3": 2, "7": 3 }` are totals. */
 export function progressionDelta(progression: unknown, level: number): number {
   if (Array.isArray(progression)) return at(progression, level) - at(progression, level - 1);
@@ -231,10 +241,12 @@ export function readClassLevel(
     for (const p of entity.optionalfeatureProgression) {
       if (!isObj(p)) continue;
       const name = String(p.name);
-      const n = progressionDelta(p.progression, level);
+      // One running list, asked at the current level (invocations, maneuvers… can be swapped as
+      // the class levels up).
+      const n = options.current ? progressionTotal(p.progression, level) : 0;
       if (n > 0)
         out.choices.push({
-          id: `${id}/optionalfeature:${name.toLowerCase()}`,
+          id: `${key}/optionalfeature:${name.toLowerCase()}`,
           kind: 'optionalfeature',
           count: n,
           level,

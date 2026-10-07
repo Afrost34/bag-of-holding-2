@@ -6,6 +6,7 @@ import {
   subclassFeatureRef,
   type Edition,
   type EntityDetail,
+  type FeatureEntry,
   type PageLookup,
   type RawEntity,
 } from '@boh/data5e';
@@ -241,9 +242,9 @@ class Builder {
   }
 
   /** Applies an extraction: its grants, and its choices answered by the decisions. */
-  apply(ex: Extraction, from: string, gate?: number) {
+  apply(ex: Extraction, from: string, gate?: number, via?: string) {
     for (const g of ex.grants) this.grant(g, from, gate);
-    for (const c of ex.choices) this.choice(c, from, gate);
+    for (const c of ex.choices) this.choice(via && !c.via ? { ...c, via } : c, from, gate);
   }
 
   grant(g: Grant, from: string, gate?: number, choice?: string) {
@@ -275,7 +276,7 @@ class Builder {
       const branch = c.branches?.find(
         (b) => b.id === picks[0] && !(b.id === 'feat' && this.rules.feats === false),
       );
-      if (branch) this.apply(branch, from, gate);
+      if (branch) this.apply(branch, from, gate, c.via);
       return;
     }
     picks.forEach((pick, i) => {
@@ -410,10 +411,49 @@ class Builder {
       },
       NO_ISSUES,
     );
-    this.apply(ex, from, level === undefined ? undefined : Infinity);
+    this.apply(ex, from, level === undefined ? undefined : Infinity, key);
     // Features shown inside this one ("College of Whispers" → Psychic Blades, Words of Terror).
     for (const ref of nestedFeatures(e.data.entries)) this.feature(ref, from, level, progressions);
   }
+}
+
+/**
+ * Ties class-level choices to the feature that describes them: the subclass pick to "Bard
+ * Subclass", a feat progression to the feature of the same name ("Fighting Style", "Epic Boon"),
+ * optional features to theirs ("Eldritch Invocations"), Weapon Mastery to "Weapon Mastery".
+ */
+function withVia(ex: Extraction, features: readonly FeatureEntry[], level: number): Extraction {
+  const reached = features.filter((f) => f.level <= level);
+  // Same name ("Fighting Style"); else the first feature that talks about it ("Combat
+  // Superiority" introduces Maneuvers, "Rune Carver" Runes).
+  const byName = (name: string) => {
+    const lower = name.toLowerCase();
+    const named = [...reached]
+      .filter((f) => f.name.toLowerCase() === lower)
+      .sort((a, b) => b.level - a.level)[0];
+    if (named) return named.key;
+    const stem = lower.replace(/s$/, '');
+    return [...reached]
+      .filter((f) =>
+        JSON.stringify(f.entity?.data.entries ?? '')
+          .toLowerCase()
+          .includes(stem),
+      )
+      .sort((a, b) => a.level - b.level)[0]?.key;
+  };
+  const choices = ex.choices.map((c) => {
+    const what = c.id.slice(c.id.lastIndexOf('/') + 1);
+    const via =
+      what === 'subclass'
+        ? features.find((f) => f.gainSubclass && f.level === level)?.key
+        : what.startsWith('feat:') || what.startsWith('optionalfeature:')
+          ? byName(what.slice(what.indexOf(':') + 1))
+          : what === 'weaponMastery'
+            ? byName('weapon mastery')
+            : undefined;
+    return via ? { ...c, via } : c;
+  });
+  return { ...ex, choices };
 }
 
 /** Features referenced inside a feature's text, outside "choose one" option blocks. */
@@ -558,13 +598,21 @@ export function buildCharacter(
       for (const c of ex.choices)
         if (c.kind === 'subclass')
           (c as { options?: readonly string[] }).options = page?.subclasses.map((s) => s.key) ?? [];
-      b.apply(ex, cls.key, lvl);
-      for (const f of page?.features ?? [])
-        if (f.level === lvl && !isPlaceholder(f.gainSubclass))
-          b.feature(f.key, cls.key, lvl, progressions);
+      b.apply(withVia(ex, page?.features ?? [], lvl), cls.key, lvl);
+      for (const f of page?.features ?? []) {
+        if (f.level !== lvl) continue;
+        if (!isPlaceholder(f.gainSubclass)) b.feature(f.key, cls.key, lvl, progressions);
+        // Where the subclass is picked: listed, so the pick can be shown inside it.
+        else if (`${cls.key}/level:${String(lvl)}/subclass` === subclassId)
+          b.features.push({ key: f.key, name: f.name, level: lvl, from: cls.key });
+      }
       if (subclass) {
         b.apply(
-          readClassLevel(subclass.data, subclass.key, lvl, options, NO_ISSUES),
+          withVia(
+            readClassLevel(subclass.data, subclass.key, lvl, options, NO_ISSUES),
+            subPage?.features ?? [],
+            lvl,
+          ),
           subclass.key,
           lvl,
         );

@@ -14,12 +14,14 @@ import {
   type CharacterFile,
 } from '../../app/characters/model';
 import type { CharacterView } from '../../app/data/protocol';
+import { selectClass } from './styles';
+import { StepTitle } from './ui';
 
 const METHODS: { id: AbilityMethod; label: string; hint: string }[] = [
-  { id: 'standard', label: 'Standard array', hint: 'Place 15, 14, 13, 12, 10 and 8, one each.' },
+  { id: 'standard', label: 'Standard Array', hint: 'Place 15, 14, 13, 12, 10 and 8, one each.' },
   {
     id: 'pointBuy',
-    label: 'Point buy',
+    label: 'Point Buy',
     hint: `Spend ${String(POINT_BUY_BUDGET)} points on scores from 8 to 15.`,
   },
   {
@@ -27,12 +29,12 @@ const METHODS: { id: AbilityMethod; label: string; hint: string }[] = [
     label: 'Roll',
     hint: 'Roll 4d6 six times, drop the lowest die, then place them.',
   },
-  { id: 'manual', label: 'Enter scores', hint: 'Type the scores in, as your table decided.' },
+  { id: 'manual', label: 'Manual / Rolled', hint: 'Type the scores in, as your table decided.' },
 ];
 
 const signed = (n: number) => (n >= 0 ? `+${String(n)}` : String(n));
 
-/** Ability scores: the method, the base scores, and what increases them. */
+/** Ability Scores as on D&D Beyond: the method, six score pickers, then how each total is made. */
 export function AbilitiesStep({
   character,
   view,
@@ -42,13 +44,17 @@ export function AbilitiesStep({
   view: CharacterView | null;
   save: (next: CharacterFile) => void;
 }) {
-  const scores = character.decisions.baseScores;
+  const decisions = character.decisions;
+  const scores = decisions.baseScores;
   const method = character.abilityMethod;
   const setScores = (next: Record<Ability, number>) => {
-    save({ ...character, decisions: { ...character.decisions, baseScores: next } });
+    save({ ...character, decisions: { ...decisions, baseScores: next } });
   };
-  const setScore = (a: Ability, v: number) => {
-    setScores({ ...scores, [a]: v });
+  const setOverride = (a: Ability, value: number | null) => {
+    const overrides = { ...(decisions.overrides ?? {}) };
+    if (value === null) Reflect.deleteProperty(overrides, `score.${a}`);
+    else overrides[`score.${a}`] = value;
+    save({ ...character, decisions: { ...decisions, overrides } });
   };
   const pool: readonly number[] =
     method === 'standard' ? STANDARD_ARRAY : method === 'rolled' ? (character.rolls ?? []) : [];
@@ -57,44 +63,31 @@ export function AbilitiesStep({
 
   return (
     <div className="space-y-5">
-      <fieldset className="rounded-lg border border-border bg-surface p-4">
-        <legend className="px-1 font-serif font-bold">Method</legend>
-        <div className="grid gap-2 sm:grid-cols-2">
+      <StepTitle>Ability Scores</StepTitle>
+      <div className="flex flex-wrap items-center gap-3">
+        <select
+          aria-label="Ability score method"
+          value={method}
+          onChange={(e) => {
+            const m = e.target.value as AbilityMethod;
+            const base =
+              m === 'pointBuy'
+                ? { str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8 }
+                : m === 'standard'
+                  ? standardArrayDefault()
+                  : scores;
+            save({ ...character, abilityMethod: m, decisions: { ...decisions, baseScores: base } });
+          }}
+          className={`${selectClass} max-w-xs`}
+        >
           {METHODS.map((m) => (
-            <label
-              key={m.id}
-              className={cn(
-                'flex cursor-pointer gap-2 rounded-md border px-3 py-2',
-                method === m.id ? 'border-accent bg-accent-soft' : 'border-border',
-              )}
-            >
-              <input
-                type="radio"
-                name="ability-method"
-                checked={method === m.id}
-                onChange={() => {
-                  const base =
-                    m.id === 'pointBuy'
-                      ? { str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8 }
-                      : m.id === 'standard'
-                        ? standardArrayDefault()
-                        : scores;
-                  save({
-                    ...character,
-                    abilityMethod: m.id,
-                    decisions: { ...character.decisions, baseScores: base },
-                  });
-                }}
-                className="mt-1"
-              />
-              <span>
-                <span className="block font-medium">{m.label}</span>
-                <span className="block text-sm text-muted">{m.hint}</span>
-              </span>
-            </label>
+            <option key={m.id} value={m.id}>
+              {m.label}
+            </option>
           ))}
-        </div>
-      </fieldset>
+        </select>
+        <p className="text-sm text-muted">{METHODS.find((m) => m.id === method)?.hint}</p>
+      </div>
 
       {method === 'rolled' && (
         <div className="flex flex-wrap items-center gap-3">
@@ -106,11 +99,7 @@ export function AbilitiesStep({
               const placed = Object.fromEntries(
                 ABILITIES.map((a, i) => [a, sorted[i] ?? 10]),
               ) as Record<Ability, number>;
-              save({
-                ...character,
-                rolls,
-                decisions: { ...character.decisions, baseScores: placed },
-              });
+              save({ ...character, rolls, decisions: { ...decisions, baseScores: placed } });
             }}
           >
             <Dices className="h-4 w-4" aria-hidden />{' '}
@@ -125,10 +114,10 @@ export function AbilitiesStep({
       )}
       {method === 'pointBuy' && (
         <p
-          className={cn('text-sm', spent > POINT_BUY_BUDGET && 'font-semibold text-accent')}
+          className={cn('text-sm font-semibold', spent > POINT_BUY_BUDGET && 'text-accent')}
           role="status"
         >
-          {POINT_BUY_BUDGET - spent} of {POINT_BUY_BUDGET} points left
+          Points remaining: {POINT_BUY_BUDGET - spent} / {POINT_BUY_BUDGET}
         </p>
       )}
       {pool.length === 6 && !poolOk && (
@@ -137,57 +126,118 @@ export function AbilitiesStep({
         </p>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-left text-xs text-muted uppercase">
-              <th className="px-3 py-2 font-semibold">Ability</th>
-              <th className="px-3 py-2 font-semibold">Base</th>
-              <th className="px-3 py-2 font-semibold">Bonuses</th>
-              <th className="px-3 py-2 font-semibold">Score</th>
-              <th className="px-3 py-2 font-semibold">Modifier</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ABILITIES.map((a) => {
-              const line = view?.sheet.abilities[a];
-              const bonuses = line?.score.parts.filter((p) => p.label !== 'Base') ?? [];
-              return (
-                <tr key={a} className="border-b border-border last:border-0">
-                  <th scope="row" className="px-3 py-2 text-left font-medium">
-                    {abilityName(a)}
-                  </th>
-                  <td className="px-3 py-2">
-                    <BaseInput
-                      ability={a}
-                      method={method}
-                      value={scores[a]}
-                      pool={pool}
-                      onChange={(v) => {
-                        setScore(a, v);
-                      }}
-                      canRaise={
-                        method !== 'pointBuy' ||
-                        (pointCost(scores[a] + 1) ?? 99) - (pointCost(scores[a]) ?? 0) <=
-                          POINT_BUY_BUDGET - spent
-                      }
-                    />
-                  </td>
-                  <td className="px-3 py-2 text-muted">
-                    {bonuses.length
-                      ? bonuses.map((p) => `${signed(p.value)} ${p.label}`).join(', ')
-                      : '—'}
-                  </td>
-                  <td className="px-3 py-2 text-base font-bold">
-                    {line?.score.value ?? scores[a]}
-                  </td>
-                  <td className="px-3 py-2">{line ? signed(line.modifier) : ''}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+        {ABILITIES.map((a) => (
+          <div key={a}>
+            <p className="mb-1 text-xs font-bold tracking-wide uppercase">{abilityName(a)}</p>
+            <BaseInput
+              ability={a}
+              method={method}
+              value={scores[a]}
+              pool={pool}
+              canRaise={
+                (pointCost(scores[a] + 1) ?? 99) - (pointCost(scores[a]) ?? 0) <=
+                POINT_BUY_BUDGET - spent
+              }
+              onChange={(v) => {
+                setScores({ ...scores, [a]: v });
+              }}
+            />
+            <p className="mt-1 text-center text-xs font-bold">
+              Total: {view?.sheet.abilities[a].score.value ?? scores[a]}
+            </p>
+          </div>
+        ))}
       </div>
+
+      <div>
+        <h3 className="font-serif text-xl">Score Calculations</h3>
+        <p className="mb-3 text-sm text-muted">
+          What makes each total: the base score you set above and every bonus. An override score
+          replaces the total (the rules value stays shown).
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {ABILITIES.map((a) => {
+            const line = view?.sheet.abilities[a];
+            const bonus =
+              line?.score.parts
+                .filter((p) => p.label !== 'Base')
+                .reduce((n, p) => n + p.value, 0) ?? 0;
+            const override = decisions.overrides?.[`score.${a}`];
+            return (
+              <section
+                key={a}
+                aria-label={`${abilityName(a)} calculation`}
+                className="overflow-hidden rounded-md border border-border bg-surface text-sm"
+              >
+                <h4 className="bg-header px-3 py-1.5 font-bold text-header-fg uppercase">
+                  {abilityName(a)}
+                </h4>
+                <dl className="divide-y divide-border">
+                  <Row label="Total Score" value={String(line?.score.value ?? scores[a])} strong />
+                  <Row label="Modifier" value={line ? signed(line.modifier) : ''} strong />
+                  <Row label="Base Score" value={String(scores[a])} />
+                  <Row
+                    label="Bonus"
+                    value={signed(bonus)}
+                    title={line?.score.parts
+                      .filter((p) => p.label !== 'Base')
+                      .map((p) => `${signed(p.value)} ${p.label}`)
+                      .join('\n')}
+                  />
+                  <div className="flex items-center justify-between px-3 py-1.5">
+                    <dt>
+                      <label htmlFor={`override-${a}`}>Override Score</label>
+                    </dt>
+                    <dd>
+                      <input
+                        id={`override-${a}`}
+                        type="number"
+                        min={1}
+                        max={30}
+                        placeholder="--"
+                        value={override ?? ''}
+                        onChange={(e) => {
+                          const n = Number(e.target.value);
+                          setOverride(
+                            a,
+                            e.target.value === '' || !Number.isFinite(n)
+                              ? null
+                              : Math.max(1, Math.min(30, Math.round(n))),
+                          );
+                        }}
+                        className="w-16 rounded border border-border bg-surface px-2 py-0.5 text-right"
+                      />
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Row({
+  label,
+  value,
+  strong,
+  title,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+  title?: string | undefined;
+}) {
+  return (
+    <div
+      className={cn('flex justify-between px-3 py-1.5', strong && 'bg-accent-soft font-bold')}
+      title={title}
+    >
+      <dt>{label}</dt>
+      <dd>{value}</dd>
     </div>
   );
 }
@@ -210,7 +260,7 @@ function BaseInput({
   const label = `${abilityName(ability)} base score`;
   if (method === 'pointBuy')
     return (
-      <span className="inline-flex items-center gap-2">
+      <span className="flex items-center justify-between gap-1 rounded-md border border-border px-1 py-1">
         <button
           type="button"
           aria-label={`Lower ${abilityName(ability)}`}
@@ -218,11 +268,11 @@ function BaseInput({
           onClick={() => {
             onChange(value - 1);
           }}
-          className="rounded border border-border p-1 disabled:opacity-40"
+          className="rounded p-1 hover:bg-sunken disabled:opacity-40"
         >
           <Minus className="h-3 w-3" aria-hidden />
         </button>
-        <span className="w-5 text-center font-medium" aria-label={label}>
+        <span className="font-bold" aria-label={label}>
           {value}
         </span>
         <button
@@ -232,7 +282,7 @@ function BaseInput({
           onClick={() => {
             onChange(value + 1);
           }}
-          className="rounded border border-border p-1 disabled:opacity-40"
+          className="rounded p-1 hover:bg-sunken disabled:opacity-40"
         >
           <Plus className="h-3 w-3" aria-hidden />
         </button>
@@ -250,7 +300,7 @@ function BaseInput({
           const n = Number(e.target.value);
           if (Number.isFinite(n)) onChange(Math.max(1, Math.min(30, Math.round(n))));
         }}
-        className="w-16 rounded-md border border-border bg-surface px-2 py-1"
+        className={selectClass}
       />
     );
   return (
@@ -260,7 +310,7 @@ function BaseInput({
       onChange={(e) => {
         onChange(Number(e.target.value));
       }}
-      className="rounded-md border border-border bg-surface px-2 py-1"
+      className={selectClass}
     >
       {[...new Set([...pool, value])]
         .sort((a, b) => b - a)

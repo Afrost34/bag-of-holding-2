@@ -87,7 +87,6 @@ const entryDataOf = (map: Map<string, Record<string, unknown>>, key: string) => 
  */
 const TEXT_ONLY: readonly string[] = [
   // Asked by the class itself: spell progressions, additionalSpells, optional-feature progressions.
-  'classfeature:infusions known|artificer|tce|2@tce',
   'classfeature:replicate magic item|artificer|efa|2@efa',
   'classfeature:magical secrets|bard|phb|10@phb',
   'classfeature:magical secrets|bard|phb|14@phb',
@@ -113,8 +112,6 @@ const TEXT_ONLY: readonly string[] = [
   'subclassfeature:additional maneuvers|fighter|phb|battle master|phb|10@phb',
   'subclassfeature:additional maneuvers|fighter|phb|battle master|phb|15@phb',
   'subclassfeature:additional maneuvers|fighter|phb|battle master|phb|7@phb',
-  'subclassfeature:arcane shot|fighter|phb|arcane archer|xge|3@xge',
-  'subclassfeature:arcane shot|fighter|xphb|arcane archer|au|3@au',
   'subclassfeature:combat superiority|fighter|phb|battle master|phb|3@phb',
   'subclassfeature:combat superiority|fighter|xphb|battle master|xphb|3@xphb',
   'subclassfeature:disciple of the elements|monk|phb|four elements|phb|3@phb',
@@ -268,7 +265,10 @@ describe.runIf(hasLocalData())('choice extraction over the pinned 5etools releas
         );
         extractions.set(e.key, ex);
         const name = String(e.data.name).toLowerCase();
-        if (ex.choices.length || ex.grants.length || names?.has(name)) continue;
+        const covered = [...(names ?? [])].some(
+          (p) => name === p || name.startsWith(p.replace(/s$/, '')),
+        );
+        if (ex.choices.length || ex.grants.length || covered) continue;
         if (CHOICE_TEXT.test(stripTagsPlain(JSON.stringify(e.data.entries ?? []))))
           textOnly.push(e.key);
       }
