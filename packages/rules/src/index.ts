@@ -34,6 +34,19 @@ export {
   type ClassLevels,
   type HeldFeature,
   type HeldGrant,
+  type InventoryItem,
   type RulesData,
   type Warning,
 } from './build';
+export {
+  computeSheet,
+  modifier,
+  proficiencyBonus,
+  type AbilityLine,
+  type Attack,
+  type Part,
+  type Sheet,
+  type SheetValue,
+  type SkillLine,
+  type Spellcasting,
+} from './sheet';
