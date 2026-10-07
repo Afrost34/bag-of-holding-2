@@ -11,6 +11,7 @@ import { SearchPalette } from '../search/SearchPalette';
 import { startAutoSync } from '../sync/store';
 import { useTabs } from '../tabs/store';
 import { useApplyTheme } from '../theme';
+import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { Sidebar } from './Sidebar';
 import { useSidebarPrefs } from './sidebarPrefs';
 import { TabStrip } from './TabStrip';
@@ -94,6 +95,7 @@ export function AppShell() {
       <DiceTray />
       <RollInputDialog />
       <SearchPalette />
+      <KeyboardShortcuts />
       <UpdatePrompt />
     </div>
   );

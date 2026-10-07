@@ -93,7 +93,9 @@ export function SubclassSelect({
                     className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-surface-2"
                   >
                     <span className="w-4">
-                      {s.key === selected && <Check className="h-4 w-4 text-accent-ink" aria-hidden />}
+                      {s.key === selected && (
+                        <Check className="h-4 w-4 text-accent-ink" aria-hidden />
+                      )}
                     </span>
                     <span className="min-w-0 flex-1 truncate font-medium">{s.name}</span>
                     {s.legacy && <LegacyBadge />}

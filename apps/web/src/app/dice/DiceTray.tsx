@@ -18,6 +18,7 @@ import {
   type Pool,
 } from './pool';
 import { Breakdown, ModeBadge, OutcomeBadge } from './RollBreakdown';
+import { DICE_TRAY_EVENT } from '../shell/shortcuts';
 import { useDice, useDiceSettings } from './store';
 
 /** Dice nearest the button are the most used. */
@@ -34,6 +35,17 @@ export function DiceTray() {
   const roll = useDice((s) => s.roll);
   const empty = isEmpty(pool);
   const hasDice = pool.dice.length > 0;
+
+  // Alt+D (see shell/shortcuts.ts).
+  useEffect(() => {
+    const toggle = () => {
+      setOpen((o) => !o);
+    };
+    window.addEventListener(DICE_TRAY_EVENT, toggle);
+    return () => {
+      window.removeEventListener(DICE_TRAY_EVENT, toggle);
+    };
+  }, []);
 
   useEffect(() => {
     if (!open) return;
