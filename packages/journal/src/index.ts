@@ -1,5 +1,6 @@
 export {
   codeRanges,
+  noteSection,
   noteTags,
   parseFrontmatter,
   parseLinkInner,

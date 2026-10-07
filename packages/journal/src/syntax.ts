@@ -122,3 +122,29 @@ export function noteTags(text: string): string[] {
     .filter(Boolean);
   return [...new Set([...fromFm, ...parseTags(text.slice(bodyStart))])];
 }
+
+/**
+ * What a link shows of a note: the body without frontmatter, or with `#Heading` just that section
+ * (up to the next heading of the same or a higher level). Null when the heading is not there.
+ */
+export function noteSection(text: string, heading?: string): string | null {
+  const body = text.slice(parseFrontmatter(text).bodyStart);
+  if (!heading) return body;
+  const lines = body.split('\n');
+  const wanted = heading.trim().toLowerCase();
+  const start = lines.findIndex((l) => /^#{1,6}\s/.test(l) && headingText(l) === wanted);
+  if (start === -1) return null;
+  const level = headingLevel(lines[start] ?? '');
+  const end = lines.findIndex(
+    (l, i) => i > start && /^#{1,6}\s/.test(l) && headingLevel(l) <= level,
+  );
+  return lines.slice(start, end === -1 ? undefined : end).join('\n');
+}
+
+const headingLevel = (line: string) => /^#+/.exec(line)?.[0].length ?? 0;
+const headingText = (line: string) =>
+  line
+    .replace(/^#+\s+/, '')
+    .replace(/\s+#+\s*$/, '')
+    .trim()
+    .toLowerCase();

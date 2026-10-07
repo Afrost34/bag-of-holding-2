@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildTree } from './tree';
+import { buildTree, moveTarget } from './tree';
 
 describe('journal tree', () => {
   it('nests notes in folders, folders first, natural order', () => {
@@ -17,5 +17,27 @@ describe('journal tree', () => {
     ]);
     expect(tree[2]?.children.map((n) => n.path)).toEqual(['Places/Waterdeep.md']);
     expect(tree[0]?.children[0]).toMatchObject({ kind: 'file', name: 'map.png' });
+  });
+});
+
+describe('moveTarget', () => {
+  const existing = ['Places', 'Places/Waterdeep.md', 'Session 1.md', 'NPCs'];
+  it('moves notes and folders into folders and to the top level', () => {
+    expect(moveTarget('Session 1.md', 'Places', existing, false)).toEqual({
+      ok: true,
+      to: 'Places/Session 1.md',
+    });
+    expect(moveTarget('Places/Waterdeep.md', '', existing, false)).toEqual({
+      ok: true,
+      to: 'Waterdeep.md',
+    });
+    expect(moveTarget('NPCs', 'Places', existing, true)).toEqual({ ok: true, to: 'Places/NPCs' });
+  });
+  it('refuses no-op moves, folders into themselves and overwrites', () => {
+    expect(moveTarget('Places/Waterdeep.md', 'Places', existing, false).ok).toBe(false);
+    expect(moveTarget('Places', 'Places/Sub', existing, true).ok).toBe(false);
+    expect(moveTarget('Waterdeep.md', 'Places', [...existing, 'Waterdeep.md'], false).ok).toBe(
+      false,
+    );
   });
 });
