@@ -70,7 +70,8 @@ export function packMeta(pack: RawEntity): PackMeta | null {
 export function packEntries(pack: RawEntity): { type: string; name: string; entity: RawEntity }[] {
   const out: { type: string; name: string; entity: RawEntity }[] = [];
   for (const [type, list] of Object.entries(pack)) {
-    if (type.startsWith('_') || !Array.isArray(list)) continue;
+    // Pictures and lore (`itemFluff`…) belong to their entries, not listed apart.
+    if (type.startsWith('_') || type.endsWith('Fluff') || !Array.isArray(list)) continue;
     for (const entity of list) {
       if (isObj(entity) && typeof entity.name === 'string')
         out.push({ type, name: entity.name, entity });
@@ -129,4 +130,38 @@ export function removeEntry(
   if (rest.length > 0) next[type] = rest;
   else Reflect.deleteProperty(next, type);
   return touched(next, now);
+}
+
+/** The first picture of an entry (its `<type>Fluff` images), as a URL, or null. */
+export function fluffImage(pack: RawEntity, type: string, name: string): string | null {
+  const list = pack[`${type}Fluff`];
+  if (!Array.isArray(list)) return null;
+  const fluff = list.filter(isObj).find((f) => String(f.name).toLowerCase() === name.toLowerCase());
+  const image = Array.isArray(fluff?.images) ? fluff.images.find(isObj) : undefined;
+  const href = isObj(image?.href) ? image.href : null;
+  return typeof href?.url === 'string' ? href.url : null;
+}
+
+/**
+ * Sets an entry's picture (null removes it), as 5etools keeps art: a `<type>Fluff` entry with
+ * the same name. `previousName` follows a rename.
+ */
+export function putFluffImage(
+  pack: RawEntity,
+  type: string,
+  name: string,
+  url: string | null,
+  previousName?: string,
+  now = new Date(),
+): RawEntity {
+  let next = removeEntry(pack, `${type}Fluff`, previousName ?? name, now);
+  if (previousName && previousName !== name) next = removeEntry(next, `${type}Fluff`, name, now);
+  if (!url) return next;
+  return putEntry(
+    next,
+    `${type}Fluff`,
+    { name, images: [{ type: 'image', href: { type: 'external', url } }] },
+    undefined,
+    now,
+  );
 }

@@ -1,4 +1,13 @@
-import { makeKey, packEntries, packMeta, putEntry, removeEntry, type RawEntity } from '@boh/data5e';
+import {
+  fluffImage,
+  makeKey,
+  packEntries,
+  packMeta,
+  putEntry,
+  putFluffImage,
+  removeEntry,
+  type RawEntity,
+} from '@boh/data5e';
 import { Button } from '@boh/ui';
 import { Download, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -58,9 +67,13 @@ export function PackPage({
   const linkTo = (type: string, entryName: string) =>
     entityPath(makeKey(type, [entryName], meta.id));
 
-  const saveItem = async (item: RawEntity): Promise<string | null> => {
+  const saveItem = async (item: RawEntity, image: string | null): Promise<string | null> => {
     try {
-      await savePack(path, putEntry(pack.json, 'item', item, editing?.name));
+      const withItem = putEntry(pack.json, 'item', item, editing?.name);
+      await savePack(
+        path,
+        putFluffImage(withItem, 'item', String(item.name).trim(), image, editing?.name),
+      );
     } catch (error) {
       return error instanceof Error ? error.message : String(error);
     }
@@ -96,6 +109,7 @@ export function PackPage({
           key={edit ?? 'new'}
           pack={meta}
           base={editing?.entity ?? null}
+          image={editing ? fluffImage(pack.json, 'item', editing.name) : null}
           onSave={saveItem}
           onCancel={() => {
             navigate(packPath(path));
@@ -209,7 +223,15 @@ export function PackPage({
                         variant="primary"
                         onClick={() => {
                           setConfirm(null);
-                          void savePack(path, removeEntry(pack.json, e.type, e.name));
+                          void savePack(
+                            path,
+                            putFluffImage(
+                              removeEntry(pack.json, e.type, e.name),
+                              e.type,
+                              e.name,
+                              null,
+                            ),
+                          );
                         }}
                       >
                         Delete

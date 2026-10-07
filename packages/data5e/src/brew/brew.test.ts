@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { homebrewSources } from '../homebrew';
 import { emptyItem, formToItem, itemToForm } from './items';
-import { newPack, packEntries, packMeta, putEntry, removeEntry, sourceIdFor } from './pack';
+import {
+  fluffImage,
+  newPack,
+  packEntries,
+  packMeta,
+  putEntry,
+  putFluffImage,
+  removeEntry,
+  sourceIdFor,
+} from './pack';
 import { tagDice, textToEntries, untag } from './text';
 
 describe('homebrew text', () => {
@@ -137,5 +146,26 @@ describe('item form', () => {
     expect(form).toMatchObject({ kind: 'wondrous', attune: true, attuneBy: 'by a rogue' });
     const back = formToItem({ ...form, rarity: 'very rare' }, imported);
     expect(back).toEqual({ ...imported, rarity: 'very rare' });
+  });
+});
+
+describe('pictures', () => {
+  it('keeps an entry picture as 5etools fluff, following renames', () => {
+    const pack = newPack({ id: 'RS', name: 'RS', edition: '2024', author: '' });
+    let p = putEntry(pack, 'item', { name: 'Sunblade' });
+    p = putFluffImage(p, 'item', 'Sunblade', 'data:image/webp;base64,AAAA');
+    expect(fluffImage(p, 'item', 'Sunblade')).toBe('data:image/webp;base64,AAAA');
+    expect(p.itemFluff).toEqual([
+      {
+        name: 'Sunblade',
+        source: 'RS',
+        images: [{ type: 'image', href: { type: 'external', url: 'data:image/webp;base64,AAAA' } }],
+      },
+    ]);
+    p = putFluffImage(p, 'item', 'Dawnblade', 'https://example.com/a.png', 'Sunblade');
+    expect(fluffImage(p, 'item', 'Sunblade')).toBeNull();
+    expect(fluffImage(p, 'item', 'Dawnblade')).toBe('https://example.com/a.png');
+    p = putFluffImage(p, 'item', 'Dawnblade', null);
+    expect(p.itemFluff).toBeUndefined();
   });
 });

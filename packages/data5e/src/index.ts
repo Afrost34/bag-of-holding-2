@@ -95,6 +95,8 @@ export {
 } from './classes';
 export {
   BREW_TYPES,
+  fluffImage,
+  putFluffImage,
   newPack,
   packEntries,
   packMeta,

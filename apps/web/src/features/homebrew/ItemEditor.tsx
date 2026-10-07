@@ -14,8 +14,9 @@ import {
 } from '@boh/data5e';
 import { EntityView } from '@boh/renderer';
 import { Button, cn } from '@boh/ui';
-import { Plus, Trash2 } from 'lucide-react';
+import { ImagePlus, Plus, Trash2 } from 'lucide-react';
 import { useId, useState, type ReactNode } from 'react';
+import { shrinkImage } from './images';
 
 const RECHARGE = [
   { id: '', label: 'Never' },
@@ -31,17 +32,21 @@ const RECHARGE = [
 export function ItemEditor({
   pack,
   base,
+  image: initialImage,
   onSave,
   onCancel,
 }: {
   pack: PackMeta;
   base: RawEntity | null;
-  onSave: (item: RawEntity) => Promise<string | null>;
+  /** The item's picture (a data URL or a web address), if it has one. */
+  image: string | null;
+  onSave: (item: RawEntity, image: string | null) => Promise<string | null>;
   onCancel: () => void;
 }) {
   const [form, setForm] = useState<ItemForm>(() => (base ? itemToForm(base) : emptyItem()));
   const [problem, setProblem] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [image, setImage] = useState<string | null>(initialImage);
   const set = <K extends keyof ItemForm>(key: K, value: ItemForm[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
   };
@@ -55,7 +60,7 @@ export function ItemEditor({
       return;
     }
     setSaving(true);
-    setProblem(await onSave(item));
+    setProblem(await onSave(item, image));
     setSaving(false);
   };
 
@@ -300,6 +305,10 @@ export function ItemEditor({
           </Grid>
         </Section>
 
+        <Section title="Picture">
+          <PictureField value={image} onChange={setImage} onError={setProblem} />
+        </Section>
+
         <Section title="Description">
           <TextArea
             label="What it is and what it does"
@@ -379,6 +388,13 @@ export function ItemEditor({
       <aside aria-label="Preview" className="lg:sticky lg:top-4 lg:self-start">
         <p className="mb-2 text-xs font-semibold tracking-wide text-muted uppercase">Preview</p>
         <article className="rounded-lg border border-border bg-surface p-4 shadow-card">
+          {image && (
+            <img
+              src={image}
+              alt=""
+              className="float-right mb-2 ml-3 max-h-40 w-28 rounded-md object-contain sm:w-36"
+            />
+          )}
           <h2 className="font-serif text-xl font-bold">{form.name.trim() || 'Unnamed item'}</h2>
           <p className="mb-2 text-xs text-faint">{pack.name}</p>
           <EntityView type="item" data={item} edition={pack.edition} />
@@ -531,6 +547,82 @@ function TextArea({
         className={inputClass}
       />
       {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
+    </div>
+  );
+}
+
+/** An optional picture: a file from the device (shrunk) or a web address. */
+function PictureField({
+  value,
+  onChange,
+  onError,
+}: {
+  value: string | null;
+  onChange: (v: string | null) => void;
+  onError: (message: string) => void;
+}) {
+  const id = useId();
+  const isLink = value !== null && /^https?:/i.test(value);
+  return (
+    <div className="space-y-3">
+      {value ? (
+        <img
+          src={value}
+          alt=""
+          className="max-h-48 rounded-md border border-border object-contain"
+        />
+      ) : (
+        <p className="text-sm text-muted">Optional: shown beside the item on its page.</p>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-sunken">
+          <ImagePlus className="h-4 w-4" aria-hidden />{' '}
+          {value ? 'Change picture' : 'Choose a picture'}
+          <input
+            type="file"
+            accept="image/*"
+            aria-label="Picture file"
+            className="sr-only"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (file) {
+                void shrinkImage(file)
+                  .then(onChange)
+                  .catch(() => {
+                    onError('That picture could not be read.');
+                  });
+              }
+            }}
+          />
+        </label>
+        {value && (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              onChange(null);
+            }}
+          >
+            <Trash2 className="h-4 w-4" aria-hidden /> Remove
+          </Button>
+        )}
+      </div>
+      <div>
+        <label htmlFor={id} className="mb-1 block text-sm font-medium">
+          Or a picture from the web
+        </label>
+        <input
+          id={id}
+          type="url"
+          placeholder="https://…"
+          value={isLink ? value : ''}
+          onChange={(e) => {
+            onChange(e.target.value.trim() || null);
+          }}
+          className={inputClass}
+        />
+      </div>
     </div>
   );
 }
