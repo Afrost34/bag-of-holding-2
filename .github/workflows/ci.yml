@@ -51,8 +51,15 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @boh/web exec playwright install --with-deps chromium
-        timeout-minutes: 10
+      # The Ubuntu package mirrors sometimes stall: give each try 4 minutes and try again.
+      - name: Install Chromium
+        timeout-minutes: 14
+        run: |
+          for attempt in 1 2 3; do
+            timeout 240 pnpm --filter @boh/web exec playwright install --with-deps chromium && exit 0
+            echo "Install attempt $attempt failed or stalled; trying again."
+          done
+          exit 1
       - run: pnpm e2e
       - uses: actions/upload-artifact@v4
         if: failure()

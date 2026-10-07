@@ -1,6 +1,6 @@
 import type { NoteInfo, NoteType, PropertyValue } from '@boh/journal';
 import { createContext, useContext, type ComponentType } from 'react';
-import type { CampaignEdition } from '../../app/campaigns/model';
+import type { CampaignEdition } from '../../campaigns/model';
 import type { Embed } from './editor/livePreview';
 
 /** What a new note is made from (a name is asked for first). */

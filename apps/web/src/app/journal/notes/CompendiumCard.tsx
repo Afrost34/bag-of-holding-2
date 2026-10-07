@@ -1,8 +1,8 @@
 import { parseCompendiumRef, parseLinkInner } from '@boh/journal';
 import { useEffect, useState } from 'react';
-import { useEntity } from '../../app/data/entities';
-import { resolveCompendiumRef } from '../../app/journal/compendium';
-import { EntityCard } from '../../app/renderer/EntityCard';
+import { useEntity } from '../../data/entities';
+import { resolveCompendiumRef } from '../compendium';
+import { EntityCard } from '../../renderer/EntityCard';
 import { useJournalView } from './context';
 
 const box = 'rounded-lg border border-border bg-surface p-3 text-sm';

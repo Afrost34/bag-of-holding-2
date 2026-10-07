@@ -1,17 +1,32 @@
-import { useRouterState } from '@tanstack/react-router';
+import { useMatch, useRouterState } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { useTabs } from './store';
 
 /** Names the current page: its tab and the browser/window title. */
 export function usePageTitle(title: string | undefined): void {
   const href = useRouterState({ select: (s) => s.location.href });
+  // While the app goes to another page, the URL changes before the page being left goes away: it
+  // must not name the next page's tab after itself. A page names a tab only while the URL's path
+  // is its own.
+  const own = useMatch({ strict: false, select: (m) => m.pathname });
+  const path = useRouterState({ select: (s) => s.location.pathname });
+  const current = decoded(own) === decoded(path);
   const setTitle = useTabs((s) => s.setTitle);
   useEffect(() => {
-    if (!title) return;
+    if (!title || !current) return;
     setTitle(href, title);
     document.title = `${title} · Bag of Holding`;
     return () => {
       document.title = 'Bag of Holding';
     };
-  }, [href, title, setTitle]);
+  }, [href, title, setTitle, current]);
+}
+
+/** Paths compared as text: one side may still be URL-encoded (`spell%3Afireball`). */
+function decoded(path: string): string {
+  try {
+    return decodeURIComponent(path);
+  } catch {
+    return path;
+  }
 }

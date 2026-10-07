@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { flushAnnotations, reloadAnnotations } from '../annotations/store';
 import { reloadCampaigns } from '../campaigns/store';
+import { useBoards } from '../boards/store';
 import { useCardSheets } from '../cards/store';
 import { useCharacters } from '../characters/store';
 import { useHomebrew } from '../data/homebrew';
@@ -100,6 +101,7 @@ export const useSync = create<SyncStore>()((set) => ({
         await flushAnnotations();
         await useCharacters.getState().flush();
         await useCardSheets.getState().flush();
+        await useBoards.getState().flush();
         const result = await syncStore(await userStore(), repoFor(settings), {
           remoteId: `${settings.repository}@${settings.branch}`,
           device: settings.device || 'a device',
@@ -134,6 +136,7 @@ async function refreshAfterSync(paths: string[]): Promise<void> {
     await useCharacters.getState().reload();
   if (touched(/^(card-sheets\/|campaigns\/[^/]+\/card-sheets\/)/))
     await useCardSheets.getState().reload();
+  if (touched(/^(boards\/|campaigns\/[^/]+\/boards\/)/)) await useBoards.getState().reload();
 }
 
 const EVERY_MS = 3 * 60 * 1000;

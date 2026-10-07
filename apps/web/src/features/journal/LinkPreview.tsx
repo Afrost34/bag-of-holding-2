@@ -8,10 +8,10 @@ import {
 } from '@boh/journal';
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import { CompendiumCard } from './CompendiumCard';
-import { useJournalView } from './context';
-import { JournalEmbed } from './JournalEmbed';
-import { NoteViewer } from './NoteViewer';
+import { CompendiumCard } from '../../app/journal/notes/CompendiumCard';
+import { useJournalView } from '../../app/journal/notes/context';
+import { JournalEmbed } from '../../app/journal/notes/JournalEmbed';
+import { NoteViewer } from '../../app/journal/notes/NoteViewer';
 
 const OPEN_DELAY = 350;
 const CLOSE_DELAY = 200;

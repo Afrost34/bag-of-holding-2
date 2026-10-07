@@ -19,7 +19,9 @@ import { Route as EncountersRouteImport } from './routes/encounters'
 import { Route as HomebrewRouteImport } from './routes/homebrew'
 import { Route as JournalRouteImport } from './routes/journal'
 import { Route as MapsRouteImport } from './routes/maps'
+import { Route as PlayerRouteImport } from './routes/player'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as BoardsIdRouteImport } from './routes/boards_.$id'
 import { Route as CampaignsIdRouteImport } from './routes/campaigns_.$id'
 import { Route as CardsIdRouteImport } from './routes/cards_.$id'
 import { Route as CharactersIdRouteImport } from './routes/characters_.$id'
@@ -84,9 +86,19 @@ const MapsRoute = MapsRouteImport.update({
   path: '/maps',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlayerRoute = PlayerRouteImport.update({
+  id: '/player',
+  path: '/player',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BoardsIdRoute = BoardsIdRouteImport.update({
+  id: '/boards_/$id',
+  path: '/boards/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CampaignsIdRoute = CampaignsIdRouteImport.update({
@@ -166,7 +178,9 @@ export interface FileRoutesByFullPath {
   '/homebrew': typeof HomebrewRoute
   '/journal': typeof JournalRoute
   '/maps': typeof MapsRoute
+  '/player': typeof PlayerRoute
   '/settings': typeof SettingsRoute
+  '/boards/$id': typeof BoardsIdRoute
   '/campaigns/$id': typeof CampaignsIdRoute
   '/cards/$id': typeof CardsIdRoute
   '/characters/$id': typeof CharactersIdRoute
@@ -192,7 +206,9 @@ export interface FileRoutesByTo {
   '/homebrew': typeof HomebrewRoute
   '/journal': typeof JournalRoute
   '/maps': typeof MapsRoute
+  '/player': typeof PlayerRoute
   '/settings': typeof SettingsRoute
+  '/boards/$id': typeof BoardsIdRoute
   '/campaigns/$id': typeof CampaignsIdRoute
   '/cards/$id': typeof CardsIdRoute
   '/characters/$id': typeof CharactersIdRoute
@@ -219,7 +235,9 @@ export interface FileRoutesById {
   '/homebrew': typeof HomebrewRoute
   '/journal': typeof JournalRoute
   '/maps': typeof MapsRoute
+  '/player': typeof PlayerRoute
   '/settings': typeof SettingsRoute
+  '/boards_/$id': typeof BoardsIdRoute
   '/campaigns_/$id': typeof CampaignsIdRoute
   '/cards_/$id': typeof CardsIdRoute
   '/characters_/$id': typeof CharactersIdRoute
@@ -247,7 +265,9 @@ export interface FileRouteTypes {
     | '/homebrew'
     | '/journal'
     | '/maps'
+    | '/player'
     | '/settings'
+    | '/boards/$id'
     | '/campaigns/$id'
     | '/cards/$id'
     | '/characters/$id'
@@ -273,7 +293,9 @@ export interface FileRouteTypes {
     | '/homebrew'
     | '/journal'
     | '/maps'
+    | '/player'
     | '/settings'
+    | '/boards/$id'
     | '/campaigns/$id'
     | '/cards/$id'
     | '/characters/$id'
@@ -299,7 +321,9 @@ export interface FileRouteTypes {
     | '/homebrew'
     | '/journal'
     | '/maps'
+    | '/player'
     | '/settings'
+    | '/boards_/$id'
     | '/campaigns_/$id'
     | '/cards_/$id'
     | '/characters_/$id'
@@ -326,7 +350,9 @@ export interface RootRouteChildren {
   HomebrewRoute: typeof HomebrewRoute
   JournalRoute: typeof JournalRoute
   MapsRoute: typeof MapsRoute
+  PlayerRoute: typeof PlayerRoute
   SettingsRoute: typeof SettingsRoute
+  BoardsIdRoute: typeof BoardsIdRoute
   CampaignsIdRoute: typeof CampaignsIdRoute
   CardsIdRoute: typeof CardsIdRoute
   CharactersIdRoute: typeof CharactersIdRoute
@@ -414,11 +440,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MapsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/player': {
+      id: '/player'
+      path: '/player'
+      fullPath: '/player'
+      preLoaderRoute: typeof PlayerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/boards_/$id': {
+      id: '/boards_/$id'
+      path: '/boards/$id'
+      fullPath: '/boards/$id'
+      preLoaderRoute: typeof BoardsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/campaigns_/$id': {
@@ -526,7 +566,9 @@ const rootRouteChildren: RootRouteChildren = {
   HomebrewRoute: HomebrewRoute,
   JournalRoute: JournalRoute,
   MapsRoute: MapsRoute,
+  PlayerRoute: PlayerRoute,
   SettingsRoute: SettingsRoute,
+  BoardsIdRoute: BoardsIdRoute,
   CampaignsIdRoute: CampaignsIdRoute,
   CardsIdRoute: CardsIdRoute,
   CharactersIdRoute: CharactersIdRoute,

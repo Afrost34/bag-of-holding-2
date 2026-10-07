@@ -11,7 +11,7 @@ import { ImagePlus, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { NoteTypeIcon } from './NoteTypeIcon';
-import { useAttachmentUrl } from './useAttachmentUrl';
+import { useAttachmentUrl } from '../../app/journal/notes/useAttachmentUrl';
 
 /** What the wizard hands back: the note's name and its properties. */
 export interface WizardResult {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { attachmentUrl } from '../../app/journal/attachments';
+import { attachmentUrl } from '../attachments';
 import { useJournalView } from './context';
 
 /** An attachment's object URL, once it is read. `undefined` while loading, null if missing. */

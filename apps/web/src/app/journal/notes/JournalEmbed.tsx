@@ -9,8 +9,8 @@ import {
 } from '@boh/journal';
 import { FileText, Paperclip, Trash2 } from 'lucide-react';
 import { useContext, useMemo } from 'react';
-import { RollChip } from '../../app/dice/RollChip';
-import { isImage } from '../../app/journal/attachments';
+import { RollChip } from '../../dice/RollChip';
+import { isImage } from '../attachments';
 import { BaseView } from './BaseView';
 import { CompendiumCard } from './CompendiumCard';
 import { EmbedDepthContext, MAX_EMBED_DEPTH, useJournalView } from './context';

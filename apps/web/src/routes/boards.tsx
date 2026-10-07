@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { ModulePlaceholder } from '../features/placeholder/ModulePlaceholder';
+import { BoardsPage } from '../features/boards/BoardsPage';
 
 export const Route = createFileRoute('/boards')({
-  component: () => <ModulePlaceholder path="/boards" />,
+  component: BoardsPage,
 });

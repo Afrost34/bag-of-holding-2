@@ -41,21 +41,26 @@ import { useJournal } from '../../app/journal/store';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 import { forgetAttachment } from '../../app/journal/attachments';
-import { BaseView } from './BaseView';
-import { JournalViewContext, useJournalView, type JournalView, type NewNoteSpec } from './context';
-import type { JournalEditorOptions } from './editor/setup';
+import { BaseView } from '../../app/journal/notes/BaseView';
+import {
+  JournalViewContext,
+  useJournalView,
+  type JournalView,
+  type NewNoteSpec,
+} from '../../app/journal/notes/context';
+import type { JournalEditorOptions } from '../../app/journal/notes/editor/setup';
 import { FileTree } from './FileTree';
 import { NoteInfoCard } from './NoteInfoCard';
 import { NoteWizard, type WizardResult } from './NoteWizard';
 import { ImportPanel } from './ImportPanel';
 import { NoteTypeIcon } from './NoteTypeIcon';
-import { EmbedContent } from './JournalEmbed';
+import { EmbedContent } from '../../app/journal/notes/JournalEmbed';
 import { LinkPreviewContent, LinkPreviews } from './LinkPreview';
-import { NoteEditor } from './NoteEditor';
+import { NoteEditor } from '../../app/journal/notes/NoteEditor';
 import { PropertiesPanel } from './PropertiesPanel';
 import { TagsPane } from './TagsPane';
 import { buildTagTree, moveTarget } from './tree';
-import { useAttachmentUrl } from './useAttachmentUrl';
+import { useAttachmentUrl } from '../../app/journal/notes/useAttachmentUrl';
 
 const folderOf = (path: string) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '');
 /** A note's or base's name without its extension. */
