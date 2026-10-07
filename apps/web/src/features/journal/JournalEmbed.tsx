@@ -8,6 +8,7 @@ import {
 } from '@boh/journal';
 import { FileText, Paperclip } from 'lucide-react';
 import { useContext, useMemo } from 'react';
+import { RollChip } from '../../app/dice/RollChip';
 import { isImage } from '../../app/journal/attachments';
 import { BaseView } from './BaseView';
 import { CompendiumCard } from './CompendiumCard';
@@ -16,9 +17,13 @@ import type { Embed } from './editor/livePreview';
 import { NoteViewer } from './NoteViewer';
 import { useAttachmentUrl } from './useAttachmentUrl';
 
-/** What the editor asks to draw: an `![[embed]]` or a ```base block. */
+/** What the editor asks to draw: an `![[embed]]`, a ```base block or a `dice:` roll. */
 export function EmbedContent({ embed }: { embed: Embed }) {
   if (embed.kind === 'embed') return <JournalEmbed inner={embed.inner} />;
+  if (embed.kind === 'dice') {
+    const kind = /^\s*1?d20\b/i.test(embed.expression) ? 'd20' : 'dice';
+    return <RollChip roll={{ kind, expression: embed.expression }}>{embed.expression}</RollChip>;
+  }
   return <BaseBlock yaml={embed.yaml} edit={embed.edit} />;
 }
 

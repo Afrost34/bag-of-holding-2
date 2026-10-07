@@ -33,6 +33,13 @@
   --boh-focus: #2f6fdd;
   --boh-readaloud: #f3ead6;
   --boh-readaloud-border: #c9b48a;
+  /* Journal callouts and highlights. */
+  --boh-callout-note: #1c7ed6;
+  --boh-callout-tip: #2f9e44;
+  --boh-callout-warning: #e8590c;
+  --boh-callout-danger: #e03131;
+  --boh-callout-secret: #9c36b5;
+  --boh-highlight: #fff3a3;
   --boh-dice-bg: #fdecdc;
   --boh-dice-fg: #b4520f;
   --boh-dice-border: #e9a46b;
@@ -85,6 +92,12 @@
     --boh-focus: #7aa7ff;
     --boh-readaloud: #2a2519;
     --boh-readaloud-border: #6b5a36;
+    --boh-callout-note: #4dabf7;
+    --boh-callout-tip: #51cf66;
+    --boh-callout-warning: #ff922b;
+    --boh-callout-danger: #ff6b6b;
+    --boh-callout-secret: #cc5de8;
+    --boh-highlight: #5c4d12;
     --boh-dice-bg: #3a2414;
     --boh-dice-fg: #f5a65f;
     --boh-dice-border: #8a5a30;
@@ -117,6 +130,12 @@
   --boh-focus: #7aa7ff;
   --boh-readaloud: #2a2519;
   --boh-readaloud-border: #6b5a36;
+  --boh-callout-note: #4dabf7;
+  --boh-callout-tip: #51cf66;
+  --boh-callout-warning: #ff922b;
+  --boh-callout-danger: #ff6b6b;
+  --boh-callout-secret: #cc5de8;
+  --boh-highlight: #5c4d12;
   --boh-dice-bg: #3a2414;
   --boh-dice-fg: #f5a65f;
   --boh-dice-border: #8a5a30;
