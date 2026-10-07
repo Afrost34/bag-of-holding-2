@@ -1,9 +1,12 @@
 import { cn } from '@boh/ui';
 import { AppLink } from '../../app/AppLink';
 import { navModules } from '../../app/nav';
+import { useData } from '../../app/data/store';
 import { DataStatusCard } from './DataStatusCard';
+import { GetStarted } from './GetStarted';
 
 export function HomePage() {
+  const status = useData((s) => s.status);
   const modules = navModules.filter((m) => m.path !== '/' && m.footer !== true);
 
   return (
@@ -13,7 +16,9 @@ export function HomePage() {
         <p className="mt-1 text-muted">Everything for your table, in one place, online or off.</p>
       </header>
 
-      <DataStatusCard />
+      <GetStarted />
+      {/* Once the data is in (or while another window holds it); before, Get started has it. */}
+      {(status?.installed === true || status?.storage === 'busy') && <DataStatusCard />}
 
       <section aria-labelledby="modules-heading">
         <h2 id="modules-heading" className="mb-3 font-serif text-lg font-bold">
