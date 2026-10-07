@@ -8,7 +8,7 @@ import {
 } from '@boh/journal';
 import { Button, cn } from '@boh/ui';
 import { FilePlus, FolderTree, Link2, Trash2, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
 import { useActiveCampaign, useCampaigns } from '../../app/campaigns/store';
 import { dataWorker } from '../../app/data/client';
@@ -23,7 +23,9 @@ import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 import type { JournalEditorOptions } from './editor/setup';
 import { FileTree } from './FileTree';
+import { LinkPreviewContent, LinkPreviews } from './LinkPreview';
 import { NoteEditor } from './NoteEditor';
+import { moveTarget } from './tree';
 
 const folderOf = (path: string) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '');
 
@@ -38,6 +40,7 @@ export function JournalPage({ note }: { note: string | undefined }) {
   const [filesOpen, setFilesOpen] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const editorBox = useRef<HTMLDivElement>(null);
 
   usePageTitle(note ? noteName(note) : 'Journal');
   useEffect(() => {
@@ -89,14 +92,33 @@ export function JournalPage({ note }: { note: string | undefined }) {
     await journal.createFolder(`${prefix}${name}`);
   };
 
-  const rename = async (path: string, newName: string) => {
-    const isFolder = journal.folders.includes(path);
-    const clean = newName.replace(/[\\/:*?"<>|]/g, '-').replace(/\.md$/i, '');
-    const target = `${folderOf(path) ? `${folderOf(path)}/` : ''}${clean}${isFolder ? '' : '.md'}`;
+  const existing = [...paths, ...journal.attachments, ...journal.folders];
+
+  /** Moves or renames a note, file or folder, following the open note if it moved. */
+  const relocate = async (path: string, target: string) => {
     await journal.move(path, target);
     if (note && (note === path || note.startsWith(`${path}/`))) {
       navigate(journalPath(`${target}${note.slice(path.length)}`));
     }
+  };
+
+  const rename = async (path: string, newName: string) => {
+    const isFolder = journal.folders.includes(path);
+    const clean = newName.replace(/[\\/:*?"<>|]/g, '-').replace(/\.md$/i, '');
+    const target = `${folderOf(path) ? `${folderOf(path)}/` : ''}${clean}${isFolder ? '' : '.md'}`;
+    const clash = existing.some((p) => p.toLowerCase() === target.toLowerCase());
+    if (clash && target.toLowerCase() !== path.toLowerCase()) {
+      setMessage(`There is already something called “${clean}” here.`);
+      return;
+    }
+    await relocate(path, target);
+  };
+
+  const moveInto = async (path: string, folder: string) => {
+    if (folder === folderOf(path)) return;
+    const result = moveTarget(path, folder, existing, journal.folders.includes(path));
+    if (result.ok) await relocate(path, result.to);
+    else setMessage(result.reason);
   };
 
   const remove = async (path: string) => {
@@ -158,6 +180,7 @@ export function JournalPage({ note }: { note: string | undefined }) {
       onDelete={(p) => {
         setConfirmDelete(p);
       }}
+      onMove={(p, folder) => void moveInto(p, folder)}
     />
   );
 
@@ -242,7 +265,20 @@ export function JournalPage({ note }: { note: string | undefined }) {
             <article>
               <NoteTitle key={note} path={note} onRename={(name) => void rename(note, name)} />
               {folderOf(note) && <p className="mb-2 text-xs text-faint">{folderOf(note)}</p>}
-              <NoteEditor path={note} text={text} options={editorOptions} />
+              <div ref={editorBox}>
+                <NoteEditor path={note} text={text} options={editorOptions} />
+              </div>
+              <LinkPreviews container={editorBox}>
+                {(inner) => (
+                  <LinkPreviewContent
+                    inner={inner}
+                    notes={journal.notes}
+                    fromPath={note}
+                    edition={campaign.edition}
+                    viewer={editorOptions}
+                  />
+                )}
+              </LinkPreviews>
             </article>
           ) : (
             <EmptyJournal

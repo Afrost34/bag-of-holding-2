@@ -52,3 +52,31 @@ export function buildTree(
   sort(root);
   return root.children;
 }
+
+export type MoveResult = { ok: true; to: string } | { ok: false; reason: string };
+
+/**
+ * Where `path` (a note, file or folder) ends up when dropped on `folder` ('' is the top level).
+ * Refuses moves that change nothing, put a folder inside itself, or would overwrite something.
+ */
+export function moveTarget(
+  path: string,
+  folder: string,
+  existing: readonly string[],
+  isFolder: boolean,
+): MoveResult {
+  const name = path.slice(path.lastIndexOf('/') + 1);
+  const current = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
+  if (folder === current) return { ok: false, reason: 'It is already there.' };
+  if (isFolder && (folder === path || folder.startsWith(`${path}/`))) {
+    return { ok: false, reason: 'A folder cannot go inside itself.' };
+  }
+  const to = folder ? `${folder}/${name}` : name;
+  if (existing.some((p) => p.toLowerCase() === to.toLowerCase())) {
+    return {
+      ok: false,
+      reason: `“${folder || 'Journal'}” already has something called “${name}”.`,
+    };
+  }
+  return { ok: true, to };
+}

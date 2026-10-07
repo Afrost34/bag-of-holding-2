@@ -9,8 +9,10 @@ import {
   MoreHorizontal,
   Paperclip,
 } from 'lucide-react';
-import { useState } from 'react';
-import { buildTree, type TreeNode } from './tree';
+import { useState, type DragEvent } from 'react';
+import { buildTree, moveTarget, type TreeNode } from './tree';
+
+const DRAG_TYPE = 'application/x-boh-journal-path';
 
 export interface FileTreeProps {
   notes: readonly string[];
@@ -23,12 +25,50 @@ export interface FileTreeProps {
   onNewFolder: (parent: string) => void;
   onRename: (path: string, newName: string) => void;
   onDelete: (path: string, kind: 'folder' | 'note' | 'file') => void;
+  /** Move a note, file or folder into a folder ('' is the top level). */
+  onMove: (path: string, folder: string) => void;
 }
 
-export function FileTree(props: FileTreeProps) {
+/** Drag state shared by the whole tree: the folder a drop would land in. */
+interface DragProps {
+  dropTarget: string | null;
+  setDropTarget: (folder: string | null) => void;
+}
+
+/** Handlers that make an element a drop zone for `folder`. */
+function dropZone(folder: string, props: FileTreeProps & DragProps) {
+  return {
+    onDragOver: (e: DragEvent) => {
+      if (!e.dataTransfer.types.includes(DRAG_TYPE)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = 'move';
+      if (props.dropTarget !== folder) props.setDropTarget(folder);
+    },
+    onDrop: (e: DragEvent) => {
+      const path = e.dataTransfer.getData(DRAG_TYPE);
+      if (!path) return;
+      e.preventDefault();
+      e.stopPropagation();
+      props.setDropTarget(null);
+      props.onMove(path, folder);
+    },
+  };
+}
+
+export function FileTree(treeProps: FileTreeProps) {
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const props = { ...treeProps, dropTarget, setDropTarget };
   const tree = buildTree(props.notes, props.attachments, props.folders);
   return (
-    <nav aria-label="Journal files" className="text-sm">
+    <nav
+      aria-label="Journal files"
+      className={cn('flex min-h-full flex-col text-sm', dropTarget === '' && 'bg-accent-soft/40')}
+      {...dropZone('', props)}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropTarget(null);
+      }}
+    >
       <div className="mb-2 flex items-center gap-1 px-2">
         <span className="flex-1 text-[11px] font-semibold tracking-wider text-muted uppercase">
           Files
@@ -65,18 +105,33 @@ export function FileTree(props: FileTreeProps) {
           ))}
         </ul>
       )}
+      {/* Room below the files: dropping here moves to the top level. */}
+      <div className="min-h-12 flex-1" />
     </nav>
   );
 }
 
-function TreeItem({ node, depth, ...props }: FileTreeProps & { node: TreeNode; depth: number }) {
+function TreeItem({
+  node,
+  depth,
+  ...props
+}: FileTreeProps & DragProps & { node: TreeNode; depth: number }) {
   const containsCurrent = props.current?.startsWith(`${node.path}/`) ?? false;
   const [open, setOpen] = useState(depth === 0 || containsCurrent);
   const [renaming, setRenaming] = useState(false);
+  const [picking, setPicking] = useState(false);
   const [name, setName] = useState(node.name);
   const isOpen = open || containsCurrent;
   const Icon = node.kind === 'folder' ? Folder : node.kind === 'note' ? FileText : Paperclip;
   const selected = node.path === props.current;
+  const isDropTarget = node.kind === 'folder' && props.dropTarget === node.path;
+  const folderOf = (p: string) => (p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '');
+  // Dropping on a note or file puts the dragged item next to it, in the same folder.
+  const zone = dropZone(node.kind === 'folder' ? node.path : folderOf(node.path), props);
+  const existing = [...props.notes, ...props.attachments, ...props.folders];
+  const destinations = ['', ...props.folders].filter(
+    (f) => moveTarget(node.path, f, existing, node.kind === 'folder').ok,
+  );
 
   const commitRename = () => {
     setRenaming(false);
@@ -90,8 +145,19 @@ function TreeItem({ node, depth, ...props }: FileTreeProps & { node: TreeNode; d
       role="treeitem"
       aria-expanded={node.kind === 'folder' ? isOpen : undefined}
       aria-selected={selected}
+      className={cn(isDropTarget && 'rounded-md bg-accent-soft/40 ring-1 ring-accent/60')}
+      {...(node.kind === 'folder' ? zone : {})}
     >
       <div
+        draggable={!renaming}
+        onDragStart={(e) => {
+          e.dataTransfer.setData(DRAG_TYPE, node.path);
+          e.dataTransfer.effectAllowed = 'move';
+        }}
+        onDragEnd={() => {
+          props.setDropTarget(null);
+        }}
+        {...(node.kind === 'folder' ? {} : zone)}
         className={cn(
           'group flex items-center gap-1 rounded-md pr-1',
           selected ? 'bg-accent-soft text-accent' : 'hover:bg-sunken',
@@ -137,7 +203,11 @@ function TreeItem({ node, depth, ...props }: FileTreeProps & { node: TreeNode; d
             <span className="truncate">{node.name}</span>
           </button>
         )}
-        <Menu.Root>
+        <Menu.Root
+          onOpenChange={(o) => {
+            if (!o) setPicking(false);
+          }}
+        >
           <Menu.Trigger
             aria-label={`Actions for ${node.name}`}
             className="rounded p-0.5 text-faint opacity-0 group-hover:opacity-100 focus:opacity-100 data-[state=open]:opacity-100"
@@ -148,40 +218,72 @@ function TreeItem({ node, depth, ...props }: FileTreeProps & { node: TreeNode; d
             <Menu.Content
               align="start"
               sideOffset={4}
-              className="z-50 min-w-40 rounded-md border border-border bg-surface p-1 text-sm shadow-card"
+              collisionPadding={8}
+              className="z-50 max-h-80 min-w-40 overflow-y-auto rounded-md border border-border bg-surface p-1 text-sm shadow-card"
             >
-              {node.kind === 'folder' && (
+              {picking ? (
+                // "Move to…" swaps the menu for the list of folders (a submenu is awkward on touch).
                 <>
+                  <Menu.Label className="px-2 py-1 text-xs text-muted">
+                    Move “{node.name}” to
+                  </Menu.Label>
+                  {destinations.map((f) => (
+                    <MenuItem
+                      key={f}
+                      onSelect={() => {
+                        props.onMove(node.path, f);
+                      }}
+                    >
+                      {f || 'Journal (top level)'}
+                    </MenuItem>
+                  ))}
+                </>
+              ) : (
+                <>
+                  {node.kind === 'folder' && (
+                    <>
+                      <MenuItem
+                        onSelect={() => {
+                          props.onNewNote(node.path);
+                        }}
+                      >
+                        New note here
+                      </MenuItem>
+                      <MenuItem
+                        onSelect={() => {
+                          props.onNewFolder(node.path);
+                        }}
+                      >
+                        New folder here
+                      </MenuItem>
+                    </>
+                  )}
                   <MenuItem
                     onSelect={() => {
-                      props.onNewNote(node.path);
+                      setRenaming(true);
                     }}
                   >
-                    New note here
+                    Rename
                   </MenuItem>
+                  {destinations.length > 0 && (
+                    <MenuItem
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        setPicking(true);
+                      }}
+                    >
+                      Move to…
+                    </MenuItem>
+                  )}
                   <MenuItem
                     onSelect={() => {
-                      props.onNewFolder(node.path);
+                      props.onDelete(node.path, node.kind);
                     }}
                   >
-                    New folder here
+                    Delete
                   </MenuItem>
                 </>
               )}
-              <MenuItem
-                onSelect={() => {
-                  setRenaming(true);
-                }}
-              >
-                Rename
-              </MenuItem>
-              <MenuItem
-                onSelect={() => {
-                  props.onDelete(node.path, node.kind);
-                }}
-              >
-                Delete
-              </MenuItem>
             </Menu.Content>
           </Menu.Portal>
         </Menu.Root>
@@ -197,7 +299,7 @@ function TreeItem({ node, depth, ...props }: FileTreeProps & { node: TreeNode; d
   );
 }
 
-function MenuItem({ onSelect, children }: { onSelect: () => void; children: string }) {
+function MenuItem({ onSelect, children }: { onSelect: (e: Event) => void; children: string }) {
   return (
     <Menu.Item
       onSelect={onSelect}

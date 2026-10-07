@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { noteTags, parseFrontmatter, parseLinkInner, parseTags, parseWikiLinks } from './syntax';
+import {
+  noteSection,
+  noteTags,
+  parseFrontmatter,
+  parseLinkInner,
+  parseTags,
+  parseWikiLinks,
+} from './syntax';
 
 describe('wikilinks', () => {
   it('parses targets, headings, blocks, display text and embeds', () => {
@@ -49,5 +56,20 @@ describe('frontmatter', () => {
     expect(text.slice(fm.bodyStart)).toBe('Body');
     expect(parseFrontmatter('No frontmatter')).toEqual({ data: {}, bodyStart: 0 });
     expect(parseFrontmatter('---\n: [bad\n---\n').error).toBeDefined();
+  });
+});
+
+describe('noteSection', () => {
+  const note =
+    '---\ntags: [city]\n---\n# Waterdeep\nIntro\n## Wards\nDock Ward\n### Taverns\nYawning Portal\n## People\nLaeral';
+  it('drops frontmatter', () => {
+    expect(noteSection(note)?.startsWith('# Waterdeep')).toBe(true);
+  });
+  it('returns a heading and its subsections, up to the next heading of its level', () => {
+    expect(noteSection(note, 'wards')).toBe('## Wards\nDock Ward\n### Taverns\nYawning Portal');
+    expect(noteSection(note, 'People')).toBe('## People\nLaeral');
+  });
+  it('returns null for a missing heading', () => {
+    expect(noteSection(note, 'Nope')).toBeNull();
   });
 });

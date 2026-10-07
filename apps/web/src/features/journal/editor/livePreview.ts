@@ -253,5 +253,14 @@ export function linkClicks(
       }
       return false;
     },
+    // The link was followed on mousedown; the anchor's own `#` must not be.
+    click: (event) => {
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      if (target?.closest('[data-link-target]')) {
+        event.preventDefault();
+        return true;
+      }
+      return false;
+    },
   });
 }

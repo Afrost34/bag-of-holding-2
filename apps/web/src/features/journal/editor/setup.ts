@@ -11,7 +11,7 @@ import {
 } from '@codemirror/autocomplete';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
-import type { Extension } from '@codemirror/state';
+import { EditorState, type Extension } from '@codemirror/state';
 import { drawSelection, EditorView, keymap, placeholder } from '@codemirror/view';
 import { linkClicks, livePreview, type LinkContext } from './livePreview';
 
@@ -155,6 +155,22 @@ const theme = EditorView.theme({
     fontStyle: 'normal',
   },
 });
+
+/** A note shown but not edited (link previews): formatted throughout, links still clickable. */
+export function journalViewerExtensions(
+  opts: LinkContext & Pick<JournalEditorOptions, 'openLink' | 'openUrl'>,
+): Extension[] {
+  return [
+    EditorState.readOnly.of(true),
+    EditorView.editable.of(false),
+    EditorView.lineWrapping,
+    markdown({ base: markdownLanguage }),
+    livePreview(opts),
+    linkClicks(opts.openLink, opts.openUrl),
+    theme,
+    EditorView.theme({ '.cm-content': { padding: '0 !important' }, '&': { fontSize: '14px' } }),
+  ];
+}
 
 export function journalExtensions(opts: JournalEditorOptions): Extension[] {
   return [
