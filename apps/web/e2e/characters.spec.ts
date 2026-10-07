@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { createCampaign, installData } from './helpers/journal';
 
 /** Characters: build one step by step; every choice the rules ask for is tracked and kept. */
@@ -7,47 +7,68 @@ test.beforeEach(async ({ page }) => {
   await installData(page);
 });
 
-test('a character is built from its choices and kept', async ({ page }) => {
+async function newCharacter(page: Page, name: string, edition: '2014 rules' | '2024 rules') {
   await page.goto('./#/characters');
   await page.getByRole('button', { name: 'New character' }).click();
   const form = page.getByRole('form', { name: 'New character' });
-  await form.getByLabel('Name').fill('Lia');
-  await form.getByRole('radio', { name: '2014 rules' }).check();
+  await form.getByLabel('Name').fill(name);
+  await form.getByRole('radio', { name: edition }).check();
   await form.getByRole('button', { name: 'Start building' }).click();
+}
 
-  // Class: picked from the compendium, then its choices appear.
+/** Picks a class from the list and confirms it in the dialog. */
+async function addClass(page: Page, name: RegExp) {
+  await page.getByRole('list', { name: 'classes' }).getByRole('button', { name }).first().click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Add class' }).click();
+}
+
+const step = (page: Page, name: RegExp) =>
+  page.getByRole('navigation', { name: 'Builder steps' }).getByRole('link', { name });
+
+test('a character is built from its choices and kept', async ({ page }) => {
+  await newCharacter(page, 'Lia', '2014 rules');
+
+  // Class: picked from the list, confirmed, then its choices sit in its features.
   await page.getByRole('searchbox', { name: 'Search classes' }).fill('bard');
-  await page.getByRole('list', { name: 'classes' }).getByRole('button', { name: /Bard/ }).click();
-  const skills = page.getByRole('region', { name: 'Choose 3 skills' });
-  for (const skill of ['Arcana', 'History', 'Stealth'])
-    await skills.getByRole('checkbox', { name: skill }).click();
-  await expect(skills.getByRole('checkbox', { name: 'Athletics' })).toBeDisabled();
+  await addClass(page, /Bard/);
+  const core = page.getByRole('region', { name: 'Core Bard Traits' });
+  await core.getByLabel('Choose 3 skills (1)').selectOption('arcana');
+  await core.getByLabel('Choose 3 skills (2)').selectOption('history');
+  await core.getByLabel('Choose 3 skills (3)').selectOption('stealth');
+  // A skill picked in one list is not offered in the others.
+  await expect(
+    core.getByLabel('Choose 3 skills (1)').locator('option[value="history"]'),
+  ).toHaveCount(0);
 
-  // Level 3 asks for the subclass.
+  // Level 3: the subclass is picked in the feature that grants it.
   await page.getByLabel('Level', { exact: true }).selectOption('3');
-  const college = page.getByRole('region', { name: /Choose your/ });
-  await college.getByRole('radio', { name: /College of Lore/ }).click();
-  await expect(page.getByText('College of Lore').first()).toBeVisible();
+  await page
+    .getByRole('region', { name: 'Bard College' })
+    .getByLabel('Choose your subclass')
+    .selectOption({ label: 'College of Lore' });
+  await expect(page.getByRole('heading', { name: 'Bard' }).locator('..')).toContainText(
+    'College of Lore',
+  );
 
   // Species, with its subspecies.
-  await page.getByRole('link', { name: /Species/ }).click();
+  await step(page, /Species/).click();
   await page.getByRole('list', { name: 'species' }).getByRole('button', { name: /Elf/ }).click();
   await page
-    .getByRole('region', { name: 'Choose a subspecies' })
-    .getByRole('radio', { name: /High/ })
-    .click();
+    .getByRole('region', { name: 'Subspecies' })
+    .getByLabel('Choose a subspecies')
+    .selectOption({ label: 'High' });
 
   // Abilities: the standard array plus the species' increases.
-  await page.getByRole('link', { name: /Abilities/ }).click();
-  const dex = page.getByRole('row', { name: /Dexterity/ });
-  await expect(dex).toContainText('Elf');
-  await expect(dex.getByRole('cell').nth(2)).toHaveText('16');
+  await step(page, /Abilities/).click();
+  const dex = page.getByRole('region', { name: 'Dexterity calculation' });
+  await expect(dex).toContainText('Total Score16');
+  await expect(dex).toContainText('Bonus+2');
   await page.getByLabel('Strength base score').selectOption('8');
   await page.getByLabel('Charisma base score').selectOption('15');
   await expect(page.getByRole('status')).toHaveCount(0);
 
   // The sheet: numbers from the rules, with their parts, and a value set by hand.
-  await page.getByRole('link', { name: /Sheet/ }).click();
+  await step(page, /Sheet/).click();
   await page.getByRole('button', { name: 'Details: Armor Class' }).click();
   const details = page.getByRole('region', { name: 'Armor Class details' });
   await expect(details).toContainText('Dexterity');
@@ -60,10 +81,12 @@ test('a character is built from its choices and kept', async ({ page }) => {
 
   // Everything is kept: after a reload the choices are still there.
   await page.reload();
-  await page.getByRole('link', { name: /Class/ }).click();
-  await expect(page.getByRole('region', { name: 'Choose 3 skills' })).toContainText(
-    'Arcana, History, Stealth',
-  );
+  await step(page, /Class/).click();
+  // Finished sections start folded.
+  await page.getByRole('button', { name: /Core Bard Traits/ }).click();
+  await expect(
+    page.getByRole('region', { name: 'Core Bard Traits' }).getByLabel('Choose 3 skills (1)'),
+  ).toHaveValue('arcana');
   await page.getByRole('link', { name: 'Characters', exact: true }).first().click();
   await expect(page.getByRole('link', { name: /Lia/ })).toContainText('Level 3 Elf Bard');
 });
@@ -81,21 +104,29 @@ test('a multiclass character in a campaign, with rolled hit points, copied to th
   await form.getByRole('button', { name: 'Start building' }).click();
   await expect(page.getByRole('main').getByText('· Rust and Sunfire')).toBeVisible();
 
-  // Fighter 2, then a level of Bard.
-  await page
-    .getByRole('list', { name: 'classes' })
-    .getByRole('button', { name: /Fighter/ })
-    .click();
+  // Fighter 2.
+  await addClass(page, /Fighter/);
   await page.getByLabel('Level', { exact: true }).selectOption('2');
-  await page.getByRole('button', { name: 'Add a class (multiclass)' }).click();
-  await page.getByRole('list', { name: 'classes' }).getByRole('button', { name: /Bard/ }).click();
+
+  // The standard array leaves Charisma at 8: Bard's requirement is enforced by default…
+  await page.getByRole('button', { name: 'Add another class' }).click();
+  await expect(
+    page.getByRole('list', { name: 'classes' }).getByRole('button', { name: /Bard/ }),
+  ).toBeDisabled();
+  await expect(page.getByRole('list', { name: 'classes' })).toContainText('Charisma 13');
+  // …and can be turned off in the character's preferences, leaving a warning.
+  await step(page, /Home/).click();
+  await page.getByRole('checkbox', { name: 'Multiclass requirements' }).uncheck();
+  await step(page, /Class/).click();
+  await page.getByRole('button', { name: 'Add another class' }).click();
+  await addClass(page, /Bard/);
   await expect(page.getByText('Level 3 Fighter 2 / Bard 1')).toBeVisible();
-  // The standard array leaves Charisma at 8: the bard's requirement is pointed out, not enforced.
   await expect(page.getByRole('region', { name: 'Warnings' })).toContainText(
     'Multiclassing with Bard needs Charisma 13.',
   );
 
   // Hit points: 10 + average 6 for Fighter 2 + average 5 for Bard 1 + Constitution +1 × 3.
+  await page.getByRole('button', { name: 'Manage HP' }).click();
   const hp = page.getByRole('region', { name: 'Hit points' });
   await expect(hp).toContainText('Hit points: 24');
   await hp.getByRole('radio', { name: 'Rolled' }).click();
@@ -112,11 +143,8 @@ test('a multiclass character in a campaign, with rolled hit points, copied to th
 });
 
 test('a companion is a stat block attached to the character', async ({ page }) => {
-  await page.goto('./#/characters');
-  await page.getByRole('button', { name: 'New character' }).click();
-  await page.getByRole('form', { name: 'New character' }).getByLabel('Name').fill('Wren');
-  await page.getByRole('button', { name: 'Start building' }).click();
-  await page.getByRole('link', { name: /Companions/ }).click();
+  await newCharacter(page, 'Wren', '2024 rules');
+  await step(page, /Sheet/).click();
   await page.getByRole('searchbox', { name: 'Add a creature' }).fill('gobl');
   await page.getByRole('list', { name: 'Creatures found' }).getByRole('button').first().click();
   await page.getByLabel('Name for Goblin').fill('Snik');

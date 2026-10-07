@@ -38,10 +38,13 @@ interface Selected {
 export function SheetView({
   view,
   decisions,
+  abilityDisplay = 'modifiers',
   update,
 }: {
   view: CharacterView;
   decisions: CharacterDecisions;
+  /** Which the ability blocks show large. */
+  abilityDisplay?: 'modifiers' | 'scores';
   update: (next: CharacterDecisions) => void;
 }) {
   const sheet = view.sheet;
@@ -123,10 +126,12 @@ export function SheetView({
               <div key={a} className="rounded-lg border border-border p-2 text-center">
                 <p className="text-xs font-semibold tracking-wide text-muted uppercase">{name}</p>
                 <RollChip roll={d20(line.check.value, `${name} check`)}>
-                  <span className="text-2xl font-bold">{signed(line.modifier)}</span>
+                  <span className="text-2xl font-bold">
+                    {abilityDisplay === 'scores' ? line.score.value : signed(line.modifier)}
+                  </span>
                 </RollChip>
                 <p className="flex items-center justify-center gap-1 text-sm">
-                  {line.score.value}
+                  {abilityDisplay === 'scores' ? signed(line.modifier) : line.score.value}
                   <InfoButton
                     label={`${name} score`}
                     onClick={() => {

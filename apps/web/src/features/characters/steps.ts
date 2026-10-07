@@ -7,14 +7,12 @@ import type { AnsweredChoice, CharacterDecisions, HeldGrant } from '@boh/rules';
  */
 
 export const STEPS = [
+  { id: 'home', label: 'Home' },
   { id: 'class', label: 'Class' },
-  { id: 'species', label: 'Species' },
   { id: 'background', label: 'Background' },
+  { id: 'species', label: 'Species' },
   { id: 'abilities', label: 'Abilities' },
   { id: 'equipment', label: 'Equipment' },
-  { id: 'spells', label: 'Spells' },
-  { id: 'companions', label: 'Companions' },
-  { id: 'details', label: 'Details' },
   { id: 'sheet', label: 'Sheet' },
 ] as const;
 
@@ -38,7 +36,6 @@ export function rootOf(from: string, grants: readonly HeldGrant[]): string {
 }
 
 export function stepOf(choice: AnsweredChoice, grants: readonly HeldGrant[]): StepId {
-  if (choice.kind === 'spell' || choice.kind === 'spellAbility') return 'spells';
   if (choice.id.includes('/equipment')) return 'equipment';
   if (choice.kind === 'ability' && rootOf(choice.from, grants).startsWith('background:'))
     return 'background';
@@ -102,4 +99,26 @@ export function hitPointLevels(
       faces: hitDice[i]?.faces ?? 8,
     })).slice(i === 0 ? 1 : 0),
   );
+}
+
+/**
+ * The class or subclass feature a choice is shown in: the one that asks for it, or, for a choice
+ * inside a feat or optional feature, the feature where that was picked (an Ability Score
+ * Improvement taken as a feat shows the feat's own picks under it).
+ */
+export function featureOf(
+  choice: Pick<AnsweredChoice, 'via' | 'from'>,
+  choices: readonly AnsweredChoice[],
+  grants: readonly HeldGrant[],
+  depth = 0,
+): string | undefined {
+  if (choice.via) return choice.via;
+  if (depth > 10 || !/^(feat|optionalfeature):/.test(choice.from)) return undefined;
+  const grant = grants.find(
+    (g) => (g.kind === 'feat' || g.kind === 'optionalfeature') && g.key === choice.from,
+  );
+  if (!grant) return undefined;
+  const parent = grant.choice ? choices.find((c) => c.id === grant.choice) : undefined;
+  if (parent) return featureOf(parent, choices, grants, depth + 1);
+  return /^(classfeature|subclassfeature):/.test(grant.from) ? grant.from : undefined;
 }

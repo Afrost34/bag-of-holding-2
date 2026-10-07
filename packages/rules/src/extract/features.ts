@@ -135,7 +135,11 @@ export function readFeature(
 ): Extraction {
   const out = emptyExtraction();
   const name = typeof feature.name === 'string' ? feature.name.toLowerCase() : '';
-  out.choices.push(...optionChoices(feature, key, progressions?.has(name) ?? false));
+  // "Eldritch Invocation Options" lists what "Eldritch Invocations" asks for: skip it too.
+  const covered = [...(progressions ?? [])].some(
+    (p) => name === p || name.startsWith(p.replace(/s$/, '')),
+  );
+  out.choices.push(...optionChoices(feature, key, covered));
   if (entryData) {
     const kept: RawEntity = {};
     for (const [k, v] of Object.entries(entryData)) if (!FOUNDRY_IGNORED.has(k)) kept[k] = v;

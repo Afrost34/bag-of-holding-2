@@ -1,6 +1,6 @@
 import type { AnsweredChoice, HeldGrant } from '@boh/rules';
 import { describe, expect, it } from 'vitest';
-import { choicesByStep, hitPointLevels, pickName, rootOf } from './steps';
+import { choicesByStep, featureOf, hitPointLevels, pickName, rootOf } from './steps';
 
 describe('pick names', () => {
   it('reads plain values, entity keys and groups', () => {
@@ -50,7 +50,8 @@ describe('builder steps', () => {
     expect(
       Object.fromEntries(Object.entries(steps).map(([k, v]) => [k, v.map((c) => c.id)])),
     ).toEqual({
-      class: ['class:bard@xphb/level:1/skill'],
+      home: [],
+      class: ['class:bard@xphb/level:1/skill', 'class:bard@xphb/cantrips'],
       species: ['race:goblin@mpmm/size'],
       background: [
         'feat:skilled@xphb/skillToolLanguage',
@@ -59,9 +60,6 @@ describe('builder steps', () => {
       ],
       abilities: [],
       equipment: ['class:bard@xphb/level:1/equipment/0'],
-      spells: ['class:bard@xphb/cantrips'],
-      companions: [],
-      details: [],
       sheet: [],
     });
   });
@@ -84,5 +82,21 @@ describe('hit point levels', () => {
       { label: 'Fighter 2', faces: 10 },
       { label: 'Wizard 1', faces: 6 },
     ]);
+  });
+});
+
+describe('feature of a choice', () => {
+  it('follows a feat back to the feature it was picked in', () => {
+    const asi = 'classfeature:ability score improvement|fighter|xphb|4@xphb';
+    const pickFeat: AnsweredChoice = {
+      ...choice(`${asi}/feats`, 'class:fighter@xphb', 'feat'),
+      via: asi,
+    };
+    const inFeat = choice('feat:skilled@xphb/skillToolLanguage', 'feat:skilled@xphb');
+    const held: HeldGrant[] = [
+      { kind: 'feat', key: 'feat:skilled@xphb', from: 'class:fighter@xphb', choice: pickFeat.id },
+    ];
+    expect(featureOf(inFeat, [pickFeat, inFeat], held)).toBe(asi);
+    expect(featureOf(choice('x', 'class:fighter@xphb'), [], held)).toBeUndefined();
   });
 });

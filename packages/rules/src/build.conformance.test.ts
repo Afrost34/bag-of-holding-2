@@ -91,6 +91,10 @@ describe.runIf(hasLocalData())('the builder over the pinned 5etools release', ()
           if (w.kind !== 'edition') problems.push(`${sub.key ?? cls.key}: ${w.kind} ${w.message}`);
         if (sub.key && !result.classes[0]?.subclass)
           problems.push(`${sub.key}: subclass not applied`);
+        // The builder shows these inside their feature: each must find it.
+        for (const c of result.choices)
+          if (/\/(subclass|feat:[^/]+|optionalfeature:[^/]+|weaponMastery)$/.test(c.id) && !c.via)
+            problems.push(`${c.id}: no feature`);
       }
     }
     expect(built).toBeGreaterThan(250);
@@ -218,6 +222,13 @@ describe.runIf(hasLocalData())('the builder over the pinned 5etools release', ()
   it('rebuilds Glubs from decisions alone', () => {
     const glubs = buildCharacter(data, GLUBS);
     expect(glubs.pending.map((c) => c.id)).toEqual([]);
+    const via = (id: string) => glubs.choices.find((c) => c.id === id)?.via;
+    expect(via('class:bard@xphb/level:3/subclass')).toBe(
+      'classfeature:bard subclass|bard|xphb|3@xphb',
+    );
+    expect(via('classfeature:expertise|bard|xphb|2@xphb/expertise')).toBe(
+      'classfeature:expertise|bard|xphb|2@xphb',
+    );
     expect(glubs.warnings.filter((w) => w.kind !== 'edition')).toEqual([]);
     // 2014 options in a 2024 character are allowed but pointed out.
     expect(glubs.warnings.map((w) => w.ref).sort()).toEqual([

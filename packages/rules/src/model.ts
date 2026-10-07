@@ -150,6 +150,11 @@ export interface Choice {
   amounts?: readonly number[];
   /** For ability choices: the score the increase cannot exceed. */
   max?: number;
+  /**
+   * The class or subclass feature that asks (its key), set by the builder so a choice can be shown
+   * inside its feature ("Fighting Style", "Bard Subclass", "Expertise").
+   */
+  via?: string;
   /** For `alternative` choices: what each option brings. Option ids are branch ids. */
   branches?: readonly Branch[];
 }

@@ -1,6 +1,6 @@
 import type { CharacterDecisions } from '@boh/rules';
 import { cn } from '@boh/ui';
-import { AlertTriangle, ArrowLeft, ListChecks } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
 import { useCampaigns } from '../../app/campaigns/store';
@@ -12,16 +12,20 @@ import { useData } from '../../app/data/store';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 import { AbilitiesStep } from './AbilitiesStep';
-import { CompanionsStep } from './CompanionsStep';
-import { DetailsStep } from './DetailsStep';
-import { InventoryPanel } from './InventoryPanel';
-import { SheetView } from './SheetView';
+import { BackgroundStep } from './BackgroundStep';
 import { ClassStep } from './ClassStep';
-import { BackgroundStep, ChoiceList, SpeciesStep } from './OriginSteps';
+import { CompanionsStep } from './CompanionsStep';
+import { EquipmentStep } from './EquipmentStep';
+import { HomeStep } from './HomeStep';
+import { SheetView } from './SheetView';
+import { SpeciesStep } from './SpeciesStep';
 import { choicesByStep, rootOf, STEPS, stepOf, type StepId } from './steps';
 import { useCharacterView } from './useCharacterView';
 
-/** The character builder: steps across the top, the open choices always one click away. */
+/**
+ * The character builder, laid out like D&D Beyond's: the steps across a bar at the top, the
+ * character's name between previous / next arrows, then the step.
+ */
 export function CharacterPage({ id, step }: { id: string; step: StepId }) {
   const { loaded, load, save } = useCharacters();
   const character = useCharacter(id);
@@ -40,7 +44,11 @@ export function CharacterPage({ id, step }: { id: string; step: StepId }) {
     if (!status) void refresh();
   }, [loaded, load, loadSources, status, refresh]);
 
-  const view = useCharacterView(character?.decisions);
+  const rules = useMemo(
+    () => ({ feats: character?.preferences.feats ?? true }),
+    [character?.preferences.feats],
+  );
+  const view = useCharacterView(character?.decisions, rules);
   const disabled = useMemo(
     () => new Set(disabledSourceIds(sources, overrides).map((s) => s.toLowerCase())),
     [sources, overrides],
@@ -84,236 +92,337 @@ export function CharacterPage({ id, step }: { id: string; step: StepId }) {
   const goTo = (s: StepId) => {
     navigate(`/characters/${id}?step=${s}`);
   };
+  const index = STEPS.findIndex((s) => s.id === step);
+  const prev = STEPS[index - 1];
+  const next = STEPS[index + 1];
 
   const byStep = view ? choicesByStep(view.choices, view.grants) : null;
   const pending = view?.pending ?? [];
   const warnings = (view?.warnings ?? []).filter((w) => w.kind !== 'edition');
   const editionWarnings = (view?.warnings ?? []).filter((w) => w.kind === 'edition');
-  const stepProps = {
-    decisions: character.decisions,
-    view,
-    choices: byStep?.[step] ?? [],
-    isEnabled,
-    update,
-    setPicks,
-  };
+  const campaignName = campaigns.find((c) => c.id === character.campaign)?.name;
+  const choices = byStep?.[step] ?? [];
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 md:px-8">
-      <AppLink
-        to="/characters"
-        className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-text"
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden /> Characters
-      </AppLink>
-      <Header
-        character={character}
-        campaignName={campaigns.find((c) => c.id === character.campaign)?.name}
-        save={save}
-        level={view?.level ?? 0}
-      />
-      {status && !status.installed && (
-        <p className="mb-4 rounded-md bg-sunken px-3 py-2 text-sm">
-          Download the 5etools data in{' '}
-          <AppLink to="/settings/data" className="text-link hover:underline">
-            Settings
-          </AppLink>{' '}
-          to build characters.
-        </p>
-      )}
-
-      <div className="mb-5 flex flex-wrap items-center gap-2">
-        <nav
-          aria-label="Builder steps"
-          className="-mx-1 flex basis-full gap-1 overflow-x-auto px-1 pb-1 sm:flex-1 sm:basis-auto"
-        >
-          {STEPS.map((s, i) => {
-            const open = byStep?.[s.id].filter((c) => c.picks.length < c.count).length ?? 0;
-            return (
-              <AppLink
-                key={s.id}
-                to={`/characters/${id}?step=${s.id}`}
-                aria-current={s.id === step ? 'step' : undefined}
-                className={cn(
-                  'flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm',
-                  s.id === step
-                    ? 'border-accent bg-accent text-accent-fg'
-                    : 'border-border hover:bg-sunken',
-                )}
-              >
-                <span className="text-xs opacity-70">{i + 1}</span> {s.label}
-                {open > 0 && (
-                  <span
-                    className={cn(
-                      'rounded-full px-1.5 text-xs font-bold',
-                      s.id === step ? 'bg-accent-fg text-accent' : 'bg-accent text-accent-fg',
-                    )}
-                    aria-label={`${String(open)} to choose`}
-                  >
-                    {open}
-                  </span>
-                )}
-              </AppLink>
-            );
-          })}
-        </nav>
-        <button
-          type="button"
-          aria-expanded={showPending}
-          onClick={() => {
-            setShowPending(!showPending);
-          }}
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium',
-            pending.length ? 'border-accent text-accent' : 'border-border text-muted',
-          )}
-        >
-          <ListChecks className="h-4 w-4" aria-hidden />
-          {pending.length ? `${String(pending.length)} to choose` : 'All chosen'}
-        </button>
+    <div className="min-h-full">
+      <div className="sticky top-0 z-10 bg-header text-header-fg shadow">
+        <div className="mx-auto flex max-w-5xl items-center gap-3 px-3 py-2">
+          <AppLink
+            to="/characters"
+            aria-label="Characters"
+            className="rounded p-1 hover:bg-black/20"
+          >
+            <ArrowLeft className="h-5 w-5" aria-hidden />
+          </AppLink>
+          <div className="hidden min-w-0 shrink-0 sm:block">
+            <p className="font-serif text-lg leading-tight font-bold">Character Builder</p>
+            <p className="truncate text-xs opacity-80">{character.name}</p>
+          </div>
+          <nav aria-label="Builder steps" className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
+            {STEPS.map((s, i) => {
+              const open = byStep?.[s.id].filter((c) => c.picks.length < c.count).length ?? 0;
+              return (
+                <AppLink
+                  key={s.id}
+                  to={`/characters/${id}?step=${s.id}`}
+                  aria-current={s.id === step ? 'step' : undefined}
+                  className={cn(
+                    'flex shrink-0 items-center gap-1 border-b-2 px-2 py-1.5 text-xs font-bold tracking-wide uppercase',
+                    s.id === step
+                      ? 'border-accent'
+                      : 'border-transparent opacity-80 hover:opacity-100',
+                  )}
+                >
+                  {i > 0 && i < STEPS.length - 1 && `${String(i)}. `}
+                  {s.label}
+                  {open > 0 && (
+                    <span
+                      className="rounded-full bg-accent px-1.5 text-[10px] text-accent-fg"
+                      aria-label={`${String(open)} to choose`}
+                    >
+                      {open}
+                    </span>
+                  )}
+                </AppLink>
+              );
+            })}
+          </nav>
+          <button
+            type="button"
+            aria-expanded={showPending}
+            onClick={() => {
+              setShowPending(!showPending);
+            }}
+            className={cn(
+              'shrink-0 rounded px-2 py-1 text-xs font-bold',
+              pending.length ? 'bg-accent text-accent-fg' : 'opacity-70',
+            )}
+          >
+            {pending.length ? `${String(pending.length)} to choose` : 'All chosen'}
+          </button>
+        </div>
       </div>
 
-      {showPending && view && (
-        <section
-          aria-label="Pending choices"
-          className="mb-5 rounded-lg border border-accent bg-surface p-4"
-        >
-          <h2 className="mb-2 font-serif text-lg font-bold">Pending choices</h2>
-          {pending.length === 0 ? (
-            <p className="text-sm text-muted">Nothing left to choose.</p>
-          ) : (
-            <ul className="space-y-1">
-              {pending.map((c) => {
-                const s = stepOf(c, view.grants);
-                const from = view.entities.find((e) => e.key === rootOf(c.from, view.grants))?.name;
-                return (
-                  <li key={c.id}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowPending(false);
-                        goTo(s);
-                      }}
-                      className="flex w-full items-baseline gap-2 rounded-md px-2 py-1 text-left hover:bg-sunken"
-                    >
-                      <span className="font-medium">{c.label}</span>
-                      <span className="text-sm text-muted">
-                        {from ?? STEPS.find((x) => x.id === s)?.label}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
-      )}
-
-      {(warnings.length > 0 || editionWarnings.length > 0) && (
-        <section aria-label="Warnings" className="mb-5 space-y-1 rounded-lg bg-sunken p-3 text-sm">
-          {warnings.map((w) => (
-            <p key={`${w.kind}:${w.ref}`} className="flex gap-2">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden />{' '}
-              {w.message}
+      <div className="mx-auto max-w-3xl px-4 py-5">
+        <div className="mb-5 flex items-center gap-2 border-b border-border pb-4">
+          <StepArrow step={prev} direction="previous" onClick={goTo} />
+          <div
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded border-2 border-dashed border-border bg-sunken font-serif text-2xl font-bold"
+            aria-hidden
+          >
+            {character.name.trim().charAt(0).toUpperCase() || '?'}
+          </div>
+          <div className="min-w-0 flex-1">
+            <label htmlFor="character-name" className="block text-xs font-bold">
+              Character Name
+            </label>
+            <input
+              id="character-name"
+              value={character.name}
+              onChange={(e) => {
+                save({ ...character, name: e.target.value });
+              }}
+              className="w-full max-w-xs rounded-md border border-border bg-surface px-2 py-1 font-medium focus:border-accent focus:outline-none"
+            />
+            <p className="truncate text-xs text-muted">
+              {character.summary || 'Not built yet'} · {campaignName ?? 'Library'}
             </p>
-          ))}
-          {editionWarnings.length > 0 && (
-            <p className="flex gap-2 text-muted">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-              From the {character.decisions.edition === '2024' ? '2014' : '2024'} rules:{' '}
-              {editionWarnings
-                .map((w) => view?.entities.find((e) => e.key === w.ref)?.name ?? w.ref)
-                .join(', ')}
-              .
-            </p>
-          )}
-        </section>
-      )}
-
-      {step === 'class' && <ClassStep {...stepProps} />}
-      {step === 'species' && <SpeciesStep {...stepProps} />}
-      {step === 'background' && <BackgroundStep {...stepProps} />}
-      {step === 'abilities' && <AbilitiesStep character={character} view={view} save={save} />}
-      {step === 'equipment' && (
-        <div className="space-y-5">
-          <ChoiceList {...stepProps} />
-          <InventoryPanel
-            character={character}
-            view={view}
-            save={save}
-            disabledSources={[...disabled]}
-          />
+          </div>
+          <StepArrow step={next} direction="next" onClick={goTo} />
         </div>
-      )}
-      {step === 'spells' && (
-        <ChoiceList {...stepProps} empty="This character has no spells to choose yet." />
-      )}
-      {step === 'companions' && (
-        <CompanionsStep character={character} save={save} disabledSources={[...disabled]} />
-      )}
-      {step === 'details' && <DetailsStep character={character} save={save} />}
-      {step === 'sheet' && view && (
-        <SheetView view={view} decisions={character.decisions} update={update} />
-      )}
+
+        {status && !status.installed && (
+          <p className="mb-4 rounded-md bg-sunken px-3 py-2 text-sm">
+            Download the 5etools data in{' '}
+            <AppLink to="/settings/data" className="text-link hover:underline">
+              Settings
+            </AppLink>{' '}
+            to build characters.
+          </p>
+        )}
+
+        {showPending && view && (
+          <section
+            aria-label="Pending choices"
+            className="mb-5 rounded-lg border border-accent bg-surface p-4"
+          >
+            <h2 className="mb-2 font-serif text-lg font-bold">Still to choose</h2>
+            {pending.length === 0 ? (
+              <p className="text-sm text-muted">Nothing left to choose.</p>
+            ) : (
+              <ul className="space-y-1">
+                {pending.map((c) => {
+                  const s = stepOf(c, view.grants);
+                  const from = view.entities.find(
+                    (e) => e.key === rootOf(c.from, view.grants),
+                  )?.name;
+                  return (
+                    <li key={c.id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowPending(false);
+                          goTo(s);
+                        }}
+                        className="flex w-full items-baseline gap-2 rounded-md px-2 py-1 text-left hover:bg-sunken"
+                      >
+                        <span className="font-medium">{c.label}</span>
+                        <span className="text-sm text-muted">
+                          {from ?? STEPS.find((x) => x.id === s)?.label}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+        )}
+
+        {(warnings.length > 0 || editionWarnings.length > 0) && (
+          <section
+            aria-label="Warnings"
+            className="mb-5 space-y-1 rounded-lg bg-sunken p-3 text-sm"
+          >
+            {warnings.map((w) => (
+              <p key={`${w.kind}:${w.ref}`} className="flex gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden />{' '}
+                {w.message}
+              </p>
+            ))}
+            {editionWarnings.length > 0 && (
+              <p className="flex gap-2 text-muted">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                From the {character.decisions.edition === '2024' ? '2014' : '2024'} rules:{' '}
+                {editionWarnings
+                  .map((w) => view?.entities.find((e) => e.key === w.ref)?.name ?? w.ref)
+                  .join(', ')}
+                .
+              </p>
+            )}
+          </section>
+        )}
+
+        <StepBody
+          step={step}
+          character={character}
+          view={view}
+          choices={choices}
+          campaignName={campaignName}
+          isEnabled={isEnabled}
+          disabledSources={[...disabled]}
+          save={save}
+          update={update}
+          setPicks={setPicks}
+        />
+
+        <div className="mt-8 flex justify-between border-t border-border pt-4">
+          {prev ? (
+            <button
+              type="button"
+              onClick={() => {
+                goTo(prev.id);
+              }}
+              className="text-sm font-bold text-link uppercase"
+            >
+              ‹ {prev.label}
+            </button>
+          ) : (
+            <span />
+          )}
+          {next && (
+            <button
+              type="button"
+              onClick={() => {
+                goTo(next.id);
+              }}
+              className="text-sm font-bold text-link uppercase"
+            >
+              {next.label} ›
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
-function Header({
-  character,
-  campaignName,
-  save,
-  level,
+function StepArrow({
+  step,
+  direction,
+  onClick,
 }: {
-  character: CharacterFile;
-  /** The campaign it belongs to; the library when absent. */
-  campaignName: string | undefined;
-  save: (c: CharacterFile) => void;
-  level: number;
+  step: (typeof STEPS)[number] | undefined;
+  direction: 'previous' | 'next';
+  onClick: (s: StepId) => void;
 }) {
-  const edition = character.decisions.edition;
+  const Icon = direction === 'previous' ? ChevronLeft : ChevronRight;
   return (
-    <div className="mb-5 flex flex-wrap items-end gap-3">
-      <div className="min-w-0 flex-1">
-        <label htmlFor="character-name" className="sr-only">
-          Character name
-        </label>
-        <input
-          id="character-name"
-          value={character.name}
-          onChange={(e) => {
-            save({ ...character, name: e.target.value });
-          }}
-          className="w-full rounded-md border border-transparent bg-transparent px-1 font-serif text-2xl font-bold hover:border-border focus:border-accent focus:outline-none"
-        />
-        <p className="px-1 text-muted">
-          {character.summary || (level ? '' : 'Not built yet')}
-          <span className="text-faint"> · {campaignName ?? 'Library'}</span>
-        </p>
-      </div>
-      <div
-        role="radiogroup"
-        aria-label="Rules"
-        className="flex rounded-md border border-border p-0.5 text-sm"
-      >
-        {(['2024', '2014'] as const).map((e) => (
-          <button
-            key={e}
-            type="button"
-            role="radio"
-            aria-checked={edition === e}
-            onClick={() => {
-              save({ ...character, decisions: { ...character.decisions, edition: e } });
-            }}
-            className={cn(
-              'rounded px-2.5 py-1',
-              edition === e ? 'bg-accent text-accent-fg' : 'hover:bg-sunken',
-            )}
-          >
-            {e} rules
-          </button>
-        ))}
-      </div>
-    </div>
+    <button
+      type="button"
+      disabled={!step}
+      aria-label={
+        step ? `${direction === 'previous' ? 'Previous' : 'Next'}: ${step.label}` : undefined
+      }
+      onClick={() => {
+        if (step) onClick(step.id);
+      }}
+      className="shrink-0 rounded bg-link p-1 text-surface disabled:bg-sunken disabled:text-faint"
+    >
+      <Icon className="h-6 w-6" aria-hidden />
+    </button>
   );
+}
+
+function StepBody({
+  step,
+  character,
+  view,
+  choices,
+  campaignName,
+  isEnabled,
+  disabledSources,
+  save,
+  update,
+  setPicks,
+}: {
+  step: StepId;
+  character: CharacterFile;
+  view: ReturnType<typeof useCharacterView>;
+  choices: NonNullable<ReturnType<typeof useCharacterView>>['choices'];
+  campaignName: string | undefined;
+  isEnabled: (source: string | undefined) => boolean;
+  disabledSources: string[];
+  save: (c: CharacterFile) => void;
+  update: (d: CharacterDecisions) => void;
+  setPicks: (choiceId: string, picks: string[]) => void;
+}) {
+  switch (step) {
+    case 'home':
+      return <HomeStep character={character} campaignName={campaignName} save={save} />;
+    case 'class':
+      return (
+        <ClassStep
+          character={character}
+          view={view}
+          update={update}
+          setPicks={setPicks}
+          isEnabled={isEnabled}
+        />
+      );
+    case 'background':
+      return (
+        <BackgroundStep
+          character={character}
+          view={view}
+          choices={choices}
+          isEnabled={isEnabled}
+          update={update}
+          setPicks={setPicks}
+          save={save}
+        />
+      );
+    case 'species':
+      return (
+        <SpeciesStep
+          decisions={character.decisions}
+          view={view}
+          choices={choices}
+          isEnabled={isEnabled}
+          update={update}
+          setPicks={setPicks}
+        />
+      );
+    case 'abilities':
+      return <AbilitiesStep character={character} view={view} save={save} />;
+    case 'equipment':
+      return (
+        <EquipmentStep
+          character={character}
+          view={view}
+          choices={choices}
+          isEnabled={isEnabled}
+          disabledSources={disabledSources}
+          save={save}
+          setPicks={setPicks}
+        />
+      );
+    case 'sheet':
+      return (
+        <div className="space-y-6">
+          {view && (
+            <SheetView
+              view={view}
+              decisions={character.decisions}
+              abilityDisplay={character.preferences.abilityDisplay}
+              update={update}
+            />
+          )}
+          <section aria-label="Companions">
+            <h2 className="mb-3 font-serif text-2xl">Companions</h2>
+            <CompanionsStep character={character} save={save} disabledSources={disabledSources} />
+          </section>
+        </div>
+      );
+  }
 }
