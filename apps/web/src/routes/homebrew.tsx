@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { ModulePlaceholder } from '../features/placeholder/ModulePlaceholder';
+import { HomebrewPage } from '../features/homebrew/HomebrewPage';
 
 export const Route = createFileRoute('/homebrew')({
-  component: () => <ModulePlaceholder path="/homebrew" />,
+  component: HomebrewPage,
 });

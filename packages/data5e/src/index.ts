@@ -93,3 +93,28 @@ export {
   type SubclassPage,
   type SubclassSummary,
 } from './classes';
+export {
+  BREW_TYPES,
+  newPack,
+  packEntries,
+  packMeta,
+  putEntry,
+  removeEntry,
+  sourceIdFor,
+  type BrewType,
+  type PackMeta,
+} from './brew/pack';
+export {
+  DAMAGE_TYPES,
+  emptyItem,
+  formToItem,
+  isArmor,
+  isWeapon,
+  ITEM_KINDS,
+  itemToForm,
+  RARITIES,
+  WEAPON_PROPERTIES,
+  type ItemForm,
+  type ItemKind,
+} from './brew/items';
+export { entriesToText, tagDice, textToEntries, untag } from './brew/text';

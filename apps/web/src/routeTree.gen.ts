@@ -22,6 +22,7 @@ import { Route as MapsRouteImport } from './routes/maps'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as CampaignsIdRouteImport } from './routes/campaigns_.$id'
 import { Route as CompendiumKeyRouteImport } from './routes/compendium_.$key'
+import { Route as HomebrewPackRouteImport } from './routes/homebrew_.$pack'
 import { Route as SettingsDataRouteImport } from './routes/settings_.data'
 import { Route as SettingsSyncRouteImport } from './routes/settings_.sync'
 import { Route as CompendiumAdventureIdRouteImport } from './routes/compendium_.adventure.$id'
@@ -95,6 +96,11 @@ const CompendiumKeyRoute = CompendiumKeyRouteImport.update({
   path: '/compendium/$key',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HomebrewPackRoute = HomebrewPackRouteImport.update({
+  id: '/homebrew_/$pack',
+  path: '/homebrew/$pack',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsDataRoute = SettingsDataRouteImport.update({
   id: '/settings_/data',
   path: '/settings/data',
@@ -145,6 +151,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/campaigns/$id': typeof CampaignsIdRoute
   '/compendium/$key': typeof CompendiumKeyRoute
+  '/homebrew/$pack': typeof HomebrewPackRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/sync': typeof SettingsSyncRoute
   '/compendium/adventure/$id': typeof CompendiumAdventureIdRoute
@@ -167,6 +174,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/campaigns/$id': typeof CampaignsIdRoute
   '/compendium/$key': typeof CompendiumKeyRoute
+  '/homebrew/$pack': typeof HomebrewPackRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/sync': typeof SettingsSyncRoute
   '/compendium/adventure/$id': typeof CompendiumAdventureIdRoute
@@ -190,6 +198,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/campaigns_/$id': typeof CampaignsIdRoute
   '/compendium_/$key': typeof CompendiumKeyRoute
+  '/homebrew_/$pack': typeof HomebrewPackRoute
   '/settings_/data': typeof SettingsDataRoute
   '/settings_/sync': typeof SettingsSyncRoute
   '/compendium_/adventure/$id': typeof CompendiumAdventureIdRoute
@@ -214,6 +223,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/campaigns/$id'
     | '/compendium/$key'
+    | '/homebrew/$pack'
     | '/settings/data'
     | '/settings/sync'
     | '/compendium/adventure/$id'
@@ -236,6 +246,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/campaigns/$id'
     | '/compendium/$key'
+    | '/homebrew/$pack'
     | '/settings/data'
     | '/settings/sync'
     | '/compendium/adventure/$id'
@@ -258,6 +269,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/campaigns_/$id'
     | '/compendium_/$key'
+    | '/homebrew_/$pack'
     | '/settings_/data'
     | '/settings_/sync'
     | '/compendium_/adventure/$id'
@@ -281,6 +293,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   CampaignsIdRoute: typeof CampaignsIdRoute
   CompendiumKeyRoute: typeof CompendiumKeyRoute
+  HomebrewPackRoute: typeof HomebrewPackRoute
   SettingsDataRoute: typeof SettingsDataRoute
   SettingsSyncRoute: typeof SettingsSyncRoute
   CompendiumAdventureIdRoute: typeof CompendiumAdventureIdRoute
@@ -383,6 +396,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompendiumKeyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/homebrew_/$pack': {
+      id: '/homebrew_/$pack'
+      path: '/homebrew/$pack'
+      fullPath: '/homebrew/$pack'
+      preLoaderRoute: typeof HomebrewPackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings_/data': {
       id: '/settings_/data'
       path: '/settings/data'
@@ -449,6 +469,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   CampaignsIdRoute: CampaignsIdRoute,
   CompendiumKeyRoute: CompendiumKeyRoute,
+  HomebrewPackRoute: HomebrewPackRoute,
   SettingsDataRoute: SettingsDataRoute,
   SettingsSyncRoute: SettingsSyncRoute,
   CompendiumAdventureIdRoute: CompendiumAdventureIdRoute,
