@@ -40,6 +40,11 @@ export class OpfsFileStore implements FileStore {
     return new Uint8Array(await file.arrayBuffer());
   }
 
+  async modified(path: string): Promise<number | null> {
+    const handle = await this.fileHandle(path);
+    return handle ? (await handle.getFile()).lastModified : null;
+  }
+
   async readText(path: string): Promise<string | null> {
     const bytes = await this.readFile(path);
     return bytes ? toText(bytes) : null;

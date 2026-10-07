@@ -93,6 +93,12 @@ async function applyActive(campaign: Campaign | undefined): Promise<void> {
   );
 }
 
+/** Reads campaigns and templates again (after a sync brought changes). */
+export function reloadCampaigns(): Promise<void> {
+  loading = null;
+  return useCampaigns.getState().load();
+}
+
 /** Campaigns in the user's data, and the one open on this device. */
 export const useCampaigns = create<CampaignsStore>()((set, get) => ({
   campaigns: [],

@@ -54,6 +54,8 @@ interface JournalStore {
     replace: boolean,
     onProgress?: (done: number, total: number) => void,
   ) => Promise<number>;
+  /** Reads the journal again from storage (after a sync brought changes). */
+  refresh: () => Promise<void>;
   /** Writes a `.base` file (new or changed). */
   saveBase: (path: string, text: string) => Promise<void>;
 }
@@ -243,6 +245,14 @@ export const useJournal = create<JournalStore>()((set, get) => {
     },
 
     flush: flushAll,
+
+    refresh: async () => {
+      const id = get().campaignId;
+      if (!id) return;
+      await flushAll();
+      const contents = await readJournal(id);
+      if (get().campaignId === id) set(contents);
+    },
 
     importFiles: async (files, replace, onProgress) => {
       await flushAll();

@@ -23,6 +23,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as CampaignsIdRouteImport } from './routes/campaigns_.$id'
 import { Route as CompendiumKeyRouteImport } from './routes/compendium_.$key'
 import { Route as SettingsDataRouteImport } from './routes/settings_.data'
+import { Route as SettingsSyncRouteImport } from './routes/settings_.sync'
 import { Route as CompendiumAdventureIdRouteImport } from './routes/compendium_.adventure.$id'
 import { Route as CompendiumBookIdRouteImport } from './routes/compendium_.book.$id'
 import { Route as CompendiumLibraryKindRouteImport } from './routes/compendium_.library.$kind'
@@ -99,6 +100,11 @@ const SettingsDataRoute = SettingsDataRouteImport.update({
   path: '/settings/data',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsSyncRoute = SettingsSyncRouteImport.update({
+  id: '/settings_/sync',
+  path: '/settings/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CompendiumAdventureIdRoute = CompendiumAdventureIdRouteImport.update({
   id: '/compendium_/adventure/$id',
   path: '/compendium/adventure/$id',
@@ -140,6 +146,7 @@ export interface FileRoutesByFullPath {
   '/campaigns/$id': typeof CampaignsIdRoute
   '/compendium/$key': typeof CompendiumKeyRoute
   '/settings/data': typeof SettingsDataRoute
+  '/settings/sync': typeof SettingsSyncRoute
   '/compendium/adventure/$id': typeof CompendiumAdventureIdRoute
   '/compendium/book/$id': typeof CompendiumBookIdRoute
   '/compendium/library/$kind': typeof CompendiumLibraryKindRoute
@@ -161,6 +168,7 @@ export interface FileRoutesByTo {
   '/campaigns/$id': typeof CampaignsIdRoute
   '/compendium/$key': typeof CompendiumKeyRoute
   '/settings/data': typeof SettingsDataRoute
+  '/settings/sync': typeof SettingsSyncRoute
   '/compendium/adventure/$id': typeof CompendiumAdventureIdRoute
   '/compendium/book/$id': typeof CompendiumBookIdRoute
   '/compendium/library/$kind': typeof CompendiumLibraryKindRoute
@@ -183,6 +191,7 @@ export interface FileRoutesById {
   '/campaigns_/$id': typeof CampaignsIdRoute
   '/compendium_/$key': typeof CompendiumKeyRoute
   '/settings_/data': typeof SettingsDataRoute
+  '/settings_/sync': typeof SettingsSyncRoute
   '/compendium_/adventure/$id': typeof CompendiumAdventureIdRoute
   '/compendium_/book/$id': typeof CompendiumBookIdRoute
   '/compendium_/library/$kind': typeof CompendiumLibraryKindRoute
@@ -206,6 +215,7 @@ export interface FileRouteTypes {
     | '/campaigns/$id'
     | '/compendium/$key'
     | '/settings/data'
+    | '/settings/sync'
     | '/compendium/adventure/$id'
     | '/compendium/book/$id'
     | '/compendium/library/$kind'
@@ -227,6 +237,7 @@ export interface FileRouteTypes {
     | '/campaigns/$id'
     | '/compendium/$key'
     | '/settings/data'
+    | '/settings/sync'
     | '/compendium/adventure/$id'
     | '/compendium/book/$id'
     | '/compendium/library/$kind'
@@ -248,6 +259,7 @@ export interface FileRouteTypes {
     | '/campaigns_/$id'
     | '/compendium_/$key'
     | '/settings_/data'
+    | '/settings_/sync'
     | '/compendium_/adventure/$id'
     | '/compendium_/book/$id'
     | '/compendium_/library/$kind'
@@ -270,6 +282,7 @@ export interface RootRouteChildren {
   CampaignsIdRoute: typeof CampaignsIdRoute
   CompendiumKeyRoute: typeof CompendiumKeyRoute
   SettingsDataRoute: typeof SettingsDataRoute
+  SettingsSyncRoute: typeof SettingsSyncRoute
   CompendiumAdventureIdRoute: typeof CompendiumAdventureIdRoute
   CompendiumBookIdRoute: typeof CompendiumBookIdRoute
   CompendiumLibraryKindRoute: typeof CompendiumLibraryKindRoute
@@ -377,6 +390,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsDataRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings_/sync': {
+      id: '/settings_/sync'
+      path: '/settings/sync'
+      fullPath: '/settings/sync'
+      preLoaderRoute: typeof SettingsSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/compendium_/adventure/$id': {
       id: '/compendium_/adventure/$id'
       path: '/compendium/adventure/$id'
@@ -430,6 +450,7 @@ const rootRouteChildren: RootRouteChildren = {
   CampaignsIdRoute: CampaignsIdRoute,
   CompendiumKeyRoute: CompendiumKeyRoute,
   SettingsDataRoute: SettingsDataRoute,
+  SettingsSyncRoute: SettingsSyncRoute,
   CompendiumAdventureIdRoute: CompendiumAdventureIdRoute,
   CompendiumBookIdRoute: CompendiumBookIdRoute,
   CompendiumLibraryKindRoute: CompendiumLibraryKindRoute,

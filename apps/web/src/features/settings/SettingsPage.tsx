@@ -1,6 +1,14 @@
 import { cn, Panel } from '@boh/ui';
 import { OpfsFileStore } from '@boh/storage';
-import { ChevronRight, Database, Monitor, Moon, Sun, type LucideIcon } from 'lucide-react';
+import {
+  ChevronRight,
+  Database,
+  Monitor,
+  Moon,
+  RefreshCw,
+  Sun,
+  type LucideIcon,
+} from 'lucide-react';
 import { AppLink } from '../../app/AppLink';
 import { currentPlatform } from '../../app/platform';
 import { useDiceSettings } from '../../app/dice/store';
@@ -82,6 +90,20 @@ export function SettingsPage() {
             <span className="block text-sm font-medium">Data & sources</span>
             <span className="block text-sm text-muted">
               Download or update 5etools data, choose sources, add homebrew.
+            </span>
+          </span>
+          <ChevronRight className="h-4 w-4 text-faint" aria-hidden />
+        </AppLink>
+        <AppLink
+          to="/settings/sync"
+          className="flex items-center gap-3 rounded-md p-1 hover:bg-sunken"
+        >
+          <RefreshCw className="h-5 w-5 shrink-0 text-muted" aria-hidden />
+          <span className="flex-1">
+            <span className="block text-sm font-medium">Sync</span>
+            <span className="block text-sm text-muted">
+              Keep your campaigns and journals the same on every device (your private GitHub
+              repository).
             </span>
           </span>
           <ChevronRight className="h-4 w-4 text-faint" aria-hidden />

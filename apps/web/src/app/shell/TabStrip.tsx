@@ -4,6 +4,7 @@ import { Menu, Plus, Search, X } from 'lucide-react';
 import { useEffect, useRef, type DragEvent, type Ref } from 'react';
 import { moduleForPath, titleForPath } from '../nav';
 import { useSearchPalette } from '../search/store';
+import { SyncButton } from '../sync/SyncButton';
 import { HOME_PATH, type Tab } from '../tabs/model';
 import { useTabs } from '../tabs/store';
 
@@ -77,6 +78,7 @@ export function TabStrip({ onOpenMenu }: TabStripProps) {
         }}
       />
       <span className="flex-1" />
+      <SyncButton />
       <IconButton
         className="mb-1"
         variant="chrome"

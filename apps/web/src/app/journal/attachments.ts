@@ -57,3 +57,13 @@ export function forgetAttachment(campaignId: string, path: string): void {
   });
   urls.delete(key);
 }
+
+/** Forgets every file's URL (after a sync changed files). */
+export function forgetAllAttachments(): void {
+  for (const url of urls.values()) {
+    void url.then((u) => {
+      if (u) URL.revokeObjectURL(u);
+    });
+  }
+  urls.clear();
+}

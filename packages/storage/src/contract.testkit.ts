@@ -102,6 +102,17 @@ export function describeFileStoreContract(name: string, makeStore: () => Promise
       await store.remove('never-existed');
     });
 
+    it('knows when files were last written', async () => {
+      expect(await store.modified('missing.md')).toBeNull();
+      const before = Date.now();
+      await store.writeFile('dated/a.md', 'a');
+      const time = await store.modified('dated/a.md');
+      expect(time).not.toBeNull();
+      // File systems round times; allow a couple of seconds either way.
+      expect(Math.abs((time ?? 0) - before)).toBeLessThan(5000);
+      expect(await store.modified('dated')).toBeNull();
+    });
+
     it('keeps sibling paths with shared prefixes separate', async () => {
       await store.writeFile('notes/a.md', 'a');
       await store.writeFile('notes-old/a.md', 'old');
