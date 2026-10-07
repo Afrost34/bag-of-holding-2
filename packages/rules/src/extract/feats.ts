@@ -13,6 +13,26 @@ import {
  * `[{ "anyFromCategory": { "category": ["O"], "count": 1 } }]`. Several entries are alternatives.
  */
 
+const CATEGORY_NAMES: Record<string, string> = {
+  G: 'General',
+  O: 'Origin',
+  FS: 'Fighting Style',
+  'FS:P': 'Fighting Style',
+  'FS:R': 'Fighting Style',
+  EB: 'Epic Boon',
+  D: 'Dragonmark',
+  DG: 'Dark Gift',
+};
+
+/** "Choose a General feat", "Choose 2 Origin feats". */
+function featLabel(count: number, categories: readonly string[]): string {
+  const names = [...new Set(categories.map((c) => CATEGORY_NAMES[c] ?? c))];
+  const kind = names.length === 1 ? `${names[0] ?? ''} ` : '';
+  return count === 1
+    ? `Choose ${/^[AEIOU]/.test(kind) ? 'an' : 'a'} ${kind}feat`
+    : `Choose ${String(count)} ${kind}feats`;
+}
+
 function readAlternative(alt: Record<string, unknown>, id: string, issues: Issues): Extraction {
   const out = emptyExtraction();
   for (const [key, value] of Object.entries(alt)) {
@@ -45,7 +65,7 @@ function readAlternative(alt: Record<string, unknown>, id: string, issues: Issue
         id,
         kind: 'feat',
         count,
-        label: count === 1 ? 'Choose a feat' : `Choose ${String(count)} feats`,
+        label: featLabel(count, categories),
         filter: { type: 'feat', categories },
       });
     } else issues.add(id, `unknown feat entry ${key}=${JSON.stringify(value)}`);
