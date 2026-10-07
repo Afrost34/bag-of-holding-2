@@ -101,6 +101,14 @@ describe('list model', () => {
     expect(names(base, ['phb'])).toHaveLength(3);
   });
 
+  it('shows generated items only when searching by name', () => {
+    const generated = { ...row('+1 Longsword', 'DMG', {}), generated: true };
+    const list = [generated, row('Longsword', 'PHB', {})];
+    const names = (q: string) => filterRows(list, { ...base, q }, new Set()).map((r) => r.name);
+    expect(names('')).toEqual(['Longsword']);
+    expect(names('longsword')).toEqual(['+1 Longsword', 'Longsword']);
+  });
+
   it('sorts by field, then name; blanks last', () => {
     const sorted = sortRows([...rows], base, spells).map((r) => r.name);
     expect(sorted).toEqual(['Fire Bolt', 'Bless', 'Fireball', 'Fireball']);

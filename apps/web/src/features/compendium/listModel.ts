@@ -68,6 +68,8 @@ export function filterRows(
   const active = Object.entries(state.filters).filter(([, values]) => values.length > 0);
   return rows.filter((row) => {
     if (disabledSources.has(row.source.toLowerCase())) return false;
+    // Thousands of "+1 Longsword"-style items: shown when looked for by name, not when browsing.
+    if (row.generated === true && words.length === 0) return false;
     if (words.length) {
       const name = normalise(row.name);
       if (!words.every((w) => name.includes(w))) return false;

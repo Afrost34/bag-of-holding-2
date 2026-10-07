@@ -31,11 +31,15 @@ test('a class page shows traits, the class table, features and subclasses', asyn
   await expect(table.getByRole('row', { name: /^4th/ })).toContainText('3');
 
   await expect(page.getByRole('heading', { name: 'Level 3: Bard College' })).toBeVisible();
+  // Choosing a subclass at the top merges its features into the class's, at their levels.
+  await page.getByRole('button', { name: 'Subclass: none chosen' }).first().click();
   await page.getByRole('button', { name: /College of Lore/ }).click();
-  await expect(page.getByText('Lore bards know something about most things.')).toBeVisible();
   await expect(page).toHaveURL(/sc=subclass/);
+  await expect(page.getByRole('heading', { name: /Level 3: College of Lore/ })).toBeVisible();
+  await expect(page.getByText('Lore bards know something about most things.')).toBeVisible();
+  await expect(table.getByRole('row', { name: /^3rd/ })).toContainText('College of Lore');
 
-  await page.getByRole('link', { name: 'Open subclass page' }).click();
+  await page.getByRole('link', { name: 'Open College of Lore' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'College of Lore' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Bard', exact: true })).toBeVisible();
 });
