@@ -8,7 +8,8 @@ import {
 } from '@boh/journal';
 import { Button, cn } from '@boh/ui';
 import { ImagePlus, Plus, Trash2, X } from 'lucide-react';
-import { useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { NoteTypeIcon } from './NoteTypeIcon';
 import { useAttachmentUrl } from './useAttachmentUrl';
 
@@ -18,6 +19,8 @@ export interface WizardResult {
   /** The kind chosen (it can be picked in the wizard for a plain note). */
   type: NoteType | undefined;
   values: Record<string, PropertyValue>;
+  /** A picture chosen in the wizard: saved with the journal only when the wizard is saved. */
+  imageFile?: File;
 }
 
 export interface WizardHelpers {
@@ -25,8 +28,6 @@ export interface WizardHelpers {
   suggest: (key: string, field?: FieldDef) => string[];
   /** `[[Note]]` when the text names a note, else null. */
   asLink: (text: string) => string | null;
-  /** Asks for an image, saves it and returns its link target. */
-  pickImage: () => Promise<string | null>;
   /** The journal file an image link points at (for the preview). */
   resolveImage: (target: string) => string | null;
 }
@@ -67,6 +68,17 @@ export function NoteWizard({
   });
   const [extraKeys, setExtraKeys] = useState<string[]>([]);
   const [step, setStep] = useState(0);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+
+  // The page behind stays put while the wizard is open (no scrolling it out of place).
+  useEffect(() => {
+    const html = document.documentElement;
+    const before = html.style.overflow;
+    html.style.overflow = 'hidden';
+    return () => {
+      html.style.overflow = before;
+    };
+  }, []);
   const titleId = useId();
 
   const set = (key: string, value: PropertyValue) => {
@@ -139,8 +151,13 @@ export function NoteWizard({
     body: (
       <PictureField
         value={values.image ?? values.banner ?? values.cover ?? null}
-        onChange={(v) => {
-          set('image', v);
+        file={imageFile}
+        onFile={(f) => {
+          setImageFile(f);
+        }}
+        onRemove={() => {
+          setImageFile(null);
+          set('image', null);
         }}
         helpers={helpers}
       />
@@ -160,12 +177,12 @@ export function NoteWizard({
       const v = out[f.key];
       if (f.kind === 'link' && typeof v === 'string') out[f.key] = helpers.asLink(v) ?? v;
     }
-    onSave({ name: clean, type, values: out });
+    onSave({ name: clean, type, values: out, ...(imageFile ? { imageFile } : {}) });
   };
   const verb = mode === 'create' ? 'New' : 'Edit';
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-end justify-center overscroll-contain bg-black/40 sm:items-center sm:p-4">
       <div
         role="dialog"
         aria-modal="true"
@@ -218,7 +235,7 @@ export function NoteWizard({
             else setStep(step + 1);
           }}
         >
-          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4">
             {steps[step]?.body}
           </div>
           <footer className="flex items-center gap-2 border-t border-border px-4 py-3">
@@ -246,7 +263,8 @@ export function NoteWizard({
           </footer>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -455,18 +473,30 @@ function ChipsField({
 
 function PictureField({
   value,
-  onChange,
+  file,
+  onFile,
+  onRemove,
   helpers,
 }: {
   value: PropertyValue;
-  onChange: (v: PropertyValue) => void;
+  file: File | null;
+  onFile: (file: File) => void;
+  onRemove: () => void;
   helpers: WizardHelpers;
 }) {
   const target = typeof value === 'string' ? linkText(value.replace(/^!/, '')) : null;
   const isUrl = target !== null && /^https?:/i.test(target);
-  const file = target && !isUrl ? helpers.resolveImage(target) : null;
-  const url = useAttachmentUrl(file);
-  const src = isUrl ? target : url;
+  const saved = target && !isUrl ? helpers.resolveImage(target) : null;
+  const savedUrl = useAttachmentUrl(saved);
+  // A chosen file is shown from a temporary link, released when it changes.
+  const fileUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
+  useEffect(
+    () => () => {
+      if (fileUrl) URL.revokeObjectURL(fileUrl);
+    },
+    [fileUrl],
+  );
+  const src = fileUrl ?? (isUrl ? target : savedUrl);
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted">
@@ -479,26 +509,24 @@ function PictureField({
           No picture
         </div>
       )}
-      <div className="flex gap-2">
-        <Button
-          type="button"
-          onClick={() => {
-            void helpers.pickImage().then((t) => {
-              if (t) onChange(`[[${t}]]`);
-            });
-          }}
-        >
+      <div className="flex flex-wrap gap-2">
+        <label className="relative inline-flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-sunken">
           <ImagePlus className="h-4 w-4" aria-hidden />{' '}
           {src ? 'Change picture' : 'Choose a picture'}
-        </Button>
-        {value !== null && (
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => {
-              onChange(null);
+          <input
+            type="file"
+            accept="image/*"
+            aria-label="Picture file"
+            className="sr-only"
+            onChange={(e) => {
+              const chosen = e.target.files?.[0];
+              e.target.value = '';
+              if (chosen) onFile(chosen);
             }}
-          >
+          />
+        </label>
+        {(value !== null || file) && (
+          <Button type="button" variant="ghost" onClick={onRemove}>
             <Trash2 className="h-4 w-4" aria-hidden /> Remove
           </Button>
         )}
