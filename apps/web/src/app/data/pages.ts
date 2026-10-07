@@ -1,4 +1,4 @@
-import type { ClassPage, SpeciesPage, SubclassPage } from '@boh/data5e';
+import type { ClassPage, EntitySummary, SpeciesPage, SubclassPage } from '@boh/data5e';
 import { useEffect, useState } from 'react';
 import { dataWorker } from './client';
 
@@ -52,4 +52,8 @@ export function useSubclassPage(key: string): PageState<SubclassPage> {
 
 export function useSpeciesPage(key: string): PageState<SpeciesPage> {
   return usePage('species', key, () => dataWorker().speciesPage(key));
+}
+
+export function useSpecificVariants(key: string): PageState<EntitySummary[]> {
+  return usePage('variants', key, () => dataWorker().specificVariants(key));
 }

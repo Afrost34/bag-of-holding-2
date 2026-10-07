@@ -88,6 +88,8 @@ export interface DataWorkerApi {
   classPage(key: string): Promise<ClassPage | undefined>;
   subclassPage(key: string): Promise<SubclassPage | undefined>;
   speciesPage(key: string): Promise<SpeciesPage | undefined>;
+  /** The specific items ("+1 Longsword") made from a generic variant ("+1 Weapon"). */
+  specificVariants(key: string): Promise<EntitySummary[]>;
   /** For each candidate list, the first key that exists (link resolution). */
   resolve(candidateLists: string[][]): Promise<(string | null)[]>;
   checkReferences(references: { key: string; usedIn: string }[]): Promise<ReferenceReport>;

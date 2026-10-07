@@ -91,7 +91,7 @@ describe.runIf(hasLocalData())('tag conformance', () => {
       `Entity links: ${String(links.length)}, resolved ${(rate * 100).toFixed(2)}%`,
       Object.fromEntries([...unresolved].sort((a, b) => b[1].n - a[1].n)),
     );
-    // Known gaps: generated magic item variants (+1 longsword…) and a few broken upstream links.
-    expect(rate).toBeGreaterThan(0.995);
+    // Known gaps: a few broken upstream links (e.g. variant rules and races that do not exist).
+    expect(rate).toBeGreaterThan(0.9995);
   }, 60_000);
 });
