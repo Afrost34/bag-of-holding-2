@@ -1,15 +1,17 @@
 import type { EntityDetail } from '@boh/data5e';
-import { castingTime, spellDuration, spellRange } from '@boh/data5e/format';
-import { Entries, EntityView } from '@boh/renderer';
+import { castingTime, spellRange } from '@boh/data5e/format';
+import { Entries } from '@boh/renderer';
 import { ABILITIES, abilityName, type Ability } from '@boh/rules';
 import { cn } from '@boh/ui';
 import { useEffect, useState, type ReactNode } from 'react';
 import type { CharacterFile } from '../../../app/characters/model';
 import { loadEntity } from '../../../app/data/entities';
 import type { CharacterView } from '../../../app/data/protocol';
+import { PrintCard } from '../../../app/cards/PrintCard';
 import { SchoolIcon } from '../../../app/lists/cells';
 import { PortraitImage } from '../Portrait';
 import { pickName } from '../steps';
+import type { PrintSection } from './sections';
 
 /**
  * The character sheet on paper, in the layout of the owner's own sheets: a main page (portrait,
@@ -60,7 +62,17 @@ function useEntities(keys: readonly string[]): Map<string, EntityDetail> {
   return map;
 }
 
-export function PrintSheet({ character, view }: { character: CharacterFile; view: CharacterView }) {
+export function PrintSheet({
+  character,
+  view,
+  hidden = [],
+}: {
+  character: CharacterFile;
+  view: CharacterView;
+  /** Parts left out. */
+  hidden?: readonly PrintSection[];
+}) {
+  const shown = (s: PrintSection) => !hidden.includes(s);
   const sheet = view.sheet;
   const spellKeys = [...new Set(view.grants.flatMap((g) => (g.kind === 'spell' ? [g.key] : [])))];
   const featureKeys = view.features.filter((f) => !f.key.includes('#')).map((f) => f.key);
@@ -91,213 +103,215 @@ export function PrintSheet({ character, view }: { character: CharacterFile; view
   return (
     <div className="paper text-text">
       {/* Page 1: the main sheet. */}
-      <Page>
-        <div className="grid grid-cols-[38%_1fr] gap-3">
-          <div className="flex aspect-[3/4] items-center justify-center overflow-hidden rounded-md border-2 border-border-strong bg-surface p-1">
-            {character.portrait ? (
-              <PortraitImage character={character} size={260} className="h-full w-full" />
-            ) : (
-              <span className="text-sm text-faint">Portrait</span>
-            )}
-          </div>
-          <div className="space-y-2">
-            <Box title="Character">
-              <div className="grid grid-cols-2 gap-1.5">
-                <Field label="Character name" value={character.name} />
-                <Field label="Class & level" value={classLine} />
-                <Field label="Species" value={species} />
-                <Field label="Background" value={background} />
-              </div>
-            </Box>
-            <div className="grid grid-cols-[40%_1fr] gap-2">
-              <Box title="Combat">
+      {shown('main') && (
+        <Page>
+          <div className="grid grid-cols-[38%_1fr] gap-3">
+            <div className="flex aspect-[3/4] items-center justify-center overflow-hidden rounded-md border-2 border-border-strong bg-surface p-1">
+              {character.portrait ? (
+                <PortraitImage character={character} size={260} className="h-full w-full" />
+              ) : (
+                <span className="text-sm text-faint">Portrait</span>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Box title="Character">
                 <div className="grid grid-cols-2 gap-1.5">
-                  <Stat label="AC" value={String(sheet.ac.value)} />
-                  <Stat label="Init" value={signed(sheet.initiative.value)} />
+                  <Field label="Character name" value={character.name} />
+                  <Field label="Class & level" value={classLine} />
+                  <Field label="Species" value={species} />
+                  <Field label="Background" value={background} />
                 </div>
               </Box>
-              <Box title="Hit points">
-                <div className="grid grid-cols-3 gap-1.5">
-                  <Stat label="Current HP" value="" />
-                  <Stat label="Max HP" value={String(sheet.hp.value)} big />
-                  <Stat label="Temp HP" value="" />
-                </div>
-              </Box>
-            </div>
-            <div className="grid grid-cols-[40%_1fr] gap-2">
-              <Box title="Inspiration">
-                <div className="mx-auto h-8 w-8 rounded border-2 border-border-strong" />
-              </Box>
-              <div className="grid grid-cols-2 gap-1.5 rounded-md border border-border p-1.5">
-                <Stat
-                  label="Hit dice"
-                  value={sheet.hitDice
-                    .map((h) => `${String(h.count)}d${String(h.faces)}`)
-                    .join(' + ')}
-                />
-                <div className="rounded border border-border p-1 text-center text-[9px] font-semibold uppercase">
-                  Death saves
-                  <div className="mt-1 space-y-0.5">
-                    <Bubbles count={3} label="✓" />
-                    <Bubbles count={3} label="✗" />
+              <div className="grid grid-cols-[40%_1fr] gap-2">
+                <Box title="Combat">
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <Stat label="AC" value={String(sheet.ac.value)} />
+                    <Stat label="Init" value={signed(sheet.initiative.value)} />
+                  </div>
+                </Box>
+                <Box title="Hit points">
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <Stat label="Current HP" value="" />
+                    <Stat label="Max HP" value={String(sheet.hp.value)} big />
+                    <Stat label="Temp HP" value="" />
+                  </div>
+                </Box>
+              </div>
+              <div className="grid grid-cols-[40%_1fr] gap-2">
+                <Box title="Inspiration">
+                  <div className="mx-auto h-8 w-8 rounded border-2 border-border-strong" />
+                </Box>
+                <div className="grid grid-cols-2 gap-1.5 rounded-md border border-border p-1.5">
+                  <Stat
+                    label="Hit dice"
+                    value={sheet.hitDice
+                      .map((h) => `${String(h.count)}d${String(h.faces)}`)
+                      .join(' + ')}
+                  />
+                  <div className="rounded border border-border p-1 text-center text-[9px] font-semibold uppercase">
+                    Death saves
+                    <div className="mt-1 space-y-0.5">
+                      <Bubbles count={3} label="✓" />
+                      <Bubbles count={3} label="✗" />
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-            <div className="grid grid-cols-[40%_1fr] gap-2">
-              <div className="space-y-2">
-                {caster && (
-                  <Box title="Spell DC">
-                    <p className="text-center text-xl font-bold">{caster.dc.value}</p>
-                  </Box>
-                )}
-                <div className="grid grid-cols-2 gap-2">
-                  <Box title="PB">
-                    <p className="text-center text-lg font-bold">
-                      {signed(sheet.proficiencyBonus)}
-                    </p>
-                  </Box>
-                  <Box title="Speed">
-                    <p className="text-center text-lg font-bold">{sheet.speed.walk ?? 30} ft.</p>
-                  </Box>
+              <div className="grid grid-cols-[40%_1fr] gap-2">
+                <div className="space-y-2">
+                  {caster && (
+                    <Box title="Spell DC">
+                      <p className="text-center text-xl font-bold">{caster.dc.value}</p>
+                    </Box>
+                  )}
+                  <div className="grid grid-cols-2 gap-2">
+                    <Box title="PB">
+                      <p className="text-center text-lg font-bold">
+                        {signed(sheet.proficiencyBonus)}
+                      </p>
+                    </Box>
+                    <Box title="Speed">
+                      <p className="text-center text-lg font-bold">{sheet.speed.walk ?? 30} ft.</p>
+                    </Box>
+                  </div>
                 </div>
+                <Box title="Proficiencies">
+                  <ProfLine
+                    label="Armor"
+                    items={sheet.proficiencies.armor.map((a) =>
+                      `${title(a)} Armor`.replace('Shield Armor', 'Shields'),
+                    )}
+                  />
+                  <ProfLine
+                    label="Weapons"
+                    items={sheet.proficiencies.weapons.map((w) =>
+                      w.includes(':') ? pickName(w) : `${title(w)} Weapons`,
+                    )}
+                  />
+                  <ProfLine label="Tools" items={sheet.proficiencies.tools.map(title)} />
+                  <ProfLine label="Languages" items={sheet.proficiencies.languages.map(title)} />
+                </Box>
               </div>
-              <Box title="Proficiencies">
-                <ProfLine
-                  label="Armor"
-                  items={sheet.proficiencies.armor.map((a) =>
-                    `${title(a)} Armor`.replace('Shield Armor', 'Shields'),
-                  )}
-                />
-                <ProfLine
-                  label="Weapons"
-                  items={sheet.proficiencies.weapons.map((w) =>
-                    w.includes(':') ? pickName(w) : `${title(w)} Weapons`,
-                  )}
-                />
-                <ProfLine label="Tools" items={sheet.proficiencies.tools.map(title)} />
-                <ProfLine label="Languages" items={sheet.proficiencies.languages.map(title)} />
-              </Box>
             </div>
           </div>
-        </div>
 
-        <div className="mt-3 grid grid-cols-[38%_1fr] gap-3">
-          <div className="grid grid-cols-[34%_1fr] gap-2">
-            <div className="space-y-1.5">
-              {ABILITIES.map((a) => {
-                const line = sheet.abilities[a];
-                return (
-                  <div
-                    key={a}
-                    className="overflow-hidden rounded-md border-2 text-center"
-                    style={{ borderColor: `var(--boh-${a})` }}
-                  >
-                    <p
-                      className="py-0.5 text-[9px] font-bold text-white uppercase"
-                      style={{ background: `var(--boh-${a})` }}
+          <div className="mt-3 grid grid-cols-[38%_1fr] gap-3">
+            <div className="grid grid-cols-[34%_1fr] gap-2">
+              <div className="space-y-1.5">
+                {ABILITIES.map((a) => {
+                  const line = sheet.abilities[a];
+                  return (
+                    <div
+                      key={a}
+                      className="overflow-hidden rounded-md border-2 text-center"
+                      style={{ borderColor: `var(--boh-${a})` }}
                     >
-                      {ABBR[a]}
-                    </p>
-                    <p className="text-lg leading-tight font-bold">{line.score.value}</p>
-                    <p className="text-xs">{signed(line.modifier)}</p>
-                    <p
-                      className={cn(
-                        'border-t border-border text-[9px] text-muted',
-                        line.save.proficient && 'font-bold text-text',
-                      )}
-                    >
-                      Save {signed(line.save.value)}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-            <Box title="Skills">
-              <ul className="space-y-[3px] text-[10px]">
-                {Object.entries(sheet.skills).map(([skill, line]) => (
-                  <li key={skill} className="flex items-center gap-1">
-                    <ProfDot level={line.proficiency} />
-                    <span className="w-6 text-right font-semibold">{signed(line.value)}</span>
-                    <span className="flex-1 truncate">{title(skill)}</span>
-                    <AbilityBadge ability={line.ability} />
-                  </li>
-                ))}
-              </ul>
-            </Box>
-          </div>
-          <div className="space-y-2">
-            <Box title="Senses">
-              <dl className="grid grid-cols-[1fr_auto] gap-x-3 text-xs">
-                <dt>Perception</dt>
-                <dd className="font-bold">{sheet.passive.perception.value}</dd>
-                <dt>Insight</dt>
-                <dd className="font-bold">{sheet.passive.insight.value}</dd>
-                <dt>Investigation</dt>
-                <dd className="font-bold">{sheet.passive.investigation.value}</dd>
-              </dl>
-              {Object.entries(sheet.senses).map(([k, v]) => (
-                <p key={k} className="mt-1 text-xs">
-                  {title(k)} {v} ft.
-                </p>
-              ))}
-            </Box>
-            <Box title="Attacks & cantrips">
-              <table className="w-full text-[10px]">
-                <thead>
-                  <tr className="text-[9px] text-muted uppercase">
-                    <th className="py-0.5 text-left">Name</th>
-                    <th>Abi</th>
-                    <th>Hit</th>
-                    <th>Damage / type</th>
-                    <th className="text-left">Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sheet.attacks.map((atk) => {
-                    const ability =
-                      atk.save?.ability ?? atk.toHit?.parts[0]?.label.slice(0, 3).toLowerCase();
-                    return (
-                      <tr key={atk.key} className="border-t border-border">
-                        <td className="py-1">{atk.name}</td>
-                        <td className="text-center">
-                          {ability && (ability as Ability) in ABBR ? (
-                            <AbilityBadge ability={ability as Ability} />
-                          ) : (
-                            ''
-                          )}
-                        </td>
-                        <td className="text-center font-semibold">
-                          {atk.toHit
-                            ? signed(atk.toHit.value)
-                            : atk.save
-                              ? `DC ${String(atk.save.dc.value)}`
-                              : ''}
-                        </td>
-                        <td className="text-center">{atk.damage ?? ''}</td>
-                        <td>
-                          {atk.save
-                            ? `${ABBR[atk.save.ability]} save`
-                            : atk.properties.map(propertyName).join(', ')}
-                          {atk.range ? ` (${atk.range})` : ''}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {Array.from({ length: Math.max(0, 14 - sheet.attacks.length) }, (_, i) => (
-                    <tr key={`empty-${String(i)}`} className="h-5 border-t border-border">
-                      <td colSpan={5} />
-                    </tr>
+                      <p
+                        className="py-0.5 text-[9px] font-bold text-white uppercase"
+                        style={{ background: `var(--boh-${a})` }}
+                      >
+                        {ABBR[a]}
+                      </p>
+                      <p className="text-lg leading-tight font-bold">{line.score.value}</p>
+                      <p className="text-xs">{signed(line.modifier)}</p>
+                      <p
+                        className={cn(
+                          'border-t border-border text-[9px] text-muted',
+                          line.save.proficient && 'font-bold text-text',
+                        )}
+                      >
+                        Save {signed(line.save.value)}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+              <Box title="Skills">
+                <ul className="space-y-[3px] text-[10px]">
+                  {Object.entries(sheet.skills).map(([skill, line]) => (
+                    <li key={skill} className="flex items-center gap-1">
+                      <ProfDot level={line.proficiency} />
+                      <span className="w-6 text-right font-semibold">{signed(line.value)}</span>
+                      <span className="flex-1 truncate">{title(skill)}</span>
+                      <AbilityBadge ability={line.ability} />
+                    </li>
                   ))}
-                </tbody>
-              </table>
-            </Box>
+                </ul>
+              </Box>
+            </div>
+            <div className="space-y-2">
+              <Box title="Senses">
+                <dl className="grid grid-cols-[1fr_auto] gap-x-3 text-xs">
+                  <dt>Perception</dt>
+                  <dd className="font-bold">{sheet.passive.perception.value}</dd>
+                  <dt>Insight</dt>
+                  <dd className="font-bold">{sheet.passive.insight.value}</dd>
+                  <dt>Investigation</dt>
+                  <dd className="font-bold">{sheet.passive.investigation.value}</dd>
+                </dl>
+                {Object.entries(sheet.senses).map(([k, v]) => (
+                  <p key={k} className="mt-1 text-xs">
+                    {title(k)} {v} ft.
+                  </p>
+                ))}
+              </Box>
+              <Box title="Attacks & cantrips">
+                <table className="w-full text-[10px]">
+                  <thead>
+                    <tr className="text-[9px] text-muted uppercase">
+                      <th className="py-0.5 text-left">Name</th>
+                      <th>Abi</th>
+                      <th>Hit</th>
+                      <th>Damage / type</th>
+                      <th className="text-left">Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sheet.attacks.map((atk) => {
+                      const ability =
+                        atk.save?.ability ?? atk.toHit?.parts[0]?.label.slice(0, 3).toLowerCase();
+                      return (
+                        <tr key={atk.key} className="border-t border-border">
+                          <td className="py-1">{atk.name}</td>
+                          <td className="text-center">
+                            {ability && (ability as Ability) in ABBR ? (
+                              <AbilityBadge ability={ability as Ability} />
+                            ) : (
+                              ''
+                            )}
+                          </td>
+                          <td className="text-center font-semibold">
+                            {atk.toHit
+                              ? signed(atk.toHit.value)
+                              : atk.save
+                                ? `DC ${String(atk.save.dc.value)}`
+                                : ''}
+                          </td>
+                          <td className="text-center">{atk.damage ?? ''}</td>
+                          <td>
+                            {atk.save
+                              ? `${ABBR[atk.save.ability]} save`
+                              : atk.properties.map(propertyName).join(', ')}
+                            {atk.range ? ` (${atk.range})` : ''}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {Array.from({ length: Math.max(0, 14 - sheet.attacks.length) }, (_, i) => (
+                      <tr key={`empty-${String(i)}`} className="h-5 border-t border-border">
+                        <td colSpan={5} />
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Box>
+            </div>
           </div>
-        </div>
-      </Page>
+        </Page>
+      )}
 
       {/* Page 2: spellcasting. */}
-      {caster && (
+      {caster && shown('spellcasting') && (
         <Page>
           <Box title="Spellcasting">
             <div className="grid grid-cols-4 gap-2">
@@ -376,123 +390,134 @@ export function PrintSheet({ character, view }: { character: CharacterFile; view
       )}
 
       {/* Page 3: equipment. */}
-      <Page>
-        <Box title="Equipment">
-          <p className="mb-2 text-sm">
-            {(['pp', 'gp', 'ep', 'sp', 'cp'] as const)
-              .map((k) => `${k.toUpperCase()}: ${String(character.coins[k] || '___')}`)
-              .join('   ')}
-          </p>
-          <table className="w-full text-[10px]">
-            <thead>
-              <tr className="text-[9px] text-muted uppercase">
-                <th className="w-10 py-0.5">Qty</th>
-                <th className="text-left">Item</th>
-                <th className="w-16">Wt.</th>
-                <th className="text-left">Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(character.decisions.inventory ?? []).map((it, i) => {
-                const e = entities.get(it.key);
-                const weight =
-                  typeof e?.data.weight === 'number' ? `${String(e.data.weight)} lb` : '';
-                return (
-                  <tr key={`${it.key}-${String(i)}`} className="border-t border-border">
-                    <td className="py-1 text-center">{it.quantity}</td>
-                    <td>{it.name ?? e?.name ?? pickName(it.key)}</td>
-                    <td className="text-center">{weight}</td>
-                    <td>
-                      {[it.equipped ? 'Equipped' : '', it.attuned ? 'Attuned' : '']
-                        .filter(Boolean)
-                        .join(', ') || '—'}
-                    </td>
-                  </tr>
-                );
-              })}
-              {Array.from(
-                { length: Math.max(0, 25 - (character.decisions.inventory ?? []).length) },
-                (_, i) => (
-                  <tr key={`empty-${String(i)}`} className="h-5 border-t border-border">
-                    <td colSpan={4} />
-                  </tr>
-                ),
-              )}
-            </tbody>
-          </table>
-        </Box>
-      </Page>
+      {shown('equipment') && (
+        <Page>
+          <Box title="Equipment">
+            <p className="mb-2 text-sm">
+              {(['pp', 'gp', 'ep', 'sp', 'cp'] as const)
+                .map((k) => `${k.toUpperCase()}: ${String(character.coins[k] || '___')}`)
+                .join('   ')}
+            </p>
+            <table className="w-full text-[10px]">
+              <thead>
+                <tr className="text-[9px] text-muted uppercase">
+                  <th className="w-10 py-0.5">Qty</th>
+                  <th className="text-left">Item</th>
+                  <th className="w-16">Wt.</th>
+                  <th className="text-left">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(character.decisions.inventory ?? []).map((it, i) => {
+                  const e = entities.get(it.key);
+                  const weight =
+                    typeof e?.data.weight === 'number' ? `${String(e.data.weight)} lb` : '';
+                  return (
+                    <tr key={`${it.key}-${String(i)}`} className="border-t border-border">
+                      <td className="py-1 text-center">{it.quantity}</td>
+                      <td>{it.name ?? e?.name ?? pickName(it.key)}</td>
+                      <td className="text-center">{weight}</td>
+                      <td>
+                        {[it.equipped ? 'Equipped' : '', it.attuned ? 'Attuned' : '']
+                          .filter(Boolean)
+                          .join(', ') || '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {Array.from(
+                  { length: Math.max(0, 25 - (character.decisions.inventory ?? []).length) },
+                  (_, i) => (
+                    <tr key={`empty-${String(i)}`} className="h-5 border-t border-border">
+                      <td colSpan={4} />
+                    </tr>
+                  ),
+                )}
+              </tbody>
+            </table>
+          </Box>
+        </Page>
+      )}
 
       {/* Page 4: features. */}
-      <Page>
-        <Box title="Features">
-          <p className="mb-2 text-xs">
-            {Object.entries(sheet.senses)
-              .map(([k, v]) => `${title(k)} ${String(v)} ft.`)
-              .join(', ')}
-          </p>
-          <table className="w-full text-[10px]">
-            <thead>
-              <tr className="text-[9px] text-muted uppercase">
-                <th className="py-0.5 text-left">Source</th>
-                <th className="text-left">Name</th>
-                <th className="w-10">Lvl</th>
-              </tr>
-            </thead>
-            <tbody>
-              {view.features.map((f) => (
-                <tr key={f.key} className="border-t border-border">
-                  <td className="py-1 font-semibold">{sourceLabel(f.from, view)}</td>
-                  <td>{f.name}</td>
-                  <td className="text-center font-bold">{f.level ?? '—'}</td>
+      {shown('features') && (
+        <Page>
+          <Box title="Features">
+            <p className="mb-2 text-xs">
+              {Object.entries(sheet.senses)
+                .map(([k, v]) => `${title(k)} ${String(v)} ft.`)
+                .join(', ')}
+            </p>
+            <table className="w-full text-[10px]">
+              <thead>
+                <tr className="text-[9px] text-muted uppercase">
+                  <th className="py-0.5 text-left">Source</th>
+                  <th className="text-left">Name</th>
+                  <th className="w-10">Lvl</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </Box>
-      </Page>
+              </thead>
+              <tbody>
+                {view.features.map((f) => (
+                  <tr key={f.key} className="border-t border-border">
+                    <td className="py-1 font-semibold">{sourceLabel(f.from, view)}</td>
+                    <td>{f.name}</td>
+                    <td className="text-center font-bold">{f.level ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Box>
+        </Page>
+      )}
 
       {/* Page 5: personality and backstory. */}
-      <Page>
-        <Box title="Personality">
-          <div className="grid grid-cols-2 gap-2">
-            {(
-              [
-                ['Personality traits', character.details.personality],
-                ['Ideals', character.details.ideals],
-                ['Bonds', character.details.bonds],
-                ['Flaws', character.details.flaws],
-              ] as const
-            ).map(([label, text]) => (
-              <div key={label}>
-                <p className="text-[9px] font-bold text-muted uppercase">{label}</p>
-                <p className="min-h-20 rounded border border-border p-2 text-xs whitespace-pre-wrap">
-                  {text ?? ''}
-                </p>
-              </div>
-            ))}
-          </div>
-        </Box>
-        <div className="mt-3">
-          <Box title="Backstory">
-            <p className="min-h-[150mm] text-[11px] leading-relaxed whitespace-pre-wrap">
-              {character.details.backstory ?? ''}
-            </p>
+      {shown('story') && (
+        <Page>
+          <Box title="Personality">
+            <div className="grid grid-cols-2 gap-2">
+              {(
+                [
+                  ['Personality traits', character.details.personality],
+                  ['Ideals', character.details.ideals],
+                  ['Bonds', character.details.bonds],
+                  ['Flaws', character.details.flaws],
+                ] as const
+              ).map(([label, text]) => (
+                <div key={label}>
+                  <p className="text-[9px] font-bold text-muted uppercase">{label}</p>
+                  <p className="min-h-20 rounded border border-border p-2 text-xs whitespace-pre-wrap">
+                    {text ?? ''}
+                  </p>
+                </div>
+              ))}
+            </div>
           </Box>
-        </div>
-      </Page>
+          <div className="mt-3">
+            <Box title="Backstory">
+              <p className="min-h-[150mm] text-[11px] leading-relaxed whitespace-pre-wrap">
+                {character.details.backstory ?? ''}
+              </p>
+            </Box>
+          </div>
+        </Page>
+      )}
 
       {/* Cards: spells by level, features and traits, items. */}
       <CardPages
         groups={[
-          ...[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].flatMap((lvl) => {
+          ...(shown('spellCards') ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] : []).flatMap((lvl) => {
             const list = spells.filter((s) => (s.data.level ?? 0) === lvl);
             return list.length
               ? [
                   {
                     title: lvl === 0 ? 'Cantrips' : `${ORDINAL(lvl)}-level spells`,
                     cards: list.map((s) => (
-                      <SpellCard key={s.key} spell={s} dc={caster?.dc.value} />
+                      <PrintCard
+                        key={s.key}
+                        entity={s}
+                        className="mb-3"
+                        extra={saveLine(s, caster?.dc.value)}
+                      />
                     )),
                   },
                 ]
@@ -500,34 +525,33 @@ export function PrintSheet({ character, view }: { character: CharacterFile; view
           }),
           {
             title: 'Features and traits',
-            cards: view.features.flatMap((f) => {
-              const text = featureText(f.key, f.name, entities);
-              return text === undefined
-                ? []
-                : [
-                    <Card
-                      key={f.key}
-                      title={f.name}
-                      subtitle={`${sourceLabel(f.from, view)}${f.level ? ` — Level ${String(f.level)}` : ''}`}
-                      accent="var(--boh-int)"
-                    >
-                      <Entries entries={text} />
-                    </Card>,
-                  ];
-            }),
+            cards: !shown('featureCards')
+              ? []
+              : view.features.flatMap((f) => {
+                  const text = featureText(f.key, f.name, entities);
+                  return text === undefined
+                    ? []
+                    : [
+                        <FeatureCard
+                          key={f.key}
+                          title={f.name}
+                          subtitle={`${sourceLabel(f.from, view)}${f.level ? ` — Level ${String(f.level)}` : ''}`}
+                        >
+                          <Entries entries={text} />
+                        </FeatureCard>,
+                      ];
+                }),
           },
           {
             title: 'Items',
-            cards: (character.decisions.inventory ?? []).flatMap((it, i) => {
-              const e = entities.get(it.key);
-              return e
-                ? [
-                    <Card key={`${it.key}-${String(i)}`} title={e.name} accent="var(--boh-int)">
-                      <EntityView type={e.type} data={e.data} edition={e.edition} />
-                    </Card>,
-                  ]
-                : [];
-            }),
+            cards: !shown('itemCards')
+              ? []
+              : (character.decisions.inventory ?? []).flatMap((it, i) => {
+                  const e = entities.get(it.key);
+                  return e
+                    ? [<PrintCard key={`${it.key}-${String(i)}`} entity={e} className="mb-3" />]
+                    : [];
+                }),
           },
         ]}
       />
@@ -645,60 +669,36 @@ function AbilityBadge({ ability }: { ability: Ability }) {
   );
 }
 
-function Card({
+/** A feature or trait has no entity of its own to hand a PrintCard; same look. */
+function FeatureCard({
   title: heading,
   subtitle,
-  accent,
   children,
 }: {
   title: string;
-  subtitle?: string;
-  accent: string;
+  subtitle: string;
   children: ReactNode;
 }) {
   return (
     <article
-      className="mb-3 break-inside-avoid rounded-md border border-border border-l-4 bg-surface p-2.5 text-[11px] leading-snug"
-      style={{ borderLeftColor: accent }}
+      className="mb-3 break-inside-avoid rounded-md border border-l-4 border-border bg-surface p-2.5 text-[11px] leading-snug"
+      style={{ borderLeftColor: 'var(--boh-int)' }}
     >
       <h4 className="font-serif text-sm font-bold">{heading}</h4>
-      {subtitle && <p className="mb-1 text-[10px] text-muted">{subtitle}</p>}
+      <p className="mb-1 text-[10px] text-muted">{subtitle}</p>
       <div className="[&_p]:my-1">{children}</div>
     </article>
   );
 }
 
-function SpellCard({ spell, dc }: { spell: EntityDetail; dc: number | undefined }) {
-  const d = spell.data;
-  const lvl = typeof d.level === 'number' ? d.level : 0;
-  const school = SCHOOLS[String(d.school)] ?? '';
-  const save =
-    Array.isArray(d.savingThrow) && typeof d.savingThrow[0] === 'string'
-      ? d.savingThrow[0].slice(0, 3).toUpperCase()
-      : undefined;
+/** "DEX save · DC 15" for a spell with a saving throw. */
+function saveLine(spell: EntityDetail, dc: number | undefined): ReactNode {
+  const save = spell.data.savingThrow;
+  if (dc === undefined || !Array.isArray(save) || typeof save[0] !== 'string') return null;
   return (
-    <Card
-      title={spell.name}
-      subtitle={
-        lvl === 0
-          ? `${school.toLowerCase()} cantrip`
-          : `${ORDINAL(lvl)}-level ${school.toLowerCase()}`
-      }
-      accent={`var(--boh-school-${school.toLowerCase()})`}
-    >
-      <dl className="grid grid-cols-2 gap-x-2 text-[10px]">
-        <dd>{castingTime(d)}</dd>
-        <dd>{spellRange(d)}</dd>
-        <dd>{spellDuration(d)}</dd>
-      </dl>
-      {save && dc !== undefined && (
-        <p className="text-[10px] font-bold">
-          {save} save · DC {dc}
-        </p>
-      )}
-      <Entries entries={d.entries} />
-      {d.entriesHigherLevel !== undefined && <Entries entries={d.entriesHigherLevel} />}
-    </Card>
+    <p className="text-[10px] font-bold">
+      {save[0].slice(0, 3).toUpperCase()} save · DC {dc}
+    </p>
   );
 }
 

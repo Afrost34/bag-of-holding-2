@@ -48,6 +48,8 @@ export interface CharacterPreferences {
   feats: boolean;
   /** Ability blocks show the modifier large (as on the 2024 sheet) or the score. */
   abilityDisplay: 'modifiers' | 'scores';
+  /** Parts of the printed sheet left out (ids from the print page). */
+  printHidden?: string[];
 }
 
 export const DEFAULT_PREFERENCES: CharacterPreferences = {

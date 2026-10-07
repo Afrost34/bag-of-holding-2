@@ -13,11 +13,13 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useId, useState, type ReactNode } from 'react';
+import { AppLink } from '../AppLink';
+import { useActiveCampaign } from '../campaigns/store';
+import { useCardSheets } from '../cards/store';
 import { useAnnotations } from './store';
 
 /** Where "Send to" will deliver an entry, and the milestone that builds each target. */
 const SEND_TARGETS: { label: string; icon: LucideIcon; milestone: number }[] = [
-  { label: 'Cards', icon: SquareStack, milestone: 8 },
   { label: 'Board', icon: LayoutDashboard, milestone: 9 },
   { label: 'Encounter', icon: Swords, milestone: 10 },
   { label: 'Map', icon: MapIcon, milestone: 11 },
@@ -68,6 +70,9 @@ export function PageTools({ noteId, label }: { noteId: string; label: string }) 
   const [draft, setDraft] = useState(note);
   const noteFieldId = useId();
   const bookmarked = bookmarks.some((b) => b.path === path);
+  // Entity pages can be sent as cards; book chapters cannot.
+  const isKey = /^[a-z]+:.+@[^@]+$/.test(noteId);
+  const [sent, setSent] = useState<{ sheet: string; name: string } | null>(null);
 
   useEffect(() => {
     void load();
@@ -120,6 +125,7 @@ export function PageTools({ noteId, label }: { noteId: string; label: string }) 
               sideOffset={4}
               className="z-50 min-w-52 rounded-md border border-border bg-surface p-1 text-sm shadow-card"
             >
+              <SendToCards entityKey={isKey ? noteId : null} label={label} onSent={setSent} />
               {SEND_TARGETS.map(({ label: target, icon: Icon, milestone }) => (
                 <Menu.Item
                   key={target}
@@ -137,6 +143,16 @@ export function PageTools({ noteId, label }: { noteId: string; label: string }) 
           </Menu.Portal>
         </Menu.Root>
       </div>
+
+      {sent && (
+        <p role="status" className="mt-2 text-sm text-muted">
+          Added to{' '}
+          <AppLink to={`/cards/${sent.sheet}`} className="text-link hover:underline">
+            {sent.name}
+          </AppLink>
+          .
+        </p>
+      )}
 
       {editing ? (
         <div className="mt-3">
@@ -182,5 +198,62 @@ export function PageTools({ noteId, label }: { noteId: string; label: string }) 
         )
       )}
     </div>
+  );
+}
+
+/** "Send to → Cards": a sheet of the open campaign (or outside campaigns), or a new one. */
+function SendToCards({
+  entityKey,
+  label,
+  onSent,
+}: {
+  entityKey: string | null;
+  label: string;
+  onSent: (sent: { sheet: string; name: string }) => void;
+}) {
+  const { sheets, loaded, load, send, create } = useCardSheets();
+  const campaign = useActiveCampaign();
+  useEffect(() => {
+    if (!loaded) void load();
+  }, [loaded, load]);
+  const mine = sheets.filter((s) => (s.campaign ?? null) === (campaign?.id ?? null));
+  const itemClass =
+    'flex items-center gap-2 rounded px-2 py-1.5 outline-none data-[highlighted]:bg-sunken';
+  if (!entityKey)
+    return (
+      <Menu.Item disabled className={cn(itemClass, 'text-muted')}>
+        <SquareStack className="h-4 w-4" aria-hidden /> Cards
+      </Menu.Item>
+    );
+  return (
+    <Menu.Group aria-label="Cards">
+      <Menu.Label className="flex items-center gap-2 px-2 pt-1.5 pb-0.5 text-xs font-semibold text-muted uppercase">
+        <SquareStack className="h-3.5 w-3.5" aria-hidden /> Cards
+      </Menu.Label>
+      {mine.map((sheet) => (
+        <Menu.Item
+          key={sheet.id}
+          className={cn(itemClass, 'pl-7')}
+          onSelect={() => {
+            send(sheet.id, [entityKey]);
+            onSent({ sheet: sheet.id, name: sheet.name });
+          }}
+        >
+          {sheet.name}
+        </Menu.Item>
+      ))}
+      <Menu.Item
+        className={cn(itemClass, 'pl-7')}
+        onSelect={() => {
+          const name = campaign ? `${campaign.name} cards` : 'Cards';
+          void create(name, campaign?.id, [entityKey]).then((sheet) => {
+            onSent({ sheet: sheet.id, name: sheet.name });
+          });
+        }}
+      >
+        New card sheet with {label}
+      </Menu.Item>
+      <Menu.Separator className="my-1 h-px bg-border" />
+    </Menu.Group>
   );
 }

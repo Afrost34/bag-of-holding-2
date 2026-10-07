@@ -21,6 +21,7 @@ import { Route as JournalRouteImport } from './routes/journal'
 import { Route as MapsRouteImport } from './routes/maps'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as CampaignsIdRouteImport } from './routes/campaigns_.$id'
+import { Route as CardsIdRouteImport } from './routes/cards_.$id'
 import { Route as CharactersIdRouteImport } from './routes/characters_.$id'
 import { Route as CompendiumKeyRouteImport } from './routes/compendium_.$key'
 import { Route as HomebrewPackRouteImport } from './routes/homebrew_.$pack'
@@ -93,6 +94,11 @@ const CampaignsIdRoute = CampaignsIdRouteImport.update({
   path: '/campaigns/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CardsIdRoute = CardsIdRouteImport.update({
+  id: '/cards_/$id',
+  path: '/cards/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CharactersIdRoute = CharactersIdRouteImport.update({
   id: '/characters_/$id',
   path: '/characters/$id',
@@ -162,6 +168,7 @@ export interface FileRoutesByFullPath {
   '/maps': typeof MapsRoute
   '/settings': typeof SettingsRoute
   '/campaigns/$id': typeof CampaignsIdRoute
+  '/cards/$id': typeof CardsIdRoute
   '/characters/$id': typeof CharactersIdRoute
   '/compendium/$key': typeof CompendiumKeyRoute
   '/homebrew/$pack': typeof HomebrewPackRoute
@@ -187,6 +194,7 @@ export interface FileRoutesByTo {
   '/maps': typeof MapsRoute
   '/settings': typeof SettingsRoute
   '/campaigns/$id': typeof CampaignsIdRoute
+  '/cards/$id': typeof CardsIdRoute
   '/characters/$id': typeof CharactersIdRoute
   '/compendium/$key': typeof CompendiumKeyRoute
   '/homebrew/$pack': typeof HomebrewPackRoute
@@ -213,6 +221,7 @@ export interface FileRoutesById {
   '/maps': typeof MapsRoute
   '/settings': typeof SettingsRoute
   '/campaigns_/$id': typeof CampaignsIdRoute
+  '/cards_/$id': typeof CardsIdRoute
   '/characters_/$id': typeof CharactersIdRoute
   '/compendium_/$key': typeof CompendiumKeyRoute
   '/homebrew_/$pack': typeof HomebrewPackRoute
@@ -240,6 +249,7 @@ export interface FileRouteTypes {
     | '/maps'
     | '/settings'
     | '/campaigns/$id'
+    | '/cards/$id'
     | '/characters/$id'
     | '/compendium/$key'
     | '/homebrew/$pack'
@@ -265,6 +275,7 @@ export interface FileRouteTypes {
     | '/maps'
     | '/settings'
     | '/campaigns/$id'
+    | '/cards/$id'
     | '/characters/$id'
     | '/compendium/$key'
     | '/homebrew/$pack'
@@ -290,6 +301,7 @@ export interface FileRouteTypes {
     | '/maps'
     | '/settings'
     | '/campaigns_/$id'
+    | '/cards_/$id'
     | '/characters_/$id'
     | '/compendium_/$key'
     | '/homebrew_/$pack'
@@ -316,6 +328,7 @@ export interface RootRouteChildren {
   MapsRoute: typeof MapsRoute
   SettingsRoute: typeof SettingsRoute
   CampaignsIdRoute: typeof CampaignsIdRoute
+  CardsIdRoute: typeof CardsIdRoute
   CharactersIdRoute: typeof CharactersIdRoute
   CompendiumKeyRoute: typeof CompendiumKeyRoute
   HomebrewPackRoute: typeof HomebrewPackRoute
@@ -415,6 +428,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CampaignsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cards_/$id': {
+      id: '/cards_/$id'
+      path: '/cards/$id'
+      fullPath: '/cards/$id'
+      preLoaderRoute: typeof CardsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/characters_/$id': {
       id: '/characters_/$id'
       path: '/characters/$id'
@@ -508,6 +528,7 @@ const rootRouteChildren: RootRouteChildren = {
   MapsRoute: MapsRoute,
   SettingsRoute: SettingsRoute,
   CampaignsIdRoute: CampaignsIdRoute,
+  CardsIdRoute: CardsIdRoute,
   CharactersIdRoute: CharactersIdRoute,
   CompendiumKeyRoute: CompendiumKeyRoute,
   HomebrewPackRoute: HomebrewPackRoute,

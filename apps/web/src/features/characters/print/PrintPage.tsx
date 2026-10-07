@@ -1,19 +1,21 @@
 import { Button } from '@boh/ui';
-import { ArrowLeft, Printer } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { ArrowLeft, ListChecks, Printer } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AppLink } from '../../../app/AppLink';
 import { useCharacter, useCharacters } from '../../../app/characters/store';
 import { usePageTitle } from '../../../app/tabs/usePageTitle';
 import { useCharacterView } from '../useCharacterView';
 import { PrintSheet } from './PrintSheet';
+import { PRINT_SECTIONS, type PrintSection } from './sections';
 
 /**
  * The character sheet to print or save as PDF: a preview in the app, and a second copy outside
  * the app's layout that is the only thing the browser prints.
  */
 export function PrintPage({ id }: { id: string }) {
-  const { loaded, load } = useCharacters();
+  const { loaded, load, save } = useCharacters();
+  const [choosing, setChoosing] = useState(false);
   const character = useCharacter(id);
   usePageTitle(character ? `${character.name} — sheet` : 'Character sheet');
   useEffect(() => {
@@ -27,6 +29,18 @@ export function PrintPage({ id }: { id: string }) {
 
   if (!loaded) return <p className="p-8 text-muted">Loading…</p>;
   if (!character) return <p className="p-8">This character is not in your library.</p>;
+  const hidden = (character.preferences.printHidden ?? []).filter((h): h is PrintSection =>
+    PRINT_SECTIONS.some((s) => s.id === h),
+  );
+  const toggle = (id: PrintSection) => {
+    save({
+      ...character,
+      preferences: {
+        ...character.preferences,
+        printHidden: hidden.includes(id) ? hidden.filter((h) => h !== id) : [...hidden, id],
+      },
+    });
+  };
 
   return (
     <div className="min-h-full bg-sunken">
@@ -39,6 +53,15 @@ export function PrintPage({ id }: { id: string }) {
         </AppLink>
         <h1 className="flex-1 font-serif text-lg font-bold">{character.name}</h1>
         <Button
+          variant="ghost"
+          aria-expanded={choosing}
+          onClick={() => {
+            setChoosing(!choosing);
+          }}
+        >
+          <ListChecks className="h-4 w-4" aria-hidden /> Pages
+        </Button>
+        <Button
           variant="primary"
           disabled={!view}
           onClick={() => {
@@ -48,9 +71,26 @@ export function PrintPage({ id }: { id: string }) {
           <Printer className="h-4 w-4" aria-hidden /> Print / Save as PDF
         </Button>
       </div>
+      {choosing && (
+        <fieldset className="flex flex-wrap gap-x-4 gap-y-2 border-b border-border bg-surface px-4 py-3 text-sm">
+          <legend className="sr-only">Pages to print</legend>
+          {PRINT_SECTIONS.map((s) => (
+            <label key={s.id} className="inline-flex items-center gap-1.5">
+              <input
+                type="checkbox"
+                checked={!hidden.includes(s.id)}
+                onChange={() => {
+                  toggle(s.id);
+                }}
+              />
+              {s.label}
+            </label>
+          ))}
+        </fieldset>
+      )}
       <div className="overflow-x-auto py-6">
         {view ? (
-          <PrintSheet character={character} view={view} />
+          <PrintSheet character={character} view={view} hidden={hidden} />
         ) : (
           <p className="p-8 text-muted">Preparing the sheet…</p>
         )}
@@ -58,7 +98,7 @@ export function PrintPage({ id }: { id: string }) {
       {view &&
         createPortal(
           <div className="print-root">
-            <PrintSheet character={character} view={view} />
+            <PrintSheet character={character} view={view} hidden={hidden} />
           </div>,
           document.body,
         )}
