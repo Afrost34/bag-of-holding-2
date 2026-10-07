@@ -241,6 +241,18 @@ const api: DataWorkerApi = {
     return (await indexPromise).bookContent(kind, id);
   },
 
+  async classPage(key) {
+    return (await indexPromise).classPage(key);
+  },
+
+  async subclassPage(key) {
+    return (await indexPromise).subclassPage(key);
+  },
+
+  async speciesPage(key) {
+    return (await indexPromise).speciesPage(key);
+  },
+
   async resolve(candidateLists) {
     const index = await indexPromise;
     return candidateLists.map((c) => index.resolveCandidates(c) ?? null);

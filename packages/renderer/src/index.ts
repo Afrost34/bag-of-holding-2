@@ -21,3 +21,4 @@ export { RichText } from './react/RichText';
 export { Entries, EntryView, KNOWN_ENTRY_TYPES, type Entry } from './react/Entries';
 export { EntityView, type EntityViewProps } from './react/entities/EntityView';
 export { CreatureStatblock } from './react/entities/CreatureStatblock';
+export { ClassTable, ClassTraits, type TableFeature } from './react/entities/ClassView';

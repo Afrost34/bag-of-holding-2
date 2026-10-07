@@ -141,6 +141,57 @@ describe.runIf(hasLocalData())('full 5etools install', () => {
     );
   });
 
+  it('assembles class, subclass and species pages with every feature found', () => {
+    const fighter = index.classPage('class:fighter@xphb');
+    expect(fighter?.features.slice(0, 3).map((f) => [f.level, f.name])).toEqual([
+      [1, 'Fighting Style'],
+      [1, 'Second Wind'],
+      [1, 'Weapon Mastery'],
+    ]);
+    expect(fighter?.features.find((f) => f.gainSubclass)?.name).toBe('Fighter Subclass');
+    expect(fighter?.fluff?.data.images).toBeDefined();
+    const subclasses = fighter?.subclasses ?? [];
+    expect(subclasses.find((s) => s.key === 'subclass:champion|fighter|xphb@xphb')).toMatchObject({
+      name: 'Champion',
+      legacy: false,
+    });
+    // The 2014 Battle Master, offered for the 2024 Fighter, is Legacy next to the 2024 one.
+    expect(subclasses.filter((s) => s.name === 'Battle Master').map((s) => s.legacy)).toEqual([
+      false,
+      true,
+    ]);
+
+    // Across every class and subclass, features resolve.
+    const missing: string[] = [];
+    let total = 0;
+    const classes = categoryById('classes');
+    if (!classes) throw new Error('no classes category');
+    for (const { key } of index.listRows(classes)) {
+      const page = index.classPage(key);
+      for (const f of page?.features ?? []) {
+        total++;
+        if (!f.entity) missing.push(f.key);
+      }
+      for (const sc of page?.subclasses ?? []) {
+        for (const f of index.subclassPage(sc.key)?.features ?? []) {
+          total++;
+          if (!f.entity) missing.push(f.key);
+        }
+      }
+    }
+    expect(total).toBeGreaterThan(2000);
+    expect(missing).toEqual([]);
+
+    const champion = index.subclassPage('subclass:champion|fighter|xphb@xphb');
+    expect(champion?.cls?.key).toBe('class:fighter@xphb');
+    expect(champion?.features.map((f) => f.level)).toEqual([3, 7, 10, 15, 18]);
+
+    const elf = index.speciesPage('race:elf@phb');
+    expect(elf?.subraces.map((s) => s.name)).toEqual(
+      expect.arrayContaining(['High', 'Wood', 'Drow']),
+    );
+  });
+
   it('puts every browsable entity type in a list', () => {
     const listed = new Set(CATEGORIES.flatMap((c) => c.types));
     const unlisted = Object.keys(index.countsByType()).filter(

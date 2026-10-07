@@ -431,3 +431,45 @@ export function prerequisite(value: unknown): string {
 }
 
 // endregion
+
+// region Feats
+
+function abilityOr(codes: string[]): string {
+  const names = codes.map(
+    (c) => (ABILITY_NAME as Partial<Record<string, string>>)[c] ?? c.toUpperCase(),
+  );
+  if (names.length <= 2) return names.join(' or ');
+  return `${names.slice(0, -1).join(', ')}, or ${names.at(-1) ?? ''}`;
+}
+
+/**
+ * A feat's ability score increase, which 5etools stores as data (`ability`), as the sentence the
+ * book prints: "Increase your Strength score by 1, to a maximum of 20." Empty when there is none
+ * or it is only a hint for tools (`hidden`).
+ */
+export function featAbility(ability: unknown): string {
+  return arr(ability)
+    .filter(isObj)
+    .filter((option) => option.hidden !== true)
+    .map((option) => {
+      const max = num(option.max) ?? 20;
+      if (isObj(option.choose)) {
+        const from = arr(option.choose.from).map((c) => text(c));
+        const amount = num(option.choose.amount) ?? 1;
+        const which =
+          from.length === 6 ? 'one ability score of your choice' : `your ${abilityOr(from)} score`;
+        return `Increase ${which} by ${String(amount)}, to a maximum of ${String(max)}.`;
+      }
+      return Object.entries(option)
+        .filter(([k, v]) => k in ABILITY_NAME && typeof v === 'number')
+        .map(
+          ([k, v]) =>
+            `Increase your ${ABILITY_NAME[k as Ability]} score by ${String(v)}, to a maximum of ${String(max)}.`,
+        )
+        .join(' ');
+    })
+    .filter(Boolean)
+    .join(' ');
+}
+
+// endregion

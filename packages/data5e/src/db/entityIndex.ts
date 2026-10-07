@@ -5,7 +5,17 @@ import {
   type BookKind,
   type BookSummary,
 } from '../books';
+import {
+  buildClassPage,
+  buildSpeciesPage,
+  buildSubclassPage,
+  type ClassPage,
+  type PageLookup,
+  type SpeciesPage,
+  type SubclassPage,
+} from '../classes';
 import { CopyError, CopyResolver } from '../copy';
+import type { EntityDetail, EntitySummary, Layer } from '../entity';
 import { entityEdition, type Edition } from '../editions';
 import type { ExtractContext, ExtractResult } from '../extract';
 import type { RawEntity } from '../identity';
@@ -17,22 +27,7 @@ import { buildRow, markLegacy, spellClassLookup, type ListRow } from '../lists/r
 import { migrate } from './schema';
 import type { SqlDatabase, SqlValue } from './types';
 
-export type Layer = '5etools' | 'homebrew';
-
-export interface EntitySummary {
-  key: string;
-  type: string;
-  name: string;
-  source: string;
-  edition: Edition;
-  page: number | null;
-  layer: Layer;
-}
-
-export interface EntityDetail extends EntitySummary {
-  /** Resolved JSON (after `_copy`). */
-  data: RawEntity;
-}
+export type { EntityDetail, EntitySummary, Layer } from '../entity';
 
 export interface SourceSummary extends SourceInfo {
   entities: number;
@@ -389,6 +384,42 @@ export class EntityIndex {
     if (!row) return undefined;
     const { raw, resolved, ...summary } = row;
     return { ...summary, data: JSON.parse(resolved ?? raw) as RawEntity };
+  }
+
+  /** Entities of a type whose key contains `suffix` right before the source. */
+  private withKeySuffix(type: string, suffix: string): EntityDetail[] {
+    return this.db
+      .all<EntitySummary & { raw: string; resolved: string | null }>(
+        `SELECT ${SUMMARY_COLUMNS}, raw, resolved FROM entities
+         WHERE type = ? AND key LIKE ? ESCAPE '\\'`,
+        [type, `%${likeEscape(suffix)}%`],
+      )
+      .map(({ raw, resolved, ...summary }) => ({
+        ...summary,
+        data: JSON.parse(resolved ?? raw) as RawEntity,
+      }));
+  }
+
+  private get pageLookup(): PageLookup {
+    return {
+      get: (key) => this.getEntity(key),
+      withKeySuffix: (type, suffix) => this.withKeySuffix(type, suffix),
+    };
+  }
+
+  /** A class with its features in level order and its subclasses. */
+  classPage(key: string): ClassPage | undefined {
+    return buildClassPage(this.pageLookup, key);
+  }
+
+  /** A subclass with its features and its class. */
+  subclassPage(key: string): SubclassPage | undefined {
+    return buildSubclassPage(this.pageLookup, key);
+  }
+
+  /** A species with its subraces. */
+  speciesPage(key: string): SpeciesPage | undefined {
+    return buildSpeciesPage(this.pageLookup, key);
   }
 
   /**
