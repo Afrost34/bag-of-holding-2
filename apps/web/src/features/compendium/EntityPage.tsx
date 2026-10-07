@@ -11,6 +11,9 @@ import { useData } from '../../app/data/store';
 import { EntityMeta } from '../../app/renderer/EntityCard';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 
+/** Types whose first picture sits beside their text (creatures, items). */
+const SIDE_IMAGE_TYPES = new Set(['monster', 'item', 'baseitem', 'magicvariant']);
+
 /** Fluff (lore and art) lives in a parallel `<type>Fluff` entity with the same name and source. */
 function useFluff(type: string, name: string, source: string) {
   const key = type.endsWith('Fluff') || !name ? null : makeKey(`${type}Fluff`, [name], source);
@@ -76,7 +79,7 @@ export function EntityPage({ entityKey }: { entityKey: string }) {
         <PageTools noteId={entity.key} label={entity.name} />
       </div>
 
-      {images.length > 0 && entity.type === 'monster' && (
+      {images.length > 0 && SIDE_IMAGE_TYPES.has(entity.type) && (
         <div className="float-right mb-3 ml-4 w-40 sm:w-56">
           <Entries entries={images.slice(0, 1)} />
         </div>

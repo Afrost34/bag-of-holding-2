@@ -4,6 +4,10 @@ import { installData } from './helpers/journal';
 
 /** Homebrew: make an item in a pack, find it everywhere, carry the pack to another install. */
 
+/** A 1×1 PNG. */
+const PNG =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
 test.beforeEach(async ({ page }) => {
   await installData(page);
 });
@@ -23,6 +27,13 @@ async function makeItem(page: Page) {
   await form.getByLabel('Damage', { exact: true }).fill('1d8');
   await form.getByLabel('Bonus to attacks and damage').selectOption('2');
   await form.getByLabel('What it is and what it does').fill('Deals an extra 2d6 radiant damage.');
+  // A picture from the device (shrunk and kept in the pack).
+  await form.getByLabel('Picture file').setInputFiles({
+    name: 'sunblade.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(PNG, 'base64'),
+  });
+  await expect(form.locator('img[src^="data:image/"]')).toBeVisible();
   // The preview follows the form.
   const preview = page.getByRole('complementary', { name: 'Preview' });
   await expect(preview).toContainText('Sunblade');
@@ -37,6 +48,7 @@ test('an item made in a pack shows in the compendium and in search', async ({ pa
   await page.getByRole('link', { name: 'Sunblade' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Sunblade' })).toBeVisible();
   await expect(page.getByRole('main').getByText('Homebrew', { exact: true })).toBeVisible();
+  await expect(page.getByRole('main').locator('img[src^="data:image/"]')).toBeVisible();
 
   await page.keyboard.press('Control+k');
   await page.getByLabel('Search everything').fill('sunbla');
