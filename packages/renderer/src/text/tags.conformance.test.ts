@@ -13,9 +13,12 @@ import {
   PINNED_5ETOOLS_VERSION,
   readLocalJson,
 } from '@boh/data5e/testing/local';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { splitTags } from './splitTags';
 import { describeTag, type TagModel } from './tags';
+
+// Each test walks the whole 5etools release: allow time on slower CI machines.
+vi.setConfig({ testTimeout: 120_000 });
 
 interface Found {
   name: string;

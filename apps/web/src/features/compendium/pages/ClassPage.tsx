@@ -6,13 +6,7 @@ import { AppLink } from '../../../app/AppLink';
 import { entityPath } from '../../../app/data/entities';
 import { useClassPage, useSubclassPage } from '../../../app/data/pages';
 import { usePageTitle } from '../../../app/tabs/usePageTitle';
-import {
-  ArticleLayout,
-  EntityHero,
-  FeatureSection,
-  LoreSection,
-  type TocItem,
-} from './ArticleLayout';
+import { ArticleLayout, EntityHero, FeatureSection, type TocItem } from './ArticleLayout';
 import { mergeFeatures } from './classMerge';
 import { PageMissing } from './PageMissing';
 import { scrollToSection } from './scroll';
@@ -138,8 +132,6 @@ function ClassArticle({ page, selected }: { page: ClassPageData; selected: strin
           </FeatureSection>
         ))}
       </section>
-
-      <LoreSection fluff={fluff} />
     </ArticleLayout>
   );
 }

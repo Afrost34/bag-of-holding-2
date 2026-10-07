@@ -15,9 +15,12 @@ import {
 } from '@boh/data5e/testing/local';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { KNOWN_ENTRY_TYPES } from './react/Entries';
 import { EntityView } from './react/entities/EntityView';
+
+// Each test walks the whole 5etools release: allow time on slower CI machines.
+vi.setConfig({ testTimeout: 120_000 });
 
 /** Props whose values are entries (lists of strings / entry objects). */
 const ENTRY_PROPS = new Set([
