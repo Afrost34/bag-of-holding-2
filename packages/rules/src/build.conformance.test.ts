@@ -16,6 +16,7 @@ import {
   type RulesData,
 } from './build';
 import { GLUBS } from './glubs.fixture';
+import { computeSheet } from './sheet';
 
 vi.setConfig({ testTimeout: 300_000 });
 
@@ -71,6 +72,40 @@ describe.runIf(hasLocalData())('the builder over the pinned 5etools release', ()
     expect([...new Set(problems)].sort()).toEqual([]);
   });
 
+  it('gives single-class casters the slots of their own class table', () => {
+    const problems: string[] = [];
+    for (const cls of index.ofType('class')) {
+      const groups = Array.isArray(cls.data.classTableGroups)
+        ? (cls.data.classTableGroups as unknown[])
+        : [];
+      const rows = groups.flatMap((g) =>
+        typeof g === 'object' &&
+        g !== null &&
+        'rowsSpellProgression' in g &&
+        Array.isArray(g.rowsSpellProgression)
+          ? [g.rowsSpellProgression as number[][]]
+          : [],
+      )[0];
+      if (!rows) continue;
+      for (let level = 1; level <= 20; level++) {
+        const decisions = {
+          ...newCharacter(cls.edition),
+          classes: [{ class: cls.key, levels: level }],
+        };
+        const sheet = computeSheet(data, decisions, buildCharacter(data, decisions));
+        const want = (rows[level - 1] ?? []).filter(
+          (n, i, all) => n > 0 || all.slice(i).some((x) => x > 0),
+        );
+        const got = sheet.slots.slice(1);
+        if (JSON.stringify(got) !== JSON.stringify(want))
+          problems.push(
+            `${cls.key} ${String(level)}: ${JSON.stringify(got)} instead of ${JSON.stringify(want)}`,
+          );
+      }
+    }
+    expect(problems).toEqual([]);
+  });
+
   it('builds every species and background', () => {
     const problems: string[] = [];
     for (const type of ['race', 'background'] as const) {
@@ -85,6 +120,60 @@ describe.runIf(hasLocalData())('the builder over the pinned 5etools release', ()
       }
     }
     expect([...new Set(problems)].sort()).toEqual([]);
+  });
+
+  it('computes the sheet of Glubs as the rules give it', () => {
+    const sheet = computeSheet(data, GLUBS, buildCharacter(data, GLUBS));
+    const per = <T>(f: (a: 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha') => T) =>
+      (['str', 'dex', 'con', 'int', 'wis', 'cha'] as const).map(f);
+    // These match the PDF from the old app.
+    expect(per((a) => sheet.abilities[a].score.value)).toEqual([12, 16, 14, 14, 14, 18]);
+    expect(per((a) => sheet.abilities[a].save.value)).toEqual([2, 6, 3, 3, 3, 7]);
+    expect(sheet.proficiencyBonus).toBe(2);
+    expect(sheet.spellcasting.map((s) => [s.ability, s.dc.value, s.attack.value])).toEqual([
+      ['cha', 14, 6],
+    ]);
+    expect(sheet.slots).toEqual([0, 4, 2]);
+    expect(sheet.hp.value).toBe(26);
+    expect(sheet.hitDice).toEqual([{ faces: 8, count: 3 }]);
+    expect(sheet.speed).toEqual({ walk: 30 });
+    expect(sheet.senses).toEqual({ darkvision: 60 });
+    expect(sheet.size).toBe('Small');
+    expect(sheet.proficiencies.languages).toEqual(['common', 'dwarvish', 'goblin']);
+    // The PDF's ability checks (2, 4, 3, 3, 3, 5) leave out Jack of All Trades (+1), which the
+    // rules apply to every check without proficiency.
+    expect(per((a) => sheet.abilities[a].check.value)).toEqual([3, 5, 4, 4, 4, 6]);
+    // The old app added the Stone of Good Luck to armour class and attack rolls (AC 14, Club +4,
+    // Dagger +6) and left it and Jack of All Trades out of initiative (+3) and passive Perception
+    // (12). By the rules the stone only helps ability checks and saving throws.
+    expect(sheet.ac.value).toBe(13);
+    expect(sheet.initiative.value).toBe(5);
+    expect(sheet.passive.perception.value).toBe(14);
+    expect(
+      sheet.attacks.map((a) => [a.name, a.toHit?.value ?? a.save?.dc.value, a.damage ?? '']),
+    ).toEqual([
+      ['Club', 3, '1d4+1 bludgeoning'],
+      ['Dagger', 5, '1d4+3 piercing'],
+      ['Mind Sliver', 14, ''],
+      ['Vicious Mockery', 14, ''],
+    ]);
+    expect(sheet.skills.deception).toMatchObject({ value: 9, proficiency: 2 });
+    expect(sheet.skills.stealth).toMatchObject({ value: 6, proficiency: 1 });
+    expect(sheet.skills.history).toMatchObject({ value: 4, proficiency: 0.5 });
+    expect(sheet.classTable).toContainEqual({
+      from: 'class:bard@xphb',
+      label: 'Bardic Die',
+      value: 'd6',
+    });
+  });
+
+  it('keeps hand-set values, with what the rules give', () => {
+    const sheet = computeSheet(
+      data,
+      { ...GLUBS, overrides: { ac: 14 } },
+      buildCharacter(data, GLUBS),
+    );
+    expect(sheet.ac).toMatchObject({ value: 14, computed: 13 });
   });
 
   it('rebuilds Glubs from decisions alone', () => {

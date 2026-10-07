@@ -39,4 +39,13 @@ export const GLUBS: CharacterDecisions = {
     'classfeature:expertise|bard|xphb|2@xphb/expertise': ['deception', 'persuasion'],
     'class:bard@xphb/level:3/subclass': ['subclass:whispers|bard|xphb@xge'],
   },
+  inventory: [
+    { key: 'item:club@xphb', quantity: 1, equipped: true },
+    { key: 'item:dagger@xphb', quantity: 1, equipped: true },
+    { key: 'item:stone of good luck@xdmg', quantity: 1, equipped: true, attuned: true },
+    { key: 'item:fine clothes@xphb', quantity: 1 },
+    { key: 'item:horn@xphb', quantity: 1 },
+  ],
+  // 26 hit points on the sheet: 8 at level 1, then two rolls of 6, plus Constitution.
+  hitPointRolls: [6, 6],
 };

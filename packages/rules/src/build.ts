@@ -49,6 +49,23 @@ export interface CharacterDecisions {
   classes: ClassLevels[];
   /** Picks by choice id. */
   choices: Record<string, string[]>;
+  /** What the character carries. Starting equipment is copied here when the character is made. */
+  inventory?: InventoryItem[];
+  /** Hit point rolls for levels after the first, in order; average is used where missing. */
+  hitPointRolls?: number[];
+  /**
+   * Sheet values set by hand, by sheet path (`ac`, `hp`, `skill.stealth`…). They win over the
+   * computed value, which the sheet still shows next to them.
+   */
+  overrides?: Record<string, number>;
+}
+
+export interface InventoryItem {
+  /** Item key (`item:dagger@xphb`; mundane items resolve to `baseitem`). */
+  key: string;
+  quantity: number;
+  equipped?: boolean;
+  attuned?: boolean;
 }
 
 export interface CampaignRules {
