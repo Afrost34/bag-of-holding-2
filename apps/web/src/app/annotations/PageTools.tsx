@@ -17,11 +17,11 @@ import { AppLink } from '../AppLink';
 import { useActiveCampaign } from '../campaigns/store';
 import { useBoards } from '../boards/store';
 import { useCardSheets } from '../cards/store';
+import { useEncounters } from '../encounters/store';
 import { useAnnotations } from './store';
 
 /** Where "Send to" will deliver an entry, and the milestone that builds each target. */
 const SEND_TARGETS: { label: string; icon: LucideIcon; milestone: number }[] = [
-  { label: 'Encounter', icon: Swords, milestone: 10 },
   { label: 'Map', icon: MapIcon, milestone: 11 },
 ];
 
@@ -127,6 +127,11 @@ export function PageTools({ noteId, label }: { noteId: string; label: string }) 
             >
               <SendToCards entityKey={isKey ? noteId : null} label={label} onSent={setSent} />
               <SendToBoards entityKey={isKey ? noteId : null} label={label} onSent={setSent} />
+              <SendToEncounters
+                entityKey={noteId.startsWith('monster:') ? noteId : null}
+                label={label}
+                onSent={setSent}
+              />
               {SEND_TARGETS.map(({ label: target, icon: Icon, milestone }) => (
                 <Menu.Item
                   key={target}
@@ -311,6 +316,62 @@ function SendToBoards({
         }}
       >
         New board with {label}
+      </Menu.Item>
+      <Menu.Separator className="my-1 h-px bg-border" />
+    </Menu.Group>
+  );
+}
+
+/** "Send to → Encounter" (creatures only): an encounter of the open campaign, or a new one. */
+function SendToEncounters({
+  entityKey,
+  label,
+  onSent,
+}: {
+  entityKey: string | null;
+  label: string;
+  onSent: (sent: { to: string; name: string }) => void;
+}) {
+  const { encounters, loaded, load, send, create } = useEncounters();
+  const campaign = useActiveCampaign();
+  useEffect(() => {
+    if (!loaded) void load();
+  }, [loaded, load]);
+  const mine = encounters.filter((e) => (e.campaign ?? null) === (campaign?.id ?? null));
+  const itemClass =
+    'flex items-center gap-2 rounded px-2 py-1.5 outline-none data-[highlighted]:bg-sunken';
+  if (!entityKey)
+    return (
+      <Menu.Item disabled className={cn(itemClass, 'text-muted')}>
+        <Swords className="h-4 w-4" aria-hidden /> Encounter
+      </Menu.Item>
+    );
+  return (
+    <Menu.Group aria-label="Encounters">
+      <Menu.Label className="flex items-center gap-2 px-2 pt-1.5 pb-0.5 text-xs font-semibold text-muted uppercase">
+        <Swords className="h-3.5 w-3.5" aria-hidden /> Encounters
+      </Menu.Label>
+      {mine.map((encounter) => (
+        <Menu.Item
+          key={encounter.id}
+          className={cn(itemClass, 'pl-7')}
+          onSelect={() => {
+            send(encounter.id, [entityKey]);
+            onSent({ to: `/encounters/${encounter.id}`, name: encounter.name });
+          }}
+        >
+          {encounter.name}
+        </Menu.Item>
+      ))}
+      <Menu.Item
+        className={cn(itemClass, 'pl-7')}
+        onSelect={() => {
+          void create(`${label} encounter`, campaign?.id, [entityKey]).then((encounter) => {
+            onSent({ to: `/encounters/${encounter.id}`, name: encounter.name });
+          });
+        }}
+      >
+        New encounter with {label}
       </Menu.Item>
       <Menu.Separator className="my-1 h-px bg-border" />
     </Menu.Group>

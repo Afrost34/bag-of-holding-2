@@ -18,6 +18,7 @@ import { attachmentUrl } from '../../app/journal/attachments';
 import { JournalViewContext } from '../../app/journal/notes/context';
 import { NoteViewer } from '../../app/journal/notes/NoteViewer';
 import { useJournal } from '../../app/journal/store';
+import { CombatBody, EncounterBody } from './combatBodies';
 import { useBoardActions } from './context';
 
 /** What a card shows under its title bar. */
@@ -37,6 +38,10 @@ export function CardBody({ card }: { card: BoardCard }) {
       return <TimerBody card={card} />;
     case 'initiative':
       return <InitiativeBody card={card} />;
+    case 'combat':
+      return <CombatBody card={card} />;
+    case 'encounter':
+      return <EncounterBody card={card} />;
     case 'frame':
     case 'stack':
       return null;

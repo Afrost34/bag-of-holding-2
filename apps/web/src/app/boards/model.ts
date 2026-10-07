@@ -1,4 +1,5 @@
 import { newId } from '../cards/model';
+import type { CombatState } from './combat';
 
 /**
  * DM boards: infinite canvases of cards (compendium entries, journal notes, images, dice,
@@ -39,6 +40,10 @@ export type CardContent =
    */
   | { kind: 'timer'; seconds: number; elapsed: number; startedAt?: number }
   | { kind: 'initiative'; rows: InitiativeRow[]; turn: number; round: number }
+  /** A combat tracker (see `combat.ts`); `encounter` is the encounter it was started from. */
+  | ({ kind: 'combat'; encounter?: string } & CombatState)
+  /** An encounter of the campaign, with its difficulty and a button to start the fight. */
+  | { kind: 'encounter'; encounter: string }
   | { kind: 'frame'; title: string }
   | { kind: 'stack'; items: string[]; active: number };
 
@@ -82,6 +87,8 @@ export const SIZES: Record<CardKind, { w: number; h: number }> = {
   dice: { w: 280, h: 190 },
   timer: { w: 240, h: 150 },
   initiative: { w: 320, h: 300 },
+  combat: { w: 480, h: 560 },
+  encounter: { w: 340, h: 320 },
   frame: { w: 760, h: 480 },
   stack: { w: 340, h: 380 },
 };
