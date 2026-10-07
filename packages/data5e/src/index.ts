@@ -120,3 +120,25 @@ export {
   type ItemKind,
 } from './brew/items';
 export { entriesToText, tagDice, textToEntries, untag } from './brew/text';
+export {
+  ALIGNMENT_CODES,
+  attackText,
+  averageOf,
+  CHALLENGE_RATINGS,
+  CONDITION_NAMES,
+  creatureToForm,
+  CREATURE_TYPES,
+  DAMAGE_NAMES,
+  emptyCreature,
+  formToCreature,
+  passivePerception,
+  proficiency,
+  SENSES,
+  SIZES,
+  SKILLS,
+  SPEEDS,
+  type AttackSpec,
+  type CreatureForm,
+  type Feature,
+} from './brew/creatures';
+export { tagStatText, untagStatText } from './brew/statText';

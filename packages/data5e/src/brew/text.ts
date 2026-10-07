@@ -4,7 +4,7 @@
  */
 
 const DAMAGE_WORDS =
-  /^\s*(acid|bludgeoning|cold|fire|force|lightning|necrotic|piercing|poison|psychic|radiant|slashing|thunder)\b/i;
+  /^\)?\s*(acid|bludgeoning|cold|fire|force|lightning|necrotic|piercing|poison|psychic|radiant|slashing|thunder)\b/i;
 
 /** Wraps dice in `{@damage …}` (before a damage type) or `{@dice …}`, leaving existing tags alone. */
 export function tagDice(text: string): string {
