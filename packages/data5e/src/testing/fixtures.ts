@@ -125,8 +125,35 @@ export function fixtureFiles(): Record<string, unknown> {
         },
       ],
     },
+    'data/class/fluff-class-bard.json': {
+      classFluff: [
+        {
+          name: 'Bard',
+          source: 'PHB',
+          images: [
+            {
+              type: 'image',
+              title: 'An Inspiring Performer',
+              href: { type: 'internal', path: 'classes/PHB/Bard.webp' },
+            },
+          ],
+          entries: [
+            'Bards weave magic through words and music. They inspire allies and demoralize foes.',
+          ],
+        },
+      ],
+    },
     'data/class/class-bard.json': {
-      class: [{ name: 'Bard', source: 'PHB', page: 51 }],
+      class: [
+        {
+          name: 'Bard',
+          source: 'PHB',
+          page: 51,
+          hd: { number: 1, faces: 8 },
+          proficiency: ['dex', 'cha'],
+          multiclassing: { requirements: { cha: 13 } },
+        },
+      ],
       subclass: [
         {
           name: 'College of Lore',

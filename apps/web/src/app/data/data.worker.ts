@@ -5,7 +5,6 @@
  */
 import {
   categoryById,
-  CATEGORIES,
   checkReferences,
   type ListRow,
   EntityIndex,
@@ -240,11 +239,6 @@ const api: DataWorkerApi = {
 
   async bookContent(kind, id) {
     return (await indexPromise).bookContent(kind, id);
-  },
-
-  async categoryCounts() {
-    const index = await indexPromise;
-    return Object.fromEntries(CATEGORIES.map((c) => [c.id, index.countTypes(c.types)]));
   },
 
   async resolve(candidateLists) {

@@ -1,7 +1,14 @@
 import { cn, IconButton, Tooltip } from '@boh/ui';
 import { useRouterState } from '@tanstack/react-router';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { AppLink } from '../AppLink';
+import {
+  activeCompendiumLink,
+  BROWSE_LINKS,
+  LIBRARY_LINKS,
+  type CompendiumLink,
+} from '../compendiumLinks';
 import { moduleForPath, navModules, type NavModule } from '../nav';
 import { LogoMark } from './Logo';
 
@@ -43,7 +50,11 @@ export function Sidebar({ collapsed, onToggleCollapsed, onNavigate, className }:
             active={current?.path === m.path}
             collapsed={collapsed}
             {...(onNavigate ? { onNavigate } : {})}
-          />
+          >
+            {m.path === '/compendium' && current?.path === m.path && !collapsed && (
+              <CompendiumMenu pathname={pathname} {...(onNavigate ? { onNavigate } : {})} />
+            )}
+          </NavItem>
         ))}
       </ul>
 
@@ -85,9 +96,54 @@ interface NavItemProps {
   active: boolean;
   collapsed: boolean;
   onNavigate?: () => void;
+  /** Sub-menu shown under the item. */
+  children?: ReactNode;
 }
 
-function NavItem({ module, active, collapsed, onNavigate }: NavItemProps) {
+/** The compendium's Browse and Library links, nested under Compendium while it is open. */
+function CompendiumMenu({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+  const active = activeCompendiumLink(pathname);
+  const item = (link: CompendiumLink) => {
+    const Icon = link.icon;
+    const on = active === link.to;
+    return (
+      <li key={link.to}>
+        <AppLink
+          to={link.to}
+          aria-current={on ? 'page' : undefined}
+          {...(onNavigate ? { onNavigate } : {})}
+          className={cn(
+            'flex h-8 items-center gap-2.5 rounded-md pr-2 pl-4 text-[13px] font-medium transition-colors',
+            on
+              ? 'bg-chrome-2 text-chrome-fg'
+              : 'text-chrome-muted hover:bg-chrome-2/60 hover:text-chrome-fg',
+          )}
+        >
+          <Icon className={cn('h-4 w-4 shrink-0', on && 'text-accent')} aria-hidden />
+          <span className="truncate">{link.label}</span>
+        </AppLink>
+      </li>
+    );
+  };
+  return (
+    <div className="mt-1 mb-2 ml-3 border-l border-chrome-2 pl-1">
+      <p className="px-4 pt-1 pb-1 text-[10px] font-semibold tracking-wider text-chrome-muted uppercase">
+        Browse
+      </p>
+      <ul aria-label="Browse" className="space-y-px">
+        {BROWSE_LINKS.map(item)}
+      </ul>
+      <p className="px-4 pt-3 pb-1 text-[10px] font-semibold tracking-wider text-chrome-muted uppercase">
+        Library
+      </p>
+      <ul aria-label="Library" className="space-y-px">
+        {LIBRARY_LINKS.map(item)}
+      </ul>
+    </div>
+  );
+}
+
+function NavItem({ module, active, collapsed, onNavigate, children }: NavItemProps) {
   const Icon = module.icon;
   const link = (
     <AppLink
@@ -124,6 +180,7 @@ function NavItem({ module, active, collapsed, onNavigate }: NavItemProps) {
       ) : (
         link
       )}
+      {children}
     </li>
   );
 }

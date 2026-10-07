@@ -55,6 +55,7 @@ export {
 } from './db/entityIndex';
 export type { SqlDatabase, SqlValue, SqlParams } from './db/types';
 export {
+  BROWSE_CATEGORIES,
   CATEGORIES,
   SUPPORT_TYPES,
   categoryById,
@@ -65,6 +66,7 @@ export {
 } from './lists/categories';
 export { buildRow, type ListRow, type FieldValue } from './lists/rows';
 export { stripTagsPlain } from './lists/strip';
+export { blurbOf, buildCard, type CardInfo } from './lists/cards';
 export {
   areaIndex,
   bookSummary,

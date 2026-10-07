@@ -1,5 +1,6 @@
 import { categoryById } from '@boh/data5e';
 import { createFileRoute } from '@tanstack/react-router';
+import { CardGridPage } from '../features/compendium/CardGridPage';
 import { ListPage } from '../features/compendium/ListPage';
 import { NotFoundPage } from '../features/not-found/NotFoundPage';
 
@@ -18,6 +19,11 @@ export const Route = createFileRoute('/compendium_/list/$category')({
     const { category: id } = Route.useParams();
     const search = Route.useSearch();
     const category = categoryById(id);
-    return category ? <ListPage key={id} category={category} search={search} /> : <NotFoundPage />;
+    if (!category) return <NotFoundPage />;
+    return category.layout === 'cards' ? (
+      <CardGridPage key={id} category={category} search={search} />
+    ) : (
+      <ListPage key={id} category={category} search={search} />
+    );
   },
 });

@@ -1,24 +1,18 @@
 import type { EntitySummary } from '@boh/data5e';
-import { CATEGORIES } from '@boh/data5e';
-import { BookOpen, Library, Map as MapIcon, ScrollText, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
+import { BROWSE_LINKS, LIBRARY_LINKS, type CompendiumLink } from '../../app/compendiumLinks';
+import { BusyNotice } from '../../app/data/BusyNotice';
 import { dataWorker } from '../../app/data/client';
 import { entityPath } from '../../app/data/entities';
-import { useCategoryCounts } from '../../app/data/lists';
 import { useSourceList } from '../../app/data/sourceList';
 import { disabledSourceIds, useSourcePrefs } from '../../app/data/sourcePrefs';
-import { BusyNotice } from '../../app/data/BusyNotice';
 import { useData } from '../../app/data/store';
 import { typeLabel } from '../../app/format';
+import { PageHeading } from './PageHeading';
 
-const LIBRARY_LINKS = [
-  { to: '/compendium/library/books', label: 'Books', icon: Library },
-  { to: '/compendium/library/adventures', label: 'Adventures', icon: MapIcon },
-  { to: '/compendium/quickref/bookref-quick', label: 'Quick reference', icon: ScrollText },
-];
-
-/** Compendium home: search everything, or pick a list to browse with filters. */
+/** Compendium home: search everything, or pick something to browse. */
 export function CompendiumPage() {
   const [text, setText] = useState('');
   const [results, setResults] = useState<EntitySummary[]>([]);
@@ -26,7 +20,6 @@ export function CompendiumPage() {
   const refresh = useData((s) => s.refresh);
   const { sources, load } = useSourceList();
   const overrides = useSourcePrefs((s) => s.overrides);
-  const counts = useCategoryCounts();
   const query = text.trim();
   const shown = query.length >= 2 ? results : [];
 
@@ -52,18 +45,13 @@ export function CompendiumPage() {
   }, [query, sources, overrides]);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 md:px-8 md:py-10">
-      <h1 className="flex items-center gap-2 font-serif text-2xl font-bold">
-        <BookOpen className="h-6 w-6 text-accent" aria-hidden /> Compendium
-      </h1>
-      <p className="mt-1 text-sm text-muted">Search everything, or browse a list with filters.</p>
+    <div className="mx-auto max-w-5xl px-4 py-6 md:px-8 md:py-8">
+      <PageHeading>Compendium</PageHeading>
 
       {status?.storage === 'busy' ? (
-        <div className="mt-6">
-          <BusyNotice />
-        </div>
+        <BusyNotice />
       ) : status?.installed === false ? (
-        <p className="mt-6 rounded-md bg-sunken p-4 text-sm">
+        <p className="rounded-md bg-sunken p-4 text-sm">
           Download the 5etools data first:{' '}
           <AppLink to="/settings/data" className="font-medium text-link hover:underline">
             Data & sources
@@ -72,7 +60,7 @@ export function CompendiumPage() {
         </p>
       ) : (
         <>
-          <label className="relative mt-5 block">
+          <label className="relative block max-w-xl">
             <Search
               className="pointer-events-none absolute top-3 left-3 h-5 w-5 text-faint"
               aria-hidden
@@ -86,12 +74,12 @@ export function CompendiumPage() {
               }}
               placeholder="Search everything: fireball, goblin, bag of holding…"
               aria-label="Search the compendium"
-              className="h-11 w-full rounded-lg border border-border bg-surface pr-3 pl-10 text-base shadow-card"
+              className="h-11 w-full rounded-lg border border-border bg-surface pr-3 pl-10 text-base"
             />
           </label>
           <ul
             hidden={query.length < 2}
-            className="mt-3 divide-y divide-border rounded-lg border border-border bg-surface"
+            className="mt-3 max-w-xl divide-y divide-border rounded-lg border border-border bg-surface"
             aria-label="Results"
           >
             {shown.map((r) => (
@@ -113,37 +101,36 @@ export function CompendiumPage() {
             )}
           </ul>
           {query.length < 2 && (
-            <nav aria-label="Library" className="mt-6 grid grid-cols-3 gap-2">
-              {LIBRARY_LINKS.map(({ to, label, icon: Icon }) => (
-                <AppLink
-                  key={to}
-                  to={to}
-                  className="flex flex-col items-center gap-1 rounded-lg border border-border bg-surface px-3 py-3 text-center shadow-card hover:border-accent sm:flex-row sm:text-left"
-                >
-                  <Icon className="h-5 w-5 shrink-0 text-accent" aria-hidden />
-                  <span className="font-medium">{label}</span>
-                </AppLink>
-              ))}
-            </nav>
-          )}
-          {query.length < 2 && (
-            <nav aria-label="Browse" className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {CATEGORIES.filter((c) => (counts?.[c.id] ?? 1) > 0).map((c) => (
-                <AppLink
-                  key={c.id}
-                  to={`/compendium/list/${c.id}`}
-                  className="flex items-center justify-between rounded-lg border border-border bg-surface px-3 py-2.5 shadow-card hover:border-accent"
-                >
-                  <span className="font-medium">{c.label}</span>
-                  <span className="text-xs text-faint">
-                    {counts?.[c.id]?.toLocaleString('en-US') ?? ''}
-                  </span>
-                </AppLink>
-              ))}
-            </nav>
+            <>
+              <Tiles label="Browse" links={BROWSE_LINKS} />
+              <Tiles label="Library" links={LIBRARY_LINKS} />
+            </>
           )}
         </>
       )}
     </div>
+  );
+}
+
+function Tiles({ label, links }: { label: string; links: readonly CompendiumLink[] }) {
+  return (
+    <nav aria-label={label} className="mt-8">
+      <h2 className="mb-3 text-xs font-semibold tracking-wider text-muted uppercase">{label}</h2>
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {links.map(({ to, label: name, icon: Icon }) => (
+          <li key={to}>
+            <AppLink
+              to={to}
+              className="group flex items-center gap-3 rounded-lg border border-border bg-surface px-4 py-3.5 transition-colors hover:border-accent"
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
+                <Icon className="h-5 w-5" aria-hidden />
+              </span>
+              <span className="font-semibold group-hover:text-accent">{name}</span>
+            </AppLink>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }
