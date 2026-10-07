@@ -5,10 +5,12 @@ import type { CharacterDetails, CharacterFile } from '../../app/characters/model
 import { useEntity } from '../../app/data/entities';
 import { useListRows } from '../../app/data/lists';
 import type { CharacterView } from '../../app/data/protocol';
+import { AbilityIncrease } from './AbilityIncrease';
+import { isAbilityIncrease } from './increaseModel';
 import { ChoiceControl } from './ChoiceControl';
 import { forget, pickName } from './steps';
 import { selectClass } from './styles';
-import { Accordion, Clamp, StepTitle } from './ui';
+import { Accordion, StepTitle } from './ui';
 
 const ALIGNMENTS = [
   'Lawful Good', 'Neutral Good', 'Chaotic Good', 'Lawful Neutral', 'Neutral', 'Chaotic Neutral',
@@ -64,10 +66,6 @@ export function BackgroundStep({
   for (const o of options) names.set(o.name, (names.get(o.name) ?? 0) + 1);
 
   const grants = view?.grants ?? [];
-  const fixed = (kind: string) =>
-    grants
-      .filter((g) => g.from === key && !g.choice && g.kind === kind && 'value' in g)
-      .map((g) => ('value' in g ? pickName(g.value) : ''));
   const feats = grants.filter((g) => g.kind === 'feat' && g.from === key);
   const nameOf = (k: string) => view?.entities.find((e) => e.key === k)?.name ?? pickName(k);
   const control = (c: AnsweredChoice) => (
@@ -83,6 +81,7 @@ export function BackgroundStep({
   );
   const pending = (list: AnsweredChoice[]) => list.some((c) => c.picks.length < c.count);
   const abilities = choices.filter((c) => c.from === key && /\/ability(\/|$)/.test(c.id));
+  const increase = abilities.find(isAbilityIncrease);
   const own = choices.filter((c) => c.from === key && !abilities.includes(c));
   const languages = choices.filter((c) => c.from === 'character');
 
@@ -117,26 +116,8 @@ export function BackgroundStep({
       {key && background.status === 'found' && (
         <div className="space-y-3">
           <div className="text-sm">
-            <Clamp>
-              <Entries entries={background.entity.data.entries} />
-            </Clamp>
+            <Entries entries={background.entity.data.entries} />
           </div>
-          <dl className="space-y-0.5 text-sm">
-            {(
-              [
-                ['Skill Proficiencies', fixed('skill')],
-                ['Tool Proficiencies', fixed('tool')],
-                ['Languages', fixed('language')],
-              ] as const
-            ).map(([label, list]) =>
-              list.length ? (
-                <div key={label}>
-                  <dt className="inline font-bold">{label}: </dt>
-                  <dd className="inline">{list.join(', ')}</dd>
-                </div>
-              ) : null,
-            )}
-          </dl>
         </div>
       )}
 
@@ -147,7 +128,7 @@ export function BackgroundStep({
           return (
             <Accordion
               key={f.key}
-              title={f.version ? pickName(f.version) : nameOf(f.key)}
+              title={f.version ? featVersionName(f.version) : nameOf(f.key)}
               subtitle={`Granted Feat${list.length ? ` · ${String(list.length)} Choice${list.length === 1 ? '' : 's'}` : ''}`}
               pending={pending(list)}
             >
@@ -158,7 +139,11 @@ export function BackgroundStep({
         })}
         {abilities.length > 0 && (
           <Accordion title="Ability Scores" subtitle="1 Choice" pending={pending(abilities)}>
-            <div className="space-y-3">{abilities.map(control)}</div>
+            {increase ? (
+              <AbilityIncrease choice={increase} decisions={decisions} update={update} />
+            ) : (
+              <div className="space-y-3">{abilities.map(control)}</div>
+            )}
           </Accordion>
         )}
         {own.length > 0 && (
@@ -186,14 +171,18 @@ export function BackgroundStep({
   );
 }
 
+/** "magic initiate; cleric" → "Magic Initiate (Cleric)". */
+const featVersionName = (version: string) => {
+  const [base = '', ...rest] = pickName(version).split('; ');
+  return rest.length ? `${base} (${rest.join(', ')})` : base;
+};
+
 function EntityText({ entityKey }: { entityKey: string }) {
   const state = useEntity(entityKey);
   if (state.status !== 'found') return null;
   return (
     <div className="text-sm">
-      <Clamp>
-        <Entries entries={state.entity.data.entries} />
-      </Clamp>
+      <Entries entries={state.entity.data.entries} />
     </div>
   );
 }

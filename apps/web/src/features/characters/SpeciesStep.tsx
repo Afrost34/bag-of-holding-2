@@ -9,9 +9,11 @@ import { useEntity } from '../../app/data/entities';
 import { useListRows } from '../../app/data/lists';
 import type { CharacterView } from '../../app/data/protocol';
 import { SOURCE_GROUPS, sourceGroup, useSourceList } from '../../app/data/sourceList';
+import { AbilityIncrease } from './AbilityIncrease';
 import { ChoiceControl } from './ChoiceControl';
+import { isAbilityIncrease } from './increaseModel';
 import { forget } from './steps';
-import { Accordion, Clamp, StepTitle } from './ui';
+import { Accordion, StepTitle } from './ui';
 
 /** Species traits that are only facts already shown elsewhere. */
 const HIDDEN_TRAITS = new Set(['age', 'alignment', 'language', 'languages']);
@@ -60,6 +62,9 @@ export function SpeciesStep({
       />
     );
 
+  // The +2/+1 increase is one control: its inner picks are not listed on their own.
+  const increases = choices.filter(isAbilityIncrease).map((c) => `${c.id}/`);
+  const shown = choices.filter((c) => !increases.some((p) => c.id.startsWith(p)));
   const traits = (view?.features ?? []).filter(
     (f) => f.from === key || f.from.startsWith('subrace:'),
   );
@@ -91,7 +96,7 @@ export function SpeciesStep({
       </div>
 
       <div className="space-y-2.5">
-        {choices.map((c) => (
+        {shown.map((c) => (
           <Accordion
             key={c.id}
             title={c.label
@@ -100,15 +105,19 @@ export function SpeciesStep({
             subtitle={`${String(c.count)} Choice${c.count === 1 ? '' : 's'}`}
             pending={c.picks.length < c.count}
           >
-            <ChoiceControl
-              choice={c}
-              decisions={decisions}
-              isEnabled={isEnabled}
-              hideLabel
-              onChange={(picks) => {
-                setPicks(c.id, picks);
-              }}
-            />
+            {isAbilityIncrease(c) ? (
+              <AbilityIncrease choice={c} decisions={decisions} update={update} />
+            ) : (
+              <ChoiceControl
+                choice={c}
+                decisions={decisions}
+                isEnabled={isEnabled}
+                hideLabel
+                onChange={(picks) => {
+                  setPicks(c.id, picks);
+                }}
+              />
+            )}
           </Accordion>
         ))}
         <Traits speciesKey={key} />
@@ -134,9 +143,7 @@ function Traits({ speciesKey }: { speciesKey: string }) {
       {entries.map((e) => (
         <Accordion key={e.name} title={e.name}>
           <div className="text-sm">
-            <Clamp lines={6}>
-              <Entries entries={e.entries ?? []} />
-            </Clamp>
+            <Entries entries={e.entries ?? []} />
           </div>
         </Accordion>
       ))}

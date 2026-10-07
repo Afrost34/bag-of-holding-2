@@ -11,7 +11,7 @@ import {
   Skull,
   type LucideIcon,
 } from 'lucide-react';
-import { cellText, valueLabel } from './listModel';
+import { cellText, valueLabel } from './labels';
 import { rarityClass } from './rarity';
 
 const SCHOOLS: Record<string, { icon: LucideIcon; className: string }> = {

@@ -17,9 +17,11 @@ import { ClassStep } from './ClassStep';
 import { CompanionsStep } from './CompanionsStep';
 import { EquipmentStep } from './EquipmentStep';
 import { HomeStep } from './HomeStep';
+import { PortraitButton } from './Portrait';
 import { SheetView } from './SheetView';
 import { SpeciesStep } from './SpeciesStep';
 import { choicesByStep, rootOf, STEPS, stepOf, type StepId } from './steps';
+import { knownSpells, KnownSpellsContext } from './knownSpells';
 import { useCharacterView } from './useCharacterView';
 
 /**
@@ -102,6 +104,9 @@ export function CharacterPage({ id, step }: { id: string; step: StepId }) {
   const editionWarnings = (view?.warnings ?? []).filter((w) => w.kind === 'edition');
   const campaignName = campaigns.find((c) => c.id === character.campaign)?.name;
   const choices = byStep?.[step] ?? [];
+  const known = knownSpells(view?.grants ?? [], (k) =>
+    k === 'character' ? character.name : (view?.entities.find((e) => e.key === k)?.name ?? k),
+  );
 
   return (
     <div className="min-h-full">
@@ -166,12 +171,7 @@ export function CharacterPage({ id, step }: { id: string; step: StepId }) {
       <div className="mx-auto max-w-3xl px-4 py-5">
         <div className="mb-5 flex items-center gap-2 border-b border-border pb-4">
           <StepArrow step={prev} direction="previous" onClick={goTo} />
-          <div
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded border-2 border-dashed border-border bg-sunken font-serif text-2xl font-bold"
-            aria-hidden
-          >
-            {character.name.trim().charAt(0).toUpperCase() || '?'}
-          </div>
+          <PortraitButton character={character} view={view} save={save} />
           <div className="min-w-0 flex-1">
             <label htmlFor="character-name" className="block text-xs font-bold">
               Character Name
@@ -263,18 +263,20 @@ export function CharacterPage({ id, step }: { id: string; step: StepId }) {
           </section>
         )}
 
-        <StepBody
-          step={step}
-          character={character}
-          view={view}
-          choices={choices}
-          campaignName={campaignName}
-          isEnabled={isEnabled}
-          disabledSources={[...disabled]}
-          save={save}
-          update={update}
-          setPicks={setPicks}
-        />
+        <KnownSpellsContext.Provider value={known}>
+          <StepBody
+            step={step}
+            character={character}
+            view={view}
+            choices={choices}
+            campaignName={campaignName}
+            isEnabled={isEnabled}
+            disabledSources={[...disabled]}
+            save={save}
+            update={update}
+            setPicks={setPicks}
+          />
+        </KnownSpellsContext.Provider>
 
         <div className="mt-8 flex justify-between border-t border-border pt-4">
           {prev ? (

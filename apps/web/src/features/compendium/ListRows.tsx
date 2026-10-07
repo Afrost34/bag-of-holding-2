@@ -1,6 +1,5 @@
-import type { Category, EntityDetail, FieldDef, ListRow } from '@boh/data5e';
-import { castingTime, components, spellDuration, spellRange } from '@boh/data5e/format';
-import { Entries, EntityView, RichText } from '@boh/renderer';
+import type { Category, FieldDef, ListRow } from '@boh/data5e';
+import { EntityView } from '@boh/renderer';
 import { cn } from '@boh/ui';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ArrowDown, ArrowUp, ChevronsUpDown, Minus, Plus } from 'lucide-react';
@@ -8,10 +7,10 @@ import { useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent 
 import { AppLink } from '../../app/AppLink';
 import { entityPath, useEntity } from '../../app/data/entities';
 import { useAppNavigate, wantsNewTab } from '../../app/navigation';
-import { LegacyBadge } from './LegacyBadge';
-import { Cell, SchoolIcon } from './cells';
-import { valueLabel } from './listModel';
-import { rarityClass } from './rarity';
+import { LegacyBadge } from '../../app/lists/LegacyBadge';
+import { Cell, SchoolIcon } from '../../app/lists/cells';
+import { rarityClass } from '../../app/lists/rarity';
+import { SpellDetails } from '../../app/lists/SpellDetails';
 
 export interface ListRowsProps {
   category: Category;
@@ -275,42 +274,6 @@ function RowDetails({ row, sourceName }: { row: ListRow; sourceName: string }) {
           {sourceName}
           {row.page !== null && `, p. ${String(row.page)}`}
         </span>
-      </div>
-    </>
-  );
-}
-
-/** Spells as on D&D Beyond: a grid of stats over the description. */
-function SpellDetails({ row, entity }: { row: ListRow; entity: EntityDetail }) {
-  const d = entity.data;
-  const text = (v: unknown) => (typeof v === 'string' && v !== '' ? v : '—');
-  const stats: [string, string][] = [
-    ['Level', valueLabel('level', String(row.f.level ?? 0))],
-    ['Casting Time', castingTime(d)],
-    ['Range/Area', spellRange(d)],
-    ['Components', components(d)],
-    ['Duration', spellDuration(d)],
-    ['School', text(row.f.school)],
-    ['Attack/Save', text(row.f.attack)],
-    ['Damage/Effect', text(row.f.effect)],
-  ];
-  return (
-    <>
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-3 border-b-2 border-accent pb-4 sm:grid-cols-4">
-        {stats.map(([label, value]) => (
-          <div key={label} className="min-w-0">
-            <dt className="text-[11px] font-semibold tracking-wider text-muted uppercase">
-              {label}
-            </dt>
-            <dd className="first-letter:uppercase">
-              <RichText text={value} />
-            </dd>
-          </div>
-        ))}
-      </dl>
-      <div className="mt-3">
-        <Entries entries={d.entries} />
-        {d.entriesHigherLevel !== undefined && <Entries entries={d.entriesHigherLevel} />}
       </div>
     </>
   );

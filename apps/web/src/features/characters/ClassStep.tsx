@@ -1,10 +1,10 @@
-import { secureRng } from '@boh/dice';
 import { Entries } from '@boh/renderer';
 import type { AnsweredChoice, CharacterDecisions, ClassLevels } from '@boh/rules';
 import { Button, cn } from '@boh/ui';
 import { Dices, Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import { ArtImage } from '../../app/ArtImage';
+import { useDice } from '../../app/dice/store';
 import type { CharacterFile } from '../../app/characters/model';
 import { useEntity } from '../../app/data/entities';
 import { useListRows } from '../../app/data/lists';
@@ -13,8 +13,8 @@ import type { CharacterView } from '../../app/data/protocol';
 import { ChoiceControl } from './ChoiceControl';
 import { ClassChooser } from './ClassChooser';
 import { SpellChoicePanel } from './SpellChoicePanel';
-import { featureOf, forget, hitPointLevels } from './steps';
-import { Accordion, Clamp } from './ui';
+import { featureOf, forget, hitPointLevels, pickName } from './steps';
+import { Accordion } from './ui';
 
 const MAX_LEVEL = 20;
 const ORDINAL = (n: number) =>
@@ -220,6 +220,14 @@ function ClassPanel({
         }}
       />
     ));
+  // Spells the class and subclass give outright (domain spells, patron spells…).
+  const alwaysPrepared = [
+    ...new Set(
+      grants.flatMap((g) =>
+        g.kind === 'spell' && !g.choice && keys.includes(g.from) ? [g.key] : [],
+      ),
+    ),
+  ];
   const spellcasting = view?.sheet.spellcasting.filter((s) => keys.includes(s.from)) ?? [];
 
   return (
@@ -370,6 +378,12 @@ function ClassPanel({
               )}
             </p>
           ))}
+          {alwaysPrepared.length > 0 && (
+            <p className="text-sm">
+              <span className="font-bold">Always prepared: </span>
+              {alwaysPrepared.map(pickName).join(', ')}
+            </p>
+          )}
           {spellLists.map((c) => (
             <SpellChoicePanel
               key={c.id}
@@ -393,9 +407,7 @@ function FeatureText({ entityKey }: { entityKey: string }) {
   if (state.status !== 'found') return null;
   return (
     <div className="text-sm">
-      <Clamp>
-        <Entries entries={state.entity.data.entries} />
-      </Clamp>
+      <Entries entries={state.entity.data.entries} />
     </div>
   );
 }
@@ -412,6 +424,11 @@ function HitPoints({
 }) {
   const levels = hitPointLevels(view.sheet.hitDice, view.classes);
   const rolls = decisions.hitPointRolls;
+  const roll = useDice((s) => s.roll);
+  // Rolled with the app's dice, so the roll shows in the dice tray like any other.
+  const rollDie = async (faces: number, label: string) =>
+    (await roll({ kind: 'dice', expression: `1d${String(faces)}`, label: `Hit points: ${label}` }))
+      ?.total;
   const average = (faces: number) => faces / 2 + 1;
   const setRolls = (next: number[] | undefined) => {
     const { hitPointRolls: _old, ...rest } = decisions;
@@ -478,8 +495,12 @@ function HitPoints({
                 type="button"
                 aria-label={`Roll d${String(l.faces)} for ${l.label}`}
                 onClick={() => {
-                  const n = secureRng(l.faces);
-                  setRolls(levels.map((x, j) => (j === i ? n : (rolls[j] ?? average(x.faces)))));
+                  void rollDie(l.faces, l.label).then((n) => {
+                    if (n !== undefined)
+                      setRolls(
+                        levels.map((x, j) => (j === i ? n : (rolls[j] ?? average(x.faces)))),
+                      );
+                  });
                 }}
                 className="rounded p-0.5 text-muted hover:text-accent"
               >

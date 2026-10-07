@@ -82,29 +82,3 @@ export function StepTitle({ children, hint }: { children: ReactNode; hint?: Reac
     </div>
   );
 }
-
-/** Long text folded to a few lines, with "Show more". */
-export function Clamp({ children, lines = 4 }: { children: ReactNode; lines?: 3 | 4 | 6 }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div>
-      <div
-        className={cn(
-          'overflow-hidden',
-          !open && (lines === 3 ? 'line-clamp-3' : lines === 6 ? 'line-clamp-6' : 'line-clamp-4'),
-        )}
-      >
-        {children}
-      </div>
-      <button
-        type="button"
-        onClick={() => {
-          setOpen(!open);
-        }}
-        className="mt-1 text-sm font-medium text-link hover:underline"
-      >
-        {open ? 'Show less' : 'Show more'}
-      </button>
-    </div>
-  );
-}

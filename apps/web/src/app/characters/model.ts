@@ -74,6 +74,11 @@ export interface CharacterFile {
   /** Creatures that go with the character, by stat block. */
   companions: Companion[];
   preferences: CharacterPreferences;
+  /**
+   * The character's picture: a small image kept in the file (`data:` URL), or art from the
+   * 5etools data by its image path (`art:races/XPHB/Elf.webp`, a reference, not a copy).
+   */
+  portrait?: string;
   /** The campaign it belongs to; absent in the library. Not stored: it is where the file is. */
   campaign?: string;
 }
@@ -204,6 +209,7 @@ export function parseCharacter(
             isObj(c) && typeof c.key === 'string' && typeof c.kind === 'string',
         )
       : [],
+    ...(typeof json.portrait === 'string' ? { portrait: json.portrait } : {}),
     preferences: {
       ...DEFAULT_PREFERENCES,
       ...(isObj(json.preferences) ? (json.preferences as Partial<CharacterPreferences>) : {}),

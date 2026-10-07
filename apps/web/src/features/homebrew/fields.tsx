@@ -1,7 +1,7 @@
 import { Button } from '@boh/ui';
 import { ImagePlus, Trash2 } from 'lucide-react';
 import { useId, type ReactNode } from 'react';
-import { shrinkImage } from './images';
+import { shrinkImage } from '../../app/shrinkImage';
 
 /** Form pieces shared by the homebrew editors. */
 

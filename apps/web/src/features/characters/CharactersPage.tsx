@@ -7,6 +7,7 @@ import type { CharacterFile } from '../../app/characters/model';
 import { useCharacters } from '../../app/characters/store';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
+import { PortraitImage } from './Portrait';
 
 /** Stands for the library in selects (campaign ids are slugs, never start with @). */
 const LIBRARY = '@library';
@@ -164,8 +165,9 @@ export function CharactersPage() {
             {g.list.map((c) => (
               <li
                 key={c.id}
-                className="flex items-start gap-2 rounded-lg border border-border bg-surface p-4"
+                className="flex items-center gap-3 rounded-lg border border-border bg-surface p-3"
               >
+                <PortraitImage character={c} size={48} />
                 <AppLink
                   to={`/characters/${c.id}?step=class`}
                   className="min-w-0 flex-1 hover:text-accent"

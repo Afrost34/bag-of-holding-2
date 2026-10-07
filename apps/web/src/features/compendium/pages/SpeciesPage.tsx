@@ -3,7 +3,7 @@ import { creatureType, sizeText, speed } from '@boh/data5e/format';
 import { Entries, RichText } from '@boh/renderer';
 import { useSpeciesPage } from '../../../app/data/pages';
 import { usePageTitle } from '../../../app/tabs/usePageTitle';
-import { LegacyBadge } from '../LegacyBadge';
+import { LegacyBadge } from '../../../app/lists/LegacyBadge';
 import { ArticleLayout, EntityHero, type TocItem } from './ArticleLayout';
 import { PageMissing } from './PageMissing';
 import { abilityText } from './speciesFacts';
