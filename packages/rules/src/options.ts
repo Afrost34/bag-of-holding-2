@@ -273,16 +273,20 @@ export function optionsFor(
       return [];
     case 'items': {
       const groups = f.equipmentType?.split(';');
-      return preferNewest(mundane(catalog))
-        .filter((i) =>
-          groups
-            ? groups.some((g) => matchesEquipmentType(i.data, g))
-            : f.filter
-              ? matchesItemFilter(i.data, f.filter)
-              : false,
-        )
-        .map((i) => summary(i))
-        .sort(byName);
+      return (
+        preferNewest(mundane(catalog))
+          // Weapon Mastery only offers weapons that have a mastery property.
+          .filter((i) => choice.kind !== 'weaponMastery' || Array.isArray(i.data.mastery))
+          .filter((i) =>
+            groups
+              ? groups.some((g) => matchesEquipmentType(i.data, g))
+              : f.filter
+                ? matchesItemFilter(i.data, f.filter)
+                : false,
+          )
+          .map((i) => summary(i))
+          .sort(byName)
+      );
     }
   }
 }

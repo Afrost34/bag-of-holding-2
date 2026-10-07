@@ -50,7 +50,7 @@ export function ChoiceList({
 }
 
 /** The features the character has from a set of entities, by level. */
-function FeatureList({
+export function FeatureList({
   view,
   from,
 }: {
@@ -72,57 +72,6 @@ function FeatureList({
           </li>
         ))}
       </ul>
-    </div>
-  );
-}
-
-export function ClassStep(props: StepProps) {
-  const { decisions, view, update } = props;
-  const first = decisions.classes[0];
-  const subclass = view?.classes[0]?.subclass;
-  const setLevel = (levels: number) => {
-    if (!first) return;
-    update({ ...decisions, classes: [{ ...first, levels }, ...decisions.classes.slice(1)] });
-  };
-  return (
-    <div className="space-y-5">
-      <EntityPicker
-        category="classes"
-        types={['class']}
-        noun="Class"
-        plural="classes"
-        value={first?.class}
-        edition={decisions.edition}
-        isEnabled={props.isEnabled}
-        onPick={(key) => {
-          if (!key) return;
-          const cleaned = forget(decisions, first?.class, subclass);
-          update({ ...cleaned, classes: [{ class: key, levels: first?.levels ?? 1 }] });
-        }}
-      />
-      {first && (
-        <div className="flex flex-wrap items-center gap-3">
-          <label htmlFor="class-level" className="font-medium">
-            Level
-          </label>
-          <select
-            id="class-level"
-            value={first.levels}
-            onChange={(e) => {
-              setLevel(Number(e.target.value));
-            }}
-            className="rounded-md border border-border bg-surface px-3 py-2"
-          >
-            {Array.from({ length: 20 }, (_, i) => i + 1).map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-      <ChoiceList {...props} />
-      <FeatureList view={view} from={(k) => k.startsWith('class:') || k.startsWith('subclass:')} />
     </div>
   );
 }

@@ -61,8 +61,12 @@ export interface CharacterDecisions {
 }
 
 export interface InventoryItem {
-  /** Item key (`item:dagger@xphb`; mundane items resolve to `baseitem`). */
+  /**
+   * Item key (`item:dagger@xphb`; mundane items resolve to `baseitem`). Empty for things that are
+   * not in the data ("a set of weighted dice"), which carry a `name` instead.
+   */
   key: string;
+  name?: string;
   quantity: number;
   equipped?: boolean;
   attuned?: boolean;
@@ -111,7 +115,7 @@ export interface AnsweredChoice extends Choice {
 }
 
 export interface Warning {
-  kind: 'edition' | 'orphan' | 'missing' | 'invalid' | 'too-many';
+  kind: 'edition' | 'orphan' | 'missing' | 'invalid' | 'too-many' | 'rule';
   message: string;
   /** The entity key or choice id concerned. */
   ref: string;
@@ -570,6 +574,21 @@ export function buildCharacter(
     }
   });
 
+  // Multiclassing: each class's ability requirements (the first class's too). Warn, never block.
+  if (decisions.classes.length > 1) {
+    const scores = scoreTotals(decisions, b.grants);
+    for (const c of classes) {
+      const req = b.entities.get(c.key)?.data.multiclassing;
+      const requirements = isObj(req) ? req.requirements : undefined;
+      if (isObj(requirements) && !meetsRequirements(requirements, scores))
+        b.warn(
+          'rule',
+          `Multiclassing with ${c.name} needs ${requirementText(requirements)}.`,
+          c.key,
+        );
+    }
+  }
+
   // Decisions nobody asked for: kept, and reported.
   const asked = new Set(b.choices.map((c) => c.id));
   for (const id of Object.keys(decisions.choices))
@@ -586,6 +605,56 @@ export function buildCharacter(
     features: b.features,
     warnings: b.warnings,
   };
+}
+
+/** Ability scores after increases (capped at 20, or a higher cap an increase allows). */
+export function scoreTotals(
+  decisions: CharacterDecisions,
+  grants: readonly Grant[],
+): Record<Ability, number> {
+  const out = { ...decisions.baseScores };
+  for (const a of ABILITIES) {
+    let total = decisions.baseScores[a];
+    let cap = 20;
+    for (const g of grants)
+      if (g.kind === 'ability' && g.ability === a) {
+        total += g.amount;
+        if (g.max) cap = Math.max(cap, g.max);
+      }
+    out[a] = Math.min(total, Math.max(cap, decisions.baseScores[a]));
+  }
+  return out;
+}
+
+/** `{ int: 13 }`, `{ str: 13, cha: 13 }` (both) or `{ or: [{ str: 13, dex: 13 }] }` (either). */
+export function meetsRequirements(
+  req: Record<string, unknown>,
+  scores: Record<Ability, number>,
+): boolean {
+  const all = (r: Record<string, unknown>) =>
+    Object.entries(r).every(([k, v]) => !isAbility(k) || typeof v !== 'number' || scores[k] >= v);
+  if (Array.isArray(req.or))
+    return req.or.some(
+      (alt) =>
+        isObj(alt) &&
+        Object.entries(alt).some(
+          ([k, v]) => isAbility(k) && typeof v === 'number' && scores[k] >= v,
+        ),
+    );
+  return all(req);
+}
+
+const ABILITY_NAMES: Record<Ability, string> = {
+  str: 'Strength', dex: 'Dexterity', con: 'Constitution', int: 'Intelligence', wis: 'Wisdom', cha: 'Charisma',
+}; // prettier-ignore
+
+export function requirementText(req: Record<string, unknown>): string {
+  const parts = (r: Record<string, unknown>) =>
+    Object.entries(r).flatMap(([k, v]) =>
+      isAbility(k) && typeof v === 'number' ? [`${ABILITY_NAMES[k]} ${String(v)}`] : [],
+    );
+  if (Array.isArray(req.or)) return req.or.filter(isObj).flatMap(parts).join(' or ');
+  return parts(req).join(' and ');
 }
 
 /** Species traits shown as entries ("Darkvision", "Fury of the Small"), minus the structural ones. */

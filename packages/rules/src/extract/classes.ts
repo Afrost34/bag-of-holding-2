@@ -255,12 +255,13 @@ export function readClassLevel(
           issues.add(id, `unknown optionalfeatureProgression field ${k}`);
     }
 
-  // 2024 Weapon Mastery: a class-table column ("Weapon Mastery": 2, 2, 2, 3…).
+  // 2024 Weapon Mastery: a class-table column ("Weapon Mastery": 2, 2, 2, 3…). One running list,
+  // asked at the current level: the weapons can be changed after every Long Rest.
   const mastery = tableColumn(entity, /^weapon mastery$/i);
-  const masteries = mastery ? progressionDelta(mastery, level) : 0;
+  const masteries = mastery && options.current ? (mastery[level - 1] ?? 0) : 0;
   if (masteries > 0)
     out.choices.push({
-      id: `${id}/weaponMastery`,
+      id: `${key}/weaponMastery`,
       kind: 'weaponMastery',
       count: masteries,
       level,

@@ -3,7 +3,8 @@ import { ABILITIES, newCharacter, type Ability, type CharacterDecisions } from '
 /**
  * Characters as stored in the user's data:
  *
- *   characters/<id>.json     the character library (outside any campaign)
+ *   characters/<id>.json                      the character library (outside any campaign)
+ *   campaigns/<campaign>/characters/<id>.json copies made for a campaign
  *
  * A file holds the player's decisions (what the rules engine rebuilds the character from) and
  * the details only a person can write. Nothing computed is stored except a one-line summary for
@@ -36,10 +37,53 @@ export interface CharacterFile {
   rolls?: number[];
   decisions: CharacterDecisions;
   details: CharacterDetails;
+  /** Coins carried. */
+  coins: Coins;
+  /** Creatures that go with the character, by stat block. */
+  companions: Companion[];
+  /** The campaign it belongs to; absent in the library. Not stored: it is where the file is. */
+  campaign?: string;
 }
 
-export function characterPath(id: string): string {
-  return `${CHARACTERS_DIR}/${id}.json`;
+export const COMPANION_KINDS = ['companion', 'familiar', 'mount', 'wild shape', 'summon'] as const;
+export type CompanionKind = (typeof COMPANION_KINDS)[number];
+
+/** A creature attached to a character: a reference to its stat block, never a copy. */
+export interface Companion {
+  /** Monster key (`monster:owl@xmm`). */
+  key: string;
+  kind: CompanionKind;
+  /** The character's name for it ("Hoot"). */
+  name?: string;
+  notes?: string;
+}
+
+export interface Coins {
+  cp: number;
+  sp: number;
+  ep: number;
+  gp: number;
+  pp: number;
+}
+
+export const NO_COINS: Coins = { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 };
+
+/** Copper pieces as the fewest coins: 1900 → 19 gp. */
+export function coinsFromCopper(cp: number): Coins {
+  return { pp: 0, gp: Math.floor(cp / 100), ep: 0, sp: Math.floor((cp % 100) / 10), cp: cp % 10 };
+}
+
+export function addCoins(a: Coins, b: Coins): Coins {
+  return { cp: a.cp + b.cp, sp: a.sp + b.sp, ep: a.ep + b.ep, gp: a.gp + b.gp, pp: a.pp + b.pp };
+}
+
+/** Where a character lives: the library, or a campaign's folder. */
+export function characterDir(campaign?: string): string {
+  return campaign ? `campaigns/${campaign}/${CHARACTERS_DIR}` : CHARACTERS_DIR;
+}
+
+export function characterPath(id: string, campaign?: string): string {
+  return `${characterDir(campaign)}/${id}.json`;
 }
 
 /** A short random id: characters are often renamed, so the name is not the id. */
@@ -69,6 +113,8 @@ export function newCharacterFile(
     abilityMethod: 'standard',
     decisions: { ...newCharacter(edition), baseScores: standardArrayDefault() },
     details: {},
+    coins: { ...NO_COINS },
+    companions: [],
   };
 }
 
@@ -76,7 +122,11 @@ const isObj = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
 /** Reads a stored character, filling what older files lack. Null when it is not one. */
-export function parseCharacter(text: string | null, id: string): CharacterFile | null {
+export function parseCharacter(
+  text: string | null,
+  id: string,
+  campaign?: string,
+): CharacterFile | null {
   if (text === null) return null;
   let json: unknown;
   try {
@@ -113,11 +163,20 @@ export function parseCharacter(text: string | null, id: string): CharacterFile |
       : {}),
     decisions,
     details: isObj(json.details) ? json.details : {},
+    coins: { ...NO_COINS, ...(isObj(json.coins) ? (json.coins as Partial<Coins>) : {}) },
+    companions: Array.isArray(json.companions)
+      ? json.companions.filter(
+          (c): c is Companion =>
+            isObj(c) && typeof c.key === 'string' && typeof c.kind === 'string',
+        )
+      : [],
+    ...(campaign ? { campaign } : {}),
   };
 }
 
 export function serializeCharacter(c: CharacterFile): string {
-  return `${JSON.stringify(c, null, 2)}\n`;
+  const { campaign: _where, ...stored } = c;
+  return `${JSON.stringify(stored, null, 2)}\n`;
 }
 
 // region Ability scores

@@ -210,6 +210,34 @@ export function fixtureFiles(): Record<string, unknown> {
         },
       ],
     },
+    'data/class/class-fighter.json': {
+      class: [
+        {
+          name: 'Fighter',
+          source: 'PHB',
+          page: 70,
+          hd: { number: 1, faces: 10 },
+          proficiency: ['str', 'con'],
+          multiclassing: { requirements: { or: [{ str: 13, dex: 13 }] } },
+          startingProficiencies: {
+            skills: [{ choose: { from: ['acrobatics', 'athletics', 'history'], count: 2 } }],
+            armor: ['light', 'medium', 'heavy', 'shield'],
+            weapons: ['simple', 'martial'],
+          },
+          classFeatures: ['Second Wind|Fighter||1'],
+        },
+      ],
+      classFeature: [
+        {
+          name: 'Second Wind',
+          source: 'PHB',
+          className: 'Fighter',
+          classSource: 'PHB',
+          level: 1,
+          entries: ['You regain {@dice 1d10} hit points.'],
+        },
+      ],
+    },
     'data/tables.json': {
       table: [
         {
