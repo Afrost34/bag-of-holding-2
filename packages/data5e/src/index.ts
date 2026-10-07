@@ -65,3 +65,16 @@ export {
 } from './lists/categories';
 export { buildRow, type ListRow, type FieldValue } from './lists/rows';
 export { stripTagsPlain } from './lists/strip';
+export {
+  areaIndex,
+  bookSummary,
+  headerKey,
+  headerKeys,
+  namedEntries,
+  tocFromContents,
+  type BookContent,
+  type BookKind,
+  type BookSummary,
+  type TocChapter,
+  type TocHeader,
+} from './books';

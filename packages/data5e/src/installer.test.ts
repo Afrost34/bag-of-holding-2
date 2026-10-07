@@ -82,6 +82,21 @@ describe('installData', () => {
     expect(sources.find((s) => s.id === 'PHB')).toMatchObject({ kind: 'book', edition: '2014' });
   });
 
+  it('serves the library and a book with its contents and chapters', async () => {
+    await installData(index, fixtureSource());
+    expect(index.library('adventure')).toEqual([
+      expect.objectContaining({ id: 'LMoP', name: 'Lost Mine of Phandelver', levels: '1–5' }),
+    ]);
+    const book = index.bookContent('adventure', 'lmop');
+    expect(book?.toc.map((c) => c.name)).toEqual(['Introduction', 'Goblin Arrows', 'Phandalin']);
+    expect(book?.toc[1]?.headers.map((h) => h.header)).toEqual([
+      'Goblin Ambush',
+      'Cragmaw Hideout',
+    ]);
+    expect(book?.chapters).toHaveLength(3);
+    expect(index.bookContent('book', 'nope')).toBeUndefined();
+  });
+
   it('updates incrementally and reports broken references with suggestions', async () => {
     await installData(index, fixtureSource());
 

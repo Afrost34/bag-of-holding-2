@@ -35,7 +35,58 @@ export function fixtureFiles(): Record<string, unknown> {
         },
       ],
     },
-    'data/adventures.json': { adventure: [] },
+    'data/adventures.json': {
+      adventure: [
+        {
+          name: 'Lost Mine of Phandelver',
+          id: 'LMoP',
+          source: 'LMoP',
+          group: 'supplement',
+          storyline: 'Starter Set',
+          level: { start: 1, end: 5 },
+          published: '2014-07-15',
+          contents: [
+            { name: 'Introduction' },
+            {
+              name: 'Goblin Arrows',
+              ordinal: { type: 'part', identifier: 1 },
+              headers: ['Goblin Ambush', 'Cragmaw Hideout'],
+            },
+            { name: 'Phandalin', ordinal: { type: 'part', identifier: 2 } },
+          ],
+        },
+      ],
+    },
+    'data/adventure/adventure-lmop.json': {
+      data: [
+        { type: 'section', name: 'Introduction', entries: ['Welcome, adventurers.'] },
+        {
+          type: 'section',
+          name: 'Part 1: Goblin Arrows',
+          entries: [
+            { type: 'entries', name: 'Goblin Ambush', entries: ['Four goblins attack.'] },
+            {
+              type: 'entries',
+              name: 'Cragmaw Hideout',
+              entries: ['The goblins retreat to {@area the cave mouth|lmop-cave|x}.'],
+            },
+          ],
+        },
+        {
+          type: 'section',
+          name: 'Part 2: Phandalin',
+          entries: [
+            'The town of Phandalin.',
+            {
+              type: 'entries',
+              id: 'lmop-cave',
+              name: '1. Cave Mouth',
+              entries: ['A stream flows out of the cave.'],
+            },
+          ],
+        },
+      ],
+    },
     'data/spells/spells-phb.json': {
       spell: [
         { name: 'Fireball', source: 'PHB', page: 241, level: 3, reprintedAs: ['Fireball|XPHB'] },
@@ -103,7 +154,8 @@ export function fixtureFiles(): Record<string, unknown> {
     },
     'data/foundry-spells.json': { spell: [{ name: 'Ignored', source: 'PHB' }] },
     'js/parser.js':
-      'Parser.SRC_GEN = "GEN";\nParser.SOURCE_JSON_TO_FULL[Parser.SRC_GEN] = "Generic";\n',
+      'Parser.SRC_GEN = "GEN";\nParser.SOURCE_JSON_TO_FULL[Parser.SRC_GEN] = "Generic";\n' +
+      'Parser.SRC_LMoP = "LMoP";\nParser.SOURCE_JSON_TO_FULL[Parser.SRC_LMoP] = "Lost Mine of Phandelver";\n',
   };
 }
 

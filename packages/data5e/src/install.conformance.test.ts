@@ -5,6 +5,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { headerKeys, namedEntries } from './books';
 import { LocalDataSource } from './dataSource';
 import { CATEGORIES, categoryById, SUPPORT_TYPES } from './lists/categories';
 import { EntityIndex } from './db/entityIndex';
@@ -95,6 +96,44 @@ describe.runIf(hasLocalData())('full 5etools install', () => {
       (t) => !listed.has(t) && !t.endsWith('Fluff') && !NOT_BROWSABLE.has(t),
     );
     expect(unlisted).toEqual([]);
+  });
+
+  it('reaches every table-of-contents section of every book and adventure', () => {
+    const missing: string[] = [];
+    const missingChapters: string[] = [];
+    let checked = 0;
+    let headers = 0;
+    for (const kind of ['book', 'adventure'] as const) {
+      for (const summary of index.library(kind)) {
+        const content = index.bookContent(kind, summary.id);
+        if (!content) {
+          missing.push(`${kind} ${summary.id}: no text`);
+          continue;
+        }
+        content.toc.forEach((chapter, i) => {
+          checked++;
+          const names = namedEntries(content.chapters[i]);
+          if (content.chapters[i] === undefined)
+            missingChapters.push(`${summary.id} ch${String(i)}`);
+          for (const h of chapter.headers) {
+            headers++;
+            const keys = headerKeys(h.header);
+            const occurrences = names.filter((n) => keys.includes(n)).length;
+            if (occurrences <= h.index) missing.push(`${summary.id} ch${String(i)}: "${h.header}"`);
+          }
+        });
+      }
+    }
+    expect(checked).toBeGreaterThan(1000);
+    // Every chapter has text.
+    expect(missingChapters).toEqual([]);
+    // Section headers: at least 99% point at a named section; the reader falls back to the top
+    // of the chapter for the rest (upstream typos such as "Monsters (Z)" with no Z monsters).
+    // FRAiF chapter 7 lists the headers of an adventure published separately (FRAiF-TLLOL).
+    const sectionMisses = missing.filter((m) => !m.startsWith('FRAiF ch7'));
+    expect(sectionMisses.length / headers, sectionMisses.slice(0, 40).join('\n')).toBeLessThan(
+      0.01,
+    );
   });
 
   it('is a no-op when re-run with the same files', async () => {

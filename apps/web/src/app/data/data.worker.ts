@@ -234,6 +234,14 @@ const api: DataWorkerApi = {
     return rows;
   },
 
+  async library(kind) {
+    return (await indexPromise).library(kind);
+  },
+
+  async bookContent(kind, id) {
+    return (await indexPromise).bookContent(kind, id);
+  },
+
   async categoryCounts() {
     const index = await indexPromise;
     return Object.fromEntries(CATEGORIES.map((c) => [c.id, index.countTypes(c.types)]));

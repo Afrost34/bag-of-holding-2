@@ -1,6 +1,6 @@
 import type { EntitySummary } from '@boh/data5e';
 import { CATEGORIES } from '@boh/data5e';
-import { BookOpen, Search } from 'lucide-react';
+import { BookOpen, Library, Map as MapIcon, ScrollText, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
 import { dataWorker } from '../../app/data/client';
@@ -11,6 +11,12 @@ import { disabledSourceIds, useSourcePrefs } from '../../app/data/sourcePrefs';
 import { BusyNotice } from '../../app/data/BusyNotice';
 import { useData } from '../../app/data/store';
 import { typeLabel } from '../../app/format';
+
+const LIBRARY_LINKS = [
+  { to: '/compendium/library/books', label: 'Books', icon: Library },
+  { to: '/compendium/library/adventures', label: 'Adventures', icon: MapIcon },
+  { to: '/compendium/quickref/bookref-quick', label: 'Quick reference', icon: ScrollText },
+];
 
 /** Compendium home: search everything, or pick a list to browse with filters. */
 export function CompendiumPage() {
@@ -107,7 +113,21 @@ export function CompendiumPage() {
             )}
           </ul>
           {query.length < 2 && (
-            <nav aria-label="Browse" className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <nav aria-label="Library" className="mt-6 grid grid-cols-3 gap-2">
+              {LIBRARY_LINKS.map(({ to, label, icon: Icon }) => (
+                <AppLink
+                  key={to}
+                  to={to}
+                  className="flex flex-col items-center gap-1 rounded-lg border border-border bg-surface px-3 py-3 text-center shadow-card hover:border-accent sm:flex-row sm:text-left"
+                >
+                  <Icon className="h-5 w-5 shrink-0 text-accent" aria-hidden />
+                  <span className="font-medium">{label}</span>
+                </AppLink>
+              ))}
+            </nav>
+          )}
+          {query.length < 2 && (
+            <nav aria-label="Browse" className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
               {CATEGORIES.filter((c) => (counts?.[c.id] ?? 1) > 0).map((c) => (
                 <AppLink
                   key={c.id}

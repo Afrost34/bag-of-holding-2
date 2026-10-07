@@ -40,7 +40,10 @@ export function EntityCard({
         compact ? 'p-3' : 'p-4 shadow-card',
       )}
     >
-      <h3 className={cn('font-serif font-bold', compact ? 'text-lg' : 'text-xl')}>
+      <h3
+        className={cn('font-serif font-bold', compact ? 'text-lg' : 'text-xl')}
+        data-title={entity.name}
+      >
         <RichText text={entity.name} />
       </h3>
       <EntityMeta entity={entity} className="mb-1" />
