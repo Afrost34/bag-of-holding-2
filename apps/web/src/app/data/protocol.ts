@@ -2,6 +2,7 @@ import type {
   BookContent,
   BookKind,
   BookSummary,
+  ClassPage,
   EntityDetail,
   ListRow,
   EntitySummary,
@@ -12,6 +13,8 @@ import type {
   SearchOptions,
   SourceInfo,
   SourceSummary,
+  SpeciesPage,
+  SubclassPage,
 } from '@boh/data5e';
 
 /** Shared between the data worker and the UI. Everything crosses the worker boundary by value. */
@@ -81,6 +84,10 @@ export interface DataWorkerApi {
   library(kind: 'book' | 'adventure'): Promise<BookSummary[]>;
   /** Contents and chapters of a book, adventure or the quick reference. */
   bookContent(kind: BookKind, id: string): Promise<BookContent | undefined>;
+  /** A class with its features and subclasses; a subclass with its features; a species. */
+  classPage(key: string): Promise<ClassPage | undefined>;
+  subclassPage(key: string): Promise<SubclassPage | undefined>;
+  speciesPage(key: string): Promise<SpeciesPage | undefined>;
   /** For each candidate list, the first key that exists (link resolution). */
   resolve(candidateLists: string[][]): Promise<(string | null)[]>;
   checkReferences(references: { key: string; usedIn: string }[]): Promise<ReferenceReport>;

@@ -3,6 +3,7 @@ import {
   castingTime,
   components,
   DAMAGE_TYPES,
+  featAbility,
   itemProperties,
   itemTypeLine,
   itemValue,
@@ -43,6 +44,10 @@ export function EntityView({ type, data, edition = '2014' }: EntityViewProps) {
     case 'magicvariant':
     case 'itemGroup':
       return <ItemView data={data} />;
+    case 'feat':
+      return <FeatView data={data} />;
+    case 'background':
+      return <BackgroundView data={data} />;
     default:
       return <GenericView data={data} />;
   }
@@ -143,6 +148,65 @@ function GenericView({ data }: { data: Obj }) {
         entries={data.entries ?? data.entry ?? (Array.isArray(data.data) ? data.data : undefined)}
         depth={1}
       />
+    </RollLabel>
+  );
+}
+
+const FEAT_CATEGORIES: Record<string, string> = {
+  O: 'Origin Feat', G: 'General Feat', FS: 'Fighting Style Feat', 'FS:P': 'Fighting Style Feat (Paladin)',
+  'FS:R': 'Fighting Style Feat (Ranger)', EB: 'Epic Boon Feat', D: 'Dragonmark Feat',
+}; // prettier-ignore
+
+/** A feat: its category (2024), prerequisite and text. */
+function FeatView({ data }: { data: Obj }) {
+  const category = FEAT_CATEGORIES[str(data.category) ?? ''];
+  const prereq = data.prerequisite !== undefined ? prerequisite(data.prerequisite) : '';
+  const asi = featAbility(data.ability);
+  return (
+    <RollLabel label={str(data.name)}>
+      {(category ?? prereq) && (
+        <p className="text-sm text-muted italic">
+          {category}
+          {category && prereq && ' ('}
+          {prereq && (
+            <>
+              Prerequisite: <RichText text={prereq} />
+            </>
+          )}
+          {category && prereq && ')'}
+        </p>
+      )}
+      {asi && (
+        <Entries
+          entries={[{ type: 'entries', name: 'Ability Score Increase', entries: [asi] }]}
+          depth={2}
+        />
+      )}
+      <Entries entries={data.entries} depth={1} />
+    </RollLabel>
+  );
+}
+
+/**
+ * A background, followed by the feat it grants (2024). The data lists feats as
+ * `magic initiate; cleric|xphb`: the part after `;` is the choice, not the feat's name.
+ */
+function BackgroundView({ data }: { data: Obj }) {
+  const featList: unknown[] = Array.isArray(data.feats) ? data.feats : [];
+  const feats = featList
+    .flatMap((f) => (typeof f === 'object' && f !== null ? Object.keys(f) : []))
+    .map((key) => {
+      const [name = '', source = ''] = key.split('|');
+      return `${(name.split(';')[0] ?? name).trim()}|${source}`;
+    });
+  return (
+    <RollLabel label={str(data.name)}>
+      <Entries entries={data.entries} depth={1} />
+      {feats.length > 0 && (
+        <div className="mt-4">
+          <Entries entries={feats.map((feat) => ({ type: 'refFeat', feat }))} depth={1} />
+        </div>
+      )}
     </RollLabel>
   );
 }

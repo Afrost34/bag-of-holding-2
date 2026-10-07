@@ -152,6 +152,21 @@ export function fixtureFiles(): Record<string, unknown> {
           hd: { number: 1, faces: 8 },
           proficiency: ['dex', 'cha'],
           multiclassing: { requirements: { cha: 13 } },
+          startingProficiencies: {
+            skills: [{ any: 3 }],
+            weapons: ['simple'],
+            armor: ['light'],
+          },
+          classTableGroups: [
+            {
+              colLabels: ['Cantrips Known'],
+              rows: Array.from({ length: 20 }, (_, i) => [i < 3 ? 2 : 3]),
+            },
+          ],
+          classFeatures: [
+            'Bardic Inspiration|Bard||1',
+            { classFeature: 'Bard College|Bard||3', gainSubclassFeature: true },
+          ],
         },
       ],
       subclass: [
@@ -161,6 +176,19 @@ export function fixtureFiles(): Record<string, unknown> {
           source: 'PHB',
           className: 'Bard',
           classSource: 'PHB',
+          subclassFeatures: ['College of Lore|Bard||Lore||3'],
+        },
+      ],
+      subclassFeature: [
+        {
+          name: 'College of Lore',
+          source: 'PHB',
+          className: 'Bard',
+          classSource: 'PHB',
+          subclassShortName: 'Lore',
+          subclassSource: 'PHB',
+          level: 3,
+          entries: ['Lore bards know something about most things.'],
         },
       ],
       classFeature: [
@@ -170,6 +198,39 @@ export function fixtureFiles(): Record<string, unknown> {
           className: 'Bard',
           classSource: 'PHB',
           level: 1,
+          entries: ['You can inspire others, granting a {@dice d6}.'],
+        },
+        {
+          name: 'Bard College',
+          source: 'PHB',
+          className: 'Bard',
+          classSource: 'PHB',
+          level: 3,
+          entries: ['You delve into the advanced techniques of a bard college.'],
+        },
+      ],
+    },
+    'data/races.json': {
+      race: [
+        {
+          name: 'Elf',
+          source: 'PHB',
+          size: ['M'],
+          speed: 30,
+          ability: [{ dex: 2 }],
+          entries: [{ type: 'entries', name: 'Darkvision', entries: ['You can see in the dark.'] }],
+        },
+      ],
+      subrace: [
+        {
+          name: 'High',
+          source: 'PHB',
+          raceName: 'Elf',
+          raceSource: 'PHB',
+          ability: [{ int: 1 }],
+          entries: [
+            { type: 'entries', name: 'Cantrip', entries: ['You know one wizard cantrip.'] },
+          ],
         },
       ],
     },

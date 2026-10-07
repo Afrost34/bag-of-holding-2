@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState, type ComponentProps } from 'react
 import { AppLink } from '../../app/AppLink';
 import { useAppNavigate } from '../../app/navigation';
 import { useBookContent } from '../../app/data/books';
+import { scrollToElement } from '../../app/scroll';
 import { readerPath, referencePath } from '../../app/renderer/referenceTarget';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 
@@ -33,13 +34,13 @@ function scrollToTarget(container: HTMLElement, search: ReaderSearch, headerInde
     target = matches[headerIndex] ?? matches[0] ?? null;
   }
   if (target) {
-    target.scrollIntoView({ block: 'start' });
+    scrollToElement(target);
     target.classList.add('boh-flash');
     setTimeout(() => {
       target.classList.remove('boh-flash');
     }, 1600);
   } else {
-    (container.parentElement ?? container).scrollIntoView({ block: 'start' });
+    scrollToElement(container.parentElement ?? container, { offset: 0 });
   }
 }
 

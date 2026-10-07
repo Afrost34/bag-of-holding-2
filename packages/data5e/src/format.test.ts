@@ -7,6 +7,7 @@ import {
   components,
   creatureType,
   damageList,
+  featAbility,
   itemProperties,
   itemTypeLine,
   itemValue,
@@ -119,5 +120,19 @@ describe('prerequisites', () => {
     expect(prerequisite([{ spellcasting: true }])).toBe('The ability to cast at least one spell');
     expect(ordinal(11)).toBe('11th');
     expect(ordinal(22)).toBe('22nd');
+  });
+
+  it('describes feat ability increases', () => {
+    expect(featAbility([{ str: 1 }])).toBe(
+      'Increase your Strength score by 1, to a maximum of 20.',
+    );
+    expect(featAbility([{ choose: { from: ['int', 'wis', 'cha'] } }])).toBe(
+      'Increase your Intelligence, Wisdom, or Charisma score by 1, to a maximum of 20.',
+    );
+    expect(
+      featAbility([{ choose: { from: ['str', 'dex', 'con', 'int', 'wis', 'cha'] }, max: 30 }]),
+    ).toBe('Increase one ability score of your choice by 1, to a maximum of 30.');
+    expect(featAbility([{ choose: { from: ['str'], amount: 2 }, hidden: true }])).toBe('');
+    expect(featAbility(undefined)).toBe('');
   });
 });

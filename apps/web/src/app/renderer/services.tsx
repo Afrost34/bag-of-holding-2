@@ -1,4 +1,4 @@
-import { RendererProvider, type RendererServices } from '@boh/renderer';
+import { Entries, RendererProvider, RichText, type RendererServices } from '@boh/renderer';
 import * as HoverCard from '@radix-ui/react-hover-card';
 import type { ComponentProps, ReactNode } from 'react';
 import { AppLink } from '../AppLink';
@@ -82,6 +82,8 @@ function Preview({ entityKey }: { entityKey: string }) {
   );
 }
 
+const INLINE_TYPES = new Set(['classFeature', 'subclassFeature', 'optionalfeature']);
+
 function EmbeddedEntity({ candidates, name }: { candidates: string[]; tag: string; name: string }) {
   const resolved = useResolvedLink(candidates);
   const entity = useEntity(resolved.status === 'found' ? resolved.key : null);
@@ -92,6 +94,17 @@ function EmbeddedEntity({ candidates, name }: { candidates: string[]; tag: strin
     return <p className="text-muted italic">{name} (not in your data)</p>;
   }
   if (entity.status !== 'found') return <p className="text-muted">Loading {name}…</p>;
+  // Features and options read as part of the text around them, not as separate cards.
+  if (INLINE_TYPES.has(entity.entity.type)) {
+    return (
+      <section className="my-3">
+        <h4 className="font-serif font-bold">
+          <RichText text={name || entity.entity.name} />
+        </h4>
+        <Entries entries={entity.entity.data.entries} depth={3} />
+      </section>
+    );
+  }
   return <EntityCard entity={entity.entity} />;
 }
 

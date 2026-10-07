@@ -32,7 +32,10 @@ describe('installData', () => {
       monster: 2,
       class: 1,
       subclass: 1,
-      classFeature: 1,
+      classFeature: 2,
+      subclassFeature: 1,
+      race: 1,
+      subrace: 1,
       book: 4,
       bookData: 1,
     });
@@ -80,6 +83,28 @@ describe('installData', () => {
     const sources = index.listSources();
     expect(sources.find((s) => s.id === 'XPHB')).toMatchObject({ edition: '2024', entities: 2 });
     expect(sources.find((s) => s.id === 'PHB')).toMatchObject({ kind: 'book', edition: '2014' });
+  });
+
+  it('assembles class, subclass and species pages', async () => {
+    await installData(index, fixtureSource());
+    const bard = index.classPage('class:bard@phb');
+    // 2014 references leave the class source empty: it means PHB.
+    expect(
+      bard?.features.map((f) => [f.level, f.name, f.entity !== undefined, f.gainSubclass]),
+    ).toEqual([
+      [1, 'Bardic Inspiration', true, false],
+      [3, 'Bard College', true, true],
+    ]);
+    expect(bard?.subclasses.map((s) => s.name)).toEqual(['College of Lore']);
+    expect(bard?.fluff?.name).toBe('Bard');
+
+    const lore = index.subclassPage('subclass:lore|bard|phb@phb');
+    expect(lore?.cls?.key).toBe('class:bard@phb');
+    expect(lore?.features.map((f) => f.name)).toEqual(['College of Lore']);
+
+    const elf = index.speciesPage('race:elf@phb');
+    expect(elf?.subraces.map((s) => s.name)).toEqual(['High']);
+    expect(index.classPage('race:elf@phb')).toBeUndefined();
   });
 
   it('serves the library and a book with its contents and chapters', async () => {

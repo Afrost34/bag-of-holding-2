@@ -80,3 +80,16 @@ export {
   type TocChapter,
   type TocHeader,
 } from './books';
+export {
+  buildClassPage,
+  buildSpeciesPage,
+  buildSubclassPage,
+  classFeatureRef,
+  subclassFeatureRef,
+  type ClassPage,
+  type FeatureEntry,
+  type PageLookup,
+  type SpeciesPage,
+  type SubclassPage,
+  type SubclassSummary,
+} from './classes';
