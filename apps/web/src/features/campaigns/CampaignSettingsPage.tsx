@@ -1,29 +1,13 @@
-import { Button, cn, Panel } from '@boh/ui';
+import { Button, Panel } from '@boh/ui';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
-import {
-  EDITION_LABELS,
-  type Campaign,
-  type CampaignEdition,
-  type CampaignRules,
-} from '../../app/campaigns/model';
+import type { Campaign } from '../../app/campaigns/model';
 import { useCampaigns } from '../../app/campaigns/store';
-import { SourcesPanel } from '../../app/data/SourcesPanel';
+import { SourceLibrary } from '../../app/data/SourceLibrary';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
-
-const EDITIONS: { id: CampaignEdition; hint: string }[] = [
-  { id: '2024', hint: 'Links without a source, the builder and encounters use 2024 versions.' },
-  { id: '2014', hint: 'They use 2014 versions.' },
-  { id: 'mixed', hint: 'Choose per character and encounter, with warnings where they mix.' },
-];
-
-const ENCUMBRANCE: { id: CampaignRules['encumbrance']; label: string }[] = [
-  { id: 'off', label: 'Off' },
-  { id: 'standard', label: 'Standard (carrying capacity)' },
-  { id: 'variant', label: 'Variant (encumbered, heavily encumbered)' },
-];
+import { EditionPicker, fieldLabel, RulesFields } from './CampaignOptions';
 
 export function CampaignSettingsPage({ id }: { id: string }) {
   const { campaigns, activeId, loaded, load } = useCampaigns();
@@ -85,10 +69,7 @@ function Settings({ campaign, active }: { campaign: Campaign; active: boolean })
         <Panel title="Campaign">
           <div className="space-y-5">
             <div>
-              <label
-                htmlFor={nameId}
-                className="mb-1 block text-[11px] font-semibold tracking-wider uppercase"
-              >
+              <label htmlFor={nameId} className={fieldLabel}>
                 Name
               </label>
               <input
@@ -104,95 +85,25 @@ function Settings({ campaign, active }: { campaign: Campaign; active: boolean })
                 className="h-10 w-full max-w-md rounded-md border border-border bg-surface px-3"
               />
             </div>
-            <fieldset>
-              <legend className="mb-2 text-[11px] font-semibold tracking-wider uppercase">
-                Edition
-              </legend>
-              <div className="grid gap-2 sm:grid-cols-3">
-                {EDITIONS.map((e) => (
-                  <label
-                    key={e.id}
-                    className={cn(
-                      'flex cursor-pointer flex-col rounded-md border p-3',
-                      campaign.edition === e.id
-                        ? 'border-accent ring-1 ring-accent'
-                        : 'border-border',
-                    )}
-                  >
-                    <span className="flex items-center gap-2 font-semibold">
-                      <input
-                        type="radio"
-                        name="edition"
-                        checked={campaign.edition === e.id}
-                        onChange={() => void update(campaign.id, { edition: e.id })}
-                        className="accent-accent"
-                      />
-                      {EDITION_LABELS[e.id]}
-                    </span>
-                    <span className="mt-1 text-xs text-muted">{e.hint}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
+            <EditionPicker
+              value={campaign.edition}
+              onChange={(edition) => void update(campaign.id, { edition })}
+            />
           </div>
         </Panel>
 
         <Panel title="Rules">
-          <div className="space-y-4">
-            <fieldset>
-              <legend className="mb-2 text-[11px] font-semibold tracking-wider uppercase">
-                Encumbrance
-              </legend>
-              <div className="flex flex-col gap-1.5">
-                {ENCUMBRANCE.map((o) => (
-                  <label key={o.id} className="flex items-center gap-2 text-sm">
-                    <input
-                      type="radio"
-                      name="encumbrance"
-                      checked={campaign.rules.encumbrance === o.id}
-                      onChange={() =>
-                        void update(campaign.id, {
-                          rules: { ...campaign.rules, encumbrance: o.id },
-                        })
-                      }
-                      className="accent-accent"
-                    />
-                    {o.label}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-            <label className="flex items-start gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={campaign.rules.optionalClassFeatures}
-                onChange={(e) =>
-                  void update(campaign.id, {
-                    rules: { ...campaign.rules, optionalClassFeatures: e.target.checked },
-                  })
-                }
-                className="mt-0.5 accent-accent"
-              />
-              <span>
-                Optional class features (2014)
-                <span className="block text-xs text-muted">
-                  Offered by the character builder, from Tasha&apos;s Cauldron of Everything.
-                </span>
-              </span>
-            </label>
-            <p className="text-xs text-muted">
-              Variant rules and playtest material are chosen through the sources below.
-            </p>
-          </div>
+          <RulesFields
+            value={campaign.rules}
+            onChange={(rules) => void update(campaign.id, { rules })}
+          />
         </Panel>
 
-        {active ? (
-          <SourcesPanel />
-        ) : (
-          <Panel title="Sources">
-            <p className="text-sm text-muted">Open this campaign to choose its sources.</p>
-          </Panel>
-        )}
+        <SourceLibrary
+          title={`Sources · ${campaign.name}`}
+          overrides={campaign.sources}
+          onChange={(sources) => void update(campaign.id, { sources })}
+        />
 
         <Panel title="Template">
           <p className="mb-3 text-sm text-muted">

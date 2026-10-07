@@ -27,8 +27,7 @@ test('downloads, searches, filters by source and survives a reload', async ({ pa
   await expect(xphb).toBeVisible();
 
   // Turning off the 2014 core books hides their entries.
-  const core2014 = page.getByRole('button', { name: /Core rules \(2014\)/ }).locator('..');
-  await core2014.getByRole('button', { name: 'None' }).click();
+  await page.getByRole('button', { name: 'Turn off all Core rules (2014)' }).click();
   await expect(xphb).toBeVisible();
   await expect(phb).toHaveCount(0);
 
