@@ -2,14 +2,12 @@ import type { ListRow } from '@boh/data5e';
 import { useEffect, useState } from 'react';
 import { dataWorker } from './client';
 
-/** Compendium list rows and counts, cached per category until the data changes. */
+/** Compendium list rows, cached per category until the data changes. */
 
 const rowCache = new Map<string, Promise<ListRow[]>>();
-let countsCache: Promise<Record<string, number>> | null = null;
 
 export function clearListCaches(): void {
   rowCache.clear();
-  countsCache = null;
 }
 
 function loadRows(categoryId: string): Promise<ListRow[]> {
@@ -36,19 +34,4 @@ export function useListRows(categoryId: string): ListRow[] | null {
     };
   }, [categoryId]);
   return state.for === categoryId ? state.rows : null;
-}
-
-export function useCategoryCounts(): Record<string, number> | null {
-  const [counts, setCounts] = useState<Record<string, number> | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    countsCache ??= dataWorker().categoryCounts();
-    void countsCache.then((c) => {
-      if (!cancelled) setCounts(c);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-  return counts;
 }

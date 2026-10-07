@@ -5,14 +5,18 @@ import {
   crValue,
   creatureType,
   DAMAGE_TYPES,
+  itemValue,
+  itemWeight,
   ITEM_PROPERTIES,
   ITEM_TYPES,
   prerequisite,
   SCHOOLS,
   SIZES,
+  spellDuration,
   spellRange,
 } from '../format';
 import { arr, isObj, num, text, type Obj } from '../json';
+import { buildCard, type CardInfo } from './cards';
 import { stripTagsPlain } from './strip';
 
 export type FieldValue = string | number | boolean | string[] | null;
@@ -27,6 +31,12 @@ export interface ListRow {
   page: number | null;
   /** Category fields, keyed by `FieldDef.id`. */
   f: Record<string, FieldValue>;
+  /** Second line under the name, e.g. `Evocation • V, S, M` (the source name otherwise). */
+  sub?: string;
+  /** Superseded by a newer printing (5etools `reprintedAs`): shown with a Legacy badge. */
+  legacy?: boolean;
+  /** Art card for the `cards` layout (classes, species). */
+  card?: CardInfo;
 }
 
 /** Spell → class names, from 5etools' generated lookup: `[source][spell name] → classes`. */
@@ -34,6 +44,8 @@ export type SpellClassLookup = (name: string, source: string) => string[];
 
 export interface RowContext {
   spellClasses: SpellClassLookup;
+  /** Lore and art of an entity, for card layouts. */
+  fluff?: (type: string, name: string, source: string) => Obj | undefined;
 }
 
 const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
@@ -70,6 +82,121 @@ function spellTime(spell: Obj): string {
   if (unit === 'minute') return 'Minute';
   if (unit === 'hour') return 'Hour';
   return 'Other';
+}
+
+const SPELL_TIME_UNITS: Record<string, string> = {
+  action: 'Action', bonus: 'Bonus Action', reaction: 'Reaction', round: 'Round', minute: 'Minute',
+  hour: 'Hour', day: 'Day',
+}; // prettier-ignore
+
+/** `1 Action`, `1 Reaction *` (with a trigger), `10 Minutes`. */
+function spellTimeText(spell: Obj): string {
+  const times = arr(spell.time).filter(isObj);
+  const first = times[0];
+  if (!first) return '';
+  const n = num(first.number) ?? 1;
+  const unit = SPELL_TIME_UNITS[text(first.unit)] ?? cap(text(first.unit));
+  const base = `${String(n)} ${unit}${n === 1 ? '' : 's'}`;
+  return typeof first.condition === 'string' || times.length > 1 ? `${base} *` : base;
+}
+
+const plural = (n: number, unit: string) => `${String(n)} ${cap(unit)}${n === 1 ? '' : 's'}`;
+
+/** Compact duration for list cells: `1 Minute`, `Instantaneous` (concentration is a badge). */
+function spellDurationText(spell: Obj): string {
+  const first = arr(spell.duration).find(isObj);
+  if (!first) return '';
+  switch (text(first.type)) {
+    case 'instant':
+      return 'Instantaneous';
+    case 'timed': {
+      const d = isObj(first.duration) ? first.duration : {};
+      return plural(num(d.amount) ?? 1, text(d.type));
+    }
+    case 'permanent':
+      return arr(first.ends).includes('dispel') ? 'Until Dispelled' : 'Permanent';
+    default:
+      return 'Special';
+  }
+}
+
+const AREA_SHAPES = new Set([
+  'radius',
+  'sphere',
+  'cone',
+  'line',
+  'cube',
+  'hemisphere',
+  'emanation',
+  'cylinder',
+]);
+
+/** Compact range for list cells: `60 ft.`, `Touch`, `Self (15 ft. cone)`. */
+function spellRangeText(spell: Obj): string {
+  const range = isObj(spell.range) ? spell.range : {};
+  const distance = isObj(range.distance) ? range.distance : {};
+  const amount = num(distance.amount);
+  const unit = text(distance.type);
+  const measure =
+    unit === 'feet'
+      ? `${String(amount)} ft.`
+      : unit === 'miles'
+        ? plural(amount ?? 1, 'mile')
+        : cap(unit);
+  const type = text(range.type);
+  if (type === 'point') return measure;
+  if (AREA_SHAPES.has(type)) return `Self (${measure} ${type === 'radius' ? 'radius' : type})`;
+  return cap(type) || '';
+}
+
+const ABILITY_ABBR = (s: string) => s.slice(0, 3).toUpperCase();
+
+/** `CON Save`, `Ranged`, `Melee`. */
+function spellAttack(spell: Obj): string {
+  const saves = arr(spell.savingThrow).map((s) => `${ABILITY_ABBR(text(s))} Save`);
+  const attacks = arr(spell.spellAttack).map((a) => (text(a) === 'M' ? 'Melee' : 'Ranged'));
+  return uniq([...attacks, ...saves]).join(' / ');
+}
+
+const SPELL_EFFECT_TAGS: Record<string, string> = {
+  HL: 'Healing', THP: 'Temp HP', SMN: 'Summoning', TP: 'Teleportation',
+}; // prettier-ignore
+
+/** Damage types, else conditions, else a broad effect such as Healing. */
+function spellEffect(spell: Obj): string {
+  const damage = arr(spell.damageInflict).map((x) => cap(text(x)));
+  if (damage.length) return damage.join(', ');
+  const conditions = arr(spell.conditionInflict).map((x) => cap(text(x)));
+  if (conditions.length) return conditions.join(', ');
+  return uniq(arr(spell.miscTags).map((t) => SPELL_EFFECT_TAGS[text(t)] ?? '')).join(', ');
+}
+
+/** `sleight of hand` → `Sleight of Hand`. */
+const titleCase = (s: string) =>
+  s.replace(/\b\w+/g, (w, offset: number) =>
+    offset > 0 && /^(of|the|and|or|a|an|in|on)$/.test(w) ? w : cap(w),
+  );
+
+/** 2024: the origin feat (`Feat: Magic Initiate (Cleric)`); 2014: the background feature. */
+function backgroundFeature(bg: Obj): string | null {
+  const feat = arr(bg.feats)
+    .filter(isObj)
+    .flatMap((f) => Object.keys(f))[0];
+  if (feat) {
+    const [name = '', variant] = (feat.split('|')[0] ?? '').split(';');
+    return `Feat: ${titleCase(name.trim())}${variant ? ` (${titleCase(variant.trim())})` : ''}`;
+  }
+  const visit = (entries: unknown): string | null => {
+    for (const e of arr(entries)) {
+      if (!isObj(e)) continue;
+      const name = text(e.name);
+      if (name.startsWith('Feature:')) return stripTagsPlain(name.slice('Feature:'.length).trim());
+      const inner = visit(e.entries);
+      if (inner) return inner;
+    }
+    return null;
+  };
+  return visit(bg.entries);
 }
 
 function itemCategory(item: Obj): string {
@@ -110,7 +237,13 @@ function fieldsFor(
         level: num(d.level) ?? 0,
         school: cap(SCHOOLS[text(d.school)] ?? text(d.school)),
         time: spellTime(d),
+        timeText: spellTimeText(d),
+        duration: spellDuration(d),
+        durationText: spellDurationText(d),
         range: spellRange(d),
+        rangeText: spellRangeText(d),
+        attack: spellAttack(d) || null,
+        effect: spellEffect(d) || null,
         concentration: arr(d.duration).some((x) => isObj(x) && x.concentration === true),
         ritual: meta.ritual === true,
         classes: ctx.spellClasses(name, source),
@@ -133,7 +266,7 @@ function fieldsFor(
         crText: cr ?? null,
         type: cap(baseType.split(' ')[0] ?? baseType),
         size: arr(d.size).map((s) => SIZES[text(s)] ?? text(s)),
-        alignment: stripTagsPlain(alignment(d.alignment)),
+        alignment: cap(stripTagsPlain(alignment(d.alignment))),
         environment: arr(d.environment).map((e) => cap(text(e))),
         speeds: speedModes(d.speed).map(cap),
         legendary: Array.isArray(d.legendary),
@@ -151,7 +284,11 @@ function fieldsFor(
         rarity,
         attunement: d.reqAttune !== undefined || inherits.reqAttune !== undefined,
         value: typeof d.value === 'number' ? d.value / 100 : null,
+        costText: itemValue(d.value) || null,
         weight: num(d.weight) ?? null,
+        weightText: itemWeight(d.weight) || null,
+        attuneText:
+          d.reqAttune !== undefined || inherits.reqAttune !== undefined ? 'Required' : null,
         magic: rarity !== 'none' && rarity !== '',
         properties: arr(d.property)
           .map((p) => ITEM_PROPERTIES[codeOf(isObj(p) ? p.uid : p)] ?? codeOf(p))
@@ -192,11 +329,12 @@ function fieldsFor(
     }
     case 'background':
       return {
+        feature: backgroundFeature(d),
         skills: uniq(
           arr(d.skillProficiencies)
             .filter(isObj)
             .flatMap((s) => Object.keys(s).filter((k) => k !== 'choose' && k !== 'any'))
-            .map((s) => s.replace(/\b\w/g, (c) => c.toUpperCase())),
+            .map(titleCase),
         ),
       };
     case 'feat':
@@ -246,18 +384,45 @@ export function buildRow(
   },
   ctx: RowContext,
 ): ListRow {
-  return {
+  const f: Record<string, FieldValue> = {
+    edition: entity.edition,
+    ...fieldsFor(entity.type, entity.data, ctx, entity.name, entity.source),
+  };
+  const row: ListRow = {
     key: entity.key,
     type: entity.type,
     name: entity.name,
     source: entity.source,
     edition: entity.edition,
     page: entity.page,
-    f: {
-      edition: entity.edition,
-      ...fieldsFor(entity.type, entity.data, ctx, entity.name, entity.source),
-    },
+    f,
   };
+  const sub = subtitle(entity.type, entity.data, f);
+  if (sub) row.sub = sub;
+  if (arr(entity.data.reprintedAs).length > 0) row.legacy = true;
+  if (ctx.fluff && (entity.type === 'class' || entity.type === 'race')) {
+    row.card = buildCard(
+      entity.type,
+      entity.data,
+      ctx.fluff(entity.type, entity.name, entity.source),
+    );
+  }
+  return row;
+}
+
+function subtitle(type: string, d: Obj, f: Record<string, FieldValue>): string {
+  if (type === 'spell') {
+    const comps = isObj(d.components) ? d.components : {};
+    const parts = [comps.v ? 'V' : '', comps.s ? 'S' : '', comps.m ? 'M' : ''].filter(Boolean);
+    return [text(f.school), parts.join(', ')].filter(Boolean).join(' • ');
+  }
+  if (
+    typeof f.category === 'string' &&
+    ['item', 'baseitem', 'magicvariant', 'itemGroup'].includes(type)
+  ) {
+    return f.category;
+  }
+  return '';
 }
 
 /** Builds the spell → classes lookup from the generated aux data (`gendata-spell-source-lookup`). */
@@ -277,4 +442,20 @@ export function spellClassLookup(
     }
     return uniq(classes).sort();
   };
+}
+
+/**
+ * Marks 2014 rows as Legacy when a 2024 row of the same type and name exists, for content that
+ * was reprinted without a `reprintedAs` link (generic magic item variants, for instance).
+ */
+export function markLegacy(rows: ListRow[]): ListRow[] {
+  const modern = new Set(
+    rows.filter((r) => r.edition === '2024').map((r) => `${r.type}|${r.name.toLowerCase()}`),
+  );
+  for (const row of rows) {
+    if (row.edition === '2014' && modern.has(`${row.type}|${row.name.toLowerCase()}`)) {
+      row.legacy = true;
+    }
+  }
+  return rows;
 }

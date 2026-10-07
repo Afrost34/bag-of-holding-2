@@ -7,6 +7,7 @@ import {
   sortRows,
   stateFromSearch,
   valueCounts,
+  valueLabel,
   type ListState,
 } from './listModel';
 
@@ -125,5 +126,17 @@ describe('list model', () => {
     const conc = spells.fields.find((f) => f.id === 'concentration');
     expect(level && cellText(must(rows[1]), level)).toBe('Cantrip');
     expect(conc && cellText(must(rows[2]), conc)).toBe('✓');
+  });
+
+  it('shows display text where a field has one, and readable labels', () => {
+    const time = must(spells.fields.find((f) => f.id === 'time'));
+    const withText = row('Shield', 'XPHB', { time: 'Reaction', timeText: '1 Reaction *' });
+    expect(cellText(withText, time)).toBe('1 Reaction *');
+    expect(cellText(row('Old', 'PHB', { time: 'Action' }), time)).toBe('Action');
+    expect(valueLabel('level', '1')).toBe('1st');
+    expect(valueLabel('level', '3')).toBe('3rd');
+    expect(valueLabel('level', '0')).toBe('Cantrip');
+    expect(valueLabel('rarity', 'very rare')).toBe('Very Rare');
+    expect(valueLabel('rarity', 'none')).toBe('Mundane');
   });
 });

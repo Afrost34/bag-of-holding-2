@@ -9,11 +9,11 @@ import { CopyError, CopyResolver } from '../copy';
 import { entityEdition, type Edition } from '../editions';
 import type { ExtractContext, ExtractResult } from '../extract';
 import type { RawEntity } from '../identity';
-import { parseKey } from '../keys';
+import { makeKey, parseKey } from '../keys';
 import type { RegistryEntry } from '../sourceRegistry';
 import { buildSourceCatalog, indexSources, sourceFromMetadata, type SourceInfo } from '../sources';
 import { SUPPORT_TYPES, type Category } from '../lists/categories';
-import { buildRow, spellClassLookup, type ListRow } from '../lists/rows';
+import { buildRow, markLegacy, spellClassLookup, type ListRow } from '../lists/rows';
 import { migrate } from './schema';
 import type { SqlDatabase, SqlValue } from './types';
 
@@ -509,19 +509,31 @@ export class EntityIndex {
        WHERE type IN (${placeholders(category.types.length)})`,
       [...category.types],
     );
-    return rows.map(({ raw, resolved, ...summary }) =>
-      buildRow({ ...summary, data: JSON.parse(resolved ?? raw) as RawEntity }, { spellClasses }),
+    const fluff = category.layout === 'cards' ? this.fluffLookup(category.types) : undefined;
+    const built = rows.map(({ raw, resolved, ...summary }) =>
+      buildRow(
+        { ...summary, data: JSON.parse(resolved ?? raw) as RawEntity },
+        fluff ? { spellClasses, fluff } : { spellClasses },
+      ),
     );
+    return markLegacy(category.include ? built.filter(category.include) : built);
   }
 
-  /** Entity counts per list category, for the compendium landing page. */
-  countTypes(types: readonly string[]): number {
-    return (
-      this.db.get<{ n: number }>(
-        `SELECT COUNT(*) AS n FROM entities WHERE type IN (${placeholders(types.length)})`,
-        [...types],
-      )?.n ?? 0
+  /** Lore and art (`<type>Fluff` entities) by owner type, name and source. */
+  private fluffLookup(types: readonly string[]) {
+    const fluffTypes = types.map((t) => `${t}Fluff`);
+    const byKey = new Map(
+      this.db
+        .all<{ key: string; raw: string; resolved: string | null }>(
+          `SELECT key, raw, resolved FROM entities WHERE type IN (${placeholders(fluffTypes.length)})`,
+          fluffTypes,
+        )
+        .map((r) => [r.key, r.resolved ?? r.raw]),
     );
+    return (type: string, name: string, source: string): RawEntity | undefined => {
+      const json = byKey.get(makeKey(`${type}Fluff`, [name], source));
+      return json === undefined ? undefined : (JSON.parse(json) as RawEntity);
+    };
   }
 
   // endregion

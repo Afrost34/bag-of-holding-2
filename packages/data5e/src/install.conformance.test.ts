@@ -90,6 +90,57 @@ describe.runIf(hasLocalData())('full 5etools install', () => {
     expect(creatures.filter((r) => r.f.cr === null).length / creatures.length).toBeLessThan(0.05);
   });
 
+  it('gives browse lists their cards, columns and splits', () => {
+    const rowsOf = (id: string) => {
+      const category = categoryById(id);
+      if (!category) throw new Error(`no category ${id}`);
+      return index.listRows(category);
+    };
+
+    const fighter = rowsOf('classes').find((r) => r.key === 'class:fighter@xphb');
+    expect(fighter?.card).toMatchObject({
+      image: 'classes/XPHB/Fighter.webp',
+      tagline: 'A Master of All Arms and Armor',
+      facts: [
+        ['Primary ability', 'Strength or Dexterity'],
+        ['Hit point die', 'D10'],
+        ['Saves', 'Strength & Constitution'],
+      ],
+    });
+    const species = rowsOf('species');
+    expect(species.every((r) => r.type === 'race')).toBe(true);
+    expect(species.filter((r) => r.card?.image).length / species.length).toBeGreaterThan(0.5);
+
+    const fireball = rowsOf('spells').find((r) => r.key === 'spell:fireball@xphb');
+    expect(fireball).toMatchObject({
+      sub: 'Evocation • V, S, M',
+      f: { timeText: '1 Action', attack: 'DEX Save', effect: 'Fire' },
+    });
+    expect(rowsOf('spells').find((r) => r.key === 'spell:fireball@phb')?.legacy).toBe(true);
+
+    // Items split into equipment and magic items, with nothing lost or doubled.
+    const all = rowsOf('items').map((r) => r.key);
+    const equipment = rowsOf('equipment');
+    const magic = rowsOf('magic-items');
+    expect(equipment.some((r) => r.f.magic === true)).toBe(false);
+    expect(equipment.length + magic.length).toBe(all.length);
+    expect(equipment.find((r) => r.key === 'baseitem:longsword@xphb')?.f.costText).toBe('15 gp');
+    // Reprints without a reprintedAs link are still marked Legacy by name.
+    const ammo = magic.filter((r) => r.type === 'magicvariant' && r.name === '+1 Ammunition');
+    expect(ammo.map((r) => [r.edition, r.legacy === true]).sort()).toEqual([
+      ['2014', true],
+      ['2024', false],
+    ]);
+
+    const backgrounds = rowsOf('backgrounds');
+    expect(backgrounds.find((r) => r.key === 'background:acolyte@xphb')?.f.feature).toBe(
+      'Feat: Magic Initiate (Cleric)',
+    );
+    expect(backgrounds.find((r) => r.key === 'background:acolyte@phb')?.f.feature).toBe(
+      'Shelter of the Faithful',
+    );
+  });
+
   it('puts every browsable entity type in a list', () => {
     const listed = new Set(CATEGORIES.flatMap((c) => c.types));
     const unlisted = Object.keys(index.countsByType()).filter(

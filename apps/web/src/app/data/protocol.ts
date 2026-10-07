@@ -81,8 +81,6 @@ export interface DataWorkerApi {
   library(kind: 'book' | 'adventure'): Promise<BookSummary[]>;
   /** Contents and chapters of a book, adventure or the quick reference. */
   bookContent(kind: BookKind, id: string): Promise<BookContent | undefined>;
-  /** Number of entries per list category. */
-  categoryCounts(): Promise<Record<string, number>>;
   /** For each candidate list, the first key that exists (link resolution). */
   resolve(candidateLists: string[][]): Promise<(string | null)[]>;
   checkReferences(references: { key: string; usedIn: string }[]): Promise<ReferenceReport>;

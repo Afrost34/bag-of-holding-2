@@ -42,6 +42,20 @@
   --boh-int: #2f7fd8;
   --boh-wis: #8a4fd0;
   --boh-cha: #c99712;
+  /* Spell schools and item rarities: mid tones that read on light and dark surfaces alike. */
+  --boh-school-abjuration: #3a7bd5;
+  --boh-school-conjuration: #c99212;
+  --boh-school-divination: #5b8a9e;
+  --boh-school-enchantment: #cf4f9a;
+  --boh-school-evocation: #d24545;
+  --boh-school-illusion: #8a5ccf;
+  --boh-school-necromancy: #5e9a3a;
+  --boh-school-transmutation: #d97a2b;
+  --boh-rarity-uncommon: #3fa055;
+  --boh-rarity-rare: #3f84e5;
+  --boh-rarity-very-rare: #a65fdb;
+  --boh-rarity-legendary: #df8a1f;
+  --boh-rarity-artifact: #dc4a4a;
   --boh-shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 2px 8px rgb(0 0 0 / 0.06);
 }
 
@@ -145,6 +159,19 @@
   --color-int: var(--boh-int);
   --color-wis: var(--boh-wis);
   --color-cha: var(--boh-cha);
+  --color-school-abjuration: var(--boh-school-abjuration);
+  --color-school-conjuration: var(--boh-school-conjuration);
+  --color-school-divination: var(--boh-school-divination);
+  --color-school-enchantment: var(--boh-school-enchantment);
+  --color-school-evocation: var(--boh-school-evocation);
+  --color-school-illusion: var(--boh-school-illusion);
+  --color-school-necromancy: var(--boh-school-necromancy);
+  --color-school-transmutation: var(--boh-school-transmutation);
+  --color-rarity-uncommon: var(--boh-rarity-uncommon);
+  --color-rarity-rare: var(--boh-rarity-rare);
+  --color-rarity-very-rare: var(--boh-rarity-very-rare);
+  --color-rarity-legendary: var(--boh-rarity-legendary);
+  --color-rarity-artifact: var(--boh-rarity-artifact);
   --shadow-card: var(--boh-shadow);
 }
 

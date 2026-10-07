@@ -12,7 +12,7 @@ export interface ListState {
   filters: Record<string, string[]>;
   sort: string;
   dir: 'asc' | 'desc';
-  /** Selected entry shown in the detail pane. */
+  /** The entry expanded in place in the list. */
   sel: string | null;
 }
 
@@ -108,7 +108,9 @@ export function sortRows(rows: ListRow[], state: ListState, category: Category):
       const ib = order.indexOf(String(b.f[field.id]));
       c = (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
     } else c = compare(a.f[state.sort], b.f[state.sort]);
-    return c !== 0 ? sign * c : byName(a, b);
+    if (c !== 0) return sign * c;
+    // Ties by name; for the same name the newer edition first, above its Legacy twin.
+    return byName(a, b) || b.edition.localeCompare(a.edition) || a.source.localeCompare(b.source);
   });
 }
 
@@ -134,21 +136,34 @@ export function valueCounts(
 
 const FRACTION_CR: Record<string, string> = { '0.125': '1/8', '0.25': '1/4', '0.5': '1/2' };
 
-/** How a value is shown in chips and cells. */
+const ORDINAL_SUFFIX = ['th', 'st', 'nd', 'rd'];
+
+function ordinal(n: number): string {
+  const v = n % 100;
+  return `${String(n)}${ORDINAL_SUFFIX[(v - 20) % 10] ?? ORDINAL_SUFFIX[v] ?? 'th'}`;
+}
+
+const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
+
+/** How a value is shown in filters and cells. */
 export function valueLabel(fieldId: string, value: string): string {
-  if (fieldId === 'level') return value === '0' ? 'Cantrip' : value;
+  if (fieldId === 'level') return value === '0' ? 'Cantrip' : ordinal(Number(value));
   if (fieldId === 'cr') return FRACTION_CR[value] ?? value;
+  if (fieldId === 'rarity') return value === 'none' ? 'Mundane' : titleCase(value);
   if (value === 'yes') return 'Yes';
   if (value === 'no') return 'No';
   return value;
 }
 
 export function cellText(row: ListRow, field: FieldDef): string {
+  if (field.display !== undefined) {
+    const shown = row.f[field.display];
+    if (typeof shown === 'string') return shown;
+  }
   const v = row.f[field.id];
   if (v === null || v === undefined) return '';
-  if (field.id === 'cr')
-    return typeof row.f.crText === 'string' ? row.f.crText : valueLabel('cr', String(v));
-  if (field.id === 'level') return valueLabel('level', String(v));
+  if (field.id === 'cr') return valueLabel('cr', String(v));
+  if (field.id === 'level' || field.id === 'rarity') return valueLabel(field.id, String(v));
   if (field.id === 'value' && typeof v === 'number')
     return v >= 1 ? v.toLocaleString('en-US') : String(v);
   if (typeof v === 'boolean') return v ? '✓' : '';
