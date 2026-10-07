@@ -581,30 +581,44 @@ function LinkEntry({ entry }: { entry: Obj }) {
   return <span>{text}</span>;
 }
 
+/** Widths offered for images in text; the article column is at most ~760 px wide. */
+const TEXT_IMAGE_WIDTHS = [480, 800, 1200];
+
 function ImageEntry({ entry }: { entry: Obj }) {
   const { imageUrl } = useServices();
+  const [failed, setFailed] = useState(false);
   const href = isObj(entry.href) ? entry.href : {};
-  const src =
-    href.type === 'internal' && typeof href.path === 'string'
-      ? imageUrl(href.path)
-      : typeof href.url === 'string'
-        ? href.url
-        : null;
-  if (!src) return null;
+  const path = href.type === 'internal' && typeof href.path === 'string' ? href.path : null;
+  const original = path ? imageUrl(path) : typeof href.url === 'string' ? href.url : null;
+  if (!original) return null;
   const title = str(entry.title);
   const width = typeof entry.width === 'number' ? entry.width : undefined;
   const height = typeof entry.height === 'number' ? entry.height : undefined;
+  // A resized copy for the page; the full-size original (maps!) opens on click.
+  const sized =
+    path && !failed
+      ? {
+          src: imageUrl(path, 800),
+          srcSet: TEXT_IMAGE_WIDTHS.map((w) => `${imageUrl(path, w)} ${String(w)}w`).join(', '),
+          sizes: '(min-width: 900px) 760px, 100vw',
+        }
+      : { src: original };
   return (
     <figure className="my-3">
-      <img
-        src={src}
-        alt={title ? stripTags(title) : ''}
-        loading="lazy"
-        decoding="async"
-        width={width}
-        height={height}
-        className="mx-auto h-auto max-h-[70vh] w-auto max-w-full rounded-md"
-      />
+      <a href={original} target="_blank" rel="noreferrer noopener" title="Open full size">
+        <img
+          {...sized}
+          alt={title ? stripTags(title) : ''}
+          loading="lazy"
+          decoding="async"
+          width={width}
+          height={height}
+          onError={() => {
+            if (!failed) setFailed(true);
+          }}
+          className="mx-auto h-auto max-h-[70vh] w-auto max-w-full rounded-md"
+        />
+      </a>
       {(title ?? str(entry.credit)) && (
         <figcaption className="mt-1 text-center text-xs text-muted">
           {title && <RichText text={title} />}

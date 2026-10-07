@@ -84,6 +84,17 @@ export default defineConfig({
               cacheableResponse: { statuses: [0, 200] },
             },
           },
+          {
+            // Resized copies of the same art (see ADR 0005); small, so many can be kept.
+            urlPattern:
+              /^https:\/\/wsrv\.nl\/\?url=https%3A%2F%2Fraw\.githubusercontent\.com%2F5etools-mirror-3%2F5etools-img%2F/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: '5etools-images-resized',
+              expiration: { maxEntries: 8000, purgeOnQuotaError: true },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
         ],
       },
     }),
