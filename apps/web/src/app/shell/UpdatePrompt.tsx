@@ -6,7 +6,9 @@ import { isDesktop } from '../platform';
 
 /** Updates found this soon after opening are applied at once: nothing is in progress yet. */
 const APPLY_SILENTLY_WITHIN_MS = 15_000;
-const CHECK_EVERY_MS = 60 * 60 * 1000;
+const CHECK_EVERY_MS = 15 * 60 * 1000;
+/** Coming back to the app checks for a new version, at most this often. */
+const MIN_CHECK_GAP_MS = 60 * 1000;
 const openedAt = Date.now();
 /** If the page is still here this long after clicking, the switch-over failed. */
 const STALLED_AFTER_MS = 8000;
@@ -47,9 +49,19 @@ function WebUpdatePrompt() {
     offlineReady: [offlineReady, setOfflineReady],
   } = useRegisterSW({
     onRegisteredSW(_url, registration) {
-      if (registration) {
-        setInterval(() => void registration.update(), CHECK_EVERY_MS);
-      }
+      if (!registration) return;
+      setInterval(() => void registration.update(), CHECK_EVERY_MS);
+      // Also check whenever the app comes back into view (switching tabs or windows, waking a
+      // phone), so a deploy shows up within moments rather than at the next timed check.
+      let lastCheck = Date.now();
+      const checkSoon = () => {
+        if (document.visibilityState !== 'visible') return;
+        if (Date.now() - lastCheck < MIN_CHECK_GAP_MS) return;
+        lastCheck = Date.now();
+        void registration.update();
+      };
+      document.addEventListener('visibilitychange', checkSoon);
+      window.addEventListener('focus', checkSoon);
     },
   });
 
