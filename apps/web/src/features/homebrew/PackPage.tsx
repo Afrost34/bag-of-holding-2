@@ -19,10 +19,11 @@ import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 import { CreatureEditor } from './CreatureEditor';
 import { ItemEditor } from './ItemEditor';
+import { SpellEditor } from './SpellEditor';
 import { packFile, packPath } from './packs';
 
 /** Types the app has an editor for (more to come: creatures, spells). */
-const EDITABLE = new Set(['item', 'monster']);
+const EDITABLE = new Set(['item', 'monster', 'spell']);
 
 /**
  * One pack: its entries, and the editor when making or changing one (`new=item`,
@@ -101,6 +102,17 @@ export function PackPage({
     return null;
   };
 
+  const saveSpell = async (spell: RawEntity): Promise<string | null> => {
+    try {
+      await savePack(path, putEntry(pack.json, 'spell', spell, editing?.name));
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
+    setMessage(`Saved “${String(spell.name)}”.`);
+    navigate(packPath(path));
+    return null;
+  };
+
   const exportPack = () => {
     const blob = new Blob([JSON.stringify(pack.json, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -112,6 +124,30 @@ export function PackPage({
       URL.revokeObjectURL(url);
     }, 1000);
   };
+
+  if (isNew === 'spell' || editing?.type === 'spell') {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-6 md:px-8">
+        <p className="mb-1 text-sm">
+          <AppLink to={packPath(path)} className="text-link hover:underline">
+            {meta.name}
+          </AppLink>
+        </p>
+        <h1 className="mb-4 font-serif text-2xl font-bold">
+          {editing ? `Edit ${editing.name}` : 'New spell'}
+        </h1>
+        <SpellEditor
+          key={edit ?? 'new'}
+          pack={meta}
+          base={editing?.entity ?? null}
+          onSave={saveSpell}
+          onCancel={() => {
+            navigate(packPath(path));
+          }}
+        />
+      </div>
+    );
+  }
 
   if (isNew === 'monster' || editing?.type === 'monster') {
     return (
@@ -240,7 +276,11 @@ export function PackPage({
         >
           <Plus className="h-4 w-4" aria-hidden /> New creature
         </Button>
-        <Button disabled title="Coming next">
+        <Button
+          onClick={() => {
+            navigate(`${packPath(path)}?new=spell`);
+          }}
+        >
           <Plus className="h-4 w-4" aria-hidden /> New spell
         </Button>
       </div>
