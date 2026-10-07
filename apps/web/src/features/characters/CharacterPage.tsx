@@ -1,6 +1,6 @@
 import type { CharacterDecisions } from '@boh/rules';
 import { cn } from '@boh/ui';
-import { AlertTriangle, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ChevronLeft, ChevronRight, Printer } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
 import { useCampaigns } from '../../app/campaigns/store';
@@ -412,6 +412,12 @@ function StepBody({
     case 'sheet':
       return (
         <div className="space-y-6">
+          <AppLink
+            to={`/characters/${character.id}/print`}
+            className="inline-flex items-center gap-2 rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-fg hover:bg-accent-hover"
+          >
+            <Printer className="h-4 w-4" aria-hidden /> Printable sheet (PDF)
+          </AppLink>
           {view && (
             <SheetView
               view={view}

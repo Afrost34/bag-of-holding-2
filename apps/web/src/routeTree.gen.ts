@@ -26,6 +26,7 @@ import { Route as CompendiumKeyRouteImport } from './routes/compendium_.$key'
 import { Route as HomebrewPackRouteImport } from './routes/homebrew_.$pack'
 import { Route as SettingsDataRouteImport } from './routes/settings_.data'
 import { Route as SettingsSyncRouteImport } from './routes/settings_.sync'
+import { Route as CharactersIdPrintRouteImport } from './routes/characters_.$id_.print'
 import { Route as CompendiumAdventureIdRouteImport } from './routes/compendium_.adventure.$id'
 import { Route as CompendiumBookIdRouteImport } from './routes/compendium_.book.$id'
 import { Route as CompendiumLibraryKindRouteImport } from './routes/compendium_.library.$kind'
@@ -117,6 +118,11 @@ const SettingsSyncRoute = SettingsSyncRouteImport.update({
   path: '/settings/sync',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CharactersIdPrintRoute = CharactersIdPrintRouteImport.update({
+  id: '/characters_/$id_/print',
+  path: '/characters/$id/print',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CompendiumAdventureIdRoute = CompendiumAdventureIdRouteImport.update({
   id: '/compendium_/adventure/$id',
   path: '/compendium/adventure/$id',
@@ -161,6 +167,7 @@ export interface FileRoutesByFullPath {
   '/homebrew/$pack': typeof HomebrewPackRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/sync': typeof SettingsSyncRoute
+  '/characters/$id/print': typeof CharactersIdPrintRoute
   '/compendium/adventure/$id': typeof CompendiumAdventureIdRoute
   '/compendium/book/$id': typeof CompendiumBookIdRoute
   '/compendium/library/$kind': typeof CompendiumLibraryKindRoute
@@ -185,6 +192,7 @@ export interface FileRoutesByTo {
   '/homebrew/$pack': typeof HomebrewPackRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/sync': typeof SettingsSyncRoute
+  '/characters/$id/print': typeof CharactersIdPrintRoute
   '/compendium/adventure/$id': typeof CompendiumAdventureIdRoute
   '/compendium/book/$id': typeof CompendiumBookIdRoute
   '/compendium/library/$kind': typeof CompendiumLibraryKindRoute
@@ -210,6 +218,7 @@ export interface FileRoutesById {
   '/homebrew_/$pack': typeof HomebrewPackRoute
   '/settings_/data': typeof SettingsDataRoute
   '/settings_/sync': typeof SettingsSyncRoute
+  '/characters_/$id_/print': typeof CharactersIdPrintRoute
   '/compendium_/adventure/$id': typeof CompendiumAdventureIdRoute
   '/compendium_/book/$id': typeof CompendiumBookIdRoute
   '/compendium_/library/$kind': typeof CompendiumLibraryKindRoute
@@ -236,6 +245,7 @@ export interface FileRouteTypes {
     | '/homebrew/$pack'
     | '/settings/data'
     | '/settings/sync'
+    | '/characters/$id/print'
     | '/compendium/adventure/$id'
     | '/compendium/book/$id'
     | '/compendium/library/$kind'
@@ -260,6 +270,7 @@ export interface FileRouteTypes {
     | '/homebrew/$pack'
     | '/settings/data'
     | '/settings/sync'
+    | '/characters/$id/print'
     | '/compendium/adventure/$id'
     | '/compendium/book/$id'
     | '/compendium/library/$kind'
@@ -284,6 +295,7 @@ export interface FileRouteTypes {
     | '/homebrew_/$pack'
     | '/settings_/data'
     | '/settings_/sync'
+    | '/characters_/$id_/print'
     | '/compendium_/adventure/$id'
     | '/compendium_/book/$id'
     | '/compendium_/library/$kind'
@@ -309,6 +321,7 @@ export interface RootRouteChildren {
   HomebrewPackRoute: typeof HomebrewPackRoute
   SettingsDataRoute: typeof SettingsDataRoute
   SettingsSyncRoute: typeof SettingsSyncRoute
+  CharactersIdPrintRoute: typeof CharactersIdPrintRoute
   CompendiumAdventureIdRoute: typeof CompendiumAdventureIdRoute
   CompendiumBookIdRoute: typeof CompendiumBookIdRoute
   CompendiumLibraryKindRoute: typeof CompendiumLibraryKindRoute
@@ -437,6 +450,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsSyncRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/characters_/$id_/print': {
+      id: '/characters_/$id_/print'
+      path: '/characters/$id/print'
+      fullPath: '/characters/$id/print'
+      preLoaderRoute: typeof CharactersIdPrintRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/compendium_/adventure/$id': {
       id: '/compendium_/adventure/$id'
       path: '/compendium/adventure/$id'
@@ -493,6 +513,7 @@ const rootRouteChildren: RootRouteChildren = {
   HomebrewPackRoute: HomebrewPackRoute,
   SettingsDataRoute: SettingsDataRoute,
   SettingsSyncRoute: SettingsSyncRoute,
+  CharactersIdPrintRoute: CharactersIdPrintRoute,
   CompendiumAdventureIdRoute: CompendiumAdventureIdRoute,
   CompendiumBookIdRoute: CompendiumBookIdRoute,
   CompendiumLibraryKindRoute: CompendiumLibraryKindRoute,

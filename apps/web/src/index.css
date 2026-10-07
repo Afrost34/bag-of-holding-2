@@ -48,3 +48,41 @@
   animation: boh-flash 1.6s ease-out;
   scroll-margin-top: 1rem;
 }
+
+/*
+ * Printing (the character sheet): only the copy of the sheet made for print shows, one A4 page
+ * per `.sheet-page`. On screen that copy is hidden; the in-app preview is a separate render.
+ */
+.print-root {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+  body > *:not(.print-root) {
+    display: none !important;
+  }
+  .print-root {
+    display: block;
+  }
+  html,
+  body {
+    height: auto;
+    background: white;
+  }
+  .sheet-page {
+    break-after: page;
+    box-shadow: none !important;
+    margin: 0 !important;
+  }
+}
+
+/* On paper, rolls read as plain text: no dice colours. */
+.paper {
+  --boh-dice-bg: transparent;
+  --boh-dice-fg: var(--boh-text);
+  --boh-dice-border: transparent;
+}

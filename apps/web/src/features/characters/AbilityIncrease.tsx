@@ -20,9 +20,14 @@ export function AbilityIncrease({
   const [twoOne, three] = bundles(choice);
   const from = (three?.options ?? twoOne?.options ?? []).filter(isAbility);
   const [slots, setSlots] = useState<string[]>(() => slotsFrom(choice, decisions.choices));
-  const counts = new Map<string, number>();
-  for (const s of slots) if (s) counts.set(s, (counts.get(s) ?? 0) + 1);
-  const tooMany = [...counts.values()].some((n) => n > 2);
+  /** Abilities another dropdown already has twice: +2 is the most one ability can get. */
+  const full = (i: number) => {
+    const counts = new Map<string, number>();
+    slots.forEach((s, j) => {
+      if (s && j !== i) counts.set(s, (counts.get(s) ?? 0) + 1);
+    });
+    return new Set([...counts].filter(([, n]) => n >= 2).map(([a]) => a));
+  };
 
   return (
     <div className="space-y-2">
@@ -44,19 +49,16 @@ export function AbilityIncrease({
             className={selectClass}
           >
             <option value="">- +1 to… -</option>
-            {from.map((a) => (
-              <option key={a} value={a}>
-                +1 {abilityName(a)}
-              </option>
-            ))}
+            {from
+              .filter((a) => !full(i).has(a))
+              .map((a) => (
+                <option key={a} value={a}>
+                  +1 {abilityName(a)}
+                </option>
+              ))}
           </select>
         ))}
       </div>
-      {tooMany && (
-        <p role="alert" className="text-sm font-semibold text-accent">
-          One ability can get at most +2.
-        </p>
-      )}
     </div>
   );
 }

@@ -171,3 +171,25 @@ test('a companion is a stat block attached to the character', async ({ page }) =
     'familiar',
   );
 });
+
+test('the character sheet prints on A4 pages', async ({ page }, testInfo) => {
+  await newCharacter(page, 'Lia', '2014 rules');
+  await addClass(page, /Bard/);
+  await page.getByLabel('Level', { exact: true }).selectOption('3');
+  await step(page, /Sheet/).click();
+  await page.getByRole('link', { name: /Printable sheet/ }).click();
+  await expect(page.getByRole('button', { name: 'Print / Save as PDF' })).toBeEnabled();
+  const preview = page.locator('main .paper');
+  await expect(preview.getByText('Attacks & cantrips')).toBeVisible();
+  await expect(preview.getByText('Bard 3')).toBeVisible();
+  // Printing shows only the sheet: one copy, page by page.
+  await page.emulateMedia({ media: 'print' });
+  await expect(page.locator('.print-root .sheet-page').first()).toBeVisible();
+  await expect(page.locator('main')).toBeHidden();
+  if (testInfo.project.name === 'desktop') {
+    await page.pdf({ path: testInfo.outputPath('sheet.pdf'), format: 'A4', printBackground: true });
+    const pages = page.locator('.print-root .sheet-page');
+    for (let i = 0; i < (await pages.count()); i++)
+      await pages.nth(i).screenshot({ path: testInfo.outputPath(`page-${String(i + 1)}.png`) });
+  }
+});

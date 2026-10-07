@@ -8,7 +8,9 @@
 @import '@fontsource/merriweather/400.css';
 @import '@fontsource/merriweather/700.css';
 
-:root {
+:root,
+/* Paper: a printed sheet is always light, whatever the app theme. */
+.paper {
   color-scheme: light;
   --boh-bg: #f3f1ee;
   --boh-surface: #ffffff;
