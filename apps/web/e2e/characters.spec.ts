@@ -182,6 +182,15 @@ test('the character sheet prints on A4 pages', async ({ page }, testInfo) => {
   const preview = page.locator('main .paper');
   await expect(preview.getByText('Attacks & cantrips')).toBeVisible();
   await expect(preview.getByText('Bard 3')).toBeVisible();
+  // Pages can be left out, and stay left out.
+  await page.getByRole('button', { name: 'Pages' }).click();
+  await page.getByRole('checkbox', { name: 'Personality and backstory' }).uncheck();
+  await expect(preview.getByText('Backstory', { exact: true })).toHaveCount(0);
+  await page.reload();
+  await page.getByRole('button', { name: 'Pages' }).click();
+  await expect(page.getByRole('checkbox', { name: 'Personality and backstory' })).not.toBeChecked();
+  await page.getByRole('checkbox', { name: 'Personality and backstory' }).check();
+  await expect(preview.getByText('Backstory', { exact: true })).toBeVisible();
   // Printing shows only the sheet: one copy, page by page.
   await page.emulateMedia({ media: 'print' });
   await expect(page.locator('.print-root .sheet-page').first()).toBeVisible();
