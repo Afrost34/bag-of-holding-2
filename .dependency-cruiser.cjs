@@ -68,6 +68,14 @@ module.exports = {
       to: { path: '(^packages/(ui|storage|renderer)/)|(node_modules/(react|react-dom)/)' },
     },
     {
+      name: 'rules-is-pure',
+      comment:
+        'The character engine is plain TypeScript over 5etools data: no React, no storage, no renderer, no app. It runs in the data worker.',
+      severity: 'error',
+      from: { path: '^packages/rules/src/', pathNot: '\\.test\\.ts$' },
+      to: { path: '(^packages/(ui|storage|renderer|journal)/)|(node_modules/(react|react-dom)/)' },
+    },
+    {
       name: 'renderer-is-app-agnostic',
       severity: 'error',
       comment:

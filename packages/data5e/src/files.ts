@@ -5,7 +5,7 @@
 
 /** Files that are tooling for the 5etools site itself, not content. */
 const EXCLUDED: readonly RegExp[] = [
-  /(^|\/)foundry(-[^/]*)?\.json$/, // Foundry VTT import data
+  /(^|\/)foundry(-[^/]*)?\.json$/, // Foundry VTT import data (but see FOUNDRY_CLASS_FILE)
   /^data\/makebrew-/, // homebrew-builder helpers
   /^data\/makecards\.json$/,
   /^data\/converter\.json$/,
@@ -18,7 +18,15 @@ const EXCLUDED: readonly RegExp[] = [
   /^data\/spells\/sources\.json$/,
 ];
 
+/**
+ * Foundry VTT data for classes, kept as lookup data for the rules engine: its `entryData` holds
+ * structured choices for class features that 5etools only describes in text (Expertise, Deft
+ * Explorer…). extract.ts trims it to those.
+ */
+export const FOUNDRY_CLASS_FILE = 'data/class/foundry.json';
+
 export function isDataFile(path: string): boolean {
+  if (path === FOUNDRY_CLASS_FILE) return true;
   return path.startsWith('data/') && path.endsWith('.json') && !EXCLUDED.some((r) => r.test(path));
 }
 
@@ -31,6 +39,7 @@ const GENERATED_ENTITY_FILES = new Set(['data/generated/gendata-tables.json']);
  * data unless listed above.
  */
 export function yieldsEntities(path: string): boolean {
+  if (path === FOUNDRY_CLASS_FILE) return false;
   return !path.startsWith('data/generated/') || GENERATED_ENTITY_FILES.has(path);
 }
 
