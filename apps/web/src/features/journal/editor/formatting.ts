@@ -158,8 +158,10 @@ export function slashCompletion(host: FormattingHost) {
     const m = context.matchBefore(/(?:^|\s)\/[\w' ]{0,24}$/);
     if (!m) return null;
     const slash = m.from + m.text.indexOf('/');
-    const options: Completion[] = SLASH.map((item) => ({
+    // Kept in this order (headings first) rather than sorted by name.
+    const options: Completion[] = SLASH.map((item, i) => ({
       label: item.label,
+      boost: 50 - i,
       detail: item.detail,
       type: 'keyword',
       ...(item.keywords ? { info: item.keywords } : {}),

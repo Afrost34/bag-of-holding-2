@@ -254,6 +254,8 @@ const theme = EditorView.theme({
     padding: '0 6px',
     fontSize: '0.9em',
   },
+  '.cm-tooltip-autocomplete > ul': { fontFamily: 'var(--font-sans) !important', fontSize: '14px' },
+  '.cm-tooltip-autocomplete > ul > li': { padding: '4px 10px !important' },
   '.cm-tooltip-autocomplete': {
     backgroundColor: 'var(--boh-surface)',
     border: '1px solid var(--boh-border)',
