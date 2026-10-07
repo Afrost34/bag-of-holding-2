@@ -6,13 +6,13 @@ import {
   FileText,
   Folder,
   FolderPlus,
+  LayoutTemplate,
   MoreHorizontal,
   Paperclip,
 } from 'lucide-react';
 import { useState, type DragEvent } from 'react';
 import { buildTree, moveTarget, type TreeNode } from './tree';
-
-const DRAG_TYPE = 'application/x-boh-journal-path';
+import { DRAG_TYPE } from './dnd';
 
 export interface FileTreeProps {
   notes: readonly string[];
@@ -27,6 +27,9 @@ export interface FileTreeProps {
   onDelete: (path: string, kind: 'folder' | 'note' | 'file') => void;
   /** Move a note, file or folder into a folder ('' is the top level). */
   onMove: (path: string, folder: string) => void;
+  /** Notes that can start a new note (in template folders). */
+  templates?: readonly string[];
+  onNewFromTemplate?: (template: string) => void;
 }
 
 /** Drag state shared by the whole tree: the folder a drop would land in. */
@@ -63,16 +66,14 @@ export function FileTree(treeProps: FileTreeProps) {
   return (
     <nav
       aria-label="Journal files"
-      className={cn('flex min-h-full flex-col text-sm', dropTarget === '' && 'bg-accent-soft/40')}
+      className={cn('flex flex-1 flex-col text-sm', dropTarget === '' && 'bg-accent-soft/40')}
       {...dropZone('', props)}
       onDragLeave={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropTarget(null);
       }}
     >
       <div className="mb-2 flex items-center gap-1 px-2">
-        <span className="flex-1 text-[11px] font-semibold tracking-wider text-muted uppercase">
-          Files
-        </span>
+        <span className="flex-1" />
         <button
           type="button"
           aria-label="New note"
@@ -84,6 +85,37 @@ export function FileTree(treeProps: FileTreeProps) {
         >
           <FilePlus className="h-4 w-4" aria-hidden />
         </button>
+        {props.templates && props.templates.length > 0 && (
+          <Menu.Root>
+            <Menu.Trigger
+              aria-label="New note from template"
+              title="New note from template"
+              className="rounded p-1 text-muted hover:bg-sunken hover:text-text"
+            >
+              <LayoutTemplate className="h-4 w-4" aria-hidden />
+            </Menu.Trigger>
+            <Menu.Portal>
+              <Menu.Content
+                align="end"
+                sideOffset={4}
+                collisionPadding={8}
+                className="z-50 max-h-80 min-w-44 overflow-y-auto rounded-md border border-border bg-surface p-1 text-sm shadow-card"
+              >
+                <Menu.Label className="px-2 py-1 text-xs text-muted">New note from</Menu.Label>
+                {props.templates.map((t) => (
+                  <MenuItem
+                    key={t}
+                    onSelect={() => {
+                      props.onNewFromTemplate?.(t);
+                    }}
+                  >
+                    {t.slice(t.lastIndexOf('/') + 1).replace(/\.md$/i, '')}
+                  </MenuItem>
+                ))}
+              </Menu.Content>
+            </Menu.Portal>
+          </Menu.Root>
+        )}
         <button
           type="button"
           aria-label="New folder"

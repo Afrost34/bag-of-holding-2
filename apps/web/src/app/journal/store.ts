@@ -13,6 +13,9 @@ import { userStore } from '../userStore';
 
 const SAVE_AFTER_MS = 500;
 
+/** Where pasted and dropped files go, as in the plan's data layout. */
+export const ATTACHMENT_FOLDER = '_assets';
+
 export function journalRoot(campaignId: string): string {
   return `${campaignDir(campaignId)}/journal`;
 }
@@ -36,6 +39,10 @@ interface JournalStore {
   /** Moves or renames a note or folder; links pointing at moved notes are updated. */
   move: (from: string, to: string) => Promise<void>;
   remove: (path: string) => Promise<void>;
+  /** Saves an image or other file into `_assets/` under a free name, returning its path. */
+  addAttachment: (name: string, bytes: Uint8Array) => Promise<string>;
+  /** Writes pending edits now instead of after the usual short delay. */
+  flush: () => Promise<void>;
 }
 
 const timers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -205,6 +212,26 @@ export const useJournal = create<JournalStore>()((set, get) => {
       });
     },
 
+    flush: flushAll,
+
+    addAttachment: async (name, bytes) => {
+      const clean = name.replace(/[/:*?"<>|]/g, '-').trim() || 'file';
+      const dot = clean.lastIndexOf('.');
+      const stem = dot > 0 ? clean.slice(0, dot) : clean;
+      const ext = dot > 0 ? clean.slice(dot) : '';
+      const taken = new Set(get().attachments.map((p) => p.toLowerCase()));
+      let path = `${ATTACHMENT_FOLDER}/${clean}`;
+      for (let n = 1; taken.has(path.toLowerCase()); n++)
+        path = `${ATTACHMENT_FOLDER}/${stem} ${String(n)}${ext}`;
+      const store = await userStore();
+      await store.writeFile(`${root()}/${path}`, bytes);
+      set({
+        attachments: [...get().attachments, path].sort(),
+        folders: [...new Set([...get().folders, ATTACHMENT_FOLDER])].sort(),
+      });
+      return path;
+    },
+
     remove: async (path) => {
       const timer = timers.get(path);
       if (timer) clearTimeout(timer);
@@ -233,3 +260,14 @@ useCampaigns.subscribe((state, previous) => {
 });
 
 export { parentOf as folderOfPath };
+
+// Leaving the page (closing the tab, switching app on a phone) saves pending edits right away.
+if (typeof document !== 'undefined') {
+  const saveNow = () => {
+    void useJournal.getState().flush();
+  };
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') saveNow();
+  });
+  window.addEventListener('pagehide', saveNow);
+}

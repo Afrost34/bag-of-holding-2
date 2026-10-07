@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildTree, moveTarget } from './tree';
+import { buildTagTree, buildTree, moveTarget } from './tree';
 
 describe('journal tree', () => {
   it('nests notes in folders, folders first, natural order', () => {
@@ -39,5 +39,27 @@ describe('moveTarget', () => {
     expect(moveTarget('Waterdeep.md', 'Places', [...existing, 'Waterdeep.md'], false).ok).toBe(
       false,
     );
+  });
+});
+
+describe('buildTagTree', () => {
+  it('nests tags and counts notes with sub-tags', () => {
+    const tree = buildTagTree(
+      new Map([
+        ['A.md', ['npc', 'faction/zhentarim']],
+        ['B.md', ['faction/harpers', 'Faction']],
+        ['C.md', ['npc']],
+      ]),
+    );
+    expect(tree.map((t) => [t.tag, t.count])).toEqual([
+      ['faction', 2],
+      ['npc', 2],
+    ]);
+    const faction = tree[0];
+    expect(faction?.notes).toEqual(['B.md']);
+    expect(faction?.children.map((c) => [c.name, c.notes])).toEqual([
+      ['harpers', ['B.md']],
+      ['zhentarim', ['A.md']],
+    ]);
   });
 });

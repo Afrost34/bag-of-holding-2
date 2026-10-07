@@ -1,6 +1,12 @@
-import { codeRanges, parseCompendiumRef, parseLinkInner, parseTags } from '@boh/journal';
+import {
+  codeRanges,
+  parseCompendiumRef,
+  parseFrontmatter,
+  parseLinkInner,
+  parseTags,
+} from '@boh/journal';
 import { syntaxTree } from '@codemirror/language';
-import type { EditorState, Range } from '@codemirror/state';
+import { StateField, type EditorState, type Range } from '@codemirror/state';
 import {
   Decoration,
   EditorView,
@@ -19,6 +25,17 @@ import {
 export interface LinkContext {
   /** Whether a note link resolves to a note (unresolved ones are shown faded). */
   isResolved: (target: string) => boolean;
+  /** Draws `![[embeds]]`; without it they show as links. */
+  embeds?: EmbedHost;
+}
+
+/**
+ * Embeds are drawn by the app (React, through portals) into elements the editor hands out:
+ * `mount` when an embed appears, `unmount` when the editor drops it.
+ */
+export interface EmbedHost {
+  mount: (el: HTMLElement, inner: string) => void;
+  unmount: (el: HTMLElement) => void;
 }
 
 const hide = Decoration.replace({});
@@ -74,6 +91,9 @@ function build(view: EditorView, ctx: LinkContext): DecorationSet {
     return false;
   };
   const decos: Range<Decoration>[] = [];
+  // Embeds stay drawn unless the cursor is inside their brackets.
+  const editing = (from: number, to: number) =>
+    view.hasFocus && state.selection.ranges.some((r) => r.to >= from && r.from <= to);
 
   for (const { from, to } of view.visibleRanges) {
     syntaxTree(state).iterate({
@@ -131,6 +151,19 @@ function build(view: EditorView, ctx: LinkContext): DecorationSet {
       if (inCode(m.index)) continue;
       const start = from + m.index;
       const end = start + m[0].length;
+      if (m[1] === '!' && ctx.embeds) {
+        if (editing(start, end)) {
+          decos.push(Decoration.mark({ class: 'cm-jlink-raw' }).range(start, end));
+        } else {
+          decos.push(
+            Decoration.replace({ widget: new EmbedWidget(m[2] ?? '', ctx.embeds) }).range(
+              start,
+              end,
+            ),
+          );
+        }
+        continue;
+      }
       if (isActive(start, end)) {
         decos.push(Decoration.mark({ class: 'cm-jlink-raw' }).range(start, end));
         continue;
@@ -156,7 +189,12 @@ function build(view: EditorView, ctx: LinkContext): DecorationSet {
       )) {
         const at = from + m.index + (m[1]?.length ?? 0);
         if (inCode(at - from)) continue;
-        decos.push(Decoration.mark({ class: 'cm-jtag' }).range(at, at + tag.length + 1));
+        decos.push(
+          Decoration.mark({ class: 'cm-jtag', attributes: { 'data-tag': tag } }).range(
+            at,
+            at + tag.length + 1,
+          ),
+        );
       }
     }
   }
@@ -208,6 +246,56 @@ class LinkWidget extends WidgetType {
   }
 }
 
+/** An embedded note, image or compendium entry; the app draws its content. */
+class EmbedWidget extends WidgetType {
+  constructor(
+    readonly inner: string,
+    readonly host: EmbedHost,
+  ) {
+    super();
+  }
+
+  override eq(other: EmbedWidget): boolean {
+    return other.inner === this.inner && other.host === this.host;
+  }
+
+  toDOM(): HTMLElement {
+    const el = document.createElement('span');
+    el.className = 'cm-jembed';
+    this.host.mount(el, this.inner);
+    return el;
+  }
+
+  override destroy(dom: HTMLElement): void {
+    this.host.unmount(dom);
+  }
+
+  // Clicks inside an embed (its links, an image) belong to it, not to the editor.
+  override ignoreEvent(): boolean {
+    return true;
+  }
+}
+
+/** Hides a note's frontmatter: the properties panel above the editor shows and edits it. */
+export function hideFrontmatter() {
+  const compute = (state: EditorState): DecorationSet => {
+    const { bodyStart } = parseFrontmatter(state.doc.toString());
+    if (bodyStart === 0) return Decoration.none;
+    // Up to the closing `---`, so the body's first line stays a line of its own.
+    const end = state.doc.lineAt(Math.max(0, bodyStart - 1)).to;
+    return Decoration.set([Decoration.replace({ block: true }).range(0, end)]);
+  };
+  const field = StateField.define<DecorationSet>({
+    create: compute,
+    update: (value, tr) => (tr.docChanged ? compute(tr.state) : value),
+    provide: (f) => [
+      EditorView.decorations.from(f),
+      EditorView.atomicRanges.of((view) => view.state.field(f)),
+    ],
+  });
+  return field;
+}
+
 export function livePreview(ctx: LinkContext) {
   return ViewPlugin.fromClass(
     class {
@@ -234,6 +322,7 @@ export function livePreview(ctx: LinkContext) {
 export function linkClicks(
   open: (inner: string, newTab: boolean) => void,
   openUrl: (url: string) => void,
+  openTag?: (tag: string) => void,
 ) {
   return EditorView.domEventHandlers({
     mousedown: (event) => {
@@ -249,6 +338,12 @@ export function linkClicks(
       if (url?.dataset.url) {
         event.preventDefault();
         openUrl(url.dataset.url);
+        return true;
+      }
+      const tag = target?.closest<HTMLElement>('[data-tag]')?.dataset.tag;
+      if (tag && openTag && !event.ctrlKey) {
+        event.preventDefault();
+        openTag(tag);
         return true;
       }
       return false;

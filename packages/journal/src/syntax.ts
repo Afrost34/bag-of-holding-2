@@ -95,19 +95,22 @@ export interface Frontmatter {
 }
 
 export function parseFrontmatter(text: string): Frontmatter {
-  const m = /^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/.exec(text);
+  // Notes saved by some Windows editors start with a byte-order mark before the `---`.
+  const bom = text.charCodeAt(0) === 0xfeff ? 1 : 0;
+  const m = /^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/.exec(text.slice(bom));
   if (!m) return { data: {}, bodyStart: 0 };
+  const bodyStart = bom + m[0].length;
   try {
     const parsed: unknown = parseYaml(m[1] ?? '');
     const data =
       typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
         ? (parsed as Record<string, unknown>)
         : {};
-    return { data, bodyStart: m[0].length };
+    return { data, bodyStart };
   } catch (error) {
     return {
       data: {},
-      bodyStart: m[0].length,
+      bodyStart,
       error: error instanceof Error ? error.message : String(error),
     };
   }
