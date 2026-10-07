@@ -17,7 +17,6 @@ import { DRAG_TYPE } from '../dnd';
 import { formattingKeymap, slashCompletion, type FormattingHost } from './formatting';
 import {
   baseBlocks,
-  focusState,
   hideFrontmatter,
   linkClicks,
   tableBlocks,
@@ -42,8 +41,11 @@ export interface JournalEditorOptions extends LinkContext, FormattingHost {
   saveFiles?: (files: File[]) => Promise<string[]>;
   /** The link target for a note or file dragged in from the file tree. */
   linkFor?: (path: string) => string;
-  /** Hide the frontmatter (the properties panel shows it). */
-  hideFrontmatter?: boolean;
+  /**
+   * Code mode: the note's Markdown as plain text, for editing by hand. Otherwise the note is
+   * always shown formatted, with its properties and syntax hidden.
+   */
+  codeMode?: boolean;
 }
 
 /** Pasting or dropping files saves them and embeds them; dropping a note links to it. */
@@ -291,19 +293,13 @@ export function journalViewerExtensions(
 }
 
 export function journalExtensions(opts: JournalEditorOptions): Extension[] {
-  return [
+  const editing: Extension[] = [
     history(),
     drawSelection(),
-    focusState,
     closeBrackets(),
     EditorView.lineWrapping,
     markdown({ base: markdownLanguage }),
-    livePreview(opts),
-    ...(opts.embeds ? [baseBlocks(opts.embeds)] : []),
-    tableBlocks(),
-    linkClicks(opts.openLink, opts.openUrl, opts.openTag),
     drops(opts),
-    ...(opts.hideFrontmatter ? [hideFrontmatter()] : []),
     autocompletion({ override: [linkCompletion(opts), slashCompletion(opts)], icons: false }),
     formattingKeymap(),
     keymap.of([
@@ -313,10 +309,28 @@ export function journalExtensions(opts: JournalEditorOptions): Extension[] {
       ...historyKeymap,
       indentWithTab,
     ]),
-    placeholder('Start writing… Type / for headings, lists, tables and more, or [[ to link.'),
     EditorView.updateListener.of((update) => {
       if (update.docChanged) opts.onChange(update.state.doc.toString());
     }),
     theme,
+  ];
+  if (opts.codeMode) {
+    return [
+      ...editing,
+      placeholder('Markdown'),
+      EditorView.theme({
+        '.cm-scroller': { fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace' },
+        '&': { fontSize: '14px' },
+      }),
+    ];
+  }
+  return [
+    ...editing,
+    livePreview(opts),
+    ...(opts.embeds ? [baseBlocks(opts.embeds, opts.onEditSource)] : []),
+    tableBlocks(opts.embeds),
+    hideFrontmatter(),
+    linkClicks(opts.openLink, opts.openUrl, opts.openTag),
+    placeholder('Start writing… Type / for headings, lists, tables and more, or [[ to link.'),
   ];
 }

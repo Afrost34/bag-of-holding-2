@@ -20,7 +20,9 @@ import {
   setProperty,
   templatePaths,
   type NoteInfo,
+  type FieldDef,
   type NoteType,
+  type PropertyValue,
 } from '@boh/journal';
 import { Button, cn } from '@boh/ui';
 import { FilePlus, FolderTree, Link2, Trash2, X } from 'lucide-react';
@@ -34,6 +36,7 @@ import { disabledSourceIds, useSourcePrefs } from '../../app/data/sourcePrefs';
 import { typeLabel } from '../../app/format';
 import { noteRefFor, resolveCompendiumRef } from '../../app/journal/compendium';
 import { journalPath } from '../../app/journal/paths';
+import { useJournalPrefs } from '../../app/journal/prefs';
 import { useJournal } from '../../app/journal/store';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
@@ -42,6 +45,8 @@ import { BaseView } from './BaseView';
 import { JournalViewContext, useJournalView, type JournalView, type NewNoteSpec } from './context';
 import type { JournalEditorOptions } from './editor/setup';
 import { FileTree } from './FileTree';
+import { NoteInfoCard } from './NoteInfoCard';
+import { NoteWizard, type WizardResult } from './NoteWizard';
 import { ImportPanel } from './ImportPanel';
 import { NoteTypeIcon } from './NoteTypeIcon';
 import { EmbedContent } from './JournalEmbed';
@@ -54,13 +59,21 @@ import { useAttachmentUrl } from './useAttachmentUrl';
 
 const folderOf = (path: string) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '');
 /** A note's or base's name without its extension. */
-const displayName = (path: string) => noteName(path).replace(/\.base$/i, '');
+const displayName = prettyName;
 const isBasePath = (path: string) => path.toLowerCase().endsWith('.base');
 /** A folder's own name as words: `05_NPCs` → `NPCs`, for matching it to a kind of note. */
 const folderWords = (path: string) => (path.split('/').pop() ?? '').replace(/[_\d-]+/g, ' ');
 
 /** What the "new note" form is making. */
-type Creating = { kind: 'template'; path: string } | { kind: 'type'; type: NoteType };
+interface Creating {
+  kind: 'template';
+  path: string;
+}
+
+/** The wizard: a new note (of a kind, with some properties) or the open note's details. */
+type Wizard =
+  | { mode: 'create'; type: NoteType | undefined; properties: Record<string, PropertyValue> }
+  | { mode: 'edit' };
 
 /** The open campaign's notes: file tree, live-preview editor and backlinks. */
 export function JournalPage({ note }: { note: string | undefined }) {
@@ -77,7 +90,9 @@ export function JournalPage({ note }: { note: string | undefined }) {
   const [sidebar, setSidebar] = useState<'files' | 'tags'>('files');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   // Per session: show the raw frontmatter in the editor instead of hiding it.
-  const [showSource, setShowSource] = useState(false);
+  const codeMode = useJournalPrefs((s) => s.codeMode);
+  const setCodeMode = useJournalPrefs((s) => s.setCodeMode);
+  const [wizard, setWizard] = useState<Wizard | null>(null);
   const [creating, setCreating] = useState<Creating | null>(null);
   const [importing, setImporting] = useState(false);
 
@@ -262,6 +277,19 @@ export function JournalPage({ note }: { note: string | undefined }) {
     open(path);
   };
 
+  /** Asks for image files, saves them with the journal and returns their link targets. */
+  const pickImages = (multiple = true) =>
+    new Promise<string[]>((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.multiple = multiple;
+      input.onchange = () => {
+        void saveFiles([...(input.files ?? [])]).then(resolve);
+      };
+      input.click();
+    });
+
   const view: JournalView = {
     campaignId: campaign.id,
     edition: campaign.edition,
@@ -281,6 +309,9 @@ export function JournalPage({ note }: { note: string | undefined }) {
     },
     openTag,
     createNote: (spec) => createNote(spec),
+    startNote: ({ type, properties }) => {
+      setWizard({ mode: 'create', type, properties: properties ?? {} });
+    },
     Embed: EmbedContent,
   };
 
@@ -304,19 +335,12 @@ export function JournalPage({ note }: { note: string | undefined }) {
       if (note) journal.setText(note, t);
     },
     saveFiles,
-    pickImages: () =>
-      new Promise<string[]>((resolve) => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.multiple = true;
-        input.onchange = () => {
-          void saveFiles([...(input.files ?? [])]).then(resolve);
-        };
-        input.click();
-      }),
+    pickImages,
     linkFor: (p) => linkTargetFor(p, isAttachment(p) ? journal.attachments : paths),
-    hideFrontmatter: !showSource,
+    codeMode,
+    onEditSource: () => {
+      setCodeMode(true);
+    },
   };
 
   const templates = templatePaths(paths);
@@ -326,8 +350,7 @@ export function JournalPage({ note }: { note: string | undefined }) {
   const kind = noteType(data.type);
   const fieldFor = (key: string) => kind?.fields.find((f) => f.key === key);
   const linkTo = (path: string) => `[[${linkTargetFor(path, paths)}]]`;
-  const suggest = (key: string): string[] => {
-    const field = fieldFor(key);
+  const suggest = (key: string, field: FieldDef | undefined = fieldFor(key)): string[] => {
     if (field?.kind === 'link' || field?.kind === 'links') {
       return noteInfos
         .filter(
@@ -354,6 +377,55 @@ export function JournalPage({ note }: { note: string | undefined }) {
   };
   const missingFields = kind ? kind.fields.filter((f) => !(f.key in data)) : [];
 
+  // The name the wizard shows and edits: the `title` property, else the file's name.
+  const shownName =
+    note && typeof data.title === 'string' && data.title.trim()
+      ? data.title.trim()
+      : note
+        ? prettyName(note)
+        : '';
+
+  const saveWizard = async (result: WizardResult) => {
+    const w = wizard;
+    setWizard(null);
+    if (!w) return;
+    if (w.mode === 'create') {
+      await createNote({ name: result.name, type: result.type, properties: result.values });
+      return;
+    }
+    if (!note || text === undefined) return;
+    let next = text;
+    // Made into a kind of note (or another kind): its type, tag and usual fields.
+    if (result.type && kind?.id !== result.type.id) {
+      next = setProperty(next, 'type', result.type.id);
+      const tags = Array.isArray(data.tags) ? data.tags.map(String) : [];
+      if (!tags.includes(result.type.id))
+        next = setProperty(next, 'tags', [...tags, result.type.id]);
+      for (const f of result.type.fields) {
+        if (!(f.key in data) && !(f.key in result.values))
+          next = setProperty(next, f.key, f.initial ?? null);
+      }
+    }
+    for (const [key, value] of Object.entries(result.values)) {
+      if (value === null && !(key in data)) continue;
+      if (JSON.stringify(data[key] ?? null) === JSON.stringify(value)) continue;
+      next = setProperty(next, key, value);
+    }
+    if (typeof data.title === 'string' && data.title !== result.name) {
+      next = setProperty(next, 'title', result.name);
+    }
+    if (next !== text) journal.setText(note, next);
+    if (result.name !== shownName && result.name !== noteName(note))
+      await rename(note, result.name);
+  };
+
+  const wizardHelpers = {
+    suggest,
+    asLink,
+    pickImage: async () => (await pickImages(false))[0] ?? null,
+    resolveImage: (target: string) => resolveLinkPath(target, journal.attachments, note),
+  };
+
   const fileTree = (
     <FileTree
       templates={templates}
@@ -363,7 +435,7 @@ export function JournalPage({ note }: { note: string | undefined }) {
         setFilesOpen(false);
       }}
       onNewOfType={(type) => {
-        setCreating({ kind: 'type', type });
+        setWizard({ mode: 'create', type, properties: {} });
         setFilesOpen(false);
       }}
       onImport={() => {
@@ -500,6 +572,29 @@ export function JournalPage({ note }: { note: string | undefined }) {
               </div>
             )}
 
+            {wizard && (
+              <NoteWizard
+                mode={wizard.mode}
+                initialType={wizard.mode === 'create' ? wizard.type : kind}
+                initialName={wizard.mode === 'create' ? '' : shownName}
+                initialValues={
+                  wizard.mode === 'create'
+                    ? {
+                        ...Object.fromEntries(
+                          (wizard.type?.fields ?? []).map((f) => [f.key, f.initial ?? null]),
+                        ),
+                        ...wizard.properties,
+                      }
+                    : data
+                }
+                helpers={wizardHelpers}
+                onCancel={() => {
+                  setWizard(null);
+                }}
+                onSave={(r) => void saveWizard(r)}
+              />
+            )}
+
             {importing && (
               <ImportPanel
                 onClose={() => {
@@ -513,15 +608,10 @@ export function JournalPage({ note }: { note: string | undefined }) {
 
             {creating && (
               <TemplateForm
-                key={creating.kind === 'type' ? creating.type.id : creating.path}
-                label={
-                  creating.kind === 'type'
-                    ? `New ${creating.type.label}`
-                    : `New note from the “${noteName(creating.path)}” template`
-                }
+                key={creating.path}
+                label={`New note from the “${noteName(creating.path)}” template`}
                 onCreate={(name) => {
-                  if (creating.kind === 'type') void createNote({ name, type: creating.type });
-                  else void newFromTemplate(creating.path, name);
+                  void newFromTemplate(creating.path, name);
                 }}
                 onCancel={() => {
                   setCreating(null);
@@ -544,30 +634,44 @@ export function JournalPage({ note }: { note: string | undefined }) {
                 <Banner text={text} />
                 <NoteTitle key={note} path={note} onRename={(name) => void rename(note, name)} />
                 {folderOf(note) && <p className="mb-2 text-xs text-faint">{folderOf(note)}</p>}
-                <PropertiesPanel
-                  text={text}
-                  onChange={(t) => {
-                    journal.setText(note, t);
-                  }}
-                  onError={setMessage}
-                  openTag={openTag}
-                  openLink={view.openLink}
-                  showSource={showSource}
-                  onToggleSource={() => {
-                    setShowSource(!showSource);
-                  }}
-                  fieldFor={fieldFor}
-                  suggest={suggest}
-                  asLink={asLink}
-                  missingFields={missingFields}
-                  typeLabel={kind?.label}
-                />
+                {codeMode ? (
+                  <PropertiesPanel
+                    text={text}
+                    onChange={(t) => {
+                      journal.setText(note, t);
+                    }}
+                    onError={setMessage}
+                    openTag={openTag}
+                    openLink={view.openLink}
+                    showSource={codeMode}
+                    onToggleSource={() => {
+                      setCodeMode(!codeMode);
+                    }}
+                    fieldFor={fieldFor}
+                    suggest={suggest}
+                    asLink={asLink}
+                    missingFields={missingFields}
+                    typeLabel={kind?.label}
+                  />
+                ) : (
+                  <NoteInfoCard
+                    data={data}
+                    onEdit={() => {
+                      setWizard({ mode: 'edit' });
+                    }}
+                    openLink={view.openLink}
+                    openTag={openTag}
+                  />
+                )}
                 <div ref={editorBox}>
                   <NoteEditor
-                    key={`${note}|${String(showSource)}`}
+                    key={`${note}|${String(codeMode)}`}
                     path={note}
                     text={text}
                     options={editorOptions}
+                    onToggleCode={() => {
+                      setCodeMode(!codeMode);
+                    }}
                   />
                 </div>
                 <LinkPreviews container={editorBox}>
@@ -581,7 +685,7 @@ export function JournalPage({ note }: { note: string | undefined }) {
                 missing={note !== undefined}
                 onNew={() => void newNote('')}
                 onNewOfType={(type) => {
-                  setCreating({ kind: 'type', type });
+                  setWizard({ mode: 'create', type, properties: {} });
                 }}
                 onImport={() => {
                   setImporting(true);

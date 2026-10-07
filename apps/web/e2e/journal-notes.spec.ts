@@ -21,25 +21,30 @@ async function leaveEditor(page: Page) {
   await page.getByLabel('Note title').click();
 }
 
-test('properties are edited in a panel instead of as YAML', async ({ page }) => {
-  await newNote(page, 'Mother Tibia');
-  await page.getByRole('button', { name: 'Add property' }).click();
-  await page.getByLabel('New property name').fill('type');
-  await page.getByLabel('New property name').press('Enter');
-  const value = page.getByLabel('type', { exact: true });
-  await value.fill('npc');
-  await value.press('Enter');
-  await expect(value).toHaveValue('npc');
-  // The YAML is hidden in the editor, and shown again on request.
-  await expect(editor(page)).not.toContainText('type: npc');
-  await page.getByRole('button', { name: 'Properties as text' }).click();
-  await expect(editor(page)).toContainText('type: npc');
+test('details are filled in with a form and shown as a card, never as YAML', async ({ page }) => {
+  await newNote(page, 'The Old Mill');
+  await page.getByRole('button', { name: 'Add details' }).click();
+  const wizard = page.getByRole('dialog', { name: /Edit note/ });
+  await wizard.getByLabel('Another detail').fill('Mood');
+  await wizard.getByRole('button', { name: 'Add', exact: true }).click();
+  await wizard.getByLabel('Mood', { exact: true }).fill('Grim');
+  await wizard.getByRole('button', { name: 'Save', exact: true }).click();
+  const card = page.getByRole('region', { name: 'Details' });
+  await expect(card).toContainText('Mood');
+  await expect(card).toContainText('Grim');
+  await expect(editor(page)).not.toContainText('mood:');
+
+  // The Markdown, properties included, is there in code mode.
+  await page.getByRole('button', { name: 'Markdown' }).click();
+  await expect(editor(page)).toContainText('mood: Grim');
+  await showProperties(page);
+  await expect(page.getByLabel('mood', { exact: true })).toHaveValue('Grim');
+  await page.getByRole('button', { name: 'Markdown' }).click();
 
   // Survives a reload (notes are saved shortly after each change).
   await page.waitForTimeout(700);
   await page.reload();
-  await showProperties(page);
-  await expect(page.getByLabel('type', { exact: true })).toHaveValue('npc');
+  await expect(page.getByRole('region', { name: 'Details' })).toContainText('Grim');
 });
 
 test('tags in notes are listed in the Tags pane', async ({ page }) => {

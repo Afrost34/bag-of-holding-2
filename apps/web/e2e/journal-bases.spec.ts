@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { createCampaign, installData, showFiles, showProperties } from './helpers/journal';
+import { createCampaign, installData, showFiles } from './helpers/journal';
 
 /** Journal: kinds of notes (NPC, location…) and the bases that list them. Fixture data. */
 
@@ -17,8 +17,9 @@ async function newOfKind(page: Page, kind: string, name: string) {
     .getByRole('button', { name: 'New note from template' })
     .click();
   await page.getByRole('menuitem', { name: kind, exact: true }).click();
-  await page.getByLabel('Name of the new note').fill(name);
-  await page.getByRole('button', { name: 'Create' }).click();
+  const wizard = page.getByRole('dialog', { name: `New ${kind}` });
+  await wizard.getByLabel('Name', { exact: true }).fill(name);
+  await wizard.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.getByLabel('Note title')).toHaveValue(name);
 }
 
@@ -27,27 +28,30 @@ test('NPCs link to locations, which list them; bases are made for each kind', as
   await newOfKind(page, 'NPC', 'Volo');
   await expect(page).toHaveURL(/note=NPCs(%2F|\/)Volo\.md/);
 
-  // The NPC's fields are there; a typed note name becomes a link.
-  await showProperties(page);
-  await expect(page.getByLabel('status', { exact: true })).toHaveValue('Alive');
-  const location = page.getByLabel('location', { exact: true });
-  await location.fill('Rustcrown');
-  await location.press('Enter');
-  await expect(location).toHaveValue('[[Rustcrown]]');
+  // The details card shows the NPC's fields; the wizard edits them, and a name becomes a link.
+  const card = page.getByRole('region', { name: 'Details' });
+  await expect(card).toContainText('Alive');
+  await card.getByRole('button', { name: 'Edit details' }).click();
+  const wizard = page.getByRole('dialog', { name: /Edit NPC/ });
+  await wizard.getByRole('button', { name: '2. Place in the world' }).click();
+  await wizard.getByLabel('Location', { exact: true }).fill('Rustcrown');
+  await wizard.getByRole('button', { name: 'Save', exact: true }).click();
 
   // The location lists the NPCs there.
-  await page.getByRole('button', { name: 'Open Rustcrown' }).click();
+  await card.getByRole('button', { name: 'Rustcrown' }).click();
   await expect(page.getByLabel('Note title')).toHaveValue('Rustcrown');
   const here = page.getByRole('region', { name: 'Base: NPCs here' });
   await expect(here.getByRole('button', { name: 'Volo' })).toBeVisible();
 
   // A new NPC made from that list is placed there.
   await here.getByRole('button', { name: 'New note in this base' }).click();
-  await page.getByLabel('Name of the new note').fill('Laeral');
-  await page.getByRole('button', { name: 'Create' }).click();
+  const newNpc = page.getByRole('dialog', { name: 'New NPC' });
+  await newNpc.getByLabel('Name', { exact: true }).fill('Laeral');
+  await newNpc.getByRole('button', { name: 'Create', exact: true }).click();
   await expect(page.getByLabel('Note title')).toHaveValue('Laeral');
-  await showProperties(page);
-  await expect(page.getByLabel('location', { exact: true })).toHaveValue('[[Rustcrown]]');
+  await expect(
+    page.getByRole('region', { name: 'Details' }).getByRole('button', { name: 'Rustcrown' }),
+  ).toBeVisible();
 
   // The NPCs base was made with the first NPC and lists both.
   await page.goto('./#/journal?note=Bases%2FNPCs.base');

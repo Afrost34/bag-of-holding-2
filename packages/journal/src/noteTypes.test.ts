@@ -45,3 +45,12 @@ describe('note types', () => {
     expect(baseListsType('type == "npcs"', npc)).toBe(false);
   });
 });
+
+describe('wizard steps', () => {
+  it('cover every field of every kind exactly once', () => {
+    for (const type of NOTE_TYPES) {
+      const keys = type.steps.flatMap((s) => s.keys);
+      expect([...keys].sort()).toEqual(type.fields.map((f) => f.key).sort());
+    }
+  });
+});

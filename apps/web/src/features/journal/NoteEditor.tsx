@@ -23,16 +23,19 @@ function diff(a: string, b: string): { from: number; to: number; insert: string 
 
 /**
  * CodeMirror for one note. The view is created once per note (remount it with a `key` to change
- * `hideFrontmatter`); text changed elsewhere (the properties panel, links rewritten by a rename)
+ * `codeMode`); text changed elsewhere (the properties panel, links rewritten by a rename)
  * is applied as a small change, so the cursor stays where it was.
  */
 export function NoteEditor({
   path,
   text,
   options,
+  onToggleCode,
 }: {
   path: string;
   text: string;
+  /** Switches between the formatted note and its Markdown. */
+  onToggleCode: () => void;
   options: Omit<JournalEditorOptions, 'embeds'>;
 }) {
   const host = useRef<HTMLDivElement>(null);
@@ -69,7 +72,8 @@ export function NoteEditor({
       saveFiles: (files) => latest.current.saveFiles?.(files) ?? Promise.resolve([]),
       linkFor: (p) => latest.current.linkFor?.(p) ?? p,
       pickImages: () => latest.current.pickImages?.() ?? Promise.resolve([]),
-      hideFrontmatter: o.hideFrontmatter === true,
+      codeMode: o.codeMode === true,
+      onEditSource: () => latest.current.onEditSource?.(),
       embeds: embedHost,
     };
     const doc = latestText.current;
@@ -78,7 +82,7 @@ export function NoteEditor({
       state: EditorState.create({
         doc,
         // Start after hidden properties rather than inside them.
-        selection: { anchor: o.hideFrontmatter ? parseFrontmatter(doc).bodyStart : 0 },
+        selection: { anchor: o.codeMode ? 0 : parseFrontmatter(doc).bodyStart },
         extensions: journalExtensions(proxy),
       }),
     });
@@ -100,12 +104,14 @@ export function NoteEditor({
   return (
     <>
       <EditorToolbar
+        codeMode={options.codeMode === true}
+        onToggleCode={onToggleCode}
         getView={() => view.current}
         host={{ pickImages: () => latest.current.pickImages?.() ?? Promise.resolve([]) }}
       />
       <div ref={host} className="min-h-[60vh]" aria-label="Note text" />
       {embeds.portals((embed) => (
-        <EmbedContent embed={embed} />
+        <EmbedContent embed={embed} editable />
       ))}
     </>
   );

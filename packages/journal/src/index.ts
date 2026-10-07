@@ -61,6 +61,8 @@ export {
   NOTE_TYPES,
   newNoteText,
   noteType,
+  fieldLabel,
+  isLongField,
   type FieldDef,
   type FieldKind,
   type NoteType,
