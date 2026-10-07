@@ -1,6 +1,7 @@
 import { makeKey } from '@boh/data5e';
 import { Entries, EntityView, RichText } from '@boh/renderer';
 import { useEffect } from 'react';
+import { PageTools } from '../../app/annotations/PageTools';
 import { AppLink } from '../../app/AppLink';
 import { entityPath, useEntity } from '../../app/data/entities';
 import { useSpecificVariants } from '../../app/data/pages';
@@ -71,6 +72,9 @@ export function EntityPage({ entityKey }: { entityKey: string }) {
         </h1>
         <EntityMeta entity={entity} className="mt-1" />
       </header>
+      <div className="mb-5">
+        <PageTools noteId={entity.key} label={entity.name} />
+      </div>
 
       {images.length > 0 && entity.type === 'monster' && (
         <div className="float-right mb-3 ml-4 w-40 sm:w-56">

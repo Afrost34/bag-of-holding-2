@@ -210,6 +210,20 @@ export function fixtureFiles(): Record<string, unknown> {
         },
       ],
     },
+    'data/tables.json': {
+      table: [
+        {
+          name: 'Wild Surge',
+          source: 'PHB',
+          colLabels: ['d4', 'Effect'],
+          rows: [
+            ['1', 'You cast {@spell Magic Missile|PHB}.'],
+            ['2', 'You turn blue.'],
+            ['3–4', 'Nothing happens.'],
+          ],
+        },
+      ],
+    },
     'data/races.json': {
       race: [
         {

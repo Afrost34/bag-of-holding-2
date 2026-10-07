@@ -109,6 +109,25 @@ describe('list model', () => {
     expect(names('longsword')).toEqual(['+1 Longsword', 'Longsword']);
   });
 
+  it('filters and sorts 2,000 spells well under 100 ms (M3 goal: 500+ spells)', () => {
+    const schools = ['Evocation', 'Abjuration', 'Illusion', 'Necromancy'];
+    const many = Array.from({ length: 2000 }, (_, i) =>
+      row(`Spell ${String(i)}`, i % 2 ? 'PHB' : 'XPHB', {
+        level: i % 10,
+        school: schools[i % 4] ?? 'Evocation',
+        classes: i % 3 ? ['Wizard'] : ['Cleric', 'Wizard'],
+      }),
+    );
+    const state: ListState = {
+      ...base,
+      q: 'spell 1',
+      filters: { level: ['1', '3'], classes: ['Wizard'] },
+    };
+    const started = performance.now();
+    for (let i = 0; i < 10; i++) sortRows(filterRows(many, state, new Set(['phb'])), state, spells);
+    expect((performance.now() - started) / 10).toBeLessThan(100);
+  });
+
   it('sorts by field, then name; blanks last', () => {
     const sorted = sortRows([...rows], base, spells).map((r) => r.name);
     expect(sorted).toEqual(['Fire Bolt', 'Bless', 'Fireball', 'Fireball']);

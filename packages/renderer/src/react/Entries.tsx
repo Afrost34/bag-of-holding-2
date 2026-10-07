@@ -1,6 +1,8 @@
 import { cn } from '@boh/ui';
-import { createElement, Fragment, type ReactNode } from 'react';
+import { Dices } from 'lucide-react';
+import { createElement, Fragment, useMemo, useRef, useState, type ReactNode } from 'react';
 import { stripTags } from '../text/splitTags';
+import { rollableTable, rowForTotal } from '../text/tableRoll';
 import { describeTag } from '../text/tags';
 import { inlineEntityView } from './inlineEntity';
 import { text } from '../json';
@@ -451,8 +453,25 @@ function cellRoll(cell: Obj): string | null {
 }
 
 function TableView({ entry }: { entry: Obj }) {
+  const { rollDice } = useServices();
   const caption = str(entry.caption);
   const labels = arr(entry.colLabels);
+  const rollable = useMemo(() => (rollDice ? rollableTable(entry) : null), [entry, rollDice]);
+  const [rolled, setRolled] = useState<number | null>(null);
+  const rowRefs = useRef<(HTMLTableRowElement | null)[]>([]);
+
+  const roll = async () => {
+    if (!rollable || !rollDice) return;
+    const total = await rollDice({
+      kind: 'dice',
+      expression: rollable.expression,
+      label: caption ? stripTags(caption) : 'Random table',
+    });
+    if (total === null) return;
+    const row = rowForTotal(rollable, total);
+    setRolled(row);
+    rowRefs.current[row]?.scrollIntoView({ block: 'nearest' });
+  };
   const styles = arr(entry.colStyles).map(String);
   const align = (i: number) =>
     styles[i]?.includes('text-center')
@@ -474,7 +493,22 @@ function TableView({ entry }: { entry: Obj }) {
             <tr className="border-b-2 border-border-strong">
               {labels.map((l, i) => (
                 <th key={i} className={cn('px-2 py-1 font-semibold', align(i))}>
-                  {typeof l === 'string' ? <RichText text={l} /> : <EntryView entry={l as Entry} />}
+                  {i === 0 && rollable ? (
+                    <button
+                      type="button"
+                      onClick={() => void roll()}
+                      aria-label={`Roll ${rollable.expression} on ${caption ? stripTags(caption) : 'this table'}`}
+                      title="Roll on this table"
+                      className="inline-flex items-center gap-1 rounded border border-dice-border bg-dice-bg px-1.5 font-semibold text-dice-fg hover:brightness-110"
+                    >
+                      <Dices className="h-3.5 w-3.5" aria-hidden />
+                      {stripTags(String(l))}
+                    </button>
+                  ) : typeof l === 'string' ? (
+                    <RichText text={l} />
+                  ) : (
+                    <EntryView entry={l as Entry} />
+                  )}
                 </th>
               ))}
             </tr>
@@ -484,7 +518,17 @@ function TableView({ entry }: { entry: Obj }) {
           {arr(entry.rows).map((row, r) => {
             const cells = isObj(row) ? arr(row.row) : arr(row);
             return (
-              <tr key={r} className="odd:bg-surface-2">
+              <tr
+                key={r}
+                ref={(el) => {
+                  rowRefs.current[r] = el;
+                }}
+                aria-current={rolled === r ? 'true' : undefined}
+                className={cn(
+                  'odd:bg-surface-2',
+                  rolled === r && 'bg-accent-soft! outline-2 -outline-offset-2 outline-accent',
+                )}
+              >
                 {cells.map((cell, c) => (
                   <td key={c} className={cn('px-2 py-1 align-top [&>p]:my-0', align(c))}>
                     {typeof cell === 'string' ? (

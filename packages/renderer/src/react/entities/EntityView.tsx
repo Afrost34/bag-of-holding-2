@@ -45,6 +45,19 @@ export function EntityView({ type, data, edition = '2014' }: EntityViewProps) {
     case 'magicvariant':
     case 'itemGroup':
       return <ItemView data={withInheritedProperties(data)} />;
+    case 'table':
+      // A table entity is itself a 5etools table entry (rollable when it is a random table).
+      return <Entries entries={[{ ...data, type: 'table', caption: undefined }]} />;
+    case 'tableGroup':
+      return (
+        <Entries
+          entries={
+            Array.isArray(data.tables)
+              ? data.tables.map((t) => ({ ...(t as Obj), type: 'table' }))
+              : []
+          }
+        />
+      );
     case 'feat':
       return <FeatView data={data} />;
     case 'background':

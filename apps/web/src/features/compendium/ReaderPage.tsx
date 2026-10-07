@@ -3,6 +3,8 @@ import { Entries, RendererProvider, type RendererServices } from '@boh/renderer'
 import { Button, cn, IconButton } from '@boh/ui';
 import { ArrowLeft, ChevronLeft, ChevronRight, List, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
+import { chapterNoteId } from '../../app/annotations/model';
+import { PageTools } from '../../app/annotations/PageTools';
 import { AppLink } from '../../app/AppLink';
 import { useAppNavigate } from '../../app/navigation';
 import { useBookContent } from '../../app/data/books';
@@ -234,6 +236,12 @@ function Reader({ book, search }: { book: BookContent; search: ReaderSearch }) {
             >
               <List className="h-4 w-4" aria-hidden /> Contents
             </Button>
+          </div>
+          <div className="mb-4">
+            <PageTools
+              noteId={chapterNoteId(book.kind, book.id, chapterIndex)}
+              label={`${book.name}: ${book.toc[chapterIndex]?.name ?? ''}`}
+            />
           </div>
           <article ref={contentRef} className="text-[15px] leading-relaxed">
             <RendererProvider services={services}>
