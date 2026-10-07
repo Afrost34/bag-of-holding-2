@@ -17,11 +17,12 @@ import { useHomebrew } from '../../app/data/homebrew';
 import { typeLabel } from '../../app/format';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
+import { CreatureEditor } from './CreatureEditor';
 import { ItemEditor } from './ItemEditor';
 import { packFile, packPath } from './packs';
 
 /** Types the app has an editor for (more to come: creatures, spells). */
-const EDITABLE = new Set(['item']);
+const EDITABLE = new Set(['item', 'monster']);
 
 /**
  * One pack: its entries, and the editor when making or changing one (`new=item`,
@@ -82,6 +83,24 @@ export function PackPage({
     return null;
   };
 
+  const saveCreature = async (
+    creature: RawEntity,
+    image: string | null,
+  ): Promise<string | null> => {
+    try {
+      const withCreature = putEntry(pack.json, 'monster', creature, editing?.name);
+      await savePack(
+        path,
+        putFluffImage(withCreature, 'monster', String(creature.name).trim(), image, editing?.name),
+      );
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
+    setMessage(`Saved “${String(creature.name)}”.`);
+    navigate(packPath(path));
+    return null;
+  };
+
   const exportPack = () => {
     const blob = new Blob([JSON.stringify(pack.json, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -93,6 +112,31 @@ export function PackPage({
       URL.revokeObjectURL(url);
     }, 1000);
   };
+
+  if (isNew === 'monster' || editing?.type === 'monster') {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-6 md:px-8">
+        <p className="mb-1 text-sm">
+          <AppLink to={packPath(path)} className="text-link hover:underline">
+            {meta.name}
+          </AppLink>
+        </p>
+        <h1 className="mb-4 font-serif text-2xl font-bold">
+          {editing ? `Edit ${editing.name}` : 'New creature'}
+        </h1>
+        <CreatureEditor
+          key={edit ?? 'new'}
+          pack={meta}
+          base={editing?.entity ?? null}
+          image={editing ? fluffImage(pack.json, 'monster', editing.name) : null}
+          onSave={saveCreature}
+          onCancel={() => {
+            navigate(packPath(path));
+          }}
+        />
+      </div>
+    );
+  }
 
   if (isNew === 'item' || editing?.type === 'item') {
     return (
@@ -189,7 +233,11 @@ export function PackPage({
         >
           <Plus className="h-4 w-4" aria-hidden /> New item
         </Button>
-        <Button disabled title="Coming next">
+        <Button
+          onClick={() => {
+            navigate(`${packPath(path)}?new=monster`);
+          }}
+        >
           <Plus className="h-4 w-4" aria-hidden /> New creature
         </Button>
         <Button disabled title="Coming next">

@@ -89,3 +89,31 @@ test('a pack exported on one install imports on another', async ({ page, browser
   await expect(other.getByRole('heading', { level: 1, name: 'Sunblade' })).toBeVisible();
   await other.close();
 });
+
+test('a creature is made with its numbers worked out', async ({ page }) => {
+  await page.goto('./#/homebrew');
+  await page.getByRole('button', { name: 'New pack' }).click();
+  await page.getByRole('form', { name: 'New pack' }).getByLabel('Name').fill('Monsters');
+  await page.getByRole('button', { name: 'Create pack' }).click();
+  await page.getByRole('button', { name: 'New creature' }).click();
+  const form = page.getByRole('form', { name: 'Creature' });
+  await form.getByLabel('Name', { exact: true }).fill('Rust Goblin');
+  await form.getByLabel('DEX', { exact: true }).fill('14');
+  await form.getByRole('button', { name: 'Dexterity saving throw' }).click();
+  await form.getByRole('button', { name: 'Stealth: not proficient' }).click();
+  await form.getByRole('button', { name: 'Add an action' }).click();
+  await form.getByLabel('Action 1', { exact: true }).fill('Scimitar');
+  await form.getByRole('button', { name: 'Build an attack for action 1' }).click();
+  await form.getByLabel('Using').selectOption('dex');
+  await form.getByRole('button', { name: 'Use this attack' }).click();
+  await expect(form.getByLabel('What action 1 does')).toHaveValue(
+    'Melee Attack Roll: +4, reach 5 ft. Hit: 5 (1d6 + 2) Slashing damage.',
+  );
+  const preview = page.getByRole('complementary', { name: 'Preview' });
+  await expect(preview).toContainText('Stealth +4');
+  await expect(preview.getByRole('button', { name: '1d6 + 2' })).toBeVisible();
+  await form.getByRole('button', { name: 'Save creature' }).click();
+  await page.getByRole('link', { name: 'Rust Goblin' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Rust Goblin' })).toBeVisible();
+  await expect(page.getByRole('main')).toContainText('Melee Attack Roll');
+});
