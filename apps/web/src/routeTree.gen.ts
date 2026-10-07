@@ -20,6 +20,7 @@ import { Route as HomebrewRouteImport } from './routes/homebrew'
 import { Route as MapsRouteImport } from './routes/maps'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as VaultRouteImport } from './routes/vault'
+import { Route as CampaignsIdRouteImport } from './routes/campaigns_.$id'
 import { Route as CompendiumKeyRouteImport } from './routes/compendium_.$key'
 import { Route as SettingsDataRouteImport } from './routes/settings_.data'
 import { Route as CompendiumAdventureIdRouteImport } from './routes/compendium_.adventure.$id'
@@ -83,6 +84,11 @@ const VaultRoute = VaultRouteImport.update({
   path: '/vault',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CampaignsIdRoute = CampaignsIdRouteImport.update({
+  id: '/campaigns_/$id',
+  path: '/campaigns/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CompendiumKeyRoute = CompendiumKeyRouteImport.update({
   id: '/compendium_/$key',
   path: '/compendium/$key',
@@ -131,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/maps': typeof MapsRoute
   '/settings': typeof SettingsRoute
   '/vault': typeof VaultRoute
+  '/campaigns/$id': typeof CampaignsIdRoute
   '/compendium/$key': typeof CompendiumKeyRoute
   '/settings/data': typeof SettingsDataRoute
   '/compendium/adventure/$id': typeof CompendiumAdventureIdRoute
@@ -151,6 +158,7 @@ export interface FileRoutesByTo {
   '/maps': typeof MapsRoute
   '/settings': typeof SettingsRoute
   '/vault': typeof VaultRoute
+  '/campaigns/$id': typeof CampaignsIdRoute
   '/compendium/$key': typeof CompendiumKeyRoute
   '/settings/data': typeof SettingsDataRoute
   '/compendium/adventure/$id': typeof CompendiumAdventureIdRoute
@@ -172,6 +180,7 @@ export interface FileRoutesById {
   '/maps': typeof MapsRoute
   '/settings': typeof SettingsRoute
   '/vault': typeof VaultRoute
+  '/campaigns_/$id': typeof CampaignsIdRoute
   '/compendium_/$key': typeof CompendiumKeyRoute
   '/settings_/data': typeof SettingsDataRoute
   '/compendium_/adventure/$id': typeof CompendiumAdventureIdRoute
@@ -194,6 +203,7 @@ export interface FileRouteTypes {
     | '/maps'
     | '/settings'
     | '/vault'
+    | '/campaigns/$id'
     | '/compendium/$key'
     | '/settings/data'
     | '/compendium/adventure/$id'
@@ -214,6 +224,7 @@ export interface FileRouteTypes {
     | '/maps'
     | '/settings'
     | '/vault'
+    | '/campaigns/$id'
     | '/compendium/$key'
     | '/settings/data'
     | '/compendium/adventure/$id'
@@ -234,6 +245,7 @@ export interface FileRouteTypes {
     | '/maps'
     | '/settings'
     | '/vault'
+    | '/campaigns_/$id'
     | '/compendium_/$key'
     | '/settings_/data'
     | '/compendium_/adventure/$id'
@@ -255,6 +267,7 @@ export interface RootRouteChildren {
   MapsRoute: typeof MapsRoute
   SettingsRoute: typeof SettingsRoute
   VaultRoute: typeof VaultRoute
+  CampaignsIdRoute: typeof CampaignsIdRoute
   CompendiumKeyRoute: typeof CompendiumKeyRoute
   SettingsDataRoute: typeof SettingsDataRoute
   CompendiumAdventureIdRoute: typeof CompendiumAdventureIdRoute
@@ -343,6 +356,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VaultRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/campaigns_/$id': {
+      id: '/campaigns_/$id'
+      path: '/campaigns/$id'
+      fullPath: '/campaigns/$id'
+      preLoaderRoute: typeof CampaignsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/compendium_/$key': {
       id: '/compendium_/$key'
       path: '/compendium/$key'
@@ -407,6 +427,7 @@ const rootRouteChildren: RootRouteChildren = {
   MapsRoute: MapsRoute,
   SettingsRoute: SettingsRoute,
   VaultRoute: VaultRoute,
+  CampaignsIdRoute: CampaignsIdRoute,
   CompendiumKeyRoute: CompendiumKeyRoute,
   SettingsDataRoute: SettingsDataRoute,
   CompendiumAdventureIdRoute: CompendiumAdventureIdRoute,

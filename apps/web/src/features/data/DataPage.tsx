@@ -8,7 +8,7 @@ import { useData } from '../../app/data/store';
 import { DataSearchPanel } from './DataSearchPanel';
 import { DataStatusPanel } from './DataStatusPanel';
 import { HomebrewPanel } from './HomebrewPanel';
-import { SourcesPanel } from './SourcesPanel';
+import { SourcesPanel } from '../../app/data/SourcesPanel';
 
 export function DataPage() {
   const { status, busy, clear, refresh } = useData();
