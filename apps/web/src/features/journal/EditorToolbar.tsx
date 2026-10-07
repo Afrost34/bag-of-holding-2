@@ -7,6 +7,7 @@ import {
   ChevronDown,
   Code,
   Dices,
+  FileCode2,
   Heading,
   Highlighter,
   ImagePlus,
@@ -42,7 +43,11 @@ const mod = isMac ? '⌘' : 'Ctrl+';
 export function EditorToolbar({
   getView,
   host,
+  codeMode,
+  onToggleCode,
 }: {
+  codeMode: boolean;
+  onToggleCode: () => void;
   /** The note's editor (read when a button is used, as it is made after the first render). */
   getView: () => EditorView | null;
   host: FormattingHost;
@@ -141,6 +146,19 @@ export function EditorToolbar({
         })}
       />
       <Tool icon={Dices} label="Dice roll" onClick={act(actions.dice)} />
+      <span className="flex-1" />
+      <button
+        type="button"
+        aria-pressed={codeMode}
+        title={codeMode ? 'Back to the formatted note' : 'Edit the Markdown by hand'}
+        onClick={onToggleCode}
+        className={cn(
+          'flex shrink-0 items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium',
+          codeMode ? 'bg-accent-soft text-accent' : 'text-muted hover:bg-sunken hover:text-text',
+        )}
+      >
+        <FileCode2 className="h-4 w-4" aria-hidden /> Markdown
+      </button>
     </div>
   );
 }

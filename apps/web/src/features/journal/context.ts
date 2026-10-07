@@ -36,6 +36,8 @@ export interface JournalView {
   openTag: (tag: string) => void;
   /** Creates a note and opens it. */
   createNote: (spec: NewNoteSpec) => Promise<void>;
+  /** Opens the wizard for a new note (its kind and properties already set). */
+  startNote: (spec: Omit<NewNoteSpec, 'name'>) => void;
   /** Draws embeds (passed in, so viewers and embeds need not import each other). */
   Embed: ComponentType<{ embed: Embed }>;
 }

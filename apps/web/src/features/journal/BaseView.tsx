@@ -45,7 +45,6 @@ export function BaseView({
   );
   const [sort, setSort] = useState<{ property: string; direction: 'ASC' | 'DESC' } | undefined>();
   const [search, setSearch] = useState('');
-  const [naming, setNaming] = useState(false);
   const view: View | undefined = base.views[viewIndex] ?? base.views[0];
 
   const result = useMemo(
@@ -75,11 +74,11 @@ export function BaseView({
   }
   if (!view || !result) return null;
 
-  const create = (name: string) => {
+  // A new note made here gets the properties that make it show up here.
+  const create = () => {
     const props = propertiesForNew(base, view, self ? noteName(self.path) : undefined);
     const { type, ...rest } = props;
-    void journal.createNote({ name, type: noteType(type), properties: rest });
-    setNaming(false);
+    journal.startNote({ type: noteType(type), properties: rest });
   };
 
   const toggleSort = (key: string) => {
@@ -151,23 +150,13 @@ export function BaseView({
           type="button"
           aria-label="New note in this base"
           title="New note"
-          onClick={() => {
-            setNaming(true);
-          }}
+          onClick={create}
           className="rounded p-1 text-faint hover:bg-sunken hover:text-text"
         >
           <Plus className="h-4 w-4" aria-hidden />
         </button>
       </div>
 
-      {naming && (
-        <NameRow
-          onCreate={create}
-          onCancel={() => {
-            setNaming(false);
-          }}
-        />
-      )}
       {result.error && (
         <p className="px-3 py-2 text-muted">A filter has a problem: {result.error}</p>
       )}
@@ -276,46 +265,6 @@ export function BaseView({
           </ul>
         ))}
     </section>
-  );
-}
-
-function NameRow({
-  onCreate,
-  onCancel,
-}: {
-  onCreate: (name: string) => void;
-  onCancel: () => void;
-}) {
-  const [name, setName] = useState('');
-  const clean = name.replace(/[\\/:*?"<>|]/g, '-').trim();
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (clean) onCreate(clean);
-      }}
-      className="flex items-center gap-2 border-b border-border px-3 py-2"
-    >
-      <input
-        autoFocus
-        aria-label="Name of the new note"
-        placeholder="Name"
-        value={name}
-        onChange={(e) => {
-          setName(e.target.value);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'Escape') onCancel();
-        }}
-        className="min-w-0 flex-1 rounded-md border border-border bg-surface px-2 py-1 focus:border-accent focus:outline-none"
-      />
-      <Button type="submit" size="sm" variant="primary" disabled={!clean}>
-        Create
-      </Button>
-      <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
-        Cancel
-      </Button>
-    </form>
   );
 }
 

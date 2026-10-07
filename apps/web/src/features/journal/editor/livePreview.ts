@@ -6,7 +6,7 @@ import {
   parseTags,
 } from '@boh/journal';
 import { syntaxTree } from '@codemirror/language';
-import { StateEffect, StateField, type EditorState, type Range } from '@codemirror/state';
+import { EditorSelection, EditorState, StateField, type Range } from '@codemirror/state';
 import {
   Decoration,
   EditorView,
@@ -28,6 +28,8 @@ export interface LinkContext {
   isResolved: (target: string) => boolean;
   /** Draws `![[embeds]]`; without it they show as links. */
   embeds?: EmbedHost;
+  /** Shows the note's Markdown (code mode), e.g. to edit a base block's YAML. */
+  onEditSource?: () => void;
 }
 
 /**
@@ -41,9 +43,20 @@ export interface EmbedHost {
 
 /** What an embed element shows: an `![[embed]]`, or a ```base block with a way back to its YAML. */
 export type Embed =
-  | { kind: 'embed'; inner: string }
+  | { kind: 'embed'; inner: string; replace: (inner: string | null) => void }
   | { kind: 'base'; yaml: string; edit: () => void }
-  | { kind: 'dice'; expression: string };
+  | { kind: 'dice'; expression: string }
+  | { kind: 'table'; source: string; replace: (source: string) => void };
+
+/**
+ * Replaces the text a widget stands for (`old`, found at the widget's position) with `next`;
+ * null deletes it. Widgets use it so their editors (image size, table cells) change the note.
+ */
+function replaceAt(view: EditorView, el: HTMLElement, old: string, next: string | null): void {
+  const from = view.posAtDOM(el);
+  if (view.state.doc.sliceString(from, from + old.length) !== old) return;
+  view.dispatch({ changes: { from, to: from + old.length, insert: next ?? '' } });
+}
 
 /** Obsidian callout types, folded into the few colours the journal draws. */
 const CALLOUT_STYLE: Record<string, string> = {
@@ -111,31 +124,12 @@ const HIDDEN_MARKS = new Set([
   'QuoteMark',
 ]);
 
-/** Line numbers the selection touches: their syntax stays visible for editing. */
-function activeLines(state: EditorState): Set<number> {
-  const lines = new Set<number>();
-  for (const r of state.selection.ranges) {
-    const from = state.doc.lineAt(r.from).number;
-    const to = state.doc.lineAt(r.to).number;
-    for (let n = from; n <= to; n++) lines.add(n);
-  }
-  return lines;
-}
-
 function build(view: EditorView, ctx: LinkContext): DecorationSet {
   const { state } = view;
-  // Without focus nothing is being edited: show the whole note formatted.
-  const active = view.hasFocus ? activeLines(state) : new Set<number>();
-  const isActive = (from: number, to: number) => {
-    const a = state.doc.lineAt(from).number;
-    const b = state.doc.lineAt(to).number;
-    for (let n = a; n <= b; n++) if (active.has(n)) return true;
-    return false;
-  };
+  // The note is always shown formatted: its Markdown is never revealed here (code mode is a
+  // separate, plain editor). `isActive` is kept as the one place that decides it.
+  const isActive = (_from: number, _to: number) => false;
   const decos: Range<Decoration>[] = [];
-  // Embeds stay drawn unless the cursor is inside their brackets.
-  const editing = (from: number, to: number) =>
-    view.hasFocus && state.selection.ranges.some((r) => r.to >= from && r.from <= to);
 
   for (const { from, to } of view.visibleRanges) {
     syntaxTree(state).iterate({
@@ -258,17 +252,16 @@ function build(view: EditorView, ctx: LinkContext): DecorationSet {
       if (inCode(m.index)) continue;
       const start = from + m.index;
       const end = start + m[0].length;
+      // A link being typed (the cursor inside its brackets) stays text, so suggestions can show.
+      const head = state.selection.main.head;
+      if (view.hasFocus && state.selection.main.empty && head > start + 1 && head < end - 1) {
+        decos.push(Decoration.mark({ class: 'cm-jlink-raw' }).range(start, end));
+        continue;
+      }
       if (m[1] === '!' && ctx.embeds) {
-        if (editing(start, end)) {
-          decos.push(Decoration.mark({ class: 'cm-jlink-raw' }).range(start, end));
-        } else {
-          decos.push(
-            Decoration.replace({ widget: new EmbedWidget(m[2] ?? '', ctx.embeds) }).range(
-              start,
-              end,
-            ),
-          );
-        }
+        decos.push(
+          Decoration.replace({ widget: new EmbedWidget(m[2] ?? '', ctx.embeds) }).range(start, end),
+        );
         continue;
       }
       if (isActive(start, end)) {
@@ -477,22 +470,38 @@ class DiceWidget extends WidgetType {
   }
 }
 
-/** A Markdown table drawn as a table; clicking it shows the text to edit. */
+/**
+ * A Markdown table. With an app host it is drawn as an editable table (cells, rows and columns
+ * change the note); in a read-only preview it is drawn as a plain table.
+ */
 class TableWidget extends WidgetType {
-  constructor(readonly source: string) {
+  constructor(
+    readonly source: string,
+    readonly host: EmbedHost | undefined,
+  ) {
     super();
   }
 
   override eq(other: TableWidget): boolean {
-    return other.source === this.source;
+    return other.source === this.source && other.host === this.host;
   }
 
   toDOM(view: EditorView): HTMLElement {
     const wrap = document.createElement('div');
     wrap.className = 'cm-jtable';
+    if (this.host) {
+      const source = this.source;
+      this.host.mount(wrap, {
+        kind: 'table',
+        source,
+        replace: (next) => {
+          replaceAt(view, wrap, source, next);
+        },
+      });
+      return wrap;
+    }
     const table = document.createElement('table');
-    const rows = parseTable(this.source);
-    rows.forEach((cells, i) => {
+    parseTable(this.source).forEach((cells, i) => {
       const tr = document.createElement('tr');
       for (const cell of cells) {
         const td = document.createElement(i === 0 ? 'th' : 'td');
@@ -502,13 +511,11 @@ class TableWidget extends WidgetType {
       (i === 0 ? table.createTHead() : (table.tBodies[0] ?? table.createTBody())).appendChild(tr);
     });
     wrap.appendChild(table);
-    wrap.title = 'Click to edit the table';
-    wrap.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      view.dispatch({ selection: { anchor: view.posAtDOM(wrap) + 1 } });
-      view.focus();
-    });
     return wrap;
+  }
+
+  override destroy(dom: HTMLElement): void {
+    this.host?.unmount(dom);
   }
 
   override ignoreEvent(): boolean {
@@ -529,6 +536,17 @@ export function parseTable(source: string): string[][] {
         .split(/(?<!\\)\|/)
         .map((c) => c.trim()),
     );
+}
+
+/** Rows of cells back to a Markdown table (the first row is the header). */
+export function tableSource(rows: readonly (readonly string[])[]): string {
+  const cols = Math.max(1, ...rows.map((r) => r.length));
+  const line = (cells: readonly string[]) =>
+    `| ${Array.from({ length: cols }, (_, i) => (cells[i] ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ') || ' ').join(' | ')} |`;
+  const [head = [], ...body] = rows;
+  return [line(head), line(Array.from({ length: cols }, () => '---')), ...body.map(line)].join(
+    '\n',
+  );
 }
 
 /** Cell text without Markdown marks: `**a**` → a, `[[x|y]]` → y. */
@@ -552,25 +570,24 @@ export function findTables(text: string): { from: number; to: number; source: st
   return out;
 }
 
-/** Draws tables while the cursor is outside them (a state field, as they span lines). */
-export function tableBlocks() {
-  const compute = (state: EditorState): DecorationSet => {
-    const decos: Range<Decoration>[] = [];
-    for (const t of findTables(state.doc.toString())) {
-      if (isEditing(state, t.from, t.to)) continue;
-      decos.push(
-        Decoration.replace({ block: true, widget: new TableWidget(t.source) }).range(t.from, t.to),
-      );
-    }
-    return Decoration.set(decos);
-  };
+/** Draws tables (a state field, as they span lines). */
+export function tableBlocks(host?: EmbedHost) {
+  const compute = (state: EditorState): DecorationSet =>
+    Decoration.set(
+      findTables(state.doc.toString()).map((t) =>
+        Decoration.replace({ block: true, widget: new TableWidget(t.source, host) }).range(
+          t.from,
+          t.to,
+        ),
+      ),
+    );
   return StateField.define<DecorationSet>({
     create: compute,
-    update: (value, tr) =>
-      tr.docChanged || tr.selection || tr.effects.some((e) => e.is(setFocused))
-        ? compute(tr.state)
-        : value,
-    provide: (f) => EditorView.decorations.from(f),
+    update: (value, tr) => (tr.docChanged ? compute(tr.state) : value),
+    provide: (f) => [
+      EditorView.decorations.from(f),
+      EditorView.atomicRanges.of((view) => view.state.field(f)),
+    ],
   });
 }
 
@@ -587,10 +604,17 @@ class EmbedWidget extends WidgetType {
     return other.inner === this.inner && other.host === this.host;
   }
 
-  toDOM(): HTMLElement {
+  toDOM(view: EditorView): HTMLElement {
     const el = document.createElement('span');
     el.className = 'cm-jembed';
-    this.host.mount(el, { kind: 'embed', inner: this.inner });
+    const source = `![[${this.inner}]]`;
+    this.host.mount(el, {
+      kind: 'embed',
+      inner: this.inner,
+      replace: (inner) => {
+        replaceAt(view, el, source, inner === null ? null : `![[${inner}]]`);
+      },
+    });
     return el;
   }
 
@@ -604,11 +628,12 @@ class EmbedWidget extends WidgetType {
   }
 }
 
-/** A ```base block drawn as its table; "edit" puts the cursor in it to show the YAML. */
+/** A ```base block drawn as its views; "edit" shows its YAML in code mode. */
 class BaseBlockWidget extends WidgetType {
   constructor(
     readonly yaml: string,
     readonly host: EmbedHost,
+    readonly onEditSource: (() => void) | undefined,
   ) {
     super();
   }
@@ -617,16 +642,14 @@ class BaseBlockWidget extends WidgetType {
     return other.yaml === this.yaml && other.host === this.host;
   }
 
-  toDOM(view: EditorView): HTMLElement {
+  toDOM(): HTMLElement {
     const el = document.createElement('div');
     el.className = 'cm-jbase';
     this.host.mount(el, {
       kind: 'base',
       yaml: this.yaml,
       edit: () => {
-        const pos = view.posAtDOM(el);
-        view.dispatch({ selection: { anchor: Math.min(pos + 8, view.state.doc.length) } });
-        view.focus();
+        this.onEditSource?.();
       },
     });
     return el;
@@ -645,29 +668,6 @@ class BaseBlockWidget extends WidgetType {
   }
 }
 
-/**
- * Whether the editor has focus, kept in its state so state fields (tables, base blocks) can show
- * their source only while someone is editing there, not just because the cursor was left in them.
- */
-const setFocused = StateEffect.define<boolean>();
-const focusedField = StateField.define<boolean>({
-  create: () => false,
-  update: (value, tr) => {
-    for (const e of tr.effects) if (e.is(setFocused)) return e.value;
-    return value;
-  },
-});
-export const focusState = [
-  focusedField,
-  EditorView.focusChangeEffect.of((_state, focusing) => setFocused.of(focusing)),
-];
-
-/** Whether the cursor is in a range of a focused editor. */
-function isEditing(state: EditorState, from: number, to: number): boolean {
-  const focused = state.field(focusedField, false) === true;
-  return focused && state.selection.ranges.some((r) => r.to >= from && r.from <= to);
-}
-
 /** Fenced ```base blocks: their position and YAML. */
 export function findBaseBlocks(text: string): { from: number; to: number; yaml: string }[] {
   const out: { from: number; to: number; yaml: string }[] = [];
@@ -679,31 +679,26 @@ export function findBaseBlocks(text: string): { from: number; to: number; yaml: 
 }
 
 /**
- * Draws ```base blocks as tables while the cursor is outside them. Block widgets have to come
- * from a state field (not a view plugin), hence this separate extension.
+ * Draws ```base blocks as their views. Block widgets have to come from a state field (not a view
+ * plugin), hence this separate extension.
  */
-export function baseBlocks(host: EmbedHost) {
-  const compute = (state: EditorState): DecorationSet => {
-    const decos: Range<Decoration>[] = [];
-    for (const block of findBaseBlocks(state.doc.toString())) {
-      const editing = isEditing(state, block.from, block.to);
-      if (editing) continue;
-      decos.push(
-        Decoration.replace({ block: true, widget: new BaseBlockWidget(block.yaml, host) }).range(
-          block.from,
-          block.to,
-        ),
-      );
-    }
-    return Decoration.set(decos);
-  };
+export function baseBlocks(host: EmbedHost, onEditSource?: () => void) {
+  const compute = (state: EditorState): DecorationSet =>
+    Decoration.set(
+      findBaseBlocks(state.doc.toString()).map((block) =>
+        Decoration.replace({
+          block: true,
+          widget: new BaseBlockWidget(block.yaml, host, onEditSource),
+        }).range(block.from, block.to),
+      ),
+    );
   return StateField.define<DecorationSet>({
     create: compute,
-    update: (value, tr) =>
-      tr.docChanged || tr.selection || tr.effects.some((e) => e.is(setFocused))
-        ? compute(tr.state)
-        : value,
-    provide: (f) => EditorView.decorations.from(f),
+    update: (value, tr) => (tr.docChanged ? compute(tr.state) : value),
+    provide: (f) => [
+      EditorView.decorations.from(f),
+      EditorView.atomicRanges.of((view) => view.state.field(f)),
+    ],
   });
 }
 
@@ -728,11 +723,14 @@ export function hideFrontmatter() {
 }
 
 export function livePreview(ctx: LinkContext) {
-  return ViewPlugin.fromClass(
+  const plugin = ViewPlugin.fromClass(
     class {
       decorations: DecorationSet;
+      /** Hidden syntax and widgets: the cursor steps over them as one character. */
+      atomic: DecorationSet;
       constructor(view: EditorView) {
         this.decorations = build(view, ctx);
+        this.atomic = atomicOf(this.decorations);
       }
       update(update: ViewUpdate) {
         if (
@@ -742,12 +740,53 @@ export function livePreview(ctx: LinkContext) {
           update.focusChanged
         ) {
           this.decorations = build(update.view, ctx);
+          this.atomic = atomicOf(this.decorations);
         }
       }
     },
     { decorations: (v) => v.decorations },
   );
+  return [
+    plugin,
+    EditorView.atomicRanges.of((view) => view.plugin(plugin)?.atomic ?? Decoration.none),
+    skipHiddenPrefixes,
+  ];
 }
+
+function atomicOf(decorations: DecorationSet): DecorationSet {
+  const ranges: Range<Decoration>[] = [];
+  decorations.between(0, Number.MAX_SAFE_INTEGER, (from, to, value) => {
+    if (value.point && to > from) ranges.push(value.range(from, to));
+  });
+  return Decoration.set(ranges, true);
+}
+
+/** Hidden line starts: `## `, `> `, `> [!note] `, `- `, `- [ ] `, `1. `. */
+const HIDDEN_PREFIX =
+  /^(?:#{1,6} |>[ \t]?(?:\[![\w-]+\][+-]?[ \t]?)?|[ \t]*[-*+] (?:\[[ xX]\] )?|[ \t]*\d+[.)] )/;
+
+/**
+ * Keeps an empty cursor out of a line's hidden prefix (before a heading's `## ` or a list's `- `),
+ * where typing would break the formatting the reader sees.
+ */
+const skipHiddenPrefixes = EditorState.transactionFilter.of((tr) => {
+  if (!tr.selection) return tr;
+  const doc = tr.newDoc;
+  const before = tr.selection.ranges;
+  const ranges = before.map((r) => {
+    if (!r.empty) return r;
+    const line = doc.lineAt(r.head);
+    const prefix = HIDDEN_PREFIX.exec(line.text)?.[0].length ?? 0;
+    return prefix > 0 && r.head < line.from + prefix
+      ? EditorSelection.cursor(line.from + prefix)
+      : r;
+  });
+  if (ranges.every((r, i) => r === before[i])) return tr;
+  return [
+    tr,
+    { selection: EditorSelection.create(ranges, tr.selection.mainIndex), sequential: true },
+  ];
+});
 
 /** Clicking a drawn link opens it; Ctrl/Cmd or middle click asks for a new tab. */
 export function linkClicks(

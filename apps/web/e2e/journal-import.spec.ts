@@ -58,7 +58,7 @@ test('an Obsidian vault imports with its links working', async ({ page }) => {
   await expect(panel.getByRole('list', { name: 'Links that lead nowhere' })).toContainText('Gone');
 
   await panel.getByRole('button', { name: 'Mother Tibia' }).click();
-  await expect(page.getByLabel('Note title')).toHaveValue('Mother_Tibia');
+  await expect(page.getByLabel('Note title')).toHaveValue('Mother Tibia');
   // Relative links resolve, and the old app's spell link became a compendium link.
   await expect(
     editor(page).locator('.cm-jlink:not(.cm-jlink-missing):not(.cm-jlink-compendium)'),

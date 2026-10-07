@@ -47,7 +47,12 @@ test('typing / offers blocks to insert', async ({ page }) => {
   await page.keyboard.type('/tab');
   await page.getByRole('option', { name: /^Table/ }).click();
   await leaveEditor(page);
-  await expect(editor(page).locator('.cm-jtable th').first()).toHaveText('Column 1');
+  // Tables are edited in place, cell by cell.
+  const firstCell = editor(page).getByLabel('Row 1, column 1');
+  await expect(firstCell).toHaveValue('Column 1');
+  await firstCell.fill('Name');
+  await firstCell.blur();
+  await expect(firstCell).toHaveValue('Name');
 
   await editor(page).locator('.cm-line').last().click();
   await page.keyboard.press('End');

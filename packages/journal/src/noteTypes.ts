@@ -33,6 +33,8 @@ export interface NoteType {
   folder: string;
   folderMatch: RegExp;
   fields: readonly FieldDef[];
+  /** How the wizard groups the fields, one step each (a Picture step follows). */
+  steps: readonly { label: string; keys: readonly string[] }[];
   /** The note's body; `{{title}}` and `{{date}}` are filled in. */
   body: string;
   /** Columns of its base's main view. */
@@ -82,6 +84,11 @@ export const NOTE_TYPES: readonly NoteType[] = [
     icon: 'user',
     folder: 'NPCs',
     folderMatch: /\bnpcs?\b/i,
+    steps: [
+      { label: 'Basics', keys: ['race', 'class', 'level', 'alignment', 'status'] },
+      { label: 'Place in the world', keys: ['role', 'location', 'faction'] },
+      { label: 'Story', keys: ['motivation', 'secret', 'danger_level'] },
+    ],
     fields: [
       { key: 'race', kind: 'text' },
       { key: 'class', kind: 'text' },
@@ -126,6 +133,11 @@ export const NOTE_TYPES: readonly NoteType[] = [
     icon: 'map-pin',
     folder: 'Locations',
     folderMatch: /\blocations?\b|\bplaces?\b/i,
+    steps: [
+      { label: 'Basics', keys: ['location_type', 'region', 'population'] },
+      { label: 'Connections', keys: ['parent_location', 'faction'] },
+      { label: 'Dangers', keys: ['dangers'] },
+    ],
     fields: [
       {
         key: 'location_type',
@@ -176,6 +188,11 @@ export const NOTE_TYPES: readonly NoteType[] = [
     icon: 'flag',
     folder: 'Factions',
     folderMatch: /\bfactions?\b|\borgani[sz]ations?\b/i,
+    steps: [
+      { label: 'Basics', keys: ['faction_type', 'alignment', 'influence'] },
+      { label: 'People and places', keys: ['leader', 'base_location'] },
+      { label: 'Goals and rivals', keys: ['goals', 'allies', 'enemies'] },
+    ],
     fields: [
       {
         key: 'faction_type',
@@ -225,6 +242,10 @@ export const NOTE_TYPES: readonly NoteType[] = [
     icon: 'calendar',
     folder: 'Sessions',
     folderMatch: /\bsessions?\b/i,
+    steps: [
+      { label: 'Basics', keys: ['session_number', 'act', 'status', 'date_played'] },
+      { label: 'Cast', keys: ['key_locations', 'key_npcs'] },
+    ],
     fields: [
       { key: 'session_number', kind: 'number' },
       { key: 'act', kind: 'text' },
@@ -259,6 +280,10 @@ export const NOTE_TYPES: readonly NoteType[] = [
     icon: 'scroll',
     folder: 'Quests',
     folderMatch: /\bquests?\b/i,
+    steps: [
+      { label: 'Basics', keys: ['status', 'reward'] },
+      { label: 'People and places', keys: ['giver', 'location'] },
+    ],
     fields: [
       {
         key: 'status',
@@ -283,6 +308,11 @@ export const NOTE_TYPES: readonly NoteType[] = [
     icon: 'church',
     folder: 'Religions',
     folderMatch: /\breligions?\b|\bfaiths?\b/i,
+    steps: [
+      { label: 'Basics', keys: ['religion_type', 'alignment', 'influence'] },
+      { label: 'People', keys: ['associated_deity', 'leader'] },
+      { label: 'Beliefs', keys: ['core_beliefs'] },
+    ],
     fields: [
       { key: 'religion_type', kind: 'text', options: ['Church', 'Order', 'Sect', 'Cult'] },
       { key: 'associated_deity', kind: 'link', linkType: 'deity' },
@@ -302,6 +332,7 @@ export const NOTE_TYPES: readonly NoteType[] = [
     icon: 'sun',
     folder: 'Deities',
     folderMatch: /\bdeit(y|ies)\b|\bgods?\b|\bpantheon\b/i,
+    steps: [{ label: 'Basics', keys: ['domains', 'alignment', 'symbol'] }],
     fields: [
       { key: 'domains', kind: 'list', initial: [] },
       { key: 'alignment', kind: 'text', options: ALIGNMENTS },
@@ -318,6 +349,19 @@ export const NOTE_TYPES: readonly NoteType[] = [
     columns: ['domains', 'alignment', 'symbol'],
   },
 ];
+
+/** Fields written as a few sentences rather than a word or two. */
+const LONG_FIELDS = new Set(['motivation', 'secret', 'goals', 'core_beliefs', 'dangers', 'reward']);
+
+export function isLongField(key: string): boolean {
+  return LONG_FIELDS.has(key);
+}
+
+/** A property's name for people: `danger_level` → Danger level. */
+export function fieldLabel(key: string): string {
+  const words = key.replace(/[_-]+/g, ' ').trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
 
 export function noteType(id: unknown): NoteType | undefined {
   return typeof id === 'string' ? NOTE_TYPES.find((t) => t.id === id.toLowerCase()) : undefined;
