@@ -133,3 +133,17 @@ test('notes, compendium entries and pasted images are embedded', async ({ page }
       .getByRole('treeitem', { name: '_assets' }),
   ).toBeVisible();
 });
+
+test('notes show up in the search (Ctrl+K) and open from there', async ({ page }) => {
+  await newNote(page, 'Yawning Portal');
+  await editor(page).click();
+  await page.keyboard.type('A tavern with a well to Undermountain.');
+  await page.waitForTimeout(700);
+  await page.goto('./#/compendium');
+  await page.keyboard.press('Control+k');
+  await page.getByLabel('Search everything').fill('undermountain');
+  const option = page.getByRole('option', { name: /Yawning Portal/ });
+  await expect(option).toContainText('A tavern with a well to Undermountain.');
+  await option.click();
+  await expect(page.getByLabel('Note title')).toHaveValue('Yawning Portal');
+});

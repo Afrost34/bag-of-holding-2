@@ -75,3 +75,4 @@ export {
   type ImportPlan,
   type LinkReport,
 } from './import';
+export { searchNotes, type NoteHit } from './search';
