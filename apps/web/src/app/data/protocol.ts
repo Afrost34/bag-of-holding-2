@@ -16,6 +16,13 @@ import type {
   SpeciesPage,
   SubclassPage,
 } from '@boh/data5e';
+import type {
+  BuiltCharacter,
+  CampaignRules,
+  CharacterDecisions,
+  OptionSummary,
+  Sheet,
+} from '@boh/rules';
 
 /** Shared between the data worker and the UI. Everything crosses the worker boundary by value. */
 
@@ -56,6 +63,13 @@ export interface LocalFile {
   file: Blob;
 }
 
+/** A character as the rules engine sees it: what it has, what is open, and its sheet. */
+export interface CharacterView extends Omit<BuiltCharacter, 'entities'> {
+  /** The entities it is built from, without their data. */
+  entities: EntitySummary[];
+  sheet: Sheet;
+}
+
 export interface DataWorkerApi {
   status(): Promise<DataStatus>;
   checkForUpdate(repo: string): Promise<UpdateCheck>;
@@ -93,4 +107,13 @@ export interface DataWorkerApi {
   /** For each candidate list, the first key that exists (link resolution). */
   resolve(candidateLists: string[][]): Promise<(string | null)[]>;
   checkReferences(references: { key: string; usedIn: string }[]): Promise<ReferenceReport>;
+
+  /** Runs the rules engine on a character's decisions. */
+  character(decisions: CharacterDecisions, rules?: CampaignRules): Promise<CharacterView>;
+  /** What an open choice can be answered with (every source; filter in the UI). */
+  choiceOptions(
+    decisions: CharacterDecisions,
+    choiceId: string,
+    rules?: CampaignRules,
+  ): Promise<OptionSummary[]>;
 }
