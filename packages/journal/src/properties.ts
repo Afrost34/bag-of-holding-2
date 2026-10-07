@@ -35,7 +35,8 @@ function edit(text: string, change: (doc: Document) => void): string {
   else if (parsed.contents === null) doc = new Document({});
   else throw new Error("The note's properties are not a list of names and values.");
   change(doc);
-  return join(bom, doc.toString({ lineWidth: 0 }), body);
+  // Empty values are written as `key:` (as Obsidian does), not `key: null`.
+  return join(bom, doc.toString({ lineWidth: 0, nullStr: '' }), body);
 }
 
 /** Sets a property, adding the frontmatter if the note has none. */

@@ -26,7 +26,7 @@ export async function newNote(page: Page, title: string) {
   if ((page.viewportSize()?.width ?? 0) < 768) await files.click();
   await page
     .getByRole('navigation', { name: 'Journal files' })
-    .getByRole('button', { name: 'New note' })
+    .getByRole('button', { name: 'New note', exact: true })
     .filter({ visible: true })
     .click();
   const name = page.getByLabel('Note title');

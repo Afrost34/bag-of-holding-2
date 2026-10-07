@@ -14,7 +14,13 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { EditorState, type Extension } from '@codemirror/state';
 import { drawSelection, EditorView, keymap, placeholder } from '@codemirror/view';
 import { DRAG_TYPE } from '../dnd';
-import { hideFrontmatter, linkClicks, livePreview, type LinkContext } from './livePreview';
+import {
+  baseBlocks,
+  hideFrontmatter,
+  linkClicks,
+  livePreview,
+  type LinkContext,
+} from './livePreview';
 
 export interface JournalEditorOptions extends LinkContext {
   /** Every note path, for link completion. */
@@ -187,6 +193,7 @@ const theme = EditorView.theme({
   '.cm-jlink-missing': { opacity: '0.6', textDecoration: 'underline dotted' },
   '.cm-jlink-raw': { color: 'var(--boh-link)' },
   '.cm-jembed': { display: 'block', margin: '4px 0' },
+  '.cm-jbase': { margin: '4px 0' },
   '.cm-jtag': {
     color: 'var(--boh-accent)',
     backgroundColor: 'var(--boh-accent-soft)',
@@ -220,6 +227,7 @@ export function journalViewerExtensions(
     EditorView.lineWrapping,
     markdown({ base: markdownLanguage }),
     livePreview(opts),
+    ...(opts.embeds ? [baseBlocks(opts.embeds)] : []),
     linkClicks(opts.openLink, opts.openUrl, opts.openTag),
     theme,
     EditorView.theme({ '.cm-content': { padding: '0 !important' }, '&': { fontSize: '14px' } }),
@@ -234,6 +242,7 @@ export function journalExtensions(opts: JournalEditorOptions): Extension[] {
     EditorView.lineWrapping,
     markdown({ base: markdownLanguage }),
     livePreview(opts),
+    ...(opts.embeds ? [baseBlocks(opts.embeds)] : []),
     linkClicks(opts.openLink, opts.openUrl, opts.openTag),
     drops(opts),
     ...(opts.hideFrontmatter ? [hideFrontmatter()] : []),

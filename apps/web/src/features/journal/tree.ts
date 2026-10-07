@@ -29,7 +29,7 @@ export function buildTree(
     const parent = folderNode(path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '');
     const base = path.slice(path.lastIndexOf('/') + 1);
     parent.children.push({
-      name: kind === 'note' ? base.replace(/\.md$/i, '') : base,
+      name: kind === 'note' ? base.replace(/\.md$/i, '') : base.replace(/\.base$/i, ''),
       path,
       kind,
       children: [],

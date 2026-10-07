@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import type { EmbedHost } from './editor/livePreview';
+import type { Embed, EmbedHost } from './editor/livePreview';
 
 let nextId = 0;
 const ids = new WeakMap<HTMLElement, number>();
@@ -11,14 +11,14 @@ const ids = new WeakMap<HTMLElement, number>();
  */
 export function useEmbedHost(): {
   host: EmbedHost;
-  portals: (render: (inner: string) => ReactNode) => ReactNode[];
+  portals: (render: (embed: Embed) => ReactNode) => ReactNode[];
 } {
-  const [mounted, setMounted] = useState<ReadonlyMap<HTMLElement, string>>(new Map());
+  const [mounted, setMounted] = useState<ReadonlyMap<HTMLElement, Embed>>(new Map());
   const host = useMemo<EmbedHost>(
     () => ({
-      mount: (el, inner) => {
+      mount: (el, embed) => {
         ids.set(el, nextId++);
-        setMounted((m) => new Map(m).set(el, inner));
+        setMounted((m) => new Map(m).set(el, embed));
       },
       unmount: (el) => {
         setMounted((m) => {
@@ -34,6 +34,6 @@ export function useEmbedHost(): {
   return {
     host,
     portals: (render) =>
-      [...mounted].map(([el, inner]) => createPortal(render(inner), el, String(ids.get(el)))),
+      [...mounted].map(([el, embed]) => createPortal(render(embed), el, String(ids.get(el)))),
   };
 }

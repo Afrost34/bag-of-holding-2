@@ -34,9 +34,13 @@ export interface LinkContext {
  * `mount` when an embed appears, `unmount` when the editor drops it.
  */
 export interface EmbedHost {
-  mount: (el: HTMLElement, inner: string) => void;
+  mount: (el: HTMLElement, embed: Embed) => void;
   unmount: (el: HTMLElement) => void;
 }
+
+/** What an embed element shows: an `![[embed]]`, or a ```base block with a way back to its YAML. */
+export type Embed =
+  { kind: 'embed'; inner: string } | { kind: 'base'; yaml: string; edit: () => void };
 
 const hide = Decoration.replace({});
 
@@ -262,7 +266,7 @@ class EmbedWidget extends WidgetType {
   toDOM(): HTMLElement {
     const el = document.createElement('span');
     el.className = 'cm-jembed';
-    this.host.mount(el, this.inner);
+    this.host.mount(el, { kind: 'embed', inner: this.inner });
     return el;
   }
 
@@ -274,6 +278,83 @@ class EmbedWidget extends WidgetType {
   override ignoreEvent(): boolean {
     return true;
   }
+}
+
+/** A ```base block drawn as its table; "edit" puts the cursor in it to show the YAML. */
+class BaseBlockWidget extends WidgetType {
+  constructor(
+    readonly yaml: string,
+    readonly host: EmbedHost,
+  ) {
+    super();
+  }
+
+  override eq(other: BaseBlockWidget): boolean {
+    return other.yaml === this.yaml && other.host === this.host;
+  }
+
+  toDOM(view: EditorView): HTMLElement {
+    const el = document.createElement('div');
+    el.className = 'cm-jbase';
+    this.host.mount(el, {
+      kind: 'base',
+      yaml: this.yaml,
+      edit: () => {
+        const pos = view.posAtDOM(el);
+        view.dispatch({ selection: { anchor: Math.min(pos + 8, view.state.doc.length) } });
+        view.focus();
+      },
+    });
+    return el;
+  }
+
+  override destroy(dom: HTMLElement): void {
+    this.host.unmount(dom);
+  }
+
+  override ignoreEvent(): boolean {
+    return true;
+  }
+
+  override get estimatedHeight(): number {
+    return 160;
+  }
+}
+
+/** Fenced ```base blocks: their position and YAML. */
+export function findBaseBlocks(text: string): { from: number; to: number; yaml: string }[] {
+  const out: { from: number; to: number; yaml: string }[] = [];
+  const re = /^```base[ \t]*\r?\n([\s\S]*?)^```[ \t]*$/gm;
+  for (const m of text.matchAll(re)) {
+    out.push({ from: m.index, to: m.index + m[0].length, yaml: m[1] ?? '' });
+  }
+  return out;
+}
+
+/**
+ * Draws ```base blocks as tables while the cursor is outside them. Block widgets have to come
+ * from a state field (not a view plugin), hence this separate extension.
+ */
+export function baseBlocks(host: EmbedHost) {
+  const compute = (state: EditorState): DecorationSet => {
+    const decos: Range<Decoration>[] = [];
+    for (const block of findBaseBlocks(state.doc.toString())) {
+      const editing = state.selection.ranges.some((r) => r.to >= block.from && r.from <= block.to);
+      if (editing) continue;
+      decos.push(
+        Decoration.replace({ block: true, widget: new BaseBlockWidget(block.yaml, host) }).range(
+          block.from,
+          block.to,
+        ),
+      );
+    }
+    return Decoration.set(decos);
+  };
+  return StateField.define<DecorationSet>({
+    create: compute,
+    update: (value, tr) => (tr.docChanged || tr.selection ? compute(tr.state) : value),
+    provide: (f) => EditorView.decorations.from(f),
+  });
 }
 
 /** Hides a note's frontmatter: the properties panel above the editor shows and edits it. */

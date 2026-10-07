@@ -51,8 +51,8 @@ export function NoteViewer({ text }: { text: string }) {
   return (
     <EmbedDepthContext.Provider value={depth + 1}>
       <div ref={host} />
-      {embeds.portals((inner) => (
-        <view.Embed inner={inner} />
+      {embeds.portals((embed) => (
+        <view.Embed embed={embed} />
       ))}
     </EmbedDepthContext.Provider>
   );

@@ -4,7 +4,7 @@ import { EditorView } from '@codemirror/view';
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { journalExtensions, type JournalEditorOptions } from './editor/setup';
 import { useEmbedHost } from './embedHost';
-import { JournalEmbed } from './JournalEmbed';
+import { EmbedContent } from './JournalEmbed';
 
 /** The smallest change turning `a` into `b`: their common start and end are left alone. */
 function diff(a: string, b: string): { from: number; to: number; insert: string } {
@@ -98,8 +98,8 @@ export function NoteEditor({
   return (
     <>
       <div ref={host} className="min-h-[60vh]" aria-label="Note text" />
-      {embeds.portals((inner) => (
-        <JournalEmbed inner={inner} />
+      {embeds.portals((embed) => (
+        <EmbedContent embed={embed} />
       ))}
     </>
   );

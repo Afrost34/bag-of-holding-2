@@ -1,3 +1,4 @@
+import type { NoteType } from '@boh/journal';
 import { cn } from '@boh/ui';
 import * as Menu from '@radix-ui/react-dropdown-menu';
 import {
@@ -9,10 +10,12 @@ import {
   LayoutTemplate,
   MoreHorizontal,
   Paperclip,
+  Table2,
 } from 'lucide-react';
 import { useState, type DragEvent } from 'react';
 import { buildTree, moveTarget, type TreeNode } from './tree';
 import { DRAG_TYPE } from './dnd';
+import { NoteTypeIcon } from './NoteTypeIcon';
 
 export interface FileTreeProps {
   notes: readonly string[];
@@ -30,6 +33,9 @@ export interface FileTreeProps {
   /** Notes that can start a new note (in template folders). */
   templates?: readonly string[];
   onNewFromTemplate?: (template: string) => void;
+  /** Built-in kinds of notes (NPC, location…). */
+  noteTypes?: readonly NoteType[];
+  onNewOfType?: (type: NoteType) => void;
 }
 
 /** Drag state shared by the whole tree: the folder a drop would land in. */
@@ -85,11 +91,11 @@ export function FileTree(treeProps: FileTreeProps) {
         >
           <FilePlus className="h-4 w-4" aria-hidden />
         </button>
-        {props.templates && props.templates.length > 0 && (
+        {((props.templates?.length ?? 0) > 0 || (props.noteTypes?.length ?? 0) > 0) && (
           <Menu.Root>
             <Menu.Trigger
               aria-label="New note from template"
-              title="New note from template"
+              title="New NPC, location, faction… or from a template"
               className="rounded p-1 text-muted hover:bg-sunken hover:text-text"
             >
               <LayoutTemplate className="h-4 w-4" aria-hidden />
@@ -99,19 +105,43 @@ export function FileTree(treeProps: FileTreeProps) {
                 align="end"
                 sideOffset={4}
                 collisionPadding={8}
-                className="z-50 max-h-80 min-w-44 overflow-y-auto rounded-md border border-border bg-surface p-1 text-sm shadow-card"
+                className="z-50 max-h-96 min-w-48 overflow-y-auto rounded-md border border-border bg-surface p-1 text-sm shadow-card"
               >
-                <Menu.Label className="px-2 py-1 text-xs text-muted">New note from</Menu.Label>
-                {props.templates.map((t) => (
-                  <MenuItem
-                    key={t}
-                    onSelect={() => {
-                      props.onNewFromTemplate?.(t);
-                    }}
-                  >
-                    {t.slice(t.lastIndexOf('/') + 1).replace(/\.md$/i, '')}
-                  </MenuItem>
-                ))}
+                {props.noteTypes && props.noteTypes.length > 0 && (
+                  <>
+                    <Menu.Label className="px-2 py-1 text-xs text-muted">New</Menu.Label>
+                    {props.noteTypes.map((t) => (
+                      <Menu.Item
+                        key={t.id}
+                        onSelect={() => {
+                          props.onNewOfType?.(t);
+                        }}
+                        className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 outline-none data-[highlighted]:bg-sunken"
+                      >
+                        <NoteTypeIcon type={t} className="h-4 w-4 text-faint" />
+                        {t.label}
+                      </Menu.Item>
+                    ))}
+                  </>
+                )}
+                {props.templates && props.templates.length > 0 && (
+                  <>
+                    <Menu.Separator className="my-1 h-px bg-border" />
+                    <Menu.Label className="px-2 py-1 text-xs text-muted">
+                      From your templates
+                    </Menu.Label>
+                    {props.templates.map((t) => (
+                      <MenuItem
+                        key={t}
+                        onSelect={() => {
+                          props.onNewFromTemplate?.(t);
+                        }}
+                      >
+                        {t.slice(t.lastIndexOf('/') + 1).replace(/\.md$/i, '')}
+                      </MenuItem>
+                    ))}
+                  </>
+                )}
               </Menu.Content>
             </Menu.Portal>
           </Menu.Root>
@@ -154,7 +184,9 @@ function TreeItem({
   const [picking, setPicking] = useState(false);
   const [name, setName] = useState(node.name);
   const isOpen = open || containsCurrent;
-  const Icon = node.kind === 'folder' ? Folder : node.kind === 'note' ? FileText : Paperclip;
+  const isBase = node.kind === 'file' && node.path.toLowerCase().endsWith('.base');
+  const Icon =
+    node.kind === 'folder' ? Folder : node.kind === 'note' ? FileText : isBase ? Table2 : Paperclip;
   const selected = node.path === props.current;
   const isDropTarget = node.kind === 'folder' && props.dropTarget === node.path;
   const folderOf = (p: string) => (p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '');
@@ -219,7 +251,7 @@ function TreeItem({
             type="button"
             onClick={() => {
               if (node.kind === 'folder') setOpen(!isOpen);
-              else if (node.kind === 'note') props.onOpen(node.path);
+              else if (node.kind === 'note' || isBase) props.onOpen(node.path);
             }}
             className="flex min-w-0 flex-1 items-center gap-1.5 py-1 text-left"
           >

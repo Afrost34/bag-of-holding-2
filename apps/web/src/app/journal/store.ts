@@ -28,6 +28,8 @@ interface JournalStore {
   notes: Map<string, string>;
   /** Other files: images, PDFs. */
   attachments: string[];
+  /** `.base` files (also listed in `attachments`) → their YAML. */
+  bases: Map<string, string>;
   /** Every folder, including empty ones. */
   folders: string[];
   load: (campaignId: string | null) => Promise<void>;
@@ -43,6 +45,8 @@ interface JournalStore {
   addAttachment: (name: string, bytes: Uint8Array) => Promise<string>;
   /** Writes pending edits now instead of after the usual short delay. */
   flush: () => Promise<void>;
+  /** Writes a `.base` file (new or changed). */
+  saveBase: (path: string, text: string) => Promise<void>;
 }
 
 const timers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -70,6 +74,7 @@ async function walk(
 }
 
 const isNote = (path: string) => path.toLowerCase().endsWith('.md');
+const isBase = (path: string) => path.toLowerCase().endsWith('.base');
 const parentOf = (path: string) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '');
 const within = (path: string, folder: string) => path === folder || path.startsWith(`${folder}/`);
 
@@ -105,13 +110,21 @@ export const useJournal = create<JournalStore>()((set, get) => {
     loaded: false,
     notes: new Map(),
     attachments: [],
+    bases: new Map(),
     folders: [],
 
     load: async (campaignId) => {
       if (loadingFor === campaignId && (get().loaded || campaignId === null)) return;
       if (get().campaignId && get().campaignId !== campaignId) await flushAll();
       loadingFor = campaignId;
-      set({ campaignId, loaded: false, notes: new Map(), attachments: [], folders: [] });
+      set({
+        campaignId,
+        loaded: false,
+        notes: new Map(),
+        attachments: [],
+        bases: new Map(),
+        folders: [],
+      });
       if (!campaignId) {
         set({ loaded: true });
         return;
@@ -122,10 +135,14 @@ export const useJournal = create<JournalStore>()((set, get) => {
       const notes = new Map<string, string>();
       for (const f of files.filter(isNote))
         notes.set(f, (await store.readText(`${base}/${f}`)) ?? '');
+      const bases = new Map<string, string>();
+      for (const f of files.filter(isBase))
+        bases.set(f, (await store.readText(`${base}/${f}`)) ?? '');
       if (loadingFor !== campaignId) return; // switched again meanwhile
       set({
         notes,
         attachments: files.filter((f) => !isNote(f)),
+        bases,
         folders: folders.sort((a, b) => a.localeCompare(b)),
         loaded: true,
       });
@@ -201,6 +218,7 @@ export const useJournal = create<JournalStore>()((set, get) => {
       set({
         notes: nextNotes,
         attachments: attachments.map(rename),
+        bases: new Map([...get().bases].map(([p, t]) => [rename(p), t])),
         folders: [
           ...new Set([
             ...folders.map((f) =>
@@ -213,6 +231,17 @@ export const useJournal = create<JournalStore>()((set, get) => {
     },
 
     flush: flushAll,
+
+    saveBase: async (path, text) => {
+      const store = await userStore();
+      await store.writeFile(`${root()}/${path}`, text);
+      const { attachments, folders } = get();
+      set({
+        bases: new Map(get().bases).set(path, text),
+        attachments: attachments.includes(path) ? attachments : [...attachments, path].sort(),
+        folders: [...new Set([...folders, ...parentsOf(path)])].sort(),
+      });
+    },
 
     addAttachment: async (name, bytes) => {
       const clean = name.replace(/[/:*?"<>|]/g, '-').trim() || 'file';
@@ -244,6 +273,7 @@ export const useJournal = create<JournalStore>()((set, get) => {
       set({
         notes: new Map([...notes].filter(([p]) => keep(p))),
         attachments: attachments.filter(keep),
+        bases: new Map([...get().bases].filter(([p]) => keep(p))),
         folders: folders.filter((f) => (isFolder ? !within(f, path) : true)),
       });
     },

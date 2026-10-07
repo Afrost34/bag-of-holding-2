@@ -7,12 +7,27 @@ import {
   resolveLinkPath,
 } from '@boh/journal';
 import { FileText, Paperclip } from 'lucide-react';
-import { useContext } from 'react';
+import { useContext, useMemo } from 'react';
 import { isImage } from '../../app/journal/attachments';
+import { BaseView } from './BaseView';
 import { CompendiumCard } from './CompendiumCard';
 import { EmbedDepthContext, MAX_EMBED_DEPTH, useJournalView } from './context';
+import type { Embed } from './editor/livePreview';
 import { NoteViewer } from './NoteViewer';
 import { useAttachmentUrl } from './useAttachmentUrl';
+
+/** What the editor asks to draw: an `![[embed]]` or a ```base block. */
+export function EmbedContent({ embed }: { embed: Embed }) {
+  if (embed.kind === 'embed') return <JournalEmbed inner={embed.inner} />;
+  return <BaseBlock yaml={embed.yaml} edit={embed.edit} />;
+}
+
+/** A ```base block: `this` is the note it is in. */
+function BaseBlock({ yaml, edit }: { yaml: string; edit: () => void }) {
+  const { noteInfos, notePath } = useJournalView();
+  const self = useMemo(() => noteInfos.find((n) => n.path === notePath), [noteInfos, notePath]);
+  return <BaseView yaml={yaml} self={self} onEditSource={edit} />;
+}
 
 /** `![[…]]`: an image, a note (or one of its sections), a compendium entry, or a file link. */
 export function JournalEmbed({ inner }: { inner: string }) {
@@ -27,6 +42,10 @@ export function JournalEmbed({ inner }: { inner: string }) {
   if (isAttachment(link.target)) {
     const path = resolveLinkPath(link.target, view.attachments, view.notePath);
     if (!path) return <Missing label={link.target} />;
+    if (path.toLowerCase().endsWith('.base')) {
+      const self = view.noteInfos.find((n) => n.path === view.notePath);
+      return <BaseView yaml={view.bases.get(path) ?? ''} self={self} initialView={link.heading} />;
+    }
     if (isImage(path)) return <EmbeddedImage path={path} size={link.display} />;
     return <FileChip path={path} />;
   }
