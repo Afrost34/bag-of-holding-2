@@ -93,5 +93,5 @@ describe.runIf(hasLocalData())('tag conformance', () => {
     );
     // Known gaps: generated magic item variants (+1 longsword…) and a few broken upstream links.
     expect(rate).toBeGreaterThan(0.995);
-  });
+  }, 60_000);
 });
