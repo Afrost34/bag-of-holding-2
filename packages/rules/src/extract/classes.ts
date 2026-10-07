@@ -138,6 +138,11 @@ export interface ClassLevelOptions {
   /** The first class: saving throws, full proficiencies and starting equipment. */
   first: boolean;
   edition: '2014' | '2024';
+  /**
+   * The character's current level in this class. Cantrips and known or prepared spells are one
+   * running list (spells can be swapped as the class levels up), asked at the current level.
+   */
+  current: boolean;
 }
 
 /** The level at which a class picks its subclass, from its `gainSubclassFeature` reference. */
@@ -255,26 +260,27 @@ export function readClassLevel(
     ? entity.casterProgression
     : undefined;
   const max = maxSpellLevel(progression, level, options.edition);
-  const cantrips = progressionDelta(entity.cantripProgression, level);
+  const cantrips = options.current ? at(entity.cantripProgression, level) : 0;
   if (cantrips > 0)
     out.choices.push({
-      id: `${id}/cantrips`,
+      id: `${key}/cantrips`,
       kind: 'spell',
       count: cantrips,
       level,
       label: `Choose ${String(cantrips)} cantrip${cantrips === 1 ? '' : 's'}`,
       filter: { type: 'spell', filter: classSpellFilter(className, 0, 0) },
     });
-  const known =
-    progressionDelta(entity.spellsKnownProgression, level) +
-    progressionDelta(entity.preparedSpellsProgression, level);
+  const prepared = Array.isArray(entity.preparedSpellsProgression);
+  const known = options.current
+    ? at(entity.spellsKnownProgression, level) + at(entity.preparedSpellsProgression, level)
+    : 0;
   if (known > 0 && max > 0)
     out.choices.push({
-      id: `${id}/spells`,
+      id: `${key}/spells`,
       kind: 'spell',
       count: known,
       level,
-      label: `Choose ${String(known)} spell${known === 1 ? '' : 's'}`,
+      label: `${prepared ? 'Prepare' : 'Choose'} ${String(known)} spell${known === 1 ? '' : 's'}`,
       filter: { type: 'spell', filter: classSpellFilter(className, 1, max) },
     });
   // Wizards' spellbook: a fixed number of new spells per level.

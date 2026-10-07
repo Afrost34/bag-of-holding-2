@@ -461,7 +461,8 @@ export class EntityIndex {
       }));
   }
 
-  private get pageLookup(): PageLookup {
+  /** Entity lookups for page builders and the rules engine. */
+  get lookup(): PageLookup {
     return {
       get: (key) => this.getEntity(key),
       withKeySuffix: (type, suffix) => this.withKeySuffix(type, suffix),
@@ -483,17 +484,17 @@ export class EntityIndex {
 
   /** A class with its features in level order and its subclasses. */
   classPage(key: string): ClassPage | undefined {
-    return buildClassPage(this.pageLookup, key);
+    return buildClassPage(this.lookup, key);
   }
 
   /** A subclass with its features and its class. */
   subclassPage(key: string): SubclassPage | undefined {
-    return buildSubclassPage(this.pageLookup, key);
+    return buildSubclassPage(this.lookup, key);
   }
 
   /** A species with its subraces. */
   speciesPage(key: string): SpeciesPage | undefined {
-    return buildSpeciesPage(this.pageLookup, key);
+    return buildSpeciesPage(this.lookup, key);
   }
 
   /**

@@ -21,3 +21,19 @@ export {
   type FeatureContext,
 } from './extract/features';
 export { patchFor, type Patch } from './patches';
+export {
+  buildCharacter,
+  classChoiceId,
+  FOUNDRY_FILE,
+  makeRulesData,
+  newCharacter,
+  type AnsweredChoice,
+  type BuiltCharacter,
+  type CampaignRules,
+  type CharacterDecisions,
+  type ClassLevels,
+  type HeldFeature,
+  type HeldGrant,
+  type RulesData,
+  type Warning,
+} from './build';

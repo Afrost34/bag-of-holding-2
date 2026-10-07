@@ -104,7 +104,12 @@ describe('ability scores', () => {
   it('gives custom-lineage species a free +2/+1', () => {
     const ex = readEntity({ lineage: 'VRGR', size: ['S'] }, 'race:goblin@mpmm', ignoreIssues);
     expect(ex.choices[0]?.branches?.[0]?.choices[0]?.options).toHaveLength(6);
-    expect(ex.grants).toEqual([{ kind: 'size', value: 'Small' }]);
+    // …and Common plus one other language.
+    expect(ex.grants).toEqual([
+      { kind: 'language', value: 'common' },
+      { kind: 'size', value: 'Small' },
+    ]);
+    expect(ex.choices[1]).toMatchObject({ kind: 'language', count: 1 });
   });
 });
 
@@ -192,7 +197,13 @@ describe('classes', () => {
 
   it('asks for skills, cantrips, spells and equipment at level 1 of the first class', () => {
     const issues = strict();
-    const ex = readClassLevel(bard, key, 1, { first: true, edition: '2024' }, issues);
+    const ex = readClassLevel(
+      bard,
+      key,
+      1,
+      { first: true, edition: '2024', current: true },
+      issues,
+    );
     expect(issues.found).toEqual([]);
     expect(ex.grants).toEqual([
       { kind: 'save', value: 'dex' },
@@ -203,25 +214,41 @@ describe('classes', () => {
     expect(ex.choices.map((c) => [c.id, c.count])).toEqual([
       ['class:bard@xphb/level:1/skill', 3],
       ['class:bard@xphb/level:1/equipment/0', 1],
-      ['class:bard@xphb/level:1/cantrips', 2],
-      ['class:bard@xphb/level:1/spells', 4],
+      ['class:bard@xphb/cantrips', 2],
+      ['class:bard@xphb/spells', 4],
     ]);
     expect(ex.choices[3]?.filter).toEqual({ type: 'spell', filter: 'level=1|class=Bard' });
   });
 
   it('asks a multiclass only for its multiclass proficiencies', () => {
-    const ex = readClassLevel(bard, key, 1, { first: false, edition: '2024' }, ignoreIssues);
+    const ex = readClassLevel(
+      bard,
+      key,
+      1,
+      { first: false, edition: '2024', current: false },
+      ignoreIssues,
+    );
     expect(ex.grants).toEqual([]);
     expect(ex.choices[0]).toMatchObject({ kind: 'skill', options: ['arcana'] });
   });
 
-  it('asks for the subclass and new spells at level 3', () => {
-    const ex = readClassLevel(bard, key, 3, { first: true, edition: '2024' }, ignoreIssues);
+  it('asks for the subclass at level 3, and the running spell list at the current level', () => {
+    const ex = readClassLevel(
+      bard,
+      key,
+      3,
+      { first: true, edition: '2024', current: true },
+      ignoreIssues,
+    );
     expect(ex.choices.map((c) => c.id)).toEqual([
       'class:bard@xphb/level:3/subclass',
-      'class:bard@xphb/level:3/spells',
+      'class:bard@xphb/cantrips',
+      'class:bard@xphb/spells',
     ]);
-    expect(ex.choices[1]?.filter).toEqual({ type: 'spell', filter: 'level=1;2|class=Bard' });
+    expect(ex.choices[2]).toMatchObject({
+      count: 6,
+      filter: { type: 'spell', filter: 'level=1;2|class=Bard' },
+    });
   });
 
   it('knows spell levels and progression steps', () => {
