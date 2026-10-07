@@ -1,7 +1,7 @@
 # Bag of Holding 2 — agent guide
 
 A D&D 5e app built on 5etools data: compendium, character builder, DM boards, maps, encounters,
-campaign vault, card printing and clickable dice. It runs as an installable offline web app (phone,
+campaign journal, card printing and clickable dice. It runs as an installable offline web app (phone,
 tablet, PC) and as a Tauri desktop app from one codebase.
 
 The owner does not write code. Agents build everything; the owner reviews a running build at the
@@ -40,10 +40,11 @@ packages/storage/      FileStore interface + memory / OPFS / Tauri implementatio
 packages/data5e/       5etools download, extraction, keys, _copy resolution, SQLite index
 packages/dice/         dice notation parser + secure roller (pure TypeScript)
 packages/renderer/     5etools entries, {@tags} and entity views → React (no app knowledge)
+packages/journal/      campaign notes: wikilinks, tags, frontmatter, link resolution (pure TypeScript)
 docs/adr/              architecture decision records
 ```
 
-Packages still to come, per the plan: `rules`, `vault`.
+Packages still to come, per the plan: `rules`.
 
 The renderer never navigates, rolls or loads data itself: the app supplies `RendererServices`
 (links with hover previews, roll chips, embedded entities, image URLs) in

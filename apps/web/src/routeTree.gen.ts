@@ -17,9 +17,9 @@ import { Route as CharactersRouteImport } from './routes/characters'
 import { Route as CompendiumRouteImport } from './routes/compendium'
 import { Route as EncountersRouteImport } from './routes/encounters'
 import { Route as HomebrewRouteImport } from './routes/homebrew'
+import { Route as JournalRouteImport } from './routes/journal'
 import { Route as MapsRouteImport } from './routes/maps'
 import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as VaultRouteImport } from './routes/vault'
 import { Route as CampaignsIdRouteImport } from './routes/campaigns_.$id'
 import { Route as CompendiumKeyRouteImport } from './routes/compendium_.$key'
 import { Route as SettingsDataRouteImport } from './routes/settings_.data'
@@ -69,6 +69,11 @@ const HomebrewRoute = HomebrewRouteImport.update({
   path: '/homebrew',
   getParentRoute: () => rootRouteImport,
 } as any)
+const JournalRoute = JournalRouteImport.update({
+  id: '/journal',
+  path: '/journal',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MapsRoute = MapsRouteImport.update({
   id: '/maps',
   path: '/maps',
@@ -77,11 +82,6 @@ const MapsRoute = MapsRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const VaultRoute = VaultRouteImport.update({
-  id: '/vault',
-  path: '/vault',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CampaignsIdRoute = CampaignsIdRouteImport.update({
@@ -134,9 +134,9 @@ export interface FileRoutesByFullPath {
   '/compendium': typeof CompendiumRoute
   '/encounters': typeof EncountersRoute
   '/homebrew': typeof HomebrewRoute
+  '/journal': typeof JournalRoute
   '/maps': typeof MapsRoute
   '/settings': typeof SettingsRoute
-  '/vault': typeof VaultRoute
   '/campaigns/$id': typeof CampaignsIdRoute
   '/compendium/$key': typeof CompendiumKeyRoute
   '/settings/data': typeof SettingsDataRoute
@@ -155,9 +155,9 @@ export interface FileRoutesByTo {
   '/compendium': typeof CompendiumRoute
   '/encounters': typeof EncountersRoute
   '/homebrew': typeof HomebrewRoute
+  '/journal': typeof JournalRoute
   '/maps': typeof MapsRoute
   '/settings': typeof SettingsRoute
-  '/vault': typeof VaultRoute
   '/campaigns/$id': typeof CampaignsIdRoute
   '/compendium/$key': typeof CompendiumKeyRoute
   '/settings/data': typeof SettingsDataRoute
@@ -177,9 +177,9 @@ export interface FileRoutesById {
   '/compendium': typeof CompendiumRoute
   '/encounters': typeof EncountersRoute
   '/homebrew': typeof HomebrewRoute
+  '/journal': typeof JournalRoute
   '/maps': typeof MapsRoute
   '/settings': typeof SettingsRoute
-  '/vault': typeof VaultRoute
   '/campaigns_/$id': typeof CampaignsIdRoute
   '/compendium_/$key': typeof CompendiumKeyRoute
   '/settings_/data': typeof SettingsDataRoute
@@ -200,9 +200,9 @@ export interface FileRouteTypes {
     | '/compendium'
     | '/encounters'
     | '/homebrew'
+    | '/journal'
     | '/maps'
     | '/settings'
-    | '/vault'
     | '/campaigns/$id'
     | '/compendium/$key'
     | '/settings/data'
@@ -221,9 +221,9 @@ export interface FileRouteTypes {
     | '/compendium'
     | '/encounters'
     | '/homebrew'
+    | '/journal'
     | '/maps'
     | '/settings'
-    | '/vault'
     | '/campaigns/$id'
     | '/compendium/$key'
     | '/settings/data'
@@ -242,9 +242,9 @@ export interface FileRouteTypes {
     | '/compendium'
     | '/encounters'
     | '/homebrew'
+    | '/journal'
     | '/maps'
     | '/settings'
-    | '/vault'
     | '/campaigns_/$id'
     | '/compendium_/$key'
     | '/settings_/data'
@@ -264,9 +264,9 @@ export interface RootRouteChildren {
   CompendiumRoute: typeof CompendiumRoute
   EncountersRoute: typeof EncountersRoute
   HomebrewRoute: typeof HomebrewRoute
+  JournalRoute: typeof JournalRoute
   MapsRoute: typeof MapsRoute
   SettingsRoute: typeof SettingsRoute
-  VaultRoute: typeof VaultRoute
   CampaignsIdRoute: typeof CampaignsIdRoute
   CompendiumKeyRoute: typeof CompendiumKeyRoute
   SettingsDataRoute: typeof SettingsDataRoute
@@ -335,6 +335,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HomebrewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/journal': {
+      id: '/journal'
+      path: '/journal'
+      fullPath: '/journal'
+      preLoaderRoute: typeof JournalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/maps': {
       id: '/maps'
       path: '/maps'
@@ -347,13 +354,6 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/vault': {
-      id: '/vault'
-      path: '/vault'
-      fullPath: '/vault'
-      preLoaderRoute: typeof VaultRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/campaigns_/$id': {
@@ -424,9 +424,9 @@ const rootRouteChildren: RootRouteChildren = {
   CompendiumRoute: CompendiumRoute,
   EncountersRoute: EncountersRoute,
   HomebrewRoute: HomebrewRoute,
+  JournalRoute: JournalRoute,
   MapsRoute: MapsRoute,
   SettingsRoute: SettingsRoute,
-  VaultRoute: VaultRoute,
   CampaignsIdRoute: CampaignsIdRoute,
   CompendiumKeyRoute: CompendiumKeyRoute,
   SettingsDataRoute: SettingsDataRoute,
