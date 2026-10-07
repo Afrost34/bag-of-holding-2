@@ -272,7 +272,9 @@ export function runView(
       if (!existing) byLabel.set(label, group);
       group.rows.push({ path: r.note.path, values: r.values });
     }
-    const sorted = [...byLabel.entries()].sort(([, a], [, b]) => {
+    // Notes without a value come last, whichever way the groups are sorted.
+    const sorted = [...byLabel.entries()].sort(([la, a], [lb, b]) => {
+      if (!la || !lb) return Number(!la) - Number(!lb);
       const c = compareValues(a.value, b.value);
       return dir === 'DESC' ? -c : c;
     });

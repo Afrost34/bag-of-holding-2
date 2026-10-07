@@ -1,6 +1,7 @@
 import {
   isAttachment,
   noteName,
+  prettyName,
   noteSection,
   parseCompendiumRef,
   parseLinkInner,
@@ -71,7 +72,7 @@ export function JournalEmbed({ inner }: { inner: string }) {
         className="mb-1 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted uppercase hover:text-link"
       >
         <FileText className="h-3.5 w-3.5" aria-hidden />
-        {noteName(path)}
+        {prettyName(path)}
         {link.heading ? ` › ${link.heading}` : ''}
       </button>
       {depth >= MAX_EMBED_DEPTH ? (

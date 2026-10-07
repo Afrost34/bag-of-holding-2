@@ -17,7 +17,7 @@ export function CampaignsPage() {
   }, [load]);
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div className="h-full overflow-y-auto after:block after:h-16 after:content-['']">
       <div className="mx-auto max-w-5xl px-4 py-6 md:px-8 md:py-8">
         <header className="mb-6 flex flex-wrap items-end gap-3 border-b-2 border-accent pb-2">
           <h1 className="font-serif text-2xl font-bold sm:text-3xl">Campaigns</h1>

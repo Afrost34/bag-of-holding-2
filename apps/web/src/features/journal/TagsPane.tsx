@@ -1,4 +1,4 @@
-import { noteName } from '@boh/journal';
+import { prettyName } from '@boh/journal';
 import { cn } from '@boh/ui';
 import { ChevronRight, FileText, Hash } from 'lucide-react';
 import { useState } from 'react';
@@ -96,7 +96,7 @@ function TagItem({
                 style={{ paddingLeft: `${String(1.3 + depth * 0.85)}rem` }}
               >
                 <FileText className="h-3.5 w-3.5 shrink-0 text-faint" aria-hidden />
-                <span className="truncate">{noteName(p)}</span>
+                <span className="truncate">{prettyName(p)}</span>
               </button>
             </li>
           ))}

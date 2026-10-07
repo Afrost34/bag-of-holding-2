@@ -14,6 +14,7 @@ export {
   isAttachment,
   linkTargetFor,
   noteName,
+  prettyName,
   parseCompendiumRef,
   resolveLinkPath,
   updateLinksForRename,
@@ -64,3 +65,11 @@ export {
   type FieldKind,
   type NoteType,
 } from './noteTypes';
+export {
+  convertNote,
+  linkReport,
+  planImport,
+  type DeadLink,
+  type ImportPlan,
+  type LinkReport,
+} from './import';

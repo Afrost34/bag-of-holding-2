@@ -1,6 +1,6 @@
 import {
   isAttachment,
-  noteName,
+  prettyName,
   noteSection,
   parseCompendiumRef,
   parseLinkInner,
@@ -158,7 +158,7 @@ export function LinkPreviewContent({ inner }: { inner: string }) {
   return (
     <div className={box}>
       <p className="mb-2 text-xs font-semibold tracking-wide text-muted uppercase">
-        {noteName(path)}
+        {prettyName(path)}
         {link.heading ? ` › ${link.heading}` : ''}
       </p>
       {section === null ? (

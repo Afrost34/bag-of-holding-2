@@ -9,6 +9,7 @@ import {
   newNoteText,
   NOTE_TYPES,
   noteName,
+  prettyName,
   noteType,
   noteTags,
   parseCompendiumRef,
@@ -41,6 +42,7 @@ import { BaseView } from './BaseView';
 import { JournalViewContext, useJournalView, type JournalView, type NewNoteSpec } from './context';
 import type { JournalEditorOptions } from './editor/setup';
 import { FileTree } from './FileTree';
+import { ImportPanel } from './ImportPanel';
 import { NoteTypeIcon } from './NoteTypeIcon';
 import { EmbedContent } from './JournalEmbed';
 import { LinkPreviewContent, LinkPreviews } from './LinkPreview';
@@ -77,6 +79,7 @@ export function JournalPage({ note }: { note: string | undefined }) {
   // Per session: show the raw frontmatter in the editor instead of hiding it.
   const [showSource, setShowSource] = useState(false);
   const [creating, setCreating] = useState<Creating | null>(null);
+  const [importing, setImporting] = useState(false);
 
   usePageTitle(note ? displayName(note) : 'Journal');
   useEffect(() => {
@@ -363,6 +366,10 @@ export function JournalPage({ note }: { note: string | undefined }) {
         setCreating({ kind: 'type', type });
         setFilesOpen(false);
       }}
+      onImport={() => {
+        setImporting(true);
+        setFilesOpen(false);
+      }}
       notes={paths}
       attachments={journal.attachments}
       folders={journal.folders}
@@ -441,7 +448,7 @@ export function JournalPage({ note }: { note: string | undefined }) {
           </div>
         )}
 
-        <div className="min-w-0 flex-1 overflow-y-auto">
+        <div className="min-w-0 flex-1 overflow-y-auto after:block after:h-16 after:content-['']">
           <div className="mx-auto max-w-3xl px-4 py-5 md:px-8">
             <div className="mb-3 flex items-center gap-2 md:hidden">
               <Button
@@ -491,6 +498,17 @@ export function JournalPage({ note }: { note: string | undefined }) {
                   Keep
                 </Button>
               </div>
+            )}
+
+            {importing && (
+              <ImportPanel
+                onClose={() => {
+                  setImporting(false);
+                }}
+                onOpenNote={(p) => {
+                  open(p);
+                }}
+              />
             )}
 
             {creating && (
@@ -565,6 +583,9 @@ export function JournalPage({ note }: { note: string | undefined }) {
                 onNewOfType={(type) => {
                   setCreating({ kind: 'type', type });
                 }}
+                onImport={() => {
+                  setImporting(true);
+                }}
               />
             )}
           </div>
@@ -591,7 +612,7 @@ export function JournalPage({ note }: { note: string | undefined }) {
                       }}
                       className="text-left font-medium text-link hover:underline"
                     >
-                      {noteName(from)}
+                      {prettyName(from)}
                     </button>
                     <p className="line-clamp-2 text-xs text-muted">
                       {snippet(
@@ -708,12 +729,14 @@ function EmptyJournal({
   missing,
   onNew,
   onNewOfType,
+  onImport,
 }: {
   campaign: string;
   count: number;
   missing: boolean;
   onNew: () => void;
   onNewOfType: (type: NoteType) => void;
+  onImport: () => void;
 }) {
   return (
     <div className="mx-auto max-w-md py-16 text-center">
@@ -747,6 +770,18 @@ function EmptyJournal({
             ))}
           </div>
         </div>
+      )}
+      {!missing && count === 0 && (
+        <p className="mt-6 text-sm text-muted">
+          Coming from Obsidian?{' '}
+          <button
+            type="button"
+            onClick={onImport}
+            className="font-medium text-link hover:underline"
+          >
+            Import your vault
+          </button>
+        </p>
       )}
     </div>
   );
