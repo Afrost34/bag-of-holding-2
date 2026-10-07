@@ -2,6 +2,7 @@ import { BROWSE_CATEGORIES } from '@boh/data5e';
 import {
   Backpack,
   BookMarked,
+  Dices,
   FileText,
   Gem,
   Library,
@@ -39,11 +40,12 @@ export const BROWSE_LINKS: readonly CompendiumLink[] = BROWSE_CATEGORIES.map((c)
   icon: CATEGORY_ICONS[c.id] ?? FileText,
 }));
 
-/** Books, adventures and the quick reference. */
+/** Books, adventures, the quick reference and random tables. */
 export const LIBRARY_LINKS: readonly CompendiumLink[] = [
   { to: '/compendium/library/books', label: 'Books', icon: Library },
   { to: '/compendium/library/adventures', label: 'Adventures', icon: MapIcon },
   { to: '/compendium/quickref/bookref-quick', label: 'Quick Reference', icon: BookMarked },
+  { to: '/compendium/list/tables', label: 'Random Tables', icon: Dices },
 ];
 
 /** The link a compendium path belongs to, for highlighting it in menus. */

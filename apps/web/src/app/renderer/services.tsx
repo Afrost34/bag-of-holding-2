@@ -1,9 +1,11 @@
 import { Entries, RendererProvider, RichText, type RendererServices } from '@boh/renderer';
 import * as HoverCard from '@radix-ui/react-hover-card';
-import type { ComponentProps, ReactNode } from 'react';
+import * as Popover from '@radix-ui/react-popover';
+import { useRef, useState, type ComponentProps, type ReactNode } from 'react';
 import { AppLink } from '../AppLink';
 import { entityPath, useEntity, useResolvedLink } from '../data/entities';
 import { RollChip } from '../dice/RollChip';
+import { useDice } from '../dice/store';
 import { EntityCard } from './EntityCard';
 import { referencePath } from './referenceTarget';
 
@@ -37,25 +39,87 @@ function EntityLink({
       </span>
     );
   }
+  return <ResolvedEntityLink entityKey={state.key}>{children}</ResolvedEntityLink>;
+}
+
+const PREVIEW_CLASS =
+  'z-50 max-h-[min(60vh,32rem)] w-[min(92vw,26rem)] overflow-y-auto rounded-lg shadow-card';
+
+/**
+ * A link with a preview: on hover with a mouse; on a touch screen the first tap opens the
+ * preview (with "Open page"), since there is no hover, and a second tap follows the link.
+ */
+function ResolvedEntityLink({ entityKey, children }: { entityKey: string; children: ReactNode }) {
+  const [tapOpen, setTapOpen] = useState(false);
+  const lastPointer = useRef<string>('mouse');
+  const path = entityPath(entityKey);
   return (
-    <HoverCard.Root openDelay={350} closeDelay={120}>
-      <HoverCard.Trigger asChild>
-        <AppLink to={entityPath(state.key)} className="font-medium text-link hover:underline">
-          {children}
-        </AppLink>
-      </HoverCard.Trigger>
-      <HoverCard.Portal>
-        <HoverCard.Content
+    <Popover.Root open={tapOpen} onOpenChange={setTapOpen}>
+      <HoverCard.Root openDelay={350} closeDelay={120}>
+        <Popover.Anchor asChild>
+          <HoverCard.Trigger asChild>
+            <AppLink
+              to={path}
+              onPointerDown={(e) => {
+                lastPointer.current = e.pointerType;
+              }}
+              onClick={(e) => {
+                if (lastPointer.current === 'touch' && !tapOpen) {
+                  e.preventDefault();
+                  setTapOpen(true);
+                }
+              }}
+              className="font-medium text-link hover:underline"
+            >
+              {children}
+            </AppLink>
+          </HoverCard.Trigger>
+        </Popover.Anchor>
+        <HoverCard.Portal>
+          <HoverCard.Content
+            side="bottom"
+            align="start"
+            sideOffset={6}
+            collisionPadding={12}
+            className={PREVIEW_CLASS}
+          >
+            <Preview entityKey={entityKey} />
+          </HoverCard.Content>
+        </HoverCard.Portal>
+      </HoverCard.Root>
+      <Popover.Portal>
+        <Popover.Content
           side="bottom"
           align="start"
           sideOffset={6}
           collisionPadding={12}
-          className="z-50 max-h-[min(60vh,32rem)] w-[min(92vw,26rem)] overflow-y-auto rounded-lg shadow-card"
+          aria-label="Preview"
+          className={PREVIEW_CLASS}
         >
-          <Preview entityKey={state.key} />
-        </HoverCard.Content>
-      </HoverCard.Portal>
-    </HoverCard.Root>
+          <Preview entityKey={entityKey} />
+          <div className="sticky bottom-0 flex justify-end gap-2 rounded-b-lg border-t border-border bg-surface p-2">
+            <button
+              type="button"
+              onClick={() => {
+                setTapOpen(false);
+              }}
+              className="rounded-md px-3 py-1.5 text-sm text-muted hover:text-text"
+            >
+              Close
+            </button>
+            <AppLink
+              to={path}
+              onNavigate={() => {
+                setTapOpen(false);
+              }}
+              className="rounded-md bg-accent px-3 py-1.5 text-sm font-semibold text-accent-fg hover:bg-accent-hover"
+            >
+              Open page
+            </AppLink>
+          </div>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }
 
@@ -124,6 +188,7 @@ const services: Partial<RendererServices> = {
   EmbeddedEntity,
   ReferenceLink,
   imageUrl: (path) => `${IMAGE_BASE}${path.split('/').map(encodeURIComponent).join('/')}`,
+  rollDice: async (roll) => (await useDice.getState().roll(roll))?.total ?? null,
 };
 
 export function AppRendererProvider({ children }: { children: ReactNode }) {

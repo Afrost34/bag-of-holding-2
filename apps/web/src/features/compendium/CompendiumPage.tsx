@@ -1,6 +1,7 @@
 import type { EntitySummary } from '@boh/data5e';
 import { Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { BookmarkList } from '../../app/annotations/BookmarkList';
 import { AppLink } from '../../app/AppLink';
 import { BROWSE_LINKS, LIBRARY_LINKS, type CompendiumLink } from '../../app/compendiumLinks';
 import { BusyNotice } from '../../app/data/BusyNotice';
@@ -102,6 +103,7 @@ export function CompendiumPage() {
           </ul>
           {query.length < 2 && (
             <>
+              <BookmarkList />
               <Tiles label="Browse" links={BROWSE_LINKS} />
               <Tiles label="Library" links={LIBRARY_LINKS} />
             </>

@@ -2,6 +2,7 @@ import type { EntityDetail } from '@boh/data5e';
 import { Entries, RichText } from '@boh/renderer';
 import { cn } from '@boh/ui';
 import type { ReactNode } from 'react';
+import { PageTools } from '../../../app/annotations/PageTools';
 import { EntityMeta } from '../../../app/renderer/EntityCard';
 import { IMAGE_BASE } from '../../../app/renderer/services';
 import { scrollToSection } from './scroll';
@@ -104,6 +105,7 @@ export function EntityHero({
             <RichText text={entity.name} />
           </h1>
           <EntityMeta entity={entity} className="mt-1.5" />
+          <PageTools noteId={entity.key} label={entity.name} />
           {tagline && image?.title && (
             <p className="mt-3 font-serif text-lg italic">{image.title}</p>
           )}

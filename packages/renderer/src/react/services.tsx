@@ -17,6 +17,11 @@ export interface RendererServices {
   }>;
   /** URL of a 5etools image given its repo-relative path (`bestiary/MM/Goblin.webp`). */
   imageUrl: (path: string) => string;
+  /**
+   * Rolls and records a roll, resolving to its total (random tables highlight the row it lands
+   * on). Null when there is no dice roller, e.g. in print.
+   */
+  rollDice: ((roll: RollSpec) => Promise<number | null>) | null;
 }
 
 const Plain = ({ children }: { children: ReactNode }) => <>{children}</>;
@@ -27,6 +32,7 @@ export const defaultServices: RendererServices = {
   EmbeddedEntity: ({ name }) => <p className="text-muted italic">{name}</p>,
   ReferenceLink: Plain,
   imageUrl: (path) => path,
+  rollDice: null,
 };
 
 const ServicesContext = createContext<RendererServices>(defaultServices);

@@ -38,7 +38,8 @@ interface DiceStore {
   pending: PendingRoll | null;
   rolling: boolean;
 
-  roll: (spec: RollSpec, mode?: RollMode, inputs?: RollInputs) => Promise<void>;
+  /** Rolls and records; resolves to the result (undefined when it waits for inputs or fails). */
+  roll: (spec: RollSpec, mode?: RollMode, inputs?: RollInputs) => Promise<RollEntry | undefined>;
   submitPending: (inputs: RollInputs) => Promise<void>;
   cancelPending: () => void;
   dismiss: (id: string) => void;
@@ -61,14 +62,14 @@ export const useDice = create<DiceStore>()(
         const needs = needsFor(spec, inputs);
         if (needs) {
           set({ pending: { spec, mode, needs } });
-          return;
+          return undefined;
         }
         let entry: RollEntry;
         try {
           entry = rollSpec(spec, mode, inputs);
         } catch (error) {
           console.warn('Could not roll', spec.expression, error);
-          return;
+          return undefined;
         }
         if (useDiceSettings.getState().threeD) {
           set({ rolling: true });
@@ -82,6 +83,7 @@ export const useDice = create<DiceStore>()(
         setTimeout(() => {
           get().dismiss(entry.id);
         }, SHOW_FOR_MS);
+        return entry;
       },
 
       submitPending: async (inputs) => {
