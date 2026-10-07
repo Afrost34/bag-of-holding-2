@@ -1,7 +1,8 @@
 import { CATEGORIES, type EntitySummary } from '@boh/data5e';
 import { cn } from '@boh/ui';
 import * as Dialog from '@radix-ui/react-dialog';
-import { ArrowRight, CornerDownLeft, Search } from 'lucide-react';
+import { noteType, searchNotes, type NoteHit } from '@boh/journal';
+import { ArrowRight, CornerDownLeft, NotebookPen, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { dataWorker } from '../data/client';
 import { entityPath, useEntity } from '../data/entities';
@@ -11,11 +12,18 @@ import { typeLabel } from '../format';
 import { navModules } from '../nav';
 import { useAppNavigate } from '../navigation';
 import { EntityCard } from '../renderer/EntityCard';
+import { useCampaigns } from '../campaigns/store';
+import { journalPath } from '../journal/paths';
+import { useJournal } from '../journal/store';
 import { useSearchPalette } from './store';
 
 type Result =
   | { kind: 'page'; id: string; label: string; detail: string; path: string }
+  | { kind: 'note'; id: string; note: NoteHit }
   | { kind: 'entity'; id: string; entity: EntitySummary };
+
+/** The "Journal" filter: only the open campaign's notes. */
+const JOURNAL = 'journal';
 
 const FILTERS = CATEGORIES.filter((c) =>
   [
@@ -44,6 +52,8 @@ export function SearchPalette() {
   const loadSources = useSourceList((s) => s.load);
   const overrides = useSourcePrefs((s) => s.overrides);
   const query = text.trim();
+  const notes = useJournal((s) => s.notes);
+  const activeCampaign = useCampaigns((s) => s.activeId);
 
   // Ctrl/Cmd+K toggles the palette from anywhere.
   useEffect(() => {
@@ -63,8 +73,16 @@ export function SearchPalette() {
     if (open) void loadSources();
   }, [open, loadSources]);
 
+  // The open campaign's journal is searched too (loaded here if its page was not opened yet).
   useEffect(() => {
-    if (!open || query.length < 2) return;
+    const journal = useJournal.getState();
+    if (open && activeCampaign && journal.campaignId !== activeCampaign) {
+      void journal.load(activeCampaign);
+    }
+  }, [open, activeCampaign]);
+
+  useEffect(() => {
+    if (!open || query.length < 2 || filter === JOURNAL) return;
     let cancelled = false;
     const types = filter ? CATEGORIES.find((c) => c.id === filter)?.types : undefined;
     const timer = setTimeout(() => {
@@ -111,11 +129,22 @@ export function SearchPalette() {
               path: m.path,
             })),
         ].slice(0, 3);
+    const noteHits =
+      filter === null || filter === JOURNAL
+        ? searchNotes(notes, query, filter === JOURNAL ? 40 : 5).map((note): Result => ({
+            kind: 'note',
+            id: `note:${note.path}`,
+            note,
+          }))
+        : [];
     return [
       ...pages,
-      ...entities.map((entity): Result => ({ kind: 'entity', id: entity.key, entity })),
+      ...noteHits,
+      ...(filter === JOURNAL
+        ? []
+        : entities.map((entity): Result => ({ kind: 'entity', id: entity.key, entity }))),
     ];
-  }, [query, filter, entities]);
+  }, [query, filter, entities, notes]);
 
   const shown = query.length >= 2 ? results : [];
   const current = shown[Math.min(active, shown.length - 1)];
@@ -127,7 +156,14 @@ export function SearchPalette() {
   };
 
   const choose = (result: Result, newTab: boolean) => {
-    navigate(result.kind === 'page' ? result.path : entityPath(result.entity.key), { newTab });
+    navigate(
+      result.kind === 'page'
+        ? result.path
+        : result.kind === 'note'
+          ? journalPath(result.note.path)
+          : entityPath(result.entity.key),
+      { newTab },
+    );
     close();
   };
 
@@ -170,7 +206,7 @@ export function SearchPalette() {
                   choose(current, e.ctrlKey || e.metaKey);
                 }
               }}
-              placeholder="Search spells, creatures, items, rules…"
+              placeholder="Search spells, creatures, items, rules, your notes…"
               aria-label="Search everything"
               role="combobox"
               aria-expanded={shown.length > 0}
@@ -189,6 +225,7 @@ export function SearchPalette() {
           >
             {[
               { id: null, label: 'All' },
+              ...(activeCampaign ? [{ id: JOURNAL, label: 'Journal' }] : []),
               ...FILTERS.map((c) => ({ id: c.id, label: c.label })),
             ].map((f) => (
               <button
@@ -249,6 +286,21 @@ export function SearchPalette() {
                       <span className="flex-1 font-medium">{r.label}</span>
                       <span className="text-xs text-muted">{r.detail}</span>
                     </>
+                  ) : r.kind === 'note' ? (
+                    <>
+                      <NotebookPen className="h-4 w-4 shrink-0 text-accent" aria-hidden />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium">{r.note.name}</span>
+                        {r.note.snippet && (
+                          <span className="block truncate text-xs text-muted">
+                            {r.note.snippet}
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-xs text-muted">
+                        {noteType(r.note.type)?.label ?? 'Note'}
+                      </span>
+                    </>
                   ) : (
                     <>
                       <span className="min-w-0 flex-1 truncate font-medium">{r.entity.name}</span>
@@ -265,6 +317,7 @@ export function SearchPalette() {
               ))}
             </ul>
             {current?.kind === 'entity' && <PreviewPane entityKey={current.entity.key} />}
+            {current?.kind === 'note' && <NotePreview hit={current.note} />}
           </div>
           <p className="hidden border-t border-border px-3 py-1.5 text-[11px] text-faint sm:block">
             ↑↓ to move · Enter to open · Ctrl+Enter for a new tab
@@ -272,6 +325,20 @@ export function SearchPalette() {
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
+  );
+}
+
+function NotePreview({ hit }: { hit: NoteHit }) {
+  const kind = noteType(hit.type);
+  return (
+    <div className="hidden w-[24rem] shrink-0 overflow-y-auto border-l border-border bg-bg p-4 text-sm lg:block">
+      <p className="text-xs font-semibold tracking-wide text-muted uppercase">
+        {kind?.label ?? 'Journal note'}
+      </p>
+      <p className="mt-1 font-serif text-lg font-bold">{hit.name}</p>
+      <p className="mt-1 text-xs text-faint">{hit.path.slice(0, hit.path.lastIndexOf('/') + 1)}</p>
+      {hit.snippet && <p className="mt-3 text-muted">{hit.snippet}</p>}
+    </div>
   );
 }
 
