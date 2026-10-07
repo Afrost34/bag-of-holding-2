@@ -15,6 +15,7 @@ import { ArrowLeft, MonitorUp, Plus, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppLink } from '../../app/AppLink';
 import {
+  absolutePosition,
   addBoardCards,
   COLLAPSED_H,
   dropCard,
@@ -32,6 +33,7 @@ import { openPlayerWindow, showToPlayers } from '../../app/boards/player';
 import { useBoard, useBoards } from '../../app/boards/store';
 import { useCampaigns } from '../../app/campaigns/store';
 import { entityPath, loadEntity } from '../../app/data/entities';
+import { useEncounters } from '../../app/encounters/store';
 import { journalPath } from '../../app/journal/paths';
 import { useJournal } from '../../app/journal/store';
 import { useAppNavigate } from '../../app/navigation';
@@ -47,15 +49,17 @@ import { NotesProvider } from './noteView';
 const NODE_TYPES = { card: CardNode, stack: StackNode, frame: FrameNode };
 
 /** One board: an infinite canvas of cards. */
-export function BoardPage({ id }: { id: string }) {
+export function BoardPage({ id, focus }: { id: string; focus?: string }) {
   const { loaded, load } = useBoards();
   const board = useBoard(id);
   const { campaigns, loaded: campaignsLoaded, load: loadCampaigns } = useCampaigns();
+  const { loaded: encountersLoaded, load: loadEncounters } = useEncounters();
   usePageTitle(board?.name ?? 'Board');
   useEffect(() => {
     if (!loaded) void load();
     if (!campaignsLoaded) void loadCampaigns();
-  }, [loaded, load, campaignsLoaded, loadCampaigns]);
+    if (!encountersLoaded) void loadEncounters();
+  }, [loaded, load, campaignsLoaded, loadCampaigns, encountersLoaded, loadEncounters]);
 
   if (!loaded) return <p className="p-8 text-muted">Loading…</p>;
   if (!board) return <p className="p-8">This board does not exist (any more).</p>;
@@ -64,7 +68,7 @@ export function BoardPage({ id }: { id: string }) {
     <div className="flex h-full flex-col">
       <ReactFlowProvider>
         <NotesProvider campaign={campaign}>
-          <BoardEditor board={board} />
+          <BoardEditor board={board} {...(focus ? { focus } : {})} />
         </NotesProvider>
       </ReactFlowProvider>
     </div>
@@ -108,7 +112,7 @@ function toNodes(cards: readonly BoardCard[], cache: WeakMap<BoardCard, CardNode
   });
 }
 
-function BoardEditor({ board }: { board: Board }) {
+function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
   const navigate = useAppNavigate();
   const flow = useReactFlow();
   const theme = useTheme((s) => s.mode);
@@ -139,6 +143,14 @@ function BoardEditor({ board }: { board: Board }) {
       },
       unframe: (id) => {
         commit((b) => setFrame(b, id, null));
+      },
+      addBeside: (id, contents) => {
+        commit((b) => {
+          const card = b.cards.find((c) => c.id === id);
+          if (!card) return b;
+          const at = absolutePosition(b, card);
+          return addBoardCards(b, contents, { x: at.x + card.w + 24, y: at.y }).board;
+        });
       },
       show: (card) => {
         if (card.kind === 'entity')
@@ -223,6 +235,31 @@ function BoardEditor({ board }: { board: Board }) {
         },
       );
   };
+
+  // A card asked for in the URL is brought into view once the canvas is ready.
+  const [focused, setFocused] = useState<string | null>(null);
+  useEffect(() => {
+    if (!focus || focused === focus) return;
+    const card = useBoards
+      .getState()
+      .boards.find((b) => b.id === boardId)
+      ?.cards.find((c) => c.id === focus);
+    if (!card) return;
+    const t = setTimeout(() => {
+      const at = absolutePosition(
+        useBoards.getState().boards.find((b) => b.id === boardId) ?? board,
+        card,
+      );
+      void flow.setCenter(at.x + card.w / 2, at.y + Math.min(card.h, 400) / 2, {
+        zoom: Math.max(flow.getZoom(), 0.8),
+        duration: 300,
+      });
+      setFocused(focus);
+    }, 50);
+    return () => {
+      clearTimeout(t);
+    };
+  }, [focus, focused, boardId, board, flow]);
 
   const [panel, setPanel] = useState<'entity' | 'note' | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);

@@ -11,11 +11,15 @@ export function EntitySearch({
   onAdd,
   label = 'Add a card',
   placeholder = 'Add a card: spell, item, creature…',
+  types,
 }: {
   onAdd: (key: string) => void;
   label?: string;
   placeholder?: string;
+  /** Only these entity types (`monster`…). */
+  types?: readonly string[];
 }) {
+  const only = types?.join(',') ?? '';
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<EntitySummary[]>([]);
   const { sources, load } = useSourceList();
@@ -29,7 +33,11 @@ export function EntitySearch({
     let cancelled = false;
     const timer = setTimeout(() => {
       void dataWorker()
-        .search(q, { excludeSources: disabledSourceIds(sources, overrides), limit: 15 })
+        .search(q, {
+          excludeSources: disabledSourceIds(sources, overrides),
+          limit: 15,
+          ...(only ? { types: only.split(',') } : {}),
+        })
         .then((r) => {
           if (!cancelled) setResults(r);
         });
@@ -38,7 +46,7 @@ export function EntitySearch({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [query, sources, overrides]);
+  }, [query, sources, overrides, only]);
   const shown = query.trim().length < 2 ? [] : results;
   return (
     <div>

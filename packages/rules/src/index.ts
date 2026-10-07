@@ -60,3 +60,4 @@ export {
   type OptionCatalog,
   type OptionSummary,
 } from './options';
+export * from './encounter';

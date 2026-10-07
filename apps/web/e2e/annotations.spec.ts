@@ -44,7 +44,7 @@ test('bookmark a page and keep a note on it, across reloads', async ({ page }) =
 test('"Send to" offers card sheets and boards now, later milestones disabled', async ({ page }) => {
   await page.goto('./#/compendium/spell%3Amagic%20missile%40phb');
   await page.getByRole('button', { name: 'Send to' }).click();
-  await expect(page.getByRole('menuitem', { name: /Encounter/ })).toHaveAttribute(
+  await expect(page.getByRole('menuitem', { name: /Map/ })).toHaveAttribute(
     'aria-disabled',
     'true',
   );

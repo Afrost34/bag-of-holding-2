@@ -1,0 +1,151 @@
+import { Button } from '@boh/ui';
+import { Plus, Swords } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { AppLink } from '../../app/AppLink';
+import { useActiveCampaign, useCampaigns } from '../../app/campaigns/store';
+import { creatureCount, type Encounter } from '../../app/encounters/model';
+import { useEncounters } from '../../app/encounters/store';
+import { useAppNavigate } from '../../app/navigation';
+import { usePageTitle } from '../../app/tabs/usePageTitle';
+
+/** Stands for "no campaign" in selects (campaign ids are slugs, never start with @). */
+const LIBRARY = '@library';
+
+/** Encounters: fights prepared ahead, the open campaign's first. */
+export function EncountersPage() {
+  usePageTitle('Encounters');
+  const { encounters: sheets, loaded, load, create } = useEncounters();
+  const { campaigns, loaded: campaignsLoaded, load: loadCampaigns } = useCampaigns();
+  const active = useActiveCampaign();
+  const navigate = useAppNavigate();
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState('');
+  const [where, setWhere] = useState(active?.id ?? LIBRARY);
+
+  useEffect(() => {
+    if (!loaded) void load();
+    if (!campaignsLoaded) void loadCampaigns();
+  }, [loaded, load, campaignsLoaded, loadCampaigns]);
+
+  const groups: { id: string; title: string; list: Encounter[] }[] = [
+    ...[...campaigns]
+      .sort((a, b) => Number(b.id === active?.id) - Number(a.id === active?.id))
+      .map((c) => ({ id: c.id, title: c.name, list: sheets.filter((s) => s.campaign === c.id) })),
+    { id: LIBRARY, title: 'Not in a campaign', list: sheets.filter((s) => !s.campaign) },
+  ].filter((g) => g.list.length > 0);
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-6 px-4 py-6 md:px-8 md:py-10">
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="flex-1 font-serif text-2xl font-bold">Encounters</h1>
+        <Button
+          variant="primary"
+          onClick={() => {
+            setWhere(active?.id ?? LIBRARY);
+            setCreating(true);
+          }}
+        >
+          <Plus className="h-4 w-4" aria-hidden /> New encounter
+        </Button>
+      </div>
+      <p className="text-muted">
+        Fights prepared ahead: monsters from the compendium, their difficulty for your party (2014
+        thresholds or the 2024 budget, by the campaign’s edition), and a combat tracker on a board
+        in one click. Add monsters here or with “Send to → Encounter” on any creature’s page.
+      </p>
+
+      {creating && (
+        <form
+          aria-label="New encounter"
+          className="space-y-3 rounded-lg border border-border bg-surface p-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void create(name, where === LIBRARY ? undefined : where).then((s) => {
+              setCreating(false);
+              setName('');
+              navigate(`/encounters/${s.id}`);
+            });
+          }}
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label htmlFor="new-encounter-name" className="mb-1 block text-sm font-medium">
+                Name
+              </label>
+              <input
+                id="new-encounter-name"
+                value={name}
+                autoFocus
+                placeholder="Goblin ambush"
+                onChange={(e) => {
+                  setName(e.target.value);
+                }}
+                className="w-full rounded-md border border-border bg-surface px-3 py-2 text-base focus:border-accent focus:outline-none sm:text-sm"
+              />
+            </div>
+            <div>
+              <label htmlFor="new-encounter-where" className="mb-1 block text-sm font-medium">
+                Keep in
+              </label>
+              <select
+                id="new-encounter-where"
+                value={where}
+                onChange={(e) => {
+                  setWhere(e.target.value);
+                }}
+                className="w-full rounded-md border border-border bg-surface px-3 py-2 text-base sm:text-sm"
+              >
+                {campaigns.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+                <option value={LIBRARY}>Not in a campaign</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button type="submit" variant="primary">
+              Create
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setCreating(false);
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        </form>
+      )}
+
+      {loaded && sheets.length === 0 && !creating && (
+        <div className="rounded-lg border border-dashed border-border p-8 text-center text-muted">
+          <Swords className="mx-auto mb-2 h-8 w-8" aria-hidden />
+          No encounters yet.
+        </div>
+      )}
+
+      {groups.map((g) => (
+        <section key={g.id} aria-label={g.title}>
+          <h2 className="mb-2 font-serif text-lg font-bold">{g.title}</h2>
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {g.list.map((s) => (
+              <li key={s.id}>
+                <AppLink
+                  to={`/encounters/${s.id}`}
+                  className="block rounded-lg border border-border bg-surface p-4 hover:border-accent"
+                >
+                  <span className="block truncate font-serif text-lg font-bold">{s.name}</span>
+                  <span className="block text-sm text-muted">{creatureCount(s)} creatures</span>
+                </AppLink>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+}
