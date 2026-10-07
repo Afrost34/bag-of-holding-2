@@ -12,6 +12,7 @@ import { useData } from '../../app/data/store';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 import { AbilitiesStep } from './AbilitiesStep';
+import { CompanionsStep } from './CompanionsStep';
 import { DetailsStep } from './DetailsStep';
 import { InventoryPanel } from './InventoryPanel';
 import { SheetView } from './SheetView';
@@ -243,6 +244,9 @@ export function CharacterPage({ id, step }: { id: string; step: StepId }) {
       )}
       {step === 'spells' && (
         <ChoiceList {...stepProps} empty="This character has no spells to choose yet." />
+      )}
+      {step === 'companions' && (
+        <CompanionsStep character={character} save={save} disabledSources={[...disabled]} />
       )}
       {step === 'details' && <DetailsStep character={character} save={save} />}
       {step === 'sheet' && view && (

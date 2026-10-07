@@ -60,6 +60,7 @@ describe('builder steps', () => {
       abilities: [],
       equipment: ['class:bard@xphb/level:1/equipment/0'],
       spells: ['class:bard@xphb/cantrips'],
+      companions: [],
       details: [],
       sheet: [],
     });

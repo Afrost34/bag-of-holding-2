@@ -110,3 +110,21 @@ test('a multiclass character in a campaign, with rolled hit points, copied to th
   );
   await expect(page.getByRole('region', { name: 'Rust and Sunfire' })).toContainText('Brakka');
 });
+
+test('a companion is a stat block attached to the character', async ({ page }) => {
+  await page.goto('./#/characters');
+  await page.getByRole('button', { name: 'New character' }).click();
+  await page.getByRole('form', { name: 'New character' }).getByLabel('Name').fill('Wren');
+  await page.getByRole('button', { name: 'Start building' }).click();
+  await page.getByRole('link', { name: /Companions/ }).click();
+  await page.getByRole('searchbox', { name: 'Add a creature' }).fill('gobl');
+  await page.getByRole('list', { name: 'Creatures found' }).getByRole('button').first().click();
+  await page.getByLabel('Name for Goblin').fill('Snik');
+  const snik = page.getByRole('region', { name: 'Snik' });
+  await expect(snik).toContainText('Scimitar');
+  await snik.getByLabel('What Snik is').selectOption('familiar');
+  await page.reload();
+  await expect(page.getByRole('region', { name: 'Snik' }).getByLabel('What Snik is')).toHaveValue(
+    'familiar',
+  );
+});

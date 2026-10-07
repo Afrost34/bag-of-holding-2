@@ -13,6 +13,7 @@ export const STEPS = [
   { id: 'abilities', label: 'Abilities' },
   { id: 'equipment', label: 'Equipment' },
   { id: 'spells', label: 'Spells' },
+  { id: 'companions', label: 'Companions' },
   { id: 'details', label: 'Details' },
   { id: 'sheet', label: 'Sheet' },
 ] as const;

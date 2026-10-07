@@ -79,3 +79,20 @@ describe('coins', () => {
     expect(addCoins(coinsFromCopper(100), coinsFromCopper(1500)).gp).toBe(16);
   });
 });
+
+describe('companions', () => {
+  it('keeps references to stat blocks and drops broken entries', () => {
+    const c = parseCharacter(
+      JSON.stringify({
+        name: 'Wren',
+        decisions: {},
+        companions: [{ key: 'monster:owl@xmm', kind: 'familiar', name: 'Hoot' }, { kind: 'mount' }],
+      }),
+      'w',
+      'rust',
+    );
+    expect(c?.companions).toEqual([{ key: 'monster:owl@xmm', kind: 'familiar', name: 'Hoot' }]);
+    expect(c?.campaign).toBe('rust');
+    if (c) expect(serializeCharacter(c)).not.toContain('rust');
+  });
+});

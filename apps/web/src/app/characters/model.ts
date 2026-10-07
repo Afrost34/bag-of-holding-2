@@ -39,8 +39,23 @@ export interface CharacterFile {
   details: CharacterDetails;
   /** Coins carried. */
   coins: Coins;
+  /** Creatures that go with the character, by stat block. */
+  companions: Companion[];
   /** The campaign it belongs to; absent in the library. Not stored: it is where the file is. */
   campaign?: string;
+}
+
+export const COMPANION_KINDS = ['companion', 'familiar', 'mount', 'wild shape', 'summon'] as const;
+export type CompanionKind = (typeof COMPANION_KINDS)[number];
+
+/** A creature attached to a character: a reference to its stat block, never a copy. */
+export interface Companion {
+  /** Monster key (`monster:owl@xmm`). */
+  key: string;
+  kind: CompanionKind;
+  /** The character's name for it ("Hoot"). */
+  name?: string;
+  notes?: string;
 }
 
 export interface Coins {
@@ -99,6 +114,7 @@ export function newCharacterFile(
     decisions: { ...newCharacter(edition), baseScores: standardArrayDefault() },
     details: {},
     coins: { ...NO_COINS },
+    companions: [],
   };
 }
 
@@ -148,6 +164,12 @@ export function parseCharacter(
     decisions,
     details: isObj(json.details) ? json.details : {},
     coins: { ...NO_COINS, ...(isObj(json.coins) ? (json.coins as Partial<Coins>) : {}) },
+    companions: Array.isArray(json.companions)
+      ? json.companions.filter(
+          (c): c is Companion =>
+            isObj(c) && typeof c.key === 'string' && typeof c.kind === 'string',
+        )
+      : [],
     ...(campaign ? { campaign } : {}),
   };
 }
