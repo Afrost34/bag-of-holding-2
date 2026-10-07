@@ -1,11 +1,11 @@
 import { Button, cn } from '@boh/ui';
 import { Castle, Check, Plus, Settings2 } from 'lucide-react';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
-import { BUILT_IN_TEMPLATES, EDITION_LABELS } from '../../app/campaigns/model';
+import { EDITION_LABELS } from '../../app/campaigns/model';
 import { useCampaigns } from '../../app/campaigns/store';
-import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
+import { NewCampaign } from './NewCampaign';
 
 /** Your campaigns: switch between them, create one from a template, open its settings. */
 export function CampaignsPage() {
@@ -97,110 +97,5 @@ export function CampaignsPage() {
         )}
       </div>
     </div>
-  );
-}
-
-/** Name and template for a new campaign; the new campaign is opened at once. */
-function NewCampaign({ first, onDone }: { first: boolean; onDone: () => void }) {
-  const { templates, create } = useCampaigns();
-  const navigate = useAppNavigate();
-  const nameId = useId();
-  const [name, setName] = useState('');
-  const [templateId, setTemplateId] = useState(BUILT_IN_TEMPLATES[0]?.id ?? '');
-  const [busy, setBusy] = useState(false);
-  const all = [...BUILT_IN_TEMPLATES, ...templates];
-
-  const submit = async () => {
-    if (!name.trim() || busy) return;
-    setBusy(true);
-    await create(name, templateId);
-    setBusy(false);
-    onDone();
-    if (first) navigate('/compendium');
-  };
-
-  return (
-    <section
-      aria-label="New campaign"
-      className="rounded-lg border border-border bg-surface-2 p-4 sm:p-5"
-    >
-      <h2 className="font-serif text-xl font-bold">
-        {first ? 'Create your first campaign' : 'New campaign'}
-      </h2>
-      {first && (
-        <p className="mt-1 text-sm text-muted">
-          A campaign keeps its own sources, rules, notes and bookmarks (and later its vault,
-          characters, boards and maps). Your current source choices, bookmarks and notes move into
-          it.
-        </p>
-      )}
-      <form
-        className="mt-4 space-y-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void submit();
-        }}
-      >
-        <div>
-          <label
-            htmlFor={nameId}
-            className="mb-1 block text-[11px] font-semibold tracking-wider uppercase"
-          >
-            Campaign name
-          </label>
-          <input
-            id={nameId}
-            autoFocus
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-            }}
-            placeholder="Rust & Sunfire"
-            className="h-10 w-full max-w-md rounded-md border border-border bg-surface px-3"
-          />
-        </div>
-        <fieldset>
-          <legend className="mb-2 text-[11px] font-semibold tracking-wider uppercase">
-            Start from
-          </legend>
-          <div className="grid gap-2 sm:grid-cols-3">
-            {all.map((t) => (
-              <label
-                key={t.id}
-                className={cn(
-                  'flex cursor-pointer flex-col rounded-md border bg-surface p-3',
-                  templateId === t.id ? 'border-accent ring-1 ring-accent' : 'border-border',
-                )}
-              >
-                <span className="flex items-center gap-2 font-semibold">
-                  <input
-                    type="radio"
-                    name="template"
-                    value={t.id}
-                    checked={templateId === t.id}
-                    onChange={() => {
-                      setTemplateId(t.id);
-                    }}
-                    className="accent-accent"
-                  />
-                  {t.name}
-                </span>
-                <span className="mt-1 text-xs text-muted">{t.description}</span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-        <div className="flex gap-2">
-          <Button type="submit" variant="primary" disabled={!name.trim() || busy}>
-            Create campaign
-          </Button>
-          {!first && (
-            <Button variant="ghost" onClick={onDone}>
-              Cancel
-            </Button>
-          )}
-        </div>
-      </form>
-    </section>
   );
 }

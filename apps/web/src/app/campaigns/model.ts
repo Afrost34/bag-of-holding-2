@@ -29,6 +29,9 @@ export interface Campaign {
   createdAt: string;
 }
 
+/** What a new campaign is made from: a template, or the settings chosen when creating it. */
+export type CampaignSettings = Pick<Campaign, 'edition' | 'sources' | 'rules'>;
+
 export interface CampaignTemplate {
   id: string;
   name: string;
@@ -104,7 +107,7 @@ export function slugify(name: string, existing: readonly string[]): string {
 
 export function newCampaign(
   name: string,
-  template: CampaignTemplate,
+  template: CampaignSettings,
   existingIds: readonly string[],
   now: string,
 ): Campaign {

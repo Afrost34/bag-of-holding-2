@@ -16,6 +16,7 @@ import {
   templateFromCampaign,
   TEMPLATES_DIR,
   type Campaign,
+  type CampaignSettings,
   type CampaignTemplate,
 } from './model';
 
@@ -35,11 +36,12 @@ interface CampaignsStore {
   activeId: string | null;
   loaded: boolean;
   load: () => Promise<void>;
-  create: (name: string, templateId: string) => Promise<Campaign>;
+  /** Creates and opens a campaign with the settings chosen in the form. */
+  create: (name: string, settings: CampaignSettings) => Promise<Campaign>;
   activate: (id: string) => Promise<void>;
   update: (
     id: string,
-    patch: Partial<Pick<Campaign, 'name' | 'edition' | 'rules'>>,
+    patch: Partial<Pick<Campaign, 'name' | 'edition' | 'rules' | 'sources'>>,
   ) => Promise<void>;
   remove: (id: string) => Promise<void>;
   saveTemplate: (campaignId: string, name: string) => Promise<void>;
@@ -113,22 +115,14 @@ export const useCampaigns = create<CampaignsStore>()((set, get) => ({
     return loading;
   },
 
-  create: async (name, templateId) => {
-    const template =
-      [...BUILT_IN_TEMPLATES, ...get().templates].find((t) => t.id === templateId) ??
-      BUILT_IN_TEMPLATES[0];
-    if (!template) throw new Error('No campaign template');
+  create: async (name, settings) => {
     const first = get().campaigns.length === 0;
     const campaign = newCampaign(
       name,
-      template,
+      settings,
       get().campaigns.map((c) => c.id),
       new Date().toISOString(),
     );
-    // The first campaign keeps the source choices made before campaigns existed.
-    if (first) {
-      campaign.sources = { ...useSourcePrefs.getState().overrides, ...campaign.sources };
-    }
     await writeCampaign(campaign);
     if (first) {
       // Bookmarks and notes made before campaigns existed move into the first one.
@@ -159,6 +153,12 @@ export const useCampaigns = create<CampaignsStore>()((set, get) => ({
     if (!current) return;
     const next = { ...current, ...patch };
     set((s) => ({ campaigns: s.campaigns.map((c) => (c.id === id ? next : c)) }));
+    // The open campaign's sources are what the whole app filters by.
+    if (patch.sources && id === get().activeId) {
+      applyingSources = true;
+      useSourcePrefs.setState({ overrides: { ...patch.sources } });
+      applyingSources = false;
+    }
     await writeCampaign(next);
   },
 

@@ -26,7 +26,10 @@ async function createCampaign(page: Page, name: string, template: string) {
   const first = await page.getByRole('heading', { name: 'Create your first campaign' }).isVisible();
   if (!first) await page.getByRole('button', { name: 'New campaign' }).click();
   await page.getByLabel('Campaign name').fill(name);
-  await page.getByRole('radio', { name: template }).check();
+  await page
+    .getByRole('group', { name: 'Start from a template' })
+    .getByRole('radio', { name: template })
+    .check();
   await page.getByRole('button', { name: 'Create campaign' }).click();
   // The first campaign opens the compendium; later ones stay on the list.
   if (first) await page.waitForURL(/#\/compendium$/);
@@ -63,6 +66,37 @@ test('campaigns keep their own sources and notes', async ({ page }) => {
   // The choice survives a reload.
   await page.reload();
   await expect(page.getByText('3 spells', { exact: true })).toBeVisible();
+});
+
+test('every setting can be chosen when creating a campaign', async ({ page }) => {
+  await page.goto('./#/campaigns');
+  await page.getByLabel('Campaign name').fill('Custom');
+  // The template fills the settings in; each can then be changed.
+  await page
+    .getByRole('group', { name: 'Start from a template' })
+    .getByRole('radio', { name: /^2014 rules/ })
+    .check();
+  await expect(
+    page.getByRole('group', { name: 'Edition' }).getByRole('radio', { name: /^2014 rules/ }),
+  ).toBeChecked();
+  await page
+    .getByRole('group', { name: 'Edition' })
+    .getByRole('radio', { name: /Mixed editions/ })
+    .check();
+  await page.getByRole('radio', { name: /Variant/ }).check();
+  // Books are covers: the 2014 template turned the 2024 Player's Handbook off; turn it back on
+  // and turn the 2014 one off instead.
+  await page.getByRole('button', { name: "Player's Handbook (2024): off" }).click();
+  await page.getByRole('button', { name: "Player's Handbook (2014): on" }).click();
+  await page.getByRole('button', { name: 'Create campaign' }).click();
+  await page.waitForURL(/#\/compendium$/);
+
+  await page.goto('./#/compendium/list/spells');
+  await expect(page.getByText('1 spell', { exact: true })).toBeVisible();
+  await page.goto('./#/campaigns/custom');
+  await expect(page.getByRole('radio', { name: /Mixed editions/ })).toBeChecked();
+  await expect(page.getByRole('radio', { name: /Variant/ })).toBeChecked();
+  await expect(page.getByRole('button', { name: "Player's Handbook (2014): off" })).toBeVisible();
 });
 
 test('campaign settings: rename, rules, save as template, delete', async ({ page }) => {
