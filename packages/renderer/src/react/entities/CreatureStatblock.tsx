@@ -15,7 +15,7 @@ import {
   sizeText,
   speed,
   type Ability,
-} from '../../format';
+} from '@boh/data5e/format';
 import { text } from '../../json';
 import { Entries } from '../Entries';
 import { RichText } from '../RichText';

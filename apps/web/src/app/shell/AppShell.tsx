@@ -5,6 +5,7 @@ import { DiceTray } from '../dice/DiceTray';
 import { RollInputDialog } from '../dice/RollInputDialog';
 import { RollResults } from '../dice/RollResults';
 import { AppRendererProvider } from '../renderer/services';
+import { SearchPalette } from '../search/SearchPalette';
 import { useTabs } from '../tabs/store';
 import { useApplyTheme } from '../theme';
 import { Sidebar } from './Sidebar';
@@ -65,6 +66,7 @@ export function AppShell() {
       <RollResults />
       <DiceTray />
       <RollInputDialog />
+      <SearchPalette />
       <UpdatePrompt />
     </div>
   );

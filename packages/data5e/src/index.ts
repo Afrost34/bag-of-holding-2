@@ -54,3 +54,14 @@ export {
   type SourceSummary,
 } from './db/entityIndex';
 export type { SqlDatabase, SqlValue, SqlParams } from './db/types';
+export {
+  CATEGORIES,
+  SUPPORT_TYPES,
+  categoryById,
+  categoryForType,
+  type Category,
+  type FieldDef,
+  type FieldKind,
+} from './lists/categories';
+export { buildRow, type ListRow, type FieldValue } from './lists/rows';
+export { stripTagsPlain } from './lists/strip';

@@ -4,7 +4,10 @@
  * never block the UI. The UI talks to it through `DataWorkerApi` via Comlink.
  */
 import {
+  categoryById,
+  CATEGORIES,
   checkReferences,
+  type ListRow,
   EntityIndex,
   GitHubDataSource,
   homebrewSources,
@@ -75,6 +78,9 @@ async function openIndex(): Promise<EntityIndex> {
 
 const indexPromise: Promise<EntityIndex> = openIndex();
 let readyIndex: EntityIndex | null = null;
+
+/** List rows are built once per category and reused until the data changes. */
+const rowCache = new Map<string, ListRow[]>();
 void indexPromise.then((index) => {
   readyIndex = index;
 });
@@ -103,6 +109,7 @@ async function runInstall(
     return summarize(await run(await indexPromise, controller.signal));
   } finally {
     controller = null;
+    rowCache.clear();
   }
 }
 
@@ -191,6 +198,7 @@ const api: DataWorkerApi = {
   },
 
   async clear() {
+    rowCache.clear();
     (await indexPromise).clear();
   },
 
@@ -199,6 +207,7 @@ const api: DataWorkerApi = {
   },
 
   async syncHomebrew(packs) {
+    rowCache.clear();
     return syncHomebrew(await indexPromise, packs);
   },
 
@@ -212,6 +221,22 @@ const api: DataWorkerApi = {
 
   async entity(key) {
     return (await indexPromise).getEntity(key);
+  },
+
+  async listRows(categoryId) {
+    const category = categoryById(categoryId);
+    if (!category) return [];
+    let rows = rowCache.get(categoryId);
+    if (!rows) {
+      rows = (await indexPromise).listRows(category);
+      rowCache.set(categoryId, rows);
+    }
+    return rows;
+  },
+
+  async categoryCounts() {
+    const index = await indexPromise;
+    return Object.fromEntries(CATEGORIES.map((c) => [c.id, index.countTypes(c.types)]));
   },
 
   async resolve(candidateLists) {

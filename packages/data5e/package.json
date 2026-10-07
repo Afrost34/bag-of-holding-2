@@ -7,7 +7,8 @@
     ".": "./src/index.ts",
     "./sqlite": "./src/db/sqlite-wasm.ts",
     "./testing": "./src/testing/fixtures.ts",
-    "./testing/local": "./src/testing/localData.ts"
+    "./testing/local": "./src/testing/localData.ts",
+    "./format": "./src/format.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"

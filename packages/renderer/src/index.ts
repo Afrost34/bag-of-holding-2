@@ -8,7 +8,7 @@ export {
   type RollKind,
   type FormatKind,
 } from './text/tags';
-export * as format from './format';
+export * as format from '@boh/data5e/format';
 export {
   RendererProvider,
   useServices,

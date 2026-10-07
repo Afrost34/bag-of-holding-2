@@ -1,6 +1,7 @@
 import type { EntityDetail } from '@boh/data5e';
 import { useEffect, useState } from 'react';
 import { dataWorker } from './client';
+import { clearListCaches } from './lists';
 
 /**
  * Entity loading and link resolution for the UI, with caching and batching: a page of book text
@@ -94,6 +95,7 @@ export function loadEntity(key: string): Promise<EntityDetail | undefined> {
 export function clearEntityCaches(): void {
   entityCache.clear();
   resolved.clear();
+  clearListCaches();
 }
 
 export type EntityState =
