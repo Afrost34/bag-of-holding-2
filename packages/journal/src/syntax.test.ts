@@ -48,6 +48,8 @@ describe('tags', () => {
   });
 });
 
+const BOM = String.fromCharCode(0xfeff);
+
 describe('frontmatter', () => {
   it('parses YAML and finds where the body starts', () => {
     const text = '---\nstatus: alive\nlevel: 5\n---\nBody';
@@ -55,6 +57,7 @@ describe('frontmatter', () => {
     expect(fm.data).toEqual({ status: 'alive', level: 5 });
     expect(text.slice(fm.bodyStart)).toBe('Body');
     expect(parseFrontmatter('No frontmatter')).toEqual({ data: {}, bodyStart: 0 });
+    expect(parseFrontmatter(BOM + '---\ntype: npc\n---\n').data).toEqual({ type: 'npc' });
     expect(parseFrontmatter('---\n: [bad\n---\n').error).toBeDefined();
   });
 });

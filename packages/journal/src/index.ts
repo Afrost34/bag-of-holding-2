@@ -21,3 +21,12 @@ export {
   type CompendiumRef,
   type JournalIndex,
 } from './links';
+export {
+  bannerOf,
+  propertyKind,
+  removeProperty,
+  renameProperty,
+  setProperty,
+  type PropertyValue,
+} from './properties';
+export { applyTemplate, formatDate, templatePaths } from './templates';

@@ -80,3 +80,64 @@ export function moveTarget(
   }
   return { ok: true, to };
 }
+
+export interface TagNode {
+  /** The full tag, e.g. `faction/zhentarim`. */
+  tag: string;
+  /** The last part, shown in the tree: `zhentarim`. */
+  name: string;
+  /** Notes with this tag (not counting sub-tags). */
+  notes: string[];
+  /** Notes with this tag or one of its sub-tags. */
+  count: number;
+  children: TagNode[];
+}
+
+/** Tags as a tree (`faction/zhentarim` under `faction`), alphabetical, case-insensitive. */
+export function buildTagTree(tagsByNote: ReadonlyMap<string, readonly string[]>): TagNode[] {
+  const nodes = new Map<string, TagNode & { all: Set<string> }>();
+  const node = (tag: string) => {
+    const key = tag.toLowerCase();
+    let n = nodes.get(key);
+    if (!n) {
+      n = {
+        tag,
+        name: tag.slice(tag.lastIndexOf('/') + 1),
+        notes: [],
+        count: 0,
+        children: [],
+        all: new Set(),
+      };
+      nodes.set(key, n);
+      const parent = tag.includes('/') ? tag.slice(0, tag.lastIndexOf('/')) : null;
+      if (parent) node(parent).children.push(n);
+    }
+    return n;
+  };
+  for (const [path, tags] of tagsByNote) {
+    for (const tag of tags) {
+      node(tag).notes.push(path);
+      const parts = tag.split('/');
+      parts.forEach((_, i) => node(parts.slice(0, i + 1).join('/')).all.add(path));
+    }
+  }
+  const compare = (a: TagNode, b: TagNode) =>
+    a.name.localeCompare(b.name, 'en', { numeric: true, sensitivity: 'base' });
+  for (const n of nodes.values()) {
+    n.count = n.all.size;
+    n.children.sort(compare);
+    n.notes.sort((a, b) => a.localeCompare(b));
+  }
+  return [...nodes.values()]
+    .filter((n) => !n.tag.includes('/'))
+    .sort(compare)
+    .map(function strip(n): TagNode {
+      return {
+        tag: n.tag,
+        name: n.name,
+        notes: n.notes,
+        count: n.count,
+        children: n.children.map((c) => strip(c as TagNode & { all: Set<string> })),
+      };
+    });
+}

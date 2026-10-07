@@ -1,10 +1,16 @@
 import {
+  applyTemplate,
+  bannerOf,
   buildIndex,
   isAttachment,
+  linkTargetFor,
   noteName,
+  noteTags,
   parseCompendiumRef,
+  parseFrontmatter,
   parseLinkInner,
   resolveLinkPath,
+  templatePaths,
 } from '@boh/journal';
 import { Button, cn } from '@boh/ui';
 import { FilePlus, FolderTree, Link2, Trash2, X } from 'lucide-react';
@@ -21,11 +27,17 @@ import { journalPath } from '../../app/journal/paths';
 import { useJournal } from '../../app/journal/store';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
+import { forgetAttachment } from '../../app/journal/attachments';
+import { JournalViewContext, useJournalView, type JournalView } from './context';
 import type { JournalEditorOptions } from './editor/setup';
 import { FileTree } from './FileTree';
+import { JournalEmbed } from './JournalEmbed';
 import { LinkPreviewContent, LinkPreviews } from './LinkPreview';
 import { NoteEditor } from './NoteEditor';
-import { moveTarget } from './tree';
+import { PropertiesPanel } from './PropertiesPanel';
+import { TagsPane } from './TagsPane';
+import { buildTagTree, moveTarget } from './tree';
+import { useAttachmentUrl } from './useAttachmentUrl';
 
 const folderOf = (path: string) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '');
 
@@ -41,6 +53,11 @@ export function JournalPage({ note }: { note: string | undefined }) {
   const [message, setMessage] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const editorBox = useRef<HTMLDivElement>(null);
+  const [sidebar, setSidebar] = useState<'files' | 'tags'>('files');
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  // Per session: show the raw frontmatter in the editor instead of hiding it.
+  const [showSource, setShowSource] = useState(false);
+  const [templating, setTemplating] = useState<string | null>(null);
 
   usePageTitle(note ? noteName(note) : 'Journal');
   useEffect(() => {
@@ -53,6 +70,10 @@ export function JournalPage({ note }: { note: string | undefined }) {
   const paths = useMemo(() => [...journal.notes.keys()].sort(), [journal.notes]);
   const index = useMemo(() => buildIndex(journal.notes), [journal.notes]);
   const text = note !== undefined ? journal.notes.get(note) : undefined;
+  const tagTree = useMemo(
+    () => buildTagTree(new Map([...journal.notes].map(([p, t]) => [p, noteTags(t)]))),
+    [journal.notes],
+  );
 
   if (!campaignsLoaded || (campaign && !journal.loaded)) {
     return <p className="p-8 text-muted">Loading…</p>;
@@ -145,6 +166,46 @@ export function JournalPage({ note }: { note: string | undefined }) {
     );
   };
 
+  const openTag = (tag: string) => {
+    setSidebar('tags');
+    setSelectedTag(tag);
+    if (window.matchMedia('(max-width: 767px)').matches) setFilesOpen(true);
+  };
+
+  const saveFiles = async (files: File[]) => {
+    const targets: string[] = [];
+    for (const file of files) {
+      const path = await journal.addAttachment(file.name, new Uint8Array(await file.arrayBuffer()));
+      forgetAttachment(campaign.id, path);
+      targets.push(path.slice(path.lastIndexOf('/') + 1));
+    }
+    return targets;
+  };
+
+  const newFromTemplate = async (template: string, name: string) => {
+    const body = applyTemplate(journal.notes.get(template) ?? '', {
+      title: name,
+      now: new Date(),
+    });
+    setTemplating(null);
+    open(await journal.createNote(note ? folderOf(note) : '', name, body));
+  };
+
+  const view: JournalView = {
+    campaignId: campaign.id,
+    edition: campaign.edition,
+    notes: journal.notes,
+    attachments: journal.attachments,
+    notePath: note,
+    isResolved: (target) => resolveLinkPath(target, paths, note) !== null,
+    openLink: (inner, newTab) => void openLink(inner, newTab),
+    openUrl: (url) => {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    },
+    openTag,
+    Embed: JournalEmbed,
+  };
+
   const editorOptions: JournalEditorOptions = {
     isResolved: (target) => resolveLinkPath(target, paths, note) !== null,
     notePaths: () => paths,
@@ -160,13 +221,24 @@ export function JournalPage({ note }: { note: string | undefined }) {
     openUrl: (url) => {
       window.open(url, '_blank', 'noopener,noreferrer');
     },
+    openTag,
     onChange: (t) => {
       if (note) journal.setText(note, t);
     },
+    saveFiles,
+    linkFor: (p) => linkTargetFor(p, isAttachment(p) ? journal.attachments : paths),
+    hideFrontmatter: !showSource,
   };
 
-  const tree = (
+  const templates = templatePaths(paths);
+
+  const fileTree = (
     <FileTree
+      templates={templates}
+      onNewFromTemplate={(p) => {
+        setTemplating(p);
+        setFilesOpen(false);
+      }}
       notes={paths}
       attachments={journal.attachments}
       folders={journal.folders}
@@ -184,149 +256,267 @@ export function JournalPage({ note }: { note: string | undefined }) {
     />
   );
 
+  const tree = (
+    <>
+      <div role="tablist" aria-label="Sidebar" className="mb-2 flex gap-1 px-2">
+        {(['files', 'tags'] as const).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            aria-selected={sidebar === tab}
+            onClick={() => {
+              setSidebar(tab);
+            }}
+            className={cn(
+              'flex-1 rounded-md py-1 text-xs font-semibold tracking-wide uppercase',
+              sidebar === tab ? 'bg-sunken text-text' : 'text-muted hover:text-text',
+            )}
+          >
+            {tab === 'files' ? 'Files' : 'Tags'}
+          </button>
+        ))}
+      </div>
+      {sidebar === 'files' ? (
+        fileTree
+      ) : (
+        <TagsPane
+          tags={tagTree}
+          selected={selectedTag}
+          onOpenNote={(p) => {
+            open(p);
+          }}
+        />
+      )}
+    </>
+  );
+
   const backlinks = note ? (index.backlinks.get(note) ?? []) : [];
 
   return (
-    <div className="flex h-full">
-      <aside className="hidden w-64 shrink-0 overflow-y-auto border-r border-border bg-surface py-3 md:block">
-        {tree}
-      </aside>
-      {filesOpen && (
-        <div className="fixed inset-0 z-30 overflow-y-auto bg-surface py-3 md:hidden">
-          <div className="flex justify-end px-2">
-            <button
-              type="button"
-              aria-label="Close files"
-              onClick={() => {
-                setFilesOpen(false);
-              }}
-              className="rounded p-1 text-muted hover:text-text"
-            >
-              <X className="h-5 w-5" aria-hidden />
-            </button>
-          </div>
+    <JournalViewContext.Provider value={view}>
+      <div className="flex h-full">
+        <aside className="hidden w-64 shrink-0 flex-col overflow-y-auto border-r border-border bg-surface py-3 md:flex">
           {tree}
-        </div>
-      )}
-
-      <div className="min-w-0 flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-3xl px-4 py-5 md:px-8">
-          <div className="mb-3 flex items-center gap-2 md:hidden">
-            <Button
-              size="sm"
-              onClick={() => {
-                setFilesOpen(true);
-              }}
-            >
-              <FolderTree className="h-4 w-4" aria-hidden /> Files
-            </Button>
-          </div>
-
-          {message && (
-            <div
-              role="status"
-              className="mb-3 flex items-center gap-2 rounded-md bg-sunken px-3 py-2 text-sm"
-            >
-              <span className="flex-1">{message}</span>
+        </aside>
+        {filesOpen && (
+          <div className="fixed inset-0 z-30 overflow-y-auto bg-surface py-3 md:hidden">
+            <div className="flex justify-end px-2">
               <button
                 type="button"
-                aria-label="Dismiss"
+                aria-label="Close files"
                 onClick={() => {
-                  setMessage(null);
+                  setFilesOpen(false);
                 }}
+                className="rounded p-1 text-muted hover:text-text"
               >
-                <X className="h-4 w-4" aria-hidden />
+                <X className="h-5 w-5" aria-hidden />
               </button>
             </div>
-          )}
+            {tree}
+          </div>
+        )}
 
-          {confirmDelete && (
-            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-accent/50 px-3 py-2 text-sm">
-              <span className="flex-1">
-                Delete “{confirmDelete}”
-                {journal.folders.includes(confirmDelete) ? ' and everything in it' : ''}?
-              </span>
-              <Button variant="primary" size="sm" onClick={() => void remove(confirmDelete)}>
-                <Trash2 className="h-4 w-4" aria-hidden /> Delete
-              </Button>
+        <div className="min-w-0 flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-3xl px-4 py-5 md:px-8">
+            <div className="mb-3 flex items-center gap-2 md:hidden">
               <Button
-                variant="ghost"
                 size="sm"
                 onClick={() => {
-                  setConfirmDelete(null);
+                  setFilesOpen(true);
                 }}
               >
-                Keep
+                <FolderTree className="h-4 w-4" aria-hidden /> Files
               </Button>
             </div>
-          )}
 
-          {note !== undefined && text !== undefined ? (
-            <article>
-              <NoteTitle key={note} path={note} onRename={(name) => void rename(note, name)} />
-              {folderOf(note) && <p className="mb-2 text-xs text-faint">{folderOf(note)}</p>}
-              <div ref={editorBox}>
-                <NoteEditor path={note} text={text} options={editorOptions} />
+            {message && (
+              <div
+                role="status"
+                className="mb-3 flex items-center gap-2 rounded-md bg-sunken px-3 py-2 text-sm"
+              >
+                <span className="flex-1">{message}</span>
+                <button
+                  type="button"
+                  aria-label="Dismiss"
+                  onClick={() => {
+                    setMessage(null);
+                  }}
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                </button>
               </div>
-              <LinkPreviews container={editorBox}>
-                {(inner) => (
-                  <LinkPreviewContent
-                    inner={inner}
-                    notes={journal.notes}
-                    fromPath={note}
-                    edition={campaign.edition}
-                    viewer={editorOptions}
-                  />
-                )}
-              </LinkPreviews>
-            </article>
-          ) : (
-            <EmptyJournal
-              campaign={campaign.name}
-              count={paths.length}
-              missing={note !== undefined}
-              onNew={() => void newNote('')}
-            />
-          )}
-        </div>
-      </div>
+            )}
 
-      {note !== undefined && text !== undefined && (
-        <aside
-          aria-label="Backlinks"
-          className="hidden w-64 shrink-0 overflow-y-auto border-l border-border p-4 text-sm xl:block"
-        >
-          <h2 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold tracking-wider text-muted uppercase">
-            <Link2 className="h-3.5 w-3.5" aria-hidden /> Linked from
-          </h2>
-          {backlinks.length === 0 ? (
-            <p className="text-muted">No notes link here yet.</p>
-          ) : (
-            <ul className="space-y-2">
-              {[...new Set(backlinks.map((b) => b.from))].map((from) => (
-                <li key={from}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      open(from);
-                    }}
-                    className="text-left font-medium text-link hover:underline"
-                  >
-                    {noteName(from)}
-                  </button>
-                  <p className="line-clamp-2 text-xs text-muted">
-                    {snippet(
-                      journal.notes.get(from) ?? '',
-                      backlinks.find((b) => b.from === from)?.link.start ?? 0,
-                    )}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </aside>
-      )}
-    </div>
+            {confirmDelete && (
+              <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-accent/50 px-3 py-2 text-sm">
+                <span className="flex-1">
+                  Delete “{confirmDelete}”
+                  {journal.folders.includes(confirmDelete) ? ' and everything in it' : ''}?
+                </span>
+                <Button variant="primary" size="sm" onClick={() => void remove(confirmDelete)}>
+                  <Trash2 className="h-4 w-4" aria-hidden /> Delete
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setConfirmDelete(null);
+                  }}
+                >
+                  Keep
+                </Button>
+              </div>
+            )}
+
+            {templating && (
+              <TemplateForm
+                template={noteName(templating)}
+                onCreate={(name) => void newFromTemplate(templating, name)}
+                onCancel={() => {
+                  setTemplating(null);
+                }}
+              />
+            )}
+
+            {note !== undefined && text !== undefined ? (
+              <article>
+                <Banner text={text} />
+                <NoteTitle key={note} path={note} onRename={(name) => void rename(note, name)} />
+                {folderOf(note) && <p className="mb-2 text-xs text-faint">{folderOf(note)}</p>}
+                <PropertiesPanel
+                  text={text}
+                  onChange={(t) => {
+                    journal.setText(note, t);
+                  }}
+                  onError={setMessage}
+                  openTag={openTag}
+                  openLink={view.openLink}
+                  showSource={showSource}
+                  onToggleSource={() => {
+                    setShowSource(!showSource);
+                  }}
+                />
+                <div ref={editorBox}>
+                  <NoteEditor
+                    key={`${note}|${String(showSource)}`}
+                    path={note}
+                    text={text}
+                    options={editorOptions}
+                  />
+                </div>
+                <LinkPreviews container={editorBox}>
+                  {(inner) => <LinkPreviewContent inner={inner} />}
+                </LinkPreviews>
+              </article>
+            ) : (
+              <EmptyJournal
+                campaign={campaign.name}
+                count={paths.length}
+                missing={note !== undefined}
+                onNew={() => void newNote('')}
+              />
+            )}
+          </div>
+        </div>
+
+        {note !== undefined && text !== undefined && (
+          <aside
+            aria-label="Backlinks"
+            className="hidden w-64 shrink-0 overflow-y-auto border-l border-border p-4 text-sm xl:block"
+          >
+            <h2 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold tracking-wider text-muted uppercase">
+              <Link2 className="h-3.5 w-3.5" aria-hidden /> Linked from
+            </h2>
+            {backlinks.length === 0 ? (
+              <p className="text-muted">No notes link here yet.</p>
+            ) : (
+              <ul className="space-y-2">
+                {[...new Set(backlinks.map((b) => b.from))].map((from) => (
+                  <li key={from}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        open(from);
+                      }}
+                      className="text-left font-medium text-link hover:underline"
+                    >
+                      {noteName(from)}
+                    </button>
+                    <p className="line-clamp-2 text-xs text-muted">
+                      {snippet(
+                        journal.notes.get(from) ?? '',
+                        backlinks.find((b) => b.from === from)?.link.start ?? 0,
+                      )}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </aside>
+        )}
+      </div>
+    </JournalViewContext.Provider>
+  );
+}
+
+/** A banner across the top of a note: its `banner`, `image` or `cover` property. */
+function Banner({ text }: { text: string }) {
+  const banner = bannerOf(parseFrontmatter(text).data);
+  const { attachments, notePath } = useJournalView();
+  const file =
+    banner?.kind === 'file' ? resolveLinkPath(banner.target, attachments, notePath) : null;
+  const fileUrl = useAttachmentUrl(file);
+  const src = banner?.kind === 'url' ? banner.target : fileUrl;
+  if (!src) return null;
+  return (
+    <img
+      src={src}
+      alt=""
+      className="mb-4 h-40 w-full rounded-lg object-cover sm:h-52"
+      draggable={false}
+    />
+  );
+}
+
+function TemplateForm({
+  template,
+  onCreate,
+  onCancel,
+}: {
+  template: string;
+  onCreate: (name: string) => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState('');
+  const clean = name.replace(/[\\/:*?"<>|]/g, '-').trim();
+  return (
+    <form
+      aria-label="New note from template"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (clean) onCreate(clean);
+      }}
+      className="mb-4 flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface p-3 text-sm"
+    >
+      <span className="w-full text-muted">New note from the “{template}” template</span>
+      <input
+        autoFocus
+        aria-label="Name of the new note"
+        placeholder="Name"
+        value={name}
+        onChange={(e) => {
+          setName(e.target.value);
+        }}
+        className="min-w-0 flex-1 rounded-md border border-border bg-surface px-2 py-1.5 focus:border-accent focus:outline-none"
+      />
+      <Button type="submit" variant="primary" size="sm" disabled={!clean}>
+        Create
+      </Button>
+      <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
+        Cancel
+      </Button>
+    </form>
   );
 }
 

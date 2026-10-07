@@ -1,19 +1,17 @@
 import {
+  isAttachment,
   noteName,
   noteSection,
   parseCompendiumRef,
   parseLinkInner,
   resolveLinkPath,
 } from '@boh/journal';
-import { EditorState } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import type { CampaignEdition } from '../../app/campaigns/model';
-import { useEntity } from '../../app/data/entities';
-import { resolveCompendiumRef } from '../../app/journal/compendium';
-import { EntityCard } from '../../app/renderer/EntityCard';
-import { journalViewerExtensions, type JournalEditorOptions } from './editor/setup';
+import { CompendiumCard } from './CompendiumCard';
+import { useJournalView } from './context';
+import { JournalEmbed } from './JournalEmbed';
+import { NoteViewer } from './NoteViewer';
 
 const OPEN_DELAY = 350;
 const CLOSE_DELAY = 200;
@@ -140,23 +138,14 @@ export function LinkPreviews({
 const box = 'rounded-lg border border-border bg-surface p-3 text-sm';
 
 /** What a journal link points at: a compendium entry, a note (or one of its sections). */
-export function LinkPreviewContent({
-  inner,
-  notes,
-  fromPath,
-  edition,
-  viewer,
-}: {
-  inner: string;
-  notes: ReadonlyMap<string, string>;
-  fromPath: string | undefined;
-  edition: CampaignEdition;
-  viewer: Pick<JournalEditorOptions, 'isResolved' | 'openLink' | 'openUrl'>;
-}) {
+export function LinkPreviewContent({ inner }: { inner: string }) {
+  const view = useJournalView();
   const link = parseLinkInner(inner);
-  const ref = parseCompendiumRef(link.target);
-  if (ref) return <CompendiumPreview inner={inner} edition={edition} />;
-  const path = resolveLinkPath(link.target, [...notes.keys()], fromPath);
+  if (parseCompendiumRef(link.target)) return <CompendiumCard inner={inner} compact />;
+  if (isAttachment(link.target)) {
+    return <JournalEmbed inner={inner} />;
+  }
+  const path = resolveLinkPath(link.target, [...view.notes.keys()], view.notePath);
   if (!path) {
     return (
       <div className={box}>
@@ -165,7 +154,7 @@ export function LinkPreviewContent({
       </div>
     );
   }
-  const section = noteSection(notes.get(path) ?? '', link.heading);
+  const section = noteSection(view.notes.get(path) ?? '', link.heading);
   return (
     <div className={box}>
       <p className="mb-2 text-xs font-semibold tracking-wide text-muted uppercase">
@@ -177,81 +166,12 @@ export function LinkPreviewContent({
       ) : section.trim() === '' ? (
         <p className="text-muted">This note is empty.</p>
       ) : (
-        <NoteViewer key={`${path}\n${section}`} text={section} options={viewer} />
+        <NoteViewer
+          key={`${path}
+${section}`}
+          text={section}
+        />
       )}
     </div>
   );
-}
-
-function CompendiumPreview({ inner, edition }: { inner: string; edition: CampaignEdition }) {
-  const ref = parseCompendiumRef(parseLinkInner(inner).target);
-  const [resolved, setResolved] = useState<{ for: string; key: string | null } | null>(null);
-  useEffect(() => {
-    if (!ref) return;
-    let live = true;
-    void resolveCompendiumRef(ref, edition).then((key) => {
-      if (live) setResolved({ for: inner, key });
-    });
-    return () => {
-      live = false;
-    };
-    // `ref` is derived from `inner`.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inner, edition]);
-  const key = resolved?.for === inner ? resolved.key : undefined;
-  const entity = useEntity(key ?? null);
-  if (key === undefined || (key && entity.status === 'loading')) {
-    return <div className={`${box} text-muted`}>Loading…</div>;
-  }
-  if (key === null || entity.status !== 'found') {
-    return (
-      <div className={`${box} text-muted`}>
-        “{ref?.name}” is not in your data (or its source is turned off).
-      </div>
-    );
-  }
-  return (
-    <div className="text-sm">
-      <EntityCard entity={entity.entity} compact />
-    </div>
-  );
-}
-
-/** A note rendered read-only, formatted the same way as in the editor. */
-function NoteViewer({
-  text,
-  options,
-}: {
-  text: string;
-  options: Pick<JournalEditorOptions, 'isResolved' | 'openLink' | 'openUrl'>;
-}) {
-  const host = useRef<HTMLDivElement>(null);
-  const latest = useRef(options);
-  useEffect(() => {
-    latest.current = options;
-  });
-  useEffect(() => {
-    if (!host.current) return;
-    const view = new EditorView({
-      parent: host.current,
-      state: EditorState.create({
-        doc: text,
-        extensions: journalViewerExtensions({
-          isResolved: (t) => latest.current.isResolved(t),
-          openLink: (inner, newTab) => {
-            latest.current.openLink(inner, newTab);
-          },
-          openUrl: (url) => {
-            latest.current.openUrl(url);
-          },
-        }),
-      }),
-    });
-    return () => {
-      view.destroy();
-    };
-    // Remounted (by key) when the text changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  return <div ref={host} />;
 }

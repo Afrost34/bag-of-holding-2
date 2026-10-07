@@ -1,5 +1,5 @@
 import type { EntitySummary } from '@boh/data5e';
-import { linkTargetFor, parseCompendiumRef } from '@boh/journal';
+import { isAttachment, linkTargetFor, parseCompendiumRef } from '@boh/journal';
 import {
   autocompletion,
   closeBrackets,
@@ -13,7 +13,8 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirro
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { EditorState, type Extension } from '@codemirror/state';
 import { drawSelection, EditorView, keymap, placeholder } from '@codemirror/view';
-import { linkClicks, livePreview, type LinkContext } from './livePreview';
+import { DRAG_TYPE } from '../dnd';
+import { hideFrontmatter, linkClicks, livePreview, type LinkContext } from './livePreview';
 
 export interface JournalEditorOptions extends LinkContext {
   /** Every note path, for link completion. */
@@ -25,7 +26,59 @@ export interface JournalEditorOptions extends LinkContext {
   typeLabel: (type: string) => string;
   openLink: (inner: string, newTab: boolean) => void;
   openUrl: (url: string) => void;
+  /** Clicking a #tag. */
+  openTag?: (tag: string) => void;
   onChange: (text: string) => void;
+  /** Saves pasted or dropped files, returning the link target for each. */
+  saveFiles?: (files: File[]) => Promise<string[]>;
+  /** The link target for a note or file dragged in from the file tree. */
+  linkFor?: (path: string) => string;
+  /** Hide the frontmatter (the properties panel shows it). */
+  hideFrontmatter?: boolean;
+}
+
+/** Pasting or dropping files saves them and embeds them; dropping a note links to it. */
+function drops(opts: JournalEditorOptions) {
+  const insert = (view: EditorView, at: number, text: string) => {
+    view.dispatch({
+      changes: { from: at, insert: text },
+      selection: { anchor: at + text.length },
+    });
+    view.focus();
+  };
+  const saveAndEmbed = (view: EditorView, files: File[], at: number) => {
+    const save = opts.saveFiles;
+    if (!save) return false;
+    void save(files).then((targets) => {
+      insert(view, at, targets.map((t) => `![[${t}]]`).join('\n'));
+    });
+    return true;
+  };
+  return EditorView.domEventHandlers({
+    paste: (event, view) => {
+      const files = [...(event.clipboardData?.files ?? [])];
+      if (files.length === 0) return false;
+      event.preventDefault();
+      return saveAndEmbed(view, files, view.state.selection.main.head);
+    },
+    drop: (event, view) => {
+      const data = event.dataTransfer;
+      if (!data) return false;
+      const at =
+        view.posAtCoords({ x: event.clientX, y: event.clientY }) ?? view.state.selection.main.head;
+      const path = data.getData(DRAG_TYPE);
+      if (path && opts.linkFor) {
+        event.preventDefault();
+        const target = opts.linkFor(path);
+        insert(view, at, isAttachment(path) ? `![[${target}]]` : `[[${target}]]`);
+        return true;
+      }
+      const files = [...data.files];
+      if (files.length === 0) return false;
+      event.preventDefault();
+      return saveAndEmbed(view, files, at);
+    },
+  });
 }
 
 /** `[[` starts a link: complete with notes first, then compendium entries. */
@@ -133,6 +186,7 @@ const theme = EditorView.theme({
   '.cm-jlink-compendium': { color: 'var(--boh-accent)' },
   '.cm-jlink-missing': { opacity: '0.6', textDecoration: 'underline dotted' },
   '.cm-jlink-raw': { color: 'var(--boh-link)' },
+  '.cm-jembed': { display: 'block', margin: '4px 0' },
   '.cm-jtag': {
     color: 'var(--boh-accent)',
     backgroundColor: 'var(--boh-accent-soft)',
@@ -158,7 +212,7 @@ const theme = EditorView.theme({
 
 /** A note shown but not edited (link previews): formatted throughout, links still clickable. */
 export function journalViewerExtensions(
-  opts: LinkContext & Pick<JournalEditorOptions, 'openLink' | 'openUrl'>,
+  opts: LinkContext & Pick<JournalEditorOptions, 'openLink' | 'openUrl' | 'openTag'>,
 ): Extension[] {
   return [
     EditorState.readOnly.of(true),
@@ -166,7 +220,7 @@ export function journalViewerExtensions(
     EditorView.lineWrapping,
     markdown({ base: markdownLanguage }),
     livePreview(opts),
-    linkClicks(opts.openLink, opts.openUrl),
+    linkClicks(opts.openLink, opts.openUrl, opts.openTag),
     theme,
     EditorView.theme({ '.cm-content': { padding: '0 !important' }, '&': { fontSize: '14px' } }),
   ];
@@ -180,7 +234,9 @@ export function journalExtensions(opts: JournalEditorOptions): Extension[] {
     EditorView.lineWrapping,
     markdown({ base: markdownLanguage }),
     livePreview(opts),
-    linkClicks(opts.openLink, opts.openUrl),
+    linkClicks(opts.openLink, opts.openUrl, opts.openTag),
+    drops(opts),
+    ...(opts.hideFrontmatter ? [hideFrontmatter()] : []),
     autocompletion({ override: [linkCompletion(opts)], icons: false }),
     keymap.of([
       ...closeBracketsKeymap,
