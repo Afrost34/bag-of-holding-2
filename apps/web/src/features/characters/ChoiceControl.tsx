@@ -42,7 +42,8 @@ function DropdownChoice({
 }) {
   const id = useId();
   const options = useChoiceOptions(decisions, choice.id, true);
-  const picks = choice.picks;
+  // What is stored now: the engine's answer can lag behind quick picks.
+  const picks = decisions.choices[choice.id] ?? choice.picks;
   const slots = Array.from({ length: choice.count }, (_, i) => picks[i] ?? '');
   const visible = (options ?? []).filter((o) => isEnabled(o.source) || picks.includes(o.id));
   // Same name in several books: say which book.
