@@ -1,5 +1,5 @@
 import { entityEdition, type Edition } from './editions';
-import { contentFile, yieldsEntities } from './files';
+import { contentFile, FOUNDRY_CLASS_FILE, yieldsEntities } from './files';
 import { identify, type RawEntity } from './identity';
 import { makeKey, type EntityKey } from './keys';
 
@@ -41,6 +41,11 @@ export interface ExtractContext {
    */
   contentSource?: (kind: 'book' | 'adventure', id: string) => string | undefined;
 }
+
+/** The fields that tie a Foundry class-feature record to its 5etools feature. */
+const FOUNDRY_IDENTITY = [
+  'name', 'source', 'className', 'classSource', 'subclassShortName', 'subclassSource', 'level',
+] as const; // prettier-ignore
 
 const isObject = (value: unknown): value is RawEntity =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -84,6 +89,21 @@ export function extractFile(path: string, json: unknown, ctx: ExtractContext): E
     });
     for (const [name, value] of Object.entries(json)) {
       if (name !== 'data') result.aux.push({ name, data: value });
+    }
+    return result;
+  }
+
+  if (path === FOUNDRY_CLASS_FILE) {
+    // Only the structured choices are wanted; Foundry's activities and effects are large.
+    for (const [type, value] of Object.entries(json)) {
+      if (!Array.isArray(value)) continue;
+      const trimmed = value.filter(isObject).flatMap((entry) => {
+        if (!isObject(entry.entryData)) return [];
+        const kept: Record<string, unknown> = {};
+        for (const k of FOUNDRY_IDENTITY) if (k in entry) kept[k] = entry[k];
+        return [{ ...kept, entryData: entry.entryData }];
+      });
+      result.aux.push({ name: type, data: trimmed });
     }
     return result;
   }

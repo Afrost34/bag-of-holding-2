@@ -41,10 +41,13 @@ packages/data5e/       5etools download, extraction, keys, _copy resolution, SQL
 packages/dice/         dice notation parser + secure roller (pure TypeScript)
 packages/renderer/     5etools entries, {@tags} and entity views → React (no app knowledge)
 packages/journal/      campaign notes: wikilinks, tags, frontmatter, link resolution (pure TypeScript)
+packages/rules/        character engine: what 5etools entities grant and ask, decisions → sheet (pure)
 docs/adr/              architecture decision records
 ```
 
-Packages still to come, per the plan: `rules`.
+The rules engine reads choices from 5etools fields, from Foundry `entryData` (data/class/foundry.json,
+kept as aux data) and from hand-written patches (`packages/rules/src/patches.ts`). Its conformance
+suite lists class features whose choices exist only as text; review that list when bumping 5etools.
 
 The renderer never navigates, rolls or loads data itself: the app supplies `RendererServices`
 (links with hover previews, roll chips, embedded entities, image URLs) in

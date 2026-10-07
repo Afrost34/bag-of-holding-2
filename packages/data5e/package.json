@@ -8,6 +8,7 @@
     "./sqlite": "./src/db/sqlite-wasm.ts",
     "./testing": "./src/testing/fixtures.ts",
     "./testing/local": "./src/testing/localData.ts",
+    "./testing/index": "./src/testing/localIndex.ts",
     "./format": "./src/format.ts"
   },
   "scripts": {

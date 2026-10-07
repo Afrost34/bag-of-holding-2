@@ -434,6 +434,19 @@ export class EntityIndex {
     return { ...summary, data: JSON.parse(resolved ?? raw) as RawEntity };
   }
 
+  /** Every entity of a type (`classfeature`, `race`…), resolved. */
+  ofType(type: string): EntityDetail[] {
+    return this.db
+      .all<EntitySummary & { raw: string; resolved: string | null }>(
+        `SELECT ${SUMMARY_COLUMNS}, raw, resolved FROM entities WHERE type = ? ORDER BY key`,
+        [type],
+      )
+      .map(({ raw, resolved, ...summary }) => ({
+        ...summary,
+        data: JSON.parse(resolved ?? raw) as RawEntity,
+      }));
+  }
+
   /** Entities of a type whose key contains `suffix` right before the source. */
   private withKeySuffix(type: string, suffix: string): EntityDetail[] {
     return this.db
