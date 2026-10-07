@@ -123,7 +123,7 @@ export function CharacterPage({ id, step }: { id: string; step: StepId }) {
       )}
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
-        <nav aria-label="Builder steps" className="-mx-1 flex flex-1 gap-1 overflow-x-auto px-1">
+        <nav aria-label="Builder steps" className="-mx-1 flex basis-full gap-1 overflow-x-auto px-1 pb-1 sm:flex-1 sm:basis-auto">
           {STEPS.map((s, i) => {
             const open = byStep?.[s.id].filter((c) => c.picks.length < c.count).length ?? 0;
             return (
