@@ -14,15 +14,18 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { EditorState, type Extension } from '@codemirror/state';
 import { drawSelection, EditorView, keymap, placeholder } from '@codemirror/view';
 import { DRAG_TYPE } from '../dnd';
+import { formattingKeymap, slashCompletion, type FormattingHost } from './formatting';
 import {
   baseBlocks,
+  focusState,
   hideFrontmatter,
   linkClicks,
+  tableBlocks,
   livePreview,
   type LinkContext,
 } from './livePreview';
 
-export interface JournalEditorOptions extends LinkContext {
+export interface JournalEditorOptions extends LinkContext, FormattingHost {
   /** Every note path, for link completion. */
   notePaths: () => readonly string[];
   /** Compendium entries matching typed text, for link completion. */
@@ -194,6 +197,56 @@ const theme = EditorView.theme({
   '.cm-jlink-raw': { color: 'var(--boh-link)' },
   '.cm-jembed': { display: 'block', margin: '4px 0' },
   '.cm-jbase': { margin: '4px 0' },
+  '.cm-jhighlight': { backgroundColor: 'var(--boh-highlight)', borderRadius: '2px' },
+  '.cm-jbullet': { color: 'var(--boh-text-muted)', padding: '0 4px 0 2px' },
+  '.cm-jcheckbox': {
+    width: '15px',
+    height: '15px',
+    margin: '0 6px 0 0',
+    verticalAlign: '-2px',
+    accentColor: 'var(--boh-accent)',
+    cursor: 'pointer',
+  },
+  '.cm-jtask-done': { color: 'var(--boh-text-faint)', textDecoration: 'line-through' },
+  '.cm-jrule': {
+    display: 'inline-block',
+    width: '100%',
+    borderTop: '1px solid var(--boh-border-strong)',
+    verticalAlign: 'middle',
+  },
+  '.cm-jcallout': {
+    borderLeft: '4px solid var(--callout)',
+    backgroundColor: 'color-mix(in srgb, var(--callout) 10%, transparent)',
+    paddingLeft: '12px !important',
+    paddingRight: '8px !important',
+  },
+  '.cm-jcallout-title': {
+    fontWeight: '600',
+    color: 'var(--callout)',
+    borderTopRightRadius: '6px',
+    paddingTop: '4px !important',
+  },
+  '.cm-jcallout-last': { borderBottomRightRadius: '6px', paddingBottom: '4px !important' },
+  '.cm-jcallout-label': { fontWeight: '600' },
+  '.cm-jcallout-note': { '--callout': 'var(--boh-callout-note)' },
+  '.cm-jcallout-tip': { '--callout': 'var(--boh-callout-tip)' },
+  '.cm-jcallout-warning': { '--callout': 'var(--boh-callout-warning)' },
+  '.cm-jcallout-danger': { '--callout': 'var(--boh-callout-danger)' },
+  '.cm-jcallout-secret': { '--callout': 'var(--boh-callout-secret)' },
+  '.cm-jcallout-quote': {
+    '--callout': 'var(--boh-readaloud-border)',
+    backgroundColor: 'var(--boh-readaloud)',
+    fontFamily: 'var(--font-serif)',
+  },
+  '.cm-jdice': { display: 'inline-block' },
+  '.cm-jtable': { overflowX: 'auto', margin: '6px 0', cursor: 'text' },
+  '.cm-jtable table': { borderCollapse: 'collapse', fontSize: '0.95em' },
+  '.cm-jtable th, .cm-jtable td': {
+    border: '1px solid var(--boh-border)',
+    padding: '4px 10px',
+    textAlign: 'left',
+  },
+  '.cm-jtable th': { backgroundColor: 'var(--boh-sunken)', fontWeight: '600' },
   '.cm-jtag': {
     color: 'var(--boh-accent)',
     backgroundColor: 'var(--boh-accent-soft)',
@@ -201,6 +254,8 @@ const theme = EditorView.theme({
     padding: '0 6px',
     fontSize: '0.9em',
   },
+  '.cm-tooltip-autocomplete > ul': { fontFamily: 'var(--font-sans) !important', fontSize: '14px' },
+  '.cm-tooltip-autocomplete > ul > li': { padding: '4px 10px !important' },
   '.cm-tooltip-autocomplete': {
     backgroundColor: 'var(--boh-surface)',
     border: '1px solid var(--boh-border)',
@@ -228,6 +283,7 @@ export function journalViewerExtensions(
     markdown({ base: markdownLanguage }),
     livePreview(opts),
     ...(opts.embeds ? [baseBlocks(opts.embeds)] : []),
+    tableBlocks(),
     linkClicks(opts.openLink, opts.openUrl, opts.openTag),
     theme,
     EditorView.theme({ '.cm-content': { padding: '0 !important' }, '&': { fontSize: '14px' } }),
@@ -238,15 +294,18 @@ export function journalExtensions(opts: JournalEditorOptions): Extension[] {
   return [
     history(),
     drawSelection(),
+    focusState,
     closeBrackets(),
     EditorView.lineWrapping,
     markdown({ base: markdownLanguage }),
     livePreview(opts),
     ...(opts.embeds ? [baseBlocks(opts.embeds)] : []),
+    tableBlocks(),
     linkClicks(opts.openLink, opts.openUrl, opts.openTag),
     drops(opts),
     ...(opts.hideFrontmatter ? [hideFrontmatter()] : []),
-    autocompletion({ override: [linkCompletion(opts)], icons: false }),
+    autocompletion({ override: [linkCompletion(opts), slashCompletion(opts)], icons: false }),
+    formattingKeymap(),
     keymap.of([
       ...closeBracketsKeymap,
       ...completionKeymap,
@@ -254,7 +313,7 @@ export function journalExtensions(opts: JournalEditorOptions): Extension[] {
       ...historyKeymap,
       indentWithTab,
     ]),
-    placeholder('Start writing… Type [[ to link a note or a compendium entry.'),
+    placeholder('Start writing… Type / for headings, lists, tables and more, or [[ to link.'),
     EditorView.updateListener.of((update) => {
       if (update.docChanged) opts.onChange(update.state.doc.toString());
     }),

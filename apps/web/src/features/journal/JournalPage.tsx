@@ -301,6 +301,17 @@ export function JournalPage({ note }: { note: string | undefined }) {
       if (note) journal.setText(note, t);
     },
     saveFiles,
+    pickImages: () =>
+      new Promise<string[]>((resolve) => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.multiple = true;
+        input.onchange = () => {
+          void saveFiles([...(input.files ?? [])]).then(resolve);
+        };
+        input.click();
+      }),
     linkFor: (p) => linkTargetFor(p, isAttachment(p) ? journal.attachments : paths),
     hideFrontmatter: !showSource,
   };

@@ -6,7 +6,7 @@ import {
   parseTags,
 } from '@boh/journal';
 import { syntaxTree } from '@codemirror/language';
-import { StateField, type EditorState, type Range } from '@codemirror/state';
+import { StateEffect, StateField, type EditorState, type Range } from '@codemirror/state';
 import {
   Decoration,
   EditorView,
@@ -15,6 +15,7 @@ import {
   type DecorationSet,
   type ViewUpdate,
 } from '@codemirror/view';
+import { toggleTask } from './commands';
 
 /**
  * Obsidian-style live preview: Markdown is shown formatted, and its syntax (`#`, `**`, `[[`…)
@@ -40,7 +41,44 @@ export interface EmbedHost {
 
 /** What an embed element shows: an `![[embed]]`, or a ```base block with a way back to its YAML. */
 export type Embed =
-  { kind: 'embed'; inner: string } | { kind: 'base'; yaml: string; edit: () => void };
+  | { kind: 'embed'; inner: string }
+  | { kind: 'base'; yaml: string; edit: () => void }
+  | { kind: 'dice'; expression: string };
+
+/** Obsidian callout types, folded into the few colours the journal draws. */
+const CALLOUT_STYLE: Record<string, string> = {
+  note: 'note',
+  info: 'note',
+  todo: 'note',
+  abstract: 'note',
+  summary: 'note',
+  tldr: 'note',
+  tip: 'tip',
+  hint: 'tip',
+  important: 'tip',
+  success: 'tip',
+  check: 'tip',
+  done: 'tip',
+  warning: 'warning',
+  caution: 'warning',
+  attention: 'warning',
+  question: 'warning',
+  help: 'warning',
+  faq: 'warning',
+  danger: 'danger',
+  error: 'danger',
+  bug: 'danger',
+  failure: 'danger',
+  fail: 'danger',
+  missing: 'danger',
+  quote: 'quote',
+  cite: 'quote',
+  example: 'quote',
+  secret: 'secret',
+};
+
+const CALLOUT = /^\s*>\s*\[!([\w-]+)\][+-]?\s*(.*)$/;
+const SAFE_COLOR = /^(#[0-9a-f]{3,8}|[a-z]+|rgba?\([\d\s,.%]+\))$/i;
 
 const hide = Decoration.replace({});
 
@@ -104,7 +142,72 @@ function build(view: EditorView, ctx: LinkContext): DecorationSet {
       from,
       to,
       enter: (node) => {
-        const lineClass = LINE_CLASS[node.name];
+        let lineClass = LINE_CLASS[node.name];
+        if (node.name === 'Blockquote') {
+          // `> [!warning] Title`: a callout, drawn as a coloured box.
+          const first = state.doc.lineAt(node.from);
+          const m = CALLOUT.exec(first.text);
+          if (m) {
+            const style = CALLOUT_STYLE[(m[1] ?? '').toLowerCase()] ?? 'note';
+            const last = state.doc.lineAt(Math.max(node.from, node.to - 1)).number;
+            for (let n = first.number; n <= last; n++) {
+              const cls = `cm-jcallout cm-jcallout-${style}${n === first.number ? ' cm-jcallout-title' : ''}${n === last ? ' cm-jcallout-last' : ''}`;
+              decos.push(Decoration.line({ class: cls }).range(state.doc.line(n).from));
+            }
+            if (!isActive(first.from, first.to)) {
+              const marker = /\[![\w-]+\][+-]?\s*/.exec(first.text);
+              if (marker) {
+                const from = first.from + marker.index;
+                const label = (m[2] ?? '').trim()
+                  ? ''
+                  : (m[1] ?? '').replace(/^./, (c) => c.toUpperCase());
+                decos.push(
+                  Decoration.replace({ widget: new LabelWidget(label) }).range(
+                    from,
+                    from + marker[0].length,
+                  ),
+                );
+              }
+            }
+            lineClass = undefined;
+          }
+        }
+        if (node.name === 'ListMark' && !isActive(node.from, node.to)) {
+          const mark = state.doc.sliceString(node.from, node.to);
+          const task = /^ \[[ xX]\]/.test(state.doc.sliceString(node.to, node.to + 4));
+          if (task) decos.push(hide.range(node.from, node.to + 1));
+          else if (/^[-*+]$/.test(mark)) {
+            decos.push(
+              Decoration.replace({ widget: new BulletWidget() }).range(node.from, node.to),
+            );
+          }
+        }
+        if (node.name === 'TaskMarker') {
+          const checked = /x/i.test(state.doc.sliceString(node.from, node.to));
+          const line = state.doc.lineAt(node.from);
+          if (checked) decos.push(Decoration.line({ class: 'cm-jtask-done' }).range(line.from));
+          if (!isActive(node.from, node.to)) {
+            decos.push(
+              Decoration.replace({ widget: new CheckboxWidget(checked) }).range(node.from, node.to),
+            );
+          }
+        }
+        if (node.name === 'HorizontalRule' && !isActive(node.from, node.to)) {
+          decos.push(Decoration.replace({ widget: new RuleWidget() }).range(node.from, node.to));
+        }
+        if (node.name === 'InlineCode' && ctx.embeds && !isActive(node.from, node.to)) {
+          // `dice: 2d6+3` (the Dice Roller plugin's syntax): a roll chip.
+          const dice = /^`\s*dice:\s*([^`]+?)\s*`$/.exec(state.doc.sliceString(node.from, node.to));
+          if (dice?.[1]) {
+            decos.push(
+              Decoration.replace({ widget: new DiceWidget(dice[1], ctx.embeds) }).range(
+                node.from,
+                node.to,
+              ),
+            );
+            return false;
+          }
+        }
         if (lineClass) {
           const first = state.doc.lineAt(node.from).number;
           // A block ending at the start of a line does not include that line.
@@ -187,6 +290,37 @@ function build(view: EditorView, ctx: LinkContext): DecorationSet {
         }).range(start, end),
       );
     }
+    // ==highlight== and <span style="color: …">coloured text</span>.
+    for (const m of text.matchAll(/==([^=\n]+)==/g)) {
+      if (inCode(m.index)) continue;
+      const start = from + m.index;
+      const end = start + m[0].length;
+      if (isActive(start, end)) {
+        decos.push(Decoration.mark({ class: 'cm-jhighlight' }).range(start, end));
+      } else {
+        decos.push(hide.range(start, start + 2));
+        decos.push(Decoration.mark({ class: 'cm-jhighlight' }).range(start + 2, end - 2));
+        decos.push(hide.range(end - 2, end));
+      }
+    }
+    for (const m of text.matchAll(/<span style="color:\s*([^";]+?);?\s*">([^<\n]*)<\/span>/g)) {
+      const color = (m[1] ?? '').trim();
+      if (inCode(m.index) || !SAFE_COLOR.test(color)) continue;
+      const start = from + m.index;
+      const open = m[0].indexOf('>') + 1;
+      const innerFrom = start + open;
+      const innerTo = innerFrom + (m[2] ?? '').length;
+      const end = start + m[0].length;
+      if (innerTo > innerFrom) {
+        decos.push(
+          Decoration.mark({ attributes: { style: `color: ${color}` } }).range(innerFrom, innerTo),
+        );
+      }
+      if (!isActive(start, end)) {
+        decos.push(hide.range(start, innerFrom));
+        decos.push(hide.range(innerTo, end));
+      }
+    }
     for (const tag of parseTags(text, code)) {
       for (const m of text.matchAll(
         new RegExp(`(^|[^\\w&/#])#${escapeRegExp(tag)}(?![\\p{L}\\p{N}_/-])`, 'gu'),
@@ -248,6 +382,196 @@ class LinkWidget extends WidgetType {
   override ignoreEvent(): boolean {
     return false;
   }
+}
+
+class BulletWidget extends WidgetType {
+  toDOM(): HTMLElement {
+    const el = document.createElement('span');
+    el.className = 'cm-jbullet';
+    el.textContent = '•';
+    return el;
+  }
+}
+
+class RuleWidget extends WidgetType {
+  toDOM(): HTMLElement {
+    const el = document.createElement('span');
+    el.className = 'cm-jrule';
+    return el;
+  }
+}
+
+/** A callout's type shown in place of `[!warning]` when it has no title of its own. */
+class LabelWidget extends WidgetType {
+  constructor(readonly label: string) {
+    super();
+  }
+
+  override eq(other: LabelWidget): boolean {
+    return other.label === this.label;
+  }
+
+  toDOM(): HTMLElement {
+    const el = document.createElement('span');
+    el.className = 'cm-jcallout-label';
+    el.textContent = this.label;
+    return el;
+  }
+}
+
+/** A task's checkbox: clicking it ticks the task in the text. */
+class CheckboxWidget extends WidgetType {
+  constructor(readonly checked: boolean) {
+    super();
+  }
+
+  override eq(other: CheckboxWidget): boolean {
+    return other.checked === this.checked;
+  }
+
+  toDOM(view: EditorView): HTMLElement {
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.checked = this.checked;
+    box.className = 'cm-jcheckbox';
+    box.setAttribute('aria-label', this.checked ? 'Done' : 'To do');
+    box.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      const spec = toggleTask(view.state, view.posAtDOM(box));
+      if (spec) view.dispatch(spec);
+    });
+    return box;
+  }
+
+  override ignoreEvent(): boolean {
+    return true;
+  }
+}
+
+/** `dice: 1d20+5` drawn as a roll chip by the app. */
+class DiceWidget extends WidgetType {
+  constructor(
+    readonly expression: string,
+    readonly host: EmbedHost,
+  ) {
+    super();
+  }
+
+  override eq(other: DiceWidget): boolean {
+    return other.expression === this.expression && other.host === this.host;
+  }
+
+  toDOM(): HTMLElement {
+    const el = document.createElement('span');
+    el.className = 'cm-jdice';
+    this.host.mount(el, { kind: 'dice', expression: this.expression });
+    return el;
+  }
+
+  override destroy(dom: HTMLElement): void {
+    this.host.unmount(dom);
+  }
+
+  override ignoreEvent(): boolean {
+    return true;
+  }
+}
+
+/** A Markdown table drawn as a table; clicking it shows the text to edit. */
+class TableWidget extends WidgetType {
+  constructor(readonly source: string) {
+    super();
+  }
+
+  override eq(other: TableWidget): boolean {
+    return other.source === this.source;
+  }
+
+  toDOM(view: EditorView): HTMLElement {
+    const wrap = document.createElement('div');
+    wrap.className = 'cm-jtable';
+    const table = document.createElement('table');
+    const rows = parseTable(this.source);
+    rows.forEach((cells, i) => {
+      const tr = document.createElement('tr');
+      for (const cell of cells) {
+        const td = document.createElement(i === 0 ? 'th' : 'td');
+        td.textContent = plainText(cell);
+        tr.appendChild(td);
+      }
+      (i === 0 ? table.createTHead() : (table.tBodies[0] ?? table.createTBody())).appendChild(tr);
+    });
+    wrap.appendChild(table);
+    wrap.title = 'Click to edit the table';
+    wrap.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      view.dispatch({ selection: { anchor: view.posAtDOM(wrap) + 1 } });
+      view.focus();
+    });
+    return wrap;
+  }
+
+  override ignoreEvent(): boolean {
+    return true;
+  }
+}
+
+/** A table's rows of cells (the `|---|` line dropped). */
+export function parseTable(source: string): string[][] {
+  return source
+    .split('\n')
+    .filter((line, i) => i !== 1 && line.trim() !== '')
+    .map((line) =>
+      line
+        .trim()
+        .replace(/^\|/, '')
+        .replace(/\|$/, '')
+        .split(/(?<!\\)\|/)
+        .map((c) => c.trim()),
+    );
+}
+
+/** Cell text without Markdown marks: `**a**` → a, `[[x|y]]` → y. */
+function plainText(md: string): string {
+  return md
+    .replace(
+      /!?\[\[([^\]|]*)\|?([^\]]*)\]\]/g,
+      (_, target: string, shown: string) => shown || target,
+    )
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/(\*\*|__|==|~~|\*|_|`)/g, '');
+}
+
+/** Markdown tables: a header line, a `|---|` line, then rows. */
+export function findTables(text: string): { from: number; to: number; source: string }[] {
+  const out: { from: number; to: number; source: string }[] = [];
+  const re =
+    /^\|.*\|[ \t]*\n\|?[ \t]*:?-{3,}:?[ \t]*(?:\|[ \t]*:?-{3,}:?[ \t]*)*\|?[ \t]*(?:\n\|.*\|[ \t]*)*/gm;
+  for (const m of text.matchAll(re))
+    out.push({ from: m.index, to: m.index + m[0].length, source: m[0] });
+  return out;
+}
+
+/** Draws tables while the cursor is outside them (a state field, as they span lines). */
+export function tableBlocks() {
+  const compute = (state: EditorState): DecorationSet => {
+    const decos: Range<Decoration>[] = [];
+    for (const t of findTables(state.doc.toString())) {
+      if (isEditing(state, t.from, t.to)) continue;
+      decos.push(
+        Decoration.replace({ block: true, widget: new TableWidget(t.source) }).range(t.from, t.to),
+      );
+    }
+    return Decoration.set(decos);
+  };
+  return StateField.define<DecorationSet>({
+    create: compute,
+    update: (value, tr) =>
+      tr.docChanged || tr.selection || tr.effects.some((e) => e.is(setFocused))
+        ? compute(tr.state)
+        : value,
+    provide: (f) => EditorView.decorations.from(f),
+  });
 }
 
 /** An embedded note, image or compendium entry; the app draws its content. */
@@ -321,6 +645,29 @@ class BaseBlockWidget extends WidgetType {
   }
 }
 
+/**
+ * Whether the editor has focus, kept in its state so state fields (tables, base blocks) can show
+ * their source only while someone is editing there, not just because the cursor was left in them.
+ */
+const setFocused = StateEffect.define<boolean>();
+const focusedField = StateField.define<boolean>({
+  create: () => false,
+  update: (value, tr) => {
+    for (const e of tr.effects) if (e.is(setFocused)) return e.value;
+    return value;
+  },
+});
+export const focusState = [
+  focusedField,
+  EditorView.focusChangeEffect.of((_state, focusing) => setFocused.of(focusing)),
+];
+
+/** Whether the cursor is in a range of a focused editor. */
+function isEditing(state: EditorState, from: number, to: number): boolean {
+  const focused = state.field(focusedField, false) === true;
+  return focused && state.selection.ranges.some((r) => r.to >= from && r.from <= to);
+}
+
 /** Fenced ```base blocks: their position and YAML. */
 export function findBaseBlocks(text: string): { from: number; to: number; yaml: string }[] {
   const out: { from: number; to: number; yaml: string }[] = [];
@@ -339,7 +686,7 @@ export function baseBlocks(host: EmbedHost) {
   const compute = (state: EditorState): DecorationSet => {
     const decos: Range<Decoration>[] = [];
     for (const block of findBaseBlocks(state.doc.toString())) {
-      const editing = state.selection.ranges.some((r) => r.to >= block.from && r.from <= block.to);
+      const editing = isEditing(state, block.from, block.to);
       if (editing) continue;
       decos.push(
         Decoration.replace({ block: true, widget: new BaseBlockWidget(block.yaml, host) }).range(
@@ -352,7 +699,10 @@ export function baseBlocks(host: EmbedHost) {
   };
   return StateField.define<DecorationSet>({
     create: compute,
-    update: (value, tr) => (tr.docChanged || tr.selection ? compute(tr.state) : value),
+    update: (value, tr) =>
+      tr.docChanged || tr.selection || tr.effects.some((e) => e.is(setFocused))
+        ? compute(tr.state)
+        : value,
     provide: (f) => EditorView.decorations.from(f),
   });
 }

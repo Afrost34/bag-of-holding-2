@@ -3,6 +3,7 @@ import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { journalExtensions, type JournalEditorOptions } from './editor/setup';
+import { EditorToolbar } from './EditorToolbar';
 import { useEmbedHost } from './embedHost';
 import { EmbedContent } from './JournalEmbed';
 
@@ -67,6 +68,7 @@ export function NoteEditor({
       },
       saveFiles: (files) => latest.current.saveFiles?.(files) ?? Promise.resolve([]),
       linkFor: (p) => latest.current.linkFor?.(p) ?? p,
+      pickImages: () => latest.current.pickImages?.() ?? Promise.resolve([]),
       hideFrontmatter: o.hideFrontmatter === true,
       embeds: embedHost,
     };
@@ -97,6 +99,10 @@ export function NoteEditor({
 
   return (
     <>
+      <EditorToolbar
+        getView={() => view.current}
+        host={{ pickImages: () => latest.current.pickImages?.() ?? Promise.resolve([]) }}
+      />
       <div ref={host} className="min-h-[60vh]" aria-label="Note text" />
       {embeds.portals((embed) => (
         <EmbedContent embed={embed} />
