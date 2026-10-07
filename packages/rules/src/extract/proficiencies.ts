@@ -227,6 +227,7 @@ export function readProficiencies(
   const kind = PROFICIENCY_FIELDS[field];
   const where = `${id} ${field}`;
   const list = Array.isArray(value) ? value : [value];
+  if (list.length === 0) return emptyExtraction();
   // `resist: ["fire"]`: a flat list of grants.
   if (list.every((v) => typeof v === 'string')) {
     const out = emptyExtraction();

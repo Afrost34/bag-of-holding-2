@@ -1,0 +1,22 @@
+awaken rope: 
+cause fear: spell:cause fear@xge
+mind sliver: spell:mind sliver@tce spell:mind sliver@xphb
+vicious mockery: spell:vicious mockery@phb spell:vicious mockery@xphb
+bane: spell:bane@phb spell:bane@xphb
+detect thoughts: spell:detect thoughts@phb spell:detect thoughts@xphb
+enhance ability: spell:enhance ability@phb spell:enhance ability@xphb
+suggestion: spell:suggestion@phb spell:suggestion@xphb
+baseitem:horn@phb baseitem:horn@xphb monster:horncaller@ggr monster:horned frog@psx item:horned ring@wdmm
+PENDING character/languages | language 2 | Choose 2 standard languages | {"type":"pool","pool":"standardLanguage"}
+PENDING feat:skilled@xphb/skillToolLanguage | skillToolLanguage 3 | Choose 3 skills, tools or languages | ["pool:skill","pool:tool"]
+PENDING background:charlatan@xphb/ability | alternative 1 | Choose ability score increases | ["0","1"]
+PENDING background:charlatan@xphb/equipment/0 | alternative 1 | Choose A or B | ["A","B"]
+PENDING class:bard@xphb/level:1/skill | skill 3 | Choose 3 skills | {"type":"pool","pool":"skill"}
+PENDING class:bard@xphb/level:1/tool | tool 3 | Choose 3 musical instruments | {"type":"pool","pool":"musicalInstrument"}
+PENDING class:bard@xphb/level:1/equipment/0 | alternative 1 | Choose A or B | ["A","B"]
+PENDING classfeature:expertise|bard|xphb|2@xphb/expertise | expertise 2 | Choose 2 skills you are proficient in | {"type":"pool","pool":"proficientSkill"}
+PENDING class:bard@xphb/cantrips | spell 2 | Choose 2 cantrips | {"type":"spell","filter":"level=0|class=Bard"}
+PENDING class:bard@xphb/spells | spell 6 | Prepare 6 spells | {"type":"spell","filter":"level=1;2|class=Bard"}
+WARN edition race:goblin@mpmm Goblin is 2014 rules; this character uses 2024 rules.
+WARN edition subclass:whispers|bard|xphb@xge College of Whispers is 2014 rules; this character uses 2024 rules.
+Skilled, Charlatan, Darkvision, Fey Ancestry, Fury of the Small, Nimble Escape, Bardic Inspiration, Spellcasting, Expertise, Jack of All Trades, College of Whispers, Psychic Blades, Words of Terror

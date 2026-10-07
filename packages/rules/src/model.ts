@@ -77,7 +77,11 @@ export type Grant =
   | { kind: 'special'; text: string; quantity: number }
   /** Coins, in copper pieces. */
   | { kind: 'money'; cp: number }
-  | { kind: 'size'; value: string };
+  | { kind: 'size'; value: string }
+  /** The spellcasting ability for spells from the same source (feats, species). */
+  | { kind: 'spellAbility'; ability: Ability }
+  /** A weapon whose mastery property the character can use (2024). */
+  | { kind: 'mastery'; key: string };
 
 export type ChoiceKind =
   | ProficiencyKind

@@ -226,7 +226,13 @@ describe.runIf(hasLocalData())('choice extraction over the pinned 5etools releas
       for (const e of index.ofType(type)) {
         for (const first of [true, false]) {
           for (let level = 1; level <= 20; level++) {
-            const ex = readClassLevel(e.data, e.key, level, { first, edition: e.edition }, issues);
+            const ex = readClassLevel(
+              e.data,
+              e.key,
+              level,
+              { first, edition: e.edition, current: true },
+              issues,
+            );
             extractions.set(`${e.key} ${String(level)}${first ? '' : ' multiclass'}`, ex);
           }
         }

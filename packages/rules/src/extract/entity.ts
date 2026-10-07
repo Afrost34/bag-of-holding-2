@@ -39,6 +39,20 @@ export function readEntity(entity: RawEntity, key: string, issues: Issues): Extr
   if (present(entity.ability)) merge(out, readAbilities(entity.ability, `${key}/ability`, issues));
   else if (entity.lineage === 'VRGR' || entity.lineage === true)
     merge(out, lineageAbilities(`${key}/ability`));
+  // Custom-lineage species: Common and one other language.
+  if (
+    (entity.lineage === 'VRGR' || entity.lineage === true) &&
+    !present(entity.languageProficiencies)
+  )
+    merge(
+      out,
+      readProficiencies(
+        'languageProficiencies',
+        [{ common: true, other: true }],
+        `${key}/language`,
+        issues,
+      ),
+    );
 
   if (present(entity.feats)) merge(out, readFeats(entity.feats, `${key}/feats`, issues));
   if (present(entity.additionalSpells))
