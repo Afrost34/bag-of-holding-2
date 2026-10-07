@@ -389,6 +389,11 @@ export function JournalPage({ note }: { note: string | undefined }) {
     const w = wizard;
     setWizard(null);
     if (!w) return;
+    // A picture chosen in the wizard is saved with the journal only now.
+    if (result.imageFile) {
+      const [target] = await saveFiles([result.imageFile]);
+      if (target) result.values.image = `[[${target}]]`;
+    }
     if (w.mode === 'create') {
       await createNote({ name: result.name, type: result.type, properties: result.values });
       return;
@@ -422,7 +427,6 @@ export function JournalPage({ note }: { note: string | undefined }) {
   const wizardHelpers = {
     suggest,
     asLink,
-    pickImage: async () => (await pickImages(false))[0] ?? null,
     resolveImage: (target: string) => resolveLinkPath(target, journal.attachments, note),
   };
 

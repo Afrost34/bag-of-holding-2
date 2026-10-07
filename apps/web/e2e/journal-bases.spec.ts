@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { createCampaign, installData, showFiles } from './helpers/journal';
+import { createCampaign, installData, isPhone, showFiles } from './helpers/journal';
 
 /** Journal: kinds of notes (NPC, location…) and the bases that list them. Fixture data. */
 
@@ -65,4 +65,33 @@ test('NPCs link to locations, which list them; bases are made for each kind', as
   await expect(
     page.getByRole('region', { name: 'Base: Cards' }).getByRole('button', { name: 'Volo' }),
   ).toBeVisible();
+});
+
+test('a picture chosen in the wizard is kept only when saved', async ({ page }) => {
+  await newOfKind(page, 'NPC', 'Volo');
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64',
+  );
+  const card = page.getByRole('region', { name: 'Details' });
+  const choose = async () => {
+    await card.getByRole('button', { name: 'Edit details' }).click();
+    const wizard = page.getByRole('dialog', { name: /Edit NPC/ });
+    await wizard.getByRole('button', { name: '4. Picture' }).click();
+    await wizard
+      .getByLabel('Picture file')
+      .setInputFiles({ name: 'volo.png', mimeType: 'image/png', buffer: png });
+    await expect(wizard.locator('img')).toBeVisible();
+    return wizard;
+  };
+  // Cancelled: nothing is added to the journal.
+  await (await choose()).getByRole('button', { name: 'Close' }).click();
+  await showFiles(page);
+  await expect(
+    page.getByRole('navigation', { name: 'Journal files' }).filter({ visible: true }),
+  ).not.toContainText('volo');
+  if (isPhone(page)) await page.getByRole('button', { name: 'Close files' }).click();
+  // Saved: the picture is stored and shown across the top of the note.
+  await (await choose()).getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.locator('article img[src^="blob:"]').first()).toBeVisible();
 });
