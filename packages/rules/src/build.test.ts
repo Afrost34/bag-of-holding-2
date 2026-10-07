@@ -1,6 +1,13 @@
 import type { EntityDetail, RawEntity } from '@boh/data5e';
 import { describe, expect, it } from 'vitest';
-import { buildCharacter, newCharacter, type CharacterDecisions, type RulesData } from './build';
+import {
+  buildCharacter,
+  meetsRequirements,
+  newCharacter,
+  requirementText,
+  type CharacterDecisions,
+  type RulesData,
+} from './build';
 
 /** A tiny in-memory data set: one class with an ASI at level 4, a species and a background. */
 function fakeData(entities: [string, string, RawEntity, '2014' | '2024'][]): RulesData {
@@ -44,6 +51,17 @@ const data = fakeData([
     'classfeature:ability score improvement|fighter|phb|4@phb',
     'classFeature',
     { name: 'Ability Score Improvement', source: 'PHB', className: 'Fighter', level: 4 },
+    '2014',
+  ],
+  [
+    'class:wizard@phb',
+    'class',
+    {
+      name: 'Wizard',
+      source: 'PHB',
+      classFeatures: [],
+      multiclassing: { requirements: { int: 13 } },
+    },
     '2014',
   ],
   [
@@ -101,6 +119,33 @@ describe('buildCharacter', () => {
     expect(
       buildCharacter(data, decisions, { feats: false }).pending.map((c) => c.kind),
     ).not.toContain('feat');
+  });
+
+  it('warns when a multiclass misses its ability requirements, but builds it', () => {
+    const decisions: CharacterDecisions = {
+      ...fighter(2),
+      classes: [
+        { class: 'class:fighter@phb', levels: 2 },
+        { class: 'class:wizard@phb', levels: 1 },
+      ],
+    };
+    const low = buildCharacter(data, decisions);
+    expect(low.level).toBe(3);
+    expect(low.warnings).toContainEqual(
+      expect.objectContaining({
+        kind: 'rule',
+        message: 'Multiclassing with Wizard needs Intelligence 13.',
+      }),
+    );
+    const smart = buildCharacter(data, {
+      ...decisions,
+      baseScores: { ...decisions.baseScores, int: 14 },
+    });
+    expect(smart.warnings.filter((w) => w.kind === 'rule')).toEqual([]);
+    expect(
+      meetsRequirements({ or: [{ str: 13, dex: 13 }] }, { ...decisions.baseScores, dex: 13 }),
+    ).toBe(true);
+    expect(requirementText({ or: [{ str: 13, dex: 13 }] })).toBe('Strength 13 or Dexterity 13');
   });
 
   it('points out options from the other edition', () => {

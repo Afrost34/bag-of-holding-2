@@ -3,7 +3,8 @@ import { ABILITIES, newCharacter, type Ability, type CharacterDecisions } from '
 /**
  * Characters as stored in the user's data:
  *
- *   characters/<id>.json     the character library (outside any campaign)
+ *   characters/<id>.json                      the character library (outside any campaign)
+ *   campaigns/<campaign>/characters/<id>.json copies made for a campaign
  *
  * A file holds the player's decisions (what the rules engine rebuilds the character from) and
  * the details only a person can write. Nothing computed is stored except a one-line summary for
@@ -38,6 +39,8 @@ export interface CharacterFile {
   details: CharacterDetails;
   /** Coins carried. */
   coins: Coins;
+  /** The campaign it belongs to; absent in the library. Not stored: it is where the file is. */
+  campaign?: string;
 }
 
 export interface Coins {
@@ -59,8 +62,13 @@ export function addCoins(a: Coins, b: Coins): Coins {
   return { cp: a.cp + b.cp, sp: a.sp + b.sp, ep: a.ep + b.ep, gp: a.gp + b.gp, pp: a.pp + b.pp };
 }
 
-export function characterPath(id: string): string {
-  return `${CHARACTERS_DIR}/${id}.json`;
+/** Where a character lives: the library, or a campaign's folder. */
+export function characterDir(campaign?: string): string {
+  return campaign ? `campaigns/${campaign}/${CHARACTERS_DIR}` : CHARACTERS_DIR;
+}
+
+export function characterPath(id: string, campaign?: string): string {
+  return `${characterDir(campaign)}/${id}.json`;
 }
 
 /** A short random id: characters are often renamed, so the name is not the id. */
@@ -98,7 +106,11 @@ const isObj = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
 /** Reads a stored character, filling what older files lack. Null when it is not one. */
-export function parseCharacter(text: string | null, id: string): CharacterFile | null {
+export function parseCharacter(
+  text: string | null,
+  id: string,
+  campaign?: string,
+): CharacterFile | null {
   if (text === null) return null;
   let json: unknown;
   try {
@@ -136,11 +148,13 @@ export function parseCharacter(text: string | null, id: string): CharacterFile |
     decisions,
     details: isObj(json.details) ? json.details : {},
     coins: { ...NO_COINS, ...(isObj(json.coins) ? (json.coins as Partial<Coins>) : {}) },
+    ...(campaign ? { campaign } : {}),
   };
 }
 
 export function serializeCharacter(c: CharacterFile): string {
-  return `${JSON.stringify(c, null, 2)}\n`;
+  const { campaign: _where, ...stored } = c;
+  return `${JSON.stringify(stored, null, 2)}\n`;
 }
 
 // region Ability scores

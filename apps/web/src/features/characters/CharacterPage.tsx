@@ -3,6 +3,7 @@ import { cn } from '@boh/ui';
 import { AlertTriangle, ArrowLeft, ListChecks } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
+import { useCampaigns } from '../../app/campaigns/store';
 import { summaryLine, type CharacterFile } from '../../app/characters/model';
 import { useCharacter, useCharacters } from '../../app/characters/store';
 import { useSourceList } from '../../app/data/sourceList';
@@ -14,7 +15,8 @@ import { AbilitiesStep } from './AbilitiesStep';
 import { DetailsStep } from './DetailsStep';
 import { InventoryPanel } from './InventoryPanel';
 import { SheetView } from './SheetView';
-import { BackgroundStep, ChoiceList, ClassStep, SpeciesStep } from './OriginSteps';
+import { ClassStep } from './ClassStep';
+import { BackgroundStep, ChoiceList, SpeciesStep } from './OriginSteps';
 import { choicesByStep, rootOf, STEPS, stepOf, type StepId } from './steps';
 import { useCharacterView } from './useCharacterView';
 
@@ -28,6 +30,7 @@ export function CharacterPage({ id, step }: { id: string; step: StepId }) {
   const { sources, load: loadSources } = useSourceList();
   const overrides = useSourcePrefs((s) => s.overrides);
   const [showPending, setShowPending] = useState(false);
+  const campaigns = useCampaigns((s) => s.campaigns);
   usePageTitle(character?.name ?? 'Character');
 
   useEffect(() => {
@@ -102,7 +105,12 @@ export function CharacterPage({ id, step }: { id: string; step: StepId }) {
       >
         <ArrowLeft className="h-4 w-4" aria-hidden /> Characters
       </AppLink>
-      <Header character={character} save={save} level={view?.level ?? 0} />
+      <Header
+        character={character}
+        campaignName={campaigns.find((c) => c.id === character.campaign)?.name}
+        save={save}
+        level={view?.level ?? 0}
+      />
       {status && !status.installed && (
         <p className="mb-4 rounded-md bg-sunken px-3 py-2 text-sm">
           Download the 5etools data in{' '}
@@ -246,10 +254,13 @@ export function CharacterPage({ id, step }: { id: string; step: StepId }) {
 
 function Header({
   character,
+  campaignName,
   save,
   level,
 }: {
   character: CharacterFile;
+  /** The campaign it belongs to; the library when absent. */
+  campaignName: string | undefined;
   save: (c: CharacterFile) => void;
   level: number;
 }) {
@@ -268,7 +279,10 @@ function Header({
           }}
           className="w-full rounded-md border border-transparent bg-transparent px-1 font-serif text-2xl font-bold hover:border-border focus:border-accent focus:outline-none"
         />
-        <p className="px-1 text-muted">{character.summary || (level ? '' : 'Not built yet')}</p>
+        <p className="px-1 text-muted">
+          {character.summary || (level ? '' : 'Not built yet')}
+          <span className="text-faint"> · {campaignName ?? 'Library'}</span>
+        </p>
       </div>
       <div
         role="radiogroup"

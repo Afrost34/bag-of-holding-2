@@ -30,9 +30,9 @@ describe('installData', () => {
     expect(index.countsByType()).toMatchObject({
       spell: 3,
       monster: 2,
-      class: 1,
+      class: 2,
       subclass: 1,
-      classFeature: 2,
+      classFeature: 3,
       subclassFeature: 1,
       race: 1,
       subrace: 1,
@@ -140,7 +140,8 @@ describe('installData', () => {
     expect(read).toHaveBeenCalledTimes(1);
     expect(index.getMeta(META.version)).toBe('v1.1.0');
     expect(index.hasKey('spell:fireball@phb')).toBe(false);
-    expect(index.countsByType().class).toBeUndefined();
+    expect(index.hasKey('class:bard@phb')).toBe(false);
+    expect(index.hasKey('class:fighter@phb')).toBe(true);
 
     const report = checkReferences(index, [
       { key: 'spell:fireball@phb', usedIn: 'characters/glubs.json' },

@@ -1,34 +1,59 @@
 import { Button } from '@boh/ui';
-import { Copy, Plus, Trash2, Users } from 'lucide-react';
+import { Plus, Trash2, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
-import { useActiveCampaign } from '../../app/campaigns/store';
+import { useActiveCampaign, useCampaigns } from '../../app/campaigns/store';
+import type { CharacterFile } from '../../app/characters/model';
 import { useCharacters } from '../../app/characters/store';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 
-/** The character library: every character, and a button to start a new one. */
+/** Stands for the library in selects (campaign ids are slugs, never start with @). */
+const LIBRARY = '@library';
+
+/**
+ * Characters: the open campaign's first, then other campaigns', then the library (characters
+ * kept outside any campaign). Any character can be copied into another campaign or the library.
+ */
 export function CharactersPage() {
   usePageTitle('Characters');
-  const { characters, loaded, load, create, duplicate, remove } = useCharacters();
-  const campaign = useActiveCampaign();
+  const { characters, loaded, load, create, copyTo, remove } = useCharacters();
+  const { campaigns, loaded: campaignsLoaded, load: loadCampaigns } = useCampaigns();
+  const active = useActiveCampaign();
   const navigate = useAppNavigate();
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [edition, setEdition] = useState<'2014' | '2024'>(
-    campaign?.edition === '2014' ? '2014' : '2024',
+    active?.edition === '2014' ? '2014' : '2024',
   );
+  const [where, setWhere] = useState<string>(active?.id ?? LIBRARY);
 
   useEffect(() => {
     if (!loaded) void load();
-  }, [loaded, load]);
+    if (!campaignsLoaded) void loadCampaigns();
+  }, [loaded, load, campaignsLoaded, loadCampaigns]);
 
   const start = async () => {
-    const c = await create(name, edition);
+    const c = await create(name, edition, where === LIBRARY ? undefined : where);
     setCreating(false);
     setName('');
     navigate(`/characters/${c.id}?step=class`);
   };
+
+  const groups: { id: string; title: string; list: CharacterFile[] }[] = [
+    ...[...campaigns]
+      .sort((a, b) => Number(b.id === active?.id) - Number(a.id === active?.id))
+      .map((c) => ({
+        id: c.id,
+        title: c.name,
+        list: characters.filter((x) => x.campaign === c.id),
+      })),
+    { id: LIBRARY, title: 'Library', list: characters.filter((x) => !x.campaign) },
+  ].filter((g) => g.list.length > 0);
+  const places = [
+    ...campaigns.map((c) => ({ id: c.id, label: c.name })),
+    { id: LIBRARY, label: 'Library' },
+  ];
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-4 py-6 md:px-8 md:py-10">
@@ -37,6 +62,7 @@ export function CharactersPage() {
         <Button
           variant="primary"
           onClick={() => {
+            setWhere(active?.id ?? LIBRARY);
             setCreating(true);
           }}
         >
@@ -53,19 +79,40 @@ export function CharactersPage() {
             void start();
           }}
         >
-          <div>
-            <label htmlFor="new-character-name" className="mb-1 block text-sm font-medium">
-              Name
-            </label>
-            <input
-              id="new-character-name"
-              value={name}
-              autoFocus
-              onChange={(e) => {
-                setName(e.target.value);
-              }}
-              className="w-full rounded-md border border-border bg-surface px-3 py-2 text-base focus:border-accent focus:outline-none sm:text-sm"
-            />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label htmlFor="new-character-name" className="mb-1 block text-sm font-medium">
+                Name
+              </label>
+              <input
+                id="new-character-name"
+                value={name}
+                autoFocus
+                onChange={(e) => {
+                  setName(e.target.value);
+                }}
+                className="w-full rounded-md border border-border bg-surface px-3 py-2 text-base focus:border-accent focus:outline-none sm:text-sm"
+              />
+            </div>
+            <div>
+              <label htmlFor="new-character-where" className="mb-1 block text-sm font-medium">
+                Keep in
+              </label>
+              <select
+                id="new-character-where"
+                value={where}
+                onChange={(e) => {
+                  setWhere(e.target.value);
+                }}
+                className="w-full rounded-md border border-border bg-surface px-3 py-2 text-base sm:text-sm"
+              >
+                {places.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <fieldset>
             <legend className="mb-1 text-sm font-medium">Rules</legend>
@@ -110,44 +157,58 @@ export function CharactersPage() {
         </div>
       )}
 
-      <ul className="grid gap-3 sm:grid-cols-2">
-        {characters.map((c) => (
-          <li
-            key={c.id}
-            className="flex items-start gap-2 rounded-lg border border-border bg-surface p-4"
-          >
-            <AppLink
-              to={`/characters/${c.id}?step=class`}
-              className="min-w-0 flex-1 hover:text-accent"
-            >
-              <span className="block truncate font-serif text-lg font-bold">{c.name}</span>
-              <span className="block truncate text-sm text-muted">
-                {c.summary || 'Not built yet'}
-              </span>
-            </AppLink>
-            <button
-              type="button"
-              aria-label={`Copy ${c.name}`}
-              onClick={() => {
-                void duplicate(c.id);
-              }}
-              className="rounded p-1.5 text-muted hover:bg-sunken hover:text-text"
-            >
-              <Copy className="h-4 w-4" aria-hidden />
-            </button>
-            <button
-              type="button"
-              aria-label={`Delete ${c.name}`}
-              onClick={() => {
-                if (window.confirm(`Delete ${c.name}? This cannot be undone.`)) void remove(c.id);
-              }}
-              className="rounded p-1.5 text-muted hover:bg-sunken hover:text-text"
-            >
-              <Trash2 className="h-4 w-4" aria-hidden />
-            </button>
-          </li>
-        ))}
-      </ul>
+      {groups.map((g) => (
+        <section key={g.id} aria-label={g.title}>
+          <h2 className="mb-2 font-serif text-lg font-bold">{g.title}</h2>
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {g.list.map((c) => (
+              <li
+                key={c.id}
+                className="flex items-start gap-2 rounded-lg border border-border bg-surface p-4"
+              >
+                <AppLink
+                  to={`/characters/${c.id}?step=class`}
+                  className="min-w-0 flex-1 hover:text-accent"
+                >
+                  <span className="block truncate font-serif text-lg font-bold">{c.name}</span>
+                  <span className="block truncate text-sm text-muted">
+                    {c.summary || 'Not built yet'}
+                  </span>
+                </AppLink>
+                <select
+                  aria-label={`Copy ${c.name} to`}
+                  value=""
+                  onChange={(e) => {
+                    const target = e.target.value;
+                    void copyTo(c.id, target === LIBRARY ? undefined : target);
+                  }}
+                  className="w-24 rounded-md border border-border bg-surface px-1 py-1 text-sm"
+                >
+                  <option value="" disabled>
+                    Copy to…
+                  </option>
+                  {places.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  aria-label={`Delete ${c.name}`}
+                  onClick={() => {
+                    if (window.confirm(`Delete ${c.name}? This cannot be undone.`))
+                      void remove(c.id);
+                  }}
+                  className="rounded p-1.5 text-muted hover:bg-sunken hover:text-text"
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
     </div>
   );
 }

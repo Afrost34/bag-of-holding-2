@@ -86,3 +86,19 @@ export function pickName(id: string): string {
   const name = (keyed?.[1] ?? id).split('|')[0] ?? id;
   return name.replace(/(^|[\s(-])(\p{L})/gu, (_, a: string, b: string) => a + b.toUpperCase());
 }
+
+/**
+ * The levels that roll for hit points, in the order the sheet adds them: class by class, every
+ * level except the first class's first (which takes the highest roll).
+ */
+export function hitPointLevels(
+  hitDice: readonly { faces: number; count: number }[],
+  classes: readonly { name: string; levels: number }[],
+): { label: string; faces: number }[] {
+  return classes.flatMap((c, i) =>
+    Array.from({ length: c.levels }, (_, l) => ({
+      label: `${c.name} ${String(l + 1)}`,
+      faces: hitDice[i]?.faces ?? 8,
+    })).slice(i === 0 ? 1 : 0),
+  );
+}

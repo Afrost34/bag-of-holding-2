@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { installData } from './helpers/journal';
+import { createCampaign, installData } from './helpers/journal';
 
 /** Characters: build one step by step; every choice the rules ask for is tracked and kept. */
 
@@ -66,4 +66,47 @@ test('a character is built from its choices and kept', async ({ page }) => {
   );
   await page.getByRole('link', { name: 'Characters', exact: true }).first().click();
   await expect(page.getByRole('link', { name: /Lia/ })).toContainText('Level 3 Elf Bard');
+});
+
+test('a multiclass character in a campaign, with rolled hit points, copied to the library', async ({
+  page,
+}) => {
+  await createCampaign(page, 'Rust and Sunfire');
+  await page.goto('./#/characters');
+  await page.getByRole('button', { name: 'New character' }).click();
+  const form = page.getByRole('form', { name: 'New character' });
+  await form.getByLabel('Name').fill('Brakka');
+  await expect(form.getByLabel('Keep in')).toHaveValue('rust-and-sunfire');
+  await form.getByRole('radio', { name: '2014 rules' }).check();
+  await form.getByRole('button', { name: 'Start building' }).click();
+  await expect(page.getByRole('main').getByText('· Rust and Sunfire')).toBeVisible();
+
+  // Fighter 2, then a level of Bard.
+  await page
+    .getByRole('list', { name: 'classes' })
+    .getByRole('button', { name: /Fighter/ })
+    .click();
+  await page.getByLabel('Level', { exact: true }).selectOption('2');
+  await page.getByRole('button', { name: 'Add a class (multiclass)' }).click();
+  await page.getByRole('list', { name: 'classes' }).getByRole('button', { name: /Bard/ }).click();
+  await expect(page.getByText('Level 3 Fighter 2 / Bard 1')).toBeVisible();
+  // The standard array leaves Charisma at 8: the bard's requirement is pointed out, not enforced.
+  await expect(page.getByRole('region', { name: 'Warnings' })).toContainText(
+    'Multiclassing with Bard needs Charisma 13.',
+  );
+
+  // Hit points: 10 + average 6 for Fighter 2 + average 5 for Bard 1 + Constitution +1 × 3.
+  const hp = page.getByRole('region', { name: 'Hit points' });
+  await expect(hp).toContainText('Hit points: 24');
+  await hp.getByRole('radio', { name: 'Rolled' }).click();
+  await hp.getByLabel('Hit point roll for Fighter 2').fill('10');
+  await expect(hp).toContainText('Hit points: 28');
+
+  // Copied to the library: same choices, the campaign's copy untouched.
+  await page.getByRole('link', { name: 'Characters', exact: true }).first().click();
+  await page.getByLabel('Copy Brakka to').selectOption('Library');
+  await expect(page.getByRole('region', { name: 'Library' })).toContainText(
+    'Level 3 Fighter 2 / Bard 1',
+  );
+  await expect(page.getByRole('region', { name: 'Rust and Sunfire' })).toContainText('Brakka');
 });

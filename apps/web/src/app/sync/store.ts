@@ -128,7 +128,8 @@ async function refreshAfterSync(paths: string[]): Promise<void> {
     await useJournal.getState().refresh();
   }
   if (touched(/^homebrew\//)) await useHomebrew.getState().load();
-  if (touched(/^characters\//)) await useCharacters.getState().reload();
+  if (touched(/^(characters\/|campaigns\/[^/]+\/characters\/)/))
+    await useCharacters.getState().reload();
 }
 
 const EVERY_MS = 3 * 60 * 1000;

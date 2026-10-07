@@ -1,6 +1,6 @@
 import type { AnsweredChoice, HeldGrant } from '@boh/rules';
 import { describe, expect, it } from 'vitest';
-import { choicesByStep, pickName, rootOf } from './steps';
+import { choicesByStep, hitPointLevels, pickName, rootOf } from './steps';
 
 describe('pick names', () => {
   it('reads plain values, entity keys and groups', () => {
@@ -63,5 +63,25 @@ describe('builder steps', () => {
       details: [],
       sheet: [],
     });
+  });
+});
+
+describe('hit point levels', () => {
+  it('skips the first level of the first class', () => {
+    expect(
+      hitPointLevels(
+        [
+          { faces: 10, count: 2 },
+          { faces: 6, count: 1 },
+        ],
+        [
+          { name: 'Fighter', levels: 2 },
+          { name: 'Wizard', levels: 1 },
+        ],
+      ),
+    ).toEqual([
+      { label: 'Fighter 2', faces: 10 },
+      { label: 'Wizard 1', faces: 6 },
+    ]);
   });
 });
