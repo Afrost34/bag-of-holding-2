@@ -85,6 +85,25 @@ export const useAnnotations = create<AnnotationsStore>()((set, get) => {
   };
 });
 
+/** Writes pending changes now (before a sync). */
+export async function flushAnnotations(): Promise<void> {
+  if (!saveTimer) return;
+  clearTimeout(saveTimer);
+  saveTimer = null;
+  const state = useAnnotations.getState();
+  await writeNow(state.file, state);
+}
+
+/** Reads the file again, as it is now (after a sync brought changes). */
+export async function reloadAnnotations(): Promise<void> {
+  const store = await userStore();
+  const { file } = useAnnotations.getState();
+  const fromFile = parseAnnotations(await store.readText(file));
+  if (useAnnotations.getState().file !== file) return;
+  loading = { file, promise: Promise.resolve() };
+  useAnnotations.setState({ ...fromFile, loaded: true });
+}
+
 /**
  * Points bookmarks and notes at another file (switching campaign). Pending changes to the old
  * file are written first.

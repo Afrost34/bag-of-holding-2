@@ -39,6 +39,9 @@ export interface FileStore {
 
   /** Immediate children of a directory, sorted by name. Empty when the directory is missing. */
   list(path: string): Promise<FileEntry[]>;
+
+  /** When a file was last written (milliseconds since 1970), or `null` when there is none. */
+  modified(path: string): Promise<number | null>;
 }
 
 export class NotADirectoryError extends Error {

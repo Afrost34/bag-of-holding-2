@@ -7,6 +7,7 @@ import { RollInputDialog } from '../dice/RollInputDialog';
 import { RollResults } from '../dice/RollResults';
 import { AppRendererProvider } from '../renderer/services';
 import { SearchPalette } from '../search/SearchPalette';
+import { startAutoSync } from '../sync/store';
 import { useTabs } from '../tabs/store';
 import { useApplyTheme } from '../theme';
 import { Sidebar } from './Sidebar';
@@ -23,7 +24,13 @@ export function AppShell() {
 
   // The open campaign decides which sources are on and whose notes show, on every page.
   useEffect(() => {
-    void useCampaigns.getState().load();
+    // Sync starts once the campaigns are read, so it compares against what is on this device.
+    void useCampaigns
+      .getState()
+      .load()
+      .then(() => {
+        startAutoSync();
+      });
   }, []);
 
   // The URL is the source of truth for the active tab (deep links, back/forward).

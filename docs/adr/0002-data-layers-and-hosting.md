@@ -15,6 +15,7 @@ Three data layers, kept apart:
 Hosting: the app code is a **public** repo (`bag-of-holding-2`) deployed free to GitHub Pages. The
 user's data lives in a **private** repo (`bag-of-holding-2-data`), synced from every device with Git
 (isomorphic-git) and a fine-grained token. Conflicts: last write wins; history keeps the loser.
+_How_ it syncs changed in ADR 0006 (GitHub REST API instead of isomorphic-git).
 
 ## Consequences
 

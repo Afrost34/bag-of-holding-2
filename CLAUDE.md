@@ -36,7 +36,7 @@ apps/web/              the app (React + Vite + TanStack Router, hash history)
   e2e/                 Playwright specs
 apps/desktop/          Tauri 2 shell (Rust); no app logic lives here
 packages/ui/           design tokens (tokens.css) and shared components
-packages/storage/      FileStore interface + memory / OPFS / Tauri implementations
+packages/storage/      FileStore interface + memory / OPFS / Tauri implementations; sync with the data repo (ADR 0006)
 packages/data5e/       5etools download, extraction, keys, _copy resolution, SQLite index
 packages/dice/         dice notation parser + secure roller (pure TypeScript)
 packages/renderer/     5etools entries, {@tags} and entity views → React (no app knowledge)

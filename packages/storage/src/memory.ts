@@ -21,6 +21,7 @@ export class MemoryFileStore implements FileStore {
   readonly kind = 'memory';
   private readonly files = new Map<string, Uint8Array>();
   private readonly dirs = new Set<string>(['']);
+  private readonly times = new Map<string, number>();
 
   readFile(path: string): Promise<Uint8Array | null> {
     return settle(() => this.files.get(normalizePath(path))?.slice() ?? null);
@@ -39,6 +40,7 @@ export class MemoryFileStore implements FileStore {
       if (p === '' || this.dirs.has(p)) throw new IsADirectoryError(p);
       this.mkdirSync(dirname(p));
       this.files.set(p, toBytes(data).slice());
+      this.times.set(p, Date.now());
     });
   }
 
@@ -75,6 +77,13 @@ export class MemoryFileStore implements FileStore {
 
   list(path: string): Promise<FileEntry[]> {
     return settle(() => this.listSync(path));
+  }
+
+  modified(path: string): Promise<number | null> {
+    return settle(() => {
+      const p = normalizePath(path);
+      return this.files.has(p) ? (this.times.get(p) ?? null) : null;
+    });
   }
 
   private mkdirSync(path: string): void {

@@ -26,6 +26,11 @@ export class TauriFileStore implements FileStore {
     return fs.readFile(abs);
   }
 
+  async modified(path: string): Promise<number | null> {
+    if ((await this.stat(path)) !== 'file') return null;
+    return (await fs.stat(this.abs(path))).mtime?.getTime() ?? null;
+  }
+
   async readText(path: string): Promise<string | null> {
     const bytes = await this.readFile(path);
     return bytes ? toText(bytes) : null;
