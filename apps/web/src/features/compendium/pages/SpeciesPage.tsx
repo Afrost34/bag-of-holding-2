@@ -4,7 +4,7 @@ import { Entries, RichText } from '@boh/renderer';
 import { useSpeciesPage } from '../../../app/data/pages';
 import { usePageTitle } from '../../../app/tabs/usePageTitle';
 import { LegacyBadge } from '../LegacyBadge';
-import { ArticleLayout, EntityHero, LoreSection, type TocItem } from './ArticleLayout';
+import { ArticleLayout, EntityHero, type TocItem } from './ArticleLayout';
 import { PageMissing } from './PageMissing';
 import { abilityText } from './speciesFacts';
 
@@ -50,7 +50,7 @@ export function SpeciesPage({ entityKey }: { entityKey: string }) {
 
   return (
     <ArticleLayout toc={toc}>
-      <EntityHero entity={race} fluff={fluff} />
+      <EntityHero entity={race} fluff={fluff} fullLore />
       <section id="traits" className="scroll-mt-4">
         <h2 className="border-b border-border pb-1 font-serif text-2xl font-bold">
           {race.name} Traits
@@ -74,7 +74,6 @@ export function SpeciesPage({ entityKey }: { entityKey: string }) {
           ))}
         </section>
       )}
-      <LoreSection fluff={fluff} />
     </ArticleLayout>
   );
 }

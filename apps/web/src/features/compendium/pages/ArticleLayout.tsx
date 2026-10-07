@@ -67,16 +67,20 @@ export function EntityHero({
   entity,
   fluff,
   tagline = false,
+  fullLore = false,
   children,
 }: {
   entity: EntityDetail;
   fluff?: EntityDetail | undefined;
   /** Show the art's title as a tagline (class art carries "A Master of All Arms and Armor"). */
   tagline?: boolean;
+  /** All of the lore as the description, rather than its opening paragraphs. */
+  fullLore?: boolean;
   children?: ReactNode;
 }) {
   const image = firstImagePath(fluff);
-  const intro = Array.isArray(fluff?.data.entries) ? firstParagraphs(fluff.data.entries) : [];
+  const lore = Array.isArray(fluff?.data.entries) ? fluff.data.entries : [];
+  const intro = fullLore ? lore : firstParagraphs(lore);
   return (
     <header className="mb-6">
       <div className="flex flex-col-reverse gap-5 sm:flex-row">
@@ -134,19 +138,29 @@ export function FeatureSection({
   level,
   name,
   entity,
+  badge,
   children,
 }: {
   id: string;
   level: number;
   name: string;
   entity?: EntityDetail | undefined;
+  /** Marks features that come from elsewhere, e.g. the chosen subclass. */
+  badge?: string;
   children?: ReactNode;
 }) {
   return (
-    <section id={id} className="mt-6 scroll-mt-4">
-      <h3 className="font-serif text-lg font-bold">
-        <span className="text-muted">Level {level}: </span>
-        <RichText text={name} />
+    <section id={id} className={cn('mt-6 scroll-mt-4', badge && 'border-l-2 border-accent pl-4')}>
+      <h3 className="flex flex-wrap items-baseline gap-x-2 font-serif text-lg font-bold">
+        <span>
+          <span className="text-muted">Level {level}: </span>
+          <RichText text={name} />
+        </span>
+        {badge && (
+          <span className="rounded bg-accent-soft px-1.5 py-0.5 font-sans text-[11px] font-semibold text-accent">
+            {badge}
+          </span>
+        )}
       </h3>
       {entity ? (
         <Entries entries={entity.data.entries} depth={2} />

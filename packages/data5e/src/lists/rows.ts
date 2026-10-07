@@ -38,7 +38,7 @@ export interface ListRow {
   legacy?: boolean;
   /** Art card for the `cards` layout (classes, species). */
   card?: CardInfo;
-  /** A generated specific magic item variant ("+1 Longsword"): linked and searchable, not listed. */
+  /** A generated specific magic item variant ("+1 Longsword"): listed only when searching by name. */
   generated?: boolean;
 }
 

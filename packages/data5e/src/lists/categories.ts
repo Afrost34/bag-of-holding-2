@@ -76,8 +76,6 @@ const EDITION: FieldDef = {
 };
 
 const isMagicItem = (row: ListRow) => row.type === 'magicvariant' || row.f.magic === true;
-/** Generated specific variants ("+1 Longsword") are reached from their generic variant. */
-const isListedItem = (row: ListRow) => row.generated !== true;
 
 const ITEM_FIELDS: readonly FieldDef[] = [
   { id: 'category', label: 'Type', kind: 'enum', filter: 'main' },
@@ -183,7 +181,7 @@ export const CATEGORIES: readonly Category[] = [
     noun: 'item',
     types: ['item', 'baseitem', 'magicvariant', 'itemGroup'],
     browse: true,
-    include: (row) => isListedItem(row) && !isMagicItem(row),
+    include: (row) => !isMagicItem(row),
     fields: pick(ITEM_FIELDS, ['category', 'value', 'weight', 'properties', 'damage', 'edition'], ['value', 'weight', 'properties']),
   },
   {
@@ -192,7 +190,7 @@ export const CATEGORIES: readonly Category[] = [
     noun: 'magic item',
     types: ['item', 'baseitem', 'magicvariant', 'itemGroup'],
     browse: true,
-    include: (row) => isListedItem(row) && isMagicItem(row),
+    include: isMagicItem,
     fields: pick(ITEM_FIELDS, ['category', 'rarity', 'attunement', 'properties', 'damage', 'edition'], ['rarity', 'attunement']),
   },
   {
@@ -220,7 +218,6 @@ export const CATEGORIES: readonly Category[] = [
     label: 'Items',
     noun: 'item',
     types: ['item', 'baseitem', 'magicvariant', 'itemGroup'],
-    include: isListedItem,
     fields: ITEM_FIELDS,
   },
   {
