@@ -45,3 +45,9 @@ export const isPhone = (page: Page) => (page.viewportSize()?.width ?? 0) < 768;
 export async function showFiles(page: Page) {
   if (isPhone(page)) await page.getByRole('button', { name: 'Files', exact: true }).click();
 }
+
+/** Opens the note's properties (collapsed by default). */
+export async function showProperties(page: Page) {
+  const toggle = page.getByRole('button', { name: 'Properties', exact: true });
+  if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click();
+}

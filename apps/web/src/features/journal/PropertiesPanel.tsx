@@ -50,7 +50,8 @@ export function PropertiesPanel({
 }) {
   const fm = parseFrontmatter(text);
   const entries = Object.entries(fm.data);
-  const [open, setOpen] = useState(true);
+  // Collapsed until opened: the note comes first.
+  const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
 
   const apply = (edit: (t: string) => string) => {
@@ -84,6 +85,7 @@ export function PropertiesPanel({
           type="button"
           onClick={() => {
             setAdding(true);
+            setOpen(true);
           }}
           className="flex items-center gap-1 rounded px-1 py-0.5 text-xs text-faint hover:bg-sunken hover:text-text"
         >

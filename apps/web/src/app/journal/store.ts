@@ -45,6 +45,15 @@ interface JournalStore {
   addAttachment: (name: string, bytes: Uint8Array) => Promise<string>;
   /** Writes pending edits now instead of after the usual short delay. */
   flush: () => Promise<void>;
+  /**
+   * Writes many files at once (an Obsidian import), then reloads the journal. Existing files are
+   * kept unless `replace`; returns how many were written.
+   */
+  importFiles: (
+    files: { path: string; read: () => Promise<Uint8Array | string> }[],
+    replace: boolean,
+    onProgress?: (done: number, total: number) => void,
+  ) => Promise<number>;
   /** Writes a `.base` file (new or changed). */
   saveBase: (path: string, text: string) => Promise<void>;
 }
@@ -77,6 +86,23 @@ const isNote = (path: string) => path.toLowerCase().endsWith('.md');
 const isBase = (path: string) => path.toLowerCase().endsWith('.base');
 const parentOf = (path: string) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '');
 const within = (path: string, folder: string) => path === folder || path.startsWith(`${folder}/`);
+
+/** A campaign's whole journal as stored: notes and bases read, other files listed. */
+async function readJournal(campaignId: string) {
+  const store = await userStore();
+  const base = journalRoot(campaignId);
+  const { files, folders } = await walk(store, base);
+  const notes = new Map<string, string>();
+  for (const f of files.filter(isNote)) notes.set(f, (await store.readText(`${base}/${f}`)) ?? '');
+  const bases = new Map<string, string>();
+  for (const f of files.filter(isBase)) bases.set(f, (await store.readText(`${base}/${f}`)) ?? '');
+  return {
+    notes,
+    attachments: files.filter((f) => !isNote(f)),
+    bases,
+    folders: folders.sort((a, b) => a.localeCompare(b)),
+  };
+}
 
 /** Every parent folder of a path: `a/b/c.md` → `a`, `a/b`. */
 function parentsOf(path: string): string[] {
@@ -129,23 +155,9 @@ export const useJournal = create<JournalStore>()((set, get) => {
         set({ loaded: true });
         return;
       }
-      const store = await userStore();
-      const base = journalRoot(campaignId);
-      const { files, folders } = await walk(store, base);
-      const notes = new Map<string, string>();
-      for (const f of files.filter(isNote))
-        notes.set(f, (await store.readText(`${base}/${f}`)) ?? '');
-      const bases = new Map<string, string>();
-      for (const f of files.filter(isBase))
-        bases.set(f, (await store.readText(`${base}/${f}`)) ?? '');
+      const contents = await readJournal(campaignId);
       if (loadingFor !== campaignId) return; // switched again meanwhile
-      set({
-        notes,
-        attachments: files.filter((f) => !isNote(f)),
-        bases,
-        folders: folders.sort((a, b) => a.localeCompare(b)),
-        loaded: true,
-      });
+      set({ ...contents, loaded: true });
     },
 
     setText: (path, text) => {
@@ -231,6 +243,30 @@ export const useJournal = create<JournalStore>()((set, get) => {
     },
 
     flush: flushAll,
+
+    importFiles: async (files, replace, onProgress) => {
+      await flushAll();
+      const store = await userStore();
+      const base = root();
+      const existing = new Set(
+        [...get().notes.keys(), ...get().attachments].map((p) => p.toLowerCase()),
+      );
+      let written = 0;
+      for (const [i, file] of files.entries()) {
+        if (replace || !existing.has(file.path.toLowerCase())) {
+          await store.writeFile(`${base}/${file.path}`, await file.read());
+          written++;
+        }
+        onProgress?.(i + 1, files.length);
+      }
+      // Read everything back in one go: the journal stays on screen meanwhile.
+      const id = get().campaignId;
+      if (id) {
+        const contents = await readJournal(id);
+        if (get().campaignId === id) set(contents);
+      }
+      return written;
+    },
 
     saveBase: async (path, text) => {
       const store = await userStore();

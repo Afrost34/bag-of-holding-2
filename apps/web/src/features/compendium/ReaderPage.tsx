@@ -215,7 +215,7 @@ function Reader({ book, search }: { book: BookContent; search: ReaderSearch }) {
           {toc}
         </div>
       )}
-      <div className="min-w-0 flex-1 overflow-y-auto">
+      <div className="min-w-0 flex-1 overflow-y-auto after:block after:h-16 after:content-['']">
         <div className="mx-auto max-w-3xl px-4 py-4 md:px-8">
           <div className="mb-2 flex items-center gap-2">
             <AppLink

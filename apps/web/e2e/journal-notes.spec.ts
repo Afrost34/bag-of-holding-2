@@ -1,5 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
-import { createCampaign, editor, installData, newNote, showFiles } from './helpers/journal';
+import {
+  createCampaign,
+  editor,
+  installData,
+  newNote,
+  showFiles,
+  showProperties,
+} from './helpers/journal';
 
 /** Journal notes: properties, tags, templates and embeds. Fixture data. */
 
@@ -31,6 +38,7 @@ test('properties are edited in a panel instead of as YAML', async ({ page }) => 
   // Survives a reload (notes are saved shortly after each change).
   await page.waitForTimeout(700);
   await page.reload();
+  await showProperties(page);
   await expect(page.getByLabel('type', { exact: true })).toHaveValue('npc');
 });
 

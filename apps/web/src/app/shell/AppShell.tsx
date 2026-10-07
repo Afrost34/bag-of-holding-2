@@ -41,7 +41,7 @@ export function AppShell() {
             setDrawerOpen(true);
           }}
         />
-        <main className="min-h-0 flex-1 overflow-y-auto pb-16">
+        <main className="min-h-0 flex-1 overflow-y-auto pb-16 has-[>.h-full]:pb-0">
           <AppRendererProvider>
             <Outlet />
           </AppRendererProvider>

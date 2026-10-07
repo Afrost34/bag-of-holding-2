@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { createCampaign, installData, showFiles } from './helpers/journal';
+import { createCampaign, installData, showFiles, showProperties } from './helpers/journal';
 
 /** Journal: kinds of notes (NPC, location…) and the bases that list them. Fixture data. */
 
@@ -28,6 +28,7 @@ test('NPCs link to locations, which list them; bases are made for each kind', as
   await expect(page).toHaveURL(/note=NPCs(%2F|\/)Volo\.md/);
 
   // The NPC's fields are there; a typed note name becomes a link.
+  await showProperties(page);
   await expect(page.getByLabel('status', { exact: true })).toHaveValue('Alive');
   const location = page.getByLabel('location', { exact: true });
   await location.fill('Rustcrown');
@@ -45,6 +46,7 @@ test('NPCs link to locations, which list them; bases are made for each kind', as
   await page.getByLabel('Name of the new note').fill('Laeral');
   await page.getByRole('button', { name: 'Create' }).click();
   await expect(page.getByLabel('Note title')).toHaveValue('Laeral');
+  await showProperties(page);
   await expect(page.getByLabel('location', { exact: true })).toHaveValue('[[Rustcrown]]');
 
   // The NPCs base was made with the first NPC and lists both.

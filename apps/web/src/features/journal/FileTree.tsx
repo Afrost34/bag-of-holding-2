@@ -6,6 +6,7 @@ import {
   FilePlus,
   FileText,
   Folder,
+  FolderInput,
   FolderPlus,
   LayoutTemplate,
   MoreHorizontal,
@@ -36,6 +37,8 @@ export interface FileTreeProps {
   /** Built-in kinds of notes (NPC, location…). */
   noteTypes?: readonly NoteType[];
   onNewOfType?: (type: NoteType) => void;
+  /** Opens the Obsidian import. */
+  onImport?: () => void;
 }
 
 /** Drag state shared by the whole tree: the folder a drop would land in. */
@@ -145,6 +148,17 @@ export function FileTree(treeProps: FileTreeProps) {
               </Menu.Content>
             </Menu.Portal>
           </Menu.Root>
+        )}
+        {props.onImport && (
+          <button
+            type="button"
+            aria-label="Import from Obsidian"
+            title="Import an Obsidian vault"
+            onClick={props.onImport}
+            className="rounded p-1 text-muted hover:bg-sunken hover:text-text"
+          >
+            <FolderInput className="h-4 w-4" aria-hidden />
+          </button>
         )}
         <button
           type="button"

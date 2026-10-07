@@ -2,6 +2,7 @@ import {
   isFile,
   isLink,
   noteName,
+  prettyName,
   noteType,
   parseBase,
   propertiesForNew,
@@ -328,7 +329,7 @@ function NoteLink({ path }: { path: string }) {
       }}
       className="text-left font-medium text-link hover:underline"
     >
-      {noteName(path)}
+      {prettyName(path)}
     </button>
   );
 }

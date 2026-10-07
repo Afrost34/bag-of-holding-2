@@ -45,7 +45,7 @@ function Settings({ campaign, active }: { campaign: Campaign; active: boolean })
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div className="h-full overflow-y-auto after:block after:h-16 after:content-['']">
       <div className="mx-auto max-w-3xl space-y-6 px-4 py-6 md:px-8 md:py-8">
         <header className="border-b-2 border-accent pb-2">
           <AppLink

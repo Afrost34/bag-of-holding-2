@@ -62,6 +62,19 @@ export function isAttachment(target: string): boolean {
   return ATTACHMENT.test(target);
 }
 
+/** `a/b/../c/./d` → `a/c/d`; null when `..` climbs above the journal. */
+function normalizePath(path: string): string | null {
+  const out: string[] = [];
+  for (const part of path.split('/')) {
+    if (part === '' || part === '.') continue;
+    if (part === '..') {
+      if (out.length === 0) return null;
+      out.pop();
+    } else out.push(part);
+  }
+  return out.join('/');
+}
+
 const norm = (s: string) => s.replace(/\\/g, '/').replace(/\.md$/i, '').toLowerCase();
 const folderOf = (path: string) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '');
 
@@ -80,6 +93,13 @@ export function resolveLinkPath(
   paths: readonly string[],
   fromPath?: string,
 ): string | null {
+  // `../Factions/Red_Fangs` and `./Ward`: relative to the linking note's folder.
+  if (/^\.\.?\//.test(target)) {
+    if (!fromPath) return null;
+    const joined = normalizePath(`${folderOf(fromPath)}/${target}`);
+    if (joined === null) return null;
+    return resolveLinkPath(joined, paths);
+  }
   const wanted = norm(target).replace(/^\/+/, '');
   if (!wanted) return null;
   const attachment = isAttachment(target);
@@ -89,6 +109,10 @@ export function resolveLinkPath(
     const key = norm(p);
     return key === wanted || key.endsWith(`/${wanted}`);
   });
+  // A path that leads nowhere (the note was moved since): fall back to the note's name.
+  if (candidates.length === 0 && wanted.includes('/')) {
+    return resolveLinkPath(wanted.slice(wanted.lastIndexOf('/') + 1), paths, fromPath);
+  }
   if (candidates.length <= 1) return candidates[0] ?? null;
   const here = fromPath ? folderOf(fromPath).toLowerCase() : null;
   return (
@@ -173,4 +197,15 @@ export function updateLinksForRename(
     last = l.end;
   }
   return out + text.slice(last);
+}
+
+/**
+ * A note's name as shown in lists and links: `Mother_Tibia.md` → `Mother Tibia`. The file keeps
+ * its name; only the display reads better.
+ */
+export function prettyName(path: string): string {
+  return noteName(path)
+    .replace(/\.base$/i, '')
+    .replace(/_+/g, ' ')
+    .trim();
 }

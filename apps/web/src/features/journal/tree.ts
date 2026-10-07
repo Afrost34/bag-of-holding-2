@@ -1,3 +1,4 @@
+import { prettyName } from '@boh/journal';
 /** The journal's files as a tree for the sidebar. */
 
 export interface TreeNode {
@@ -29,7 +30,7 @@ export function buildTree(
     const parent = folderNode(path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '');
     const base = path.slice(path.lastIndexOf('/') + 1);
     parent.children.push({
-      name: kind === 'note' ? base.replace(/\.md$/i, '') : base.replace(/\.base$/i, ''),
+      name: prettyName(base),
       path,
       kind,
       children: [],
