@@ -3,6 +3,7 @@ import { ignoreIssues, type Issues } from '../model';
 import { readClassLevel, maxSpellLevel, progressionDelta } from './classes';
 import { readEntity } from './entity';
 import { readFeature } from './features';
+import { readProficiencies } from './proficiencies';
 import { parseSpellFilter } from './spells';
 
 const strict = (): Issues & { found: string[] } => {
@@ -312,6 +313,21 @@ describe('features', () => {
     expect(ex.choices.map((c) => [c.kind, c.options?.[0] ?? c.filter])).toEqual([
       ['feature', 'subclassfeature:bear|barbarian|phb|totem warrior|phb|3@phb'],
       ['expertise', { type: 'pool', pool: 'proficientSkill' }],
+    ]);
+  });
+});
+
+describe('tool proficiencies naming a source', () => {
+  it('are granted by name', () => {
+    const out = readProficiencies(
+      'toolProficiencies',
+      [{ 'gunnery kit|gunslinger': true, "thieves' tools": true }],
+      'class:gunslinger@gs',
+      ignoreIssues,
+    );
+    expect(out.grants.map((g) => ('value' in g ? g.value : ''))).toEqual([
+      'gunnery kit',
+      "thieves' tools",
     ]);
   });
 });

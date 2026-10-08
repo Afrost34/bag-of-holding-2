@@ -391,6 +391,7 @@ const FIELD_KINDS = new Set<FieldKind>([
   'link',
   'links',
   'list',
+  'creature',
 ]);
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 

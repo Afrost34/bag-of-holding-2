@@ -24,7 +24,7 @@ import {
   type PropertyValue,
 } from '@boh/journal';
 import { Button, cn } from '@boh/ui';
-import { FilePlus, FolderTree, Link2, Trash2, X } from 'lucide-react';
+import { FilePlus, FolderTree, Link2, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
 import { useActiveCampaign, useCampaigns } from '../../app/campaigns/store';
@@ -737,41 +737,79 @@ export function JournalPage({ note }: { note: string | undefined }) {
           </div>
         </div>
 
-        {note !== undefined && text !== undefined && (
-          <aside
-            aria-label="Backlinks"
-            className="hidden w-64 shrink-0 overflow-y-auto border-l border-border p-4 text-sm xl:block"
-          >
+        <aside
+          aria-label="Journal side"
+          className="hidden w-64 shrink-0 space-y-5 overflow-y-auto border-l border-border p-4 text-sm lg:block"
+        >
+          <section aria-label="Create">
             <h2 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold tracking-wider text-muted uppercase">
-              <Link2 className="h-3.5 w-3.5" aria-hidden /> Linked from
+              <FilePlus className="h-3.5 w-3.5" aria-hidden /> Create
             </h2>
-            {backlinks.length === 0 ? (
-              <p className="text-muted">No notes link here yet.</p>
-            ) : (
-              <ul className="space-y-2">
-                {[...new Set(backlinks.map((b) => b.from))].map((from) => (
-                  <li key={from}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        open(from);
-                      }}
-                      className="text-left font-medium text-link hover:underline"
-                    >
-                      {prettyName(from)}
-                    </button>
-                    <p className="line-clamp-2 text-xs text-muted">
-                      {snippet(
-                        journal.notes.get(from) ?? '',
-                        backlinks.find((b) => b.from === from)?.link.start ?? 0,
-                      )}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </aside>
-        )}
+            <div className="flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={() => void newNote('')}
+                className="flex items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-sunken"
+              >
+                <FilePlus className="h-4 w-4 text-muted" aria-hidden /> Note
+              </button>
+              {allTypes.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  aria-label={`New ${t.label}`}
+                  onClick={() => {
+                    setWizard({ mode: 'create', type: t, properties: {} });
+                  }}
+                  className="flex items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-sunken"
+                >
+                  <NoteTypeIcon type={t} className="h-4 w-4 text-muted" /> {t.label}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingKinds(true);
+                }}
+                className="flex items-center gap-2 rounded px-2 py-1.5 text-left text-link hover:bg-sunken"
+              >
+                <Plus className="h-4 w-4" aria-hidden /> New kind of note…
+              </button>
+            </div>
+          </section>
+          {note !== undefined && text !== undefined && (
+            <section aria-label="Backlinks">
+              <h2 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold tracking-wider text-muted uppercase">
+                <Link2 className="h-3.5 w-3.5" aria-hidden /> Linked from
+              </h2>
+              {backlinks.length === 0 ? (
+                <p className="text-muted">No notes link here yet.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {[...new Set(backlinks.map((b) => b.from))].map((from) => (
+                    <li key={from}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          open(from);
+                        }}
+                        className="text-left font-medium text-link hover:underline"
+                      >
+                        {prettyName(from)}
+                      </button>
+                      <p className="line-clamp-2 text-xs text-muted">
+                        {snippet(
+                          journal.notes.get(from) ?? '',
+                          backlinks.find((b) => b.from === from)?.link.start ?? 0,
+                        )}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
+        </aside>
       </div>
     </JournalViewContext.Provider>
   );

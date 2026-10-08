@@ -71,9 +71,21 @@ export function NotesListPage({ typeId, note }: { typeId: string; note?: string 
         <div className="mx-auto max-w-6xl px-4 py-6 md:px-8">
           <PageHeading
             aside={
-              <span aria-live="polite">
-                {count} {count === 1 ? type.label.toLowerCase() : type.plural.toLowerCase()} in{' '}
-                {campaign.name}
+              <span className="flex flex-wrap items-center gap-3">
+                <span aria-live="polite">
+                  {count} {count === 1 ? type.label.toLowerCase() : type.plural.toLowerCase()} in{' '}
+                  {campaign.name}
+                </span>
+                {/* Came here from a link: the note it opened, a click away in the journal. */}
+                {note && journal.notes.has(note) && (
+                  <AppLink
+                    to={journalPath(note)}
+                    className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-semibold hover:bg-sunken"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" aria-hidden /> Edit{' '}
+                    {note.split('/').pop()?.replace(/\.md$/i, '')} in the journal
+                  </AppLink>
+                )}
               </span>
             }
           >

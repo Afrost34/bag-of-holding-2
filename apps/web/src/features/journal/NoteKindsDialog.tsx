@@ -15,6 +15,7 @@ const KINDS: { id: FieldKind; label: string }[] = [
   { id: 'link', label: 'Link to a note' },
   { id: 'links', label: 'Links to notes' },
   { id: 'list', label: 'List' },
+  { id: 'creature', label: 'Stat block (fights in encounters)' },
 ];
 
 const field =

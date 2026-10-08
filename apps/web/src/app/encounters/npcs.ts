@@ -11,17 +11,22 @@ export interface CampaignNpc {
 }
 
 /**
- * The campaign's NPCs that name a stat block (`stat_block: "[[creature:Spy@XMM|Spy]]"`), by name.
- * A stat block without a source can't be resolved here and is left out.
+ * The campaign's notes that name a stat block, by name: NPCs (`stat_block: "[[creature:Spy@XMM|Spy]]"`)
+ * and notes of any kind with a stat block property (a ship's crew, a custom kind). A stat block
+ * without a source can't be resolved here and is left out.
  */
 export function campaignNpcs(notes: ReadonlyMap<string, string>): CampaignNpc[] {
   const out: CampaignNpc[] = [];
   for (const [note, text] of notes) {
     const data = parseFrontmatter(text).data;
-    if (data.type !== 'npc' || typeof data.stat_block !== 'string') continue;
-    const target = parseWikiLinks(data.stat_block)[0]?.target ?? data.stat_block;
-    const ref = parseCompendiumRef(target);
-    if (ref?.type !== 'monster' || !ref.source) continue;
+    // `stat_block` first, then any property linking to a creature.
+    const values = [data.stat_block, ...Object.values(data)].filter(
+      (v): v is string => typeof v === 'string' && v.includes('creature:'),
+    );
+    const ref = values
+      .map((v) => parseCompendiumRef(parseWikiLinks(v)[0]?.target ?? v))
+      .find((r) => r?.type === 'monster' && r.source);
+    if (!ref?.source) continue;
     const title = typeof data.title === 'string' && data.title.trim() ? data.title.trim() : null;
     out.push({
       note,

@@ -154,7 +154,7 @@ test('a campaign NPC with a stat block joins an encounter by name', async ({ pag
   await page.getByRole('button', { name: 'Send to' }).click();
   await page.getByRole('menuitem', { name: /New encounter with Goblin/ }).click();
   await page.getByRole('status').getByRole('link').click();
-  await page.getByLabel('Add an NPC').selectOption({ label: 'Brakka the Boss' });
+  await page.getByLabel('Add from the journal').selectOption({ label: 'Brakka the Boss' });
   const brakka = page.getByRole('listitem', { name: 'Brakka the Boss' });
   await expect(brakka).toContainText('(Goblin Boss)');
   await brakka.getByRole('button', { name: 'Show Brakka the Boss' }).click();
