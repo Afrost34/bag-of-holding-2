@@ -9,6 +9,7 @@ import {
   mapPath,
   mapThumbPath,
   type MapDoc,
+  type MapKind,
 } from './model';
 
 /**
@@ -21,7 +22,7 @@ interface MapsStore {
   loaded: boolean;
   load: () => Promise<void>;
   reload: () => Promise<void>;
-  create: (name: string, campaign?: string) => Promise<MapDoc>;
+  create: (name: string, campaign?: string, kind?: MapKind) => Promise<MapDoc>;
   save: (map: MapDoc) => void;
   flush: () => Promise<void>;
   remove: (id: string) => Promise<void>;
@@ -89,11 +90,12 @@ export const useMaps = create<MapsStore>()((set, get) => ({
     await get().load();
   },
 
-  create: async (name, campaign) => {
+  create: async (name, campaign, kind) => {
     const base = newMap(
       name,
       get().maps.map((s) => s.id),
       new Date().toISOString(),
+      kind,
     );
     const map = campaign ? { ...base, campaign } : base;
     const store = await userStore();

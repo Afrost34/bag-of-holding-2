@@ -6,6 +6,7 @@ import {
   MapPin,
   MousePointer2,
   PaintRoller,
+  Route,
   Ruler,
   Spline,
   Stamp,
@@ -13,7 +14,7 @@ import {
   Type,
   type LucideIcon,
 } from 'lucide-react';
-import type { TemplateShape } from '../../app/maps/model';
+import type { MapKind, TemplateShape } from '../../app/maps/model';
 import type { TerrainId } from '../../app/maps/terrain';
 
 export type Tool =
@@ -24,6 +25,7 @@ export type Tool =
   | 'terrain'
   | 'eraser'
   | 'wall'
+  | 'route'
   | 'text'
   | 'measure'
   | 'template'
@@ -43,7 +45,18 @@ export const TOOLS: { id: Tool; label: string; icon: LucideIcon; key: string }[]
   { id: 'measure', label: 'Measure', icon: Ruler, key: 'm' },
   { id: 'template', label: 'Spell template', icon: Triangle, key: 'a' },
   { id: 'pin', label: 'Pin', icon: MapPin, key: 'p' },
+  { id: 'route', label: 'Route', icon: Route, key: 'o' },
 ];
+
+/** Tools for battle maps only, and for world and city maps only. */
+const BATTLE_ONLY = new Set<Tool>(['wall', 'template']);
+const WORLD_ONLY = new Set<Tool>(['route']);
+
+/** The tools a kind of map shows, in tool bar order. */
+export function toolsFor(kind: MapKind): typeof TOOLS {
+  const hidden = kind === 'world' ? BATTLE_ONLY : WORLD_ONLY;
+  return TOOLS.filter((t) => !hidden.has(t.id));
+}
 
 export const CALIBRATE_ICON = Crosshair;
 

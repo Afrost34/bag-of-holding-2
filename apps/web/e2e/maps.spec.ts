@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
-import { installData, isPhone } from './helpers/journal';
+import { createCampaign, installData, isPhone } from './helpers/journal';
 import { waitForSaved } from './helpers/saved';
 
 /** Maps: a canvas with a grid, stamps from the library, brushes, walls, text, templates, pins. */
@@ -18,9 +18,10 @@ const pngSize = (bytes: Buffer) => ({
   height: bytes.readUInt32BE(20),
 });
 
-async function newMap(page: Page, name: string) {
+async function newMap(page: Page, name: string, kind?: 'World or city map') {
   await page.goto('./#/maps');
   await page.getByRole('button', { name: 'New map' }).click();
+  if (kind) await page.getByRole('radio', { name: new RegExp(kind) }).check();
   await page.getByLabel('Name').fill(name);
   await page.getByRole('button', { name: 'Create' }).click();
   await expect(page.getByRole('textbox', { name: 'Map name' })).toHaveValue(name);
@@ -493,11 +494,21 @@ test('the maps list finds maps by name, folder and tag, with their thumbnails', 
   await expect(library.getByRole('link', { name: /Goblin Bridge/ })).toHaveCount(0);
 });
 
-test('a world map measures distances and travel times', async ({ page }) => {
+test('a world map measures distances, and a route moves the calendar on', async ({ page }) => {
   test.skip(isPhone(page), 'Measuring by dragging is checked on the desktop.');
   await installData(page);
-  await newMap(page, 'The Sunash Sea');
+  await createCampaign(page, 'Rust and Sunfire');
+  await page.goto('./#/calendar');
+  await page.getByRole('button', { name: 'Start a calendar' }).click();
+  await expect(page.getByRole('region', { name: 'Today' })).toContainText('1 Deepwinter, Year 1');
+
+  await newMap(page, 'The Sunash Sea', 'World or city map');
+  // A world map has routes, not walls or spell templates.
+  await expect(tool(page, 'Route')).toBeVisible();
+  await expect(tool(page, 'Wall')).toHaveCount(0);
+  await expect(tool(page, 'Spell template')).toHaveCount(0);
   await page.getByRole('tab', { name: 'Map' }).click();
+  await expect(page.getByRole('region', { name: 'Grid' })).toHaveCount(0);
   const scale = page.getByRole('region', { name: 'Scale and travel' });
   await scale.getByLabel('Unit').selectOption('km');
   await scale.getByLabel('Distance across the map').fill('28000');
@@ -505,7 +516,11 @@ test('a world map measures distances and travel times', async ({ page }) => {
   await scale.getByLabel('Speed 1 name').fill('Skiff');
   await scale.getByLabel('Speed 1 per day').fill('1400');
   await scale.getByLabel('Distance across the map').click();
-  await waitForSaved(page, 'maps', '"travel":[{"name":"Skiff","perDay":1400}]');
+  await waitForSaved(
+    page,
+    'campaigns/rust-and-sunfire/maps',
+    '"travel":[{"name":"Skiff","perDay":1400}]',
+  );
 
   const box = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
   if (!box) throw new Error('no canvas');
@@ -517,4 +532,25 @@ test('a world map measures distances and travel times', async ({ page }) => {
     page.getByRole('status').filter({ hasText: /Distance: [\d,]+ km · Skiff: (\d|about)/ }),
   ).toBeVisible();
   await page.mouse.up();
+
+  // A route, stop by stop, says how far it goes so far.
+  await tool(page, 'Route').click();
+  await page.mouse.click(box.x + 100, box.y + 200);
+  await page.mouse.click(box.x + 300, box.y + 200);
+  await page.mouse.click(box.x + 300, box.y + 350);
+  await expect(page.getByRole('status').filter({ hasText: /[\d,]+ km · Skiff:/ })).toBeVisible();
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'campaigns/rust-and-sunfire/maps', '"kind":"route"');
+
+  // Picked, it shows the journey; its days move the campaign's calendar on.
+  await tool(page, 'Select and move').click();
+  await page.mouse.click(box.x + 200, box.y + 200);
+  const journey = page.getByRole('region', { name: 'Route' }).getByLabel('Journey');
+  await expect(journey).toContainText(/[\d,]+ km/);
+  await journey.getByRole('button', { name: /Advance the calendar \d+ days? \(Skiff\)/ }).click();
+  await expect(page.getByRole('status').filter({ hasText: /Today is now/ })).toBeVisible();
+  await page.goto('./#/calendar');
+  await expect(page.getByRole('region', { name: 'Today' })).not.toContainText(
+    '1 Deepwinter, Year 1',
+  );
 });

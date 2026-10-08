@@ -28,6 +28,7 @@ import {
   updateItem,
   type Grid,
   type MapItem,
+  mapKind,
 } from './model';
 
 const square: Grid = { ...DEFAULT_GRID, size: 50, offsetX: 10, offsetY: 20 };
@@ -186,3 +187,43 @@ describe('finding maps', () => {
     expect(parseMap(serializeMap(doc), doc.id)).toMatchObject({ folder: 'Battle maps', tags: ['cave'] });
   });
 }); // prettier-ignore
+
+describe('kinds of map', () => {
+  it('battle maps have a grid; world and city maps have none, and routes', () => {
+    const battle = newMap('Cave', [], '');
+    expect(mapKind(battle)).toBe('battle');
+    expect(battle.grid.type).toBe('square');
+    const world = newMap('Continent', [], '', 'world');
+    expect(mapKind(world)).toBe('world');
+    expect(world.grid.type).toBe('none');
+    expect(world.layers.map((l) => l.name)).toContain('Routes');
+  });
+
+  it('older maps with a real scale are world maps', () => {
+    const { kind: _k, ...old } = newMap('Old', [], '');
+    expect(mapKind(old)).toBe('battle');
+    expect(mapKind({ ...old, scale: { unit: 'km', perPixel: 2 } })).toBe('world');
+  });
+
+  it('keeps its kind and routes in the file', () => {
+    const world = newMap('Continent', [], '', 'world');
+    const layer = world.layers[1]?.id ?? '';
+    const withRoute = addItem(world, layer, {
+      kind: 'route',
+      id: 'r1',
+      points: [0, 0, 100, 0],
+      label: 'Sea road',
+      color: '#b91c1c',
+    });
+    const back = parseMap(serializeMap(withRoute), world.id);
+    expect(back?.kind).toBe('world');
+    expect(back?.layers[1]?.items[0]).toMatchObject({ kind: 'route', label: 'Sea road' });
+  });
+
+  it('finds maps by kind', () => {
+    const maps = [newMap('Cave', [], ''), newMap('Continent', [], '', 'world')];
+    expect(
+      filterMaps(maps, { q: '', folder: '', tags: [], kind: 'world' }).map((m) => m.name),
+    ).toEqual(['Continent']);
+  });
+});
