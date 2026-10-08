@@ -55,19 +55,7 @@ export function SearchPalette() {
   const notes = useJournal((s) => s.notes);
   const activeCampaign = useCampaigns((s) => s.activeId);
 
-  // Ctrl/Cmd+K toggles the palette from anywhere.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setOpen(!useSearchPalette.getState().open);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [setOpen]);
+  // Ctrl/Cmd+K is handled by LazySearchPalette, which loads this.
 
   useEffect(() => {
     if (open) void loadSources();
