@@ -37,8 +37,11 @@ test('NPCs link to locations, which list them; bases are made for each kind', as
   await wizard.getByLabel('Location', { exact: true }).fill('Rustcrown');
   await wizard.getByRole('button', { name: 'Save', exact: true }).click();
 
-  // The location lists the NPCs there.
+  // A link to a location opens it in the compendium, like an entry; from there, the journal.
   await card.getByRole('button', { name: 'Rustcrown' }).click();
+  await expect(page).toHaveURL(/compendium\/notes\/location\?note=Locations(%2F|\/)Rustcrown\.md/);
+  await page.getByRole('link', { name: 'Open in the journal' }).click();
+  // The location lists the NPCs there.
   await expect(page.getByLabel('Note title')).toHaveValue('Rustcrown');
   const here = page.getByRole('region', { name: 'Base: NPCs here' });
   await expect(here.getByRole('button', { name: 'Volo' })).toBeVisible();

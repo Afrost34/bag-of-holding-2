@@ -34,7 +34,7 @@ import { useSourceList } from '../../app/data/sourceList';
 import { disabledSourceIds, useSourcePrefs } from '../../app/data/sourcePrefs';
 import { typeLabel } from '../../app/format';
 import { noteRefFor, resolveCompendiumRef } from '../../app/journal/compendium';
-import { journalPath } from '../../app/journal/paths';
+import { journalPath, notePagePath } from '../../app/journal/paths';
 import { useJournalPrefs } from '../../app/journal/prefs';
 import { useJournal } from '../../app/journal/store';
 import { useAppNavigate } from '../../app/navigation';
@@ -237,6 +237,12 @@ export function JournalPage({ note }: { note: string | undefined }) {
     }
     if (isAttachment(link.target)) return;
     const path = resolveLinkPath(link.target, paths, note);
+    // A note of a kind the compendium lists (an NPC, a location…) opens there, like an entry.
+    const page = path ? notePagePath(path, journal.notes.get(path)) : null;
+    if (path && page !== journalPath(path)) {
+      navigate(page ?? '', { newTab });
+      return;
+    }
     // Like Obsidian: following a link to a note that does not exist yet creates it.
     open(
       path ?? (await journal.createNote('', link.target.split('/').pop() ?? link.target)),
