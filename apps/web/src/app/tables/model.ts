@@ -307,3 +307,72 @@ export function priceOfValue(copper: unknown): string | undefined {
   if (copper % 10 === 0) return `${String(copper / 10)} sp`;
   return `${String(copper)} cp`;
 }
+
+/** A 5etools cell as text (cells are strings, numbers or `{ entry }` objects). */
+function cellText(cell: unknown): string {
+  if (typeof cell === 'string') return cell;
+  if (typeof cell === 'number') return String(cell);
+  if (isObj(cell) && typeof cell.entry === 'string') return cell.entry;
+  return '';
+}
+
+/** A dice cell's numbers: `"01–04"`, `"5"`, `"00"` (100), or `{ roll: { min, max } }`. */
+export function cellRange(cell: unknown): { from: number; to: number } | null {
+  if (isObj(cell) && isObj(cell.roll)) {
+    const r = cell.roll;
+    if (typeof r.exact === 'number') return { from: r.exact, to: r.exact };
+    if (typeof r.min === 'number' && typeof r.max === 'number') return { from: r.min, to: r.max };
+    return null;
+  }
+  const text = cellText(cell).trim();
+  const m = /^(\d+)\s*(?:[-–—]\s*(\d+)|\+)?$/.exec(text);
+  if (!m?.[1]) return null;
+  const num = (s: string) => (/^0+$/.test(s) ? 10 ** s.length : Number(s));
+  const from = num(m[1]);
+  return { from, to: m[2] ? num(m[2]) : from };
+}
+
+const DICE_LABEL = /^(\{@dice\s*)?\d*d\d+/i;
+
+/**
+ * The rows of a compendium table (5etools `table`, a magic item table, gemstones or art
+ * objects) as roll table rows: dice ranges become weights, the other columns the text.
+ */
+export function rowsFromCompendium(data: Record<string, unknown>): Omit<TableRow, 'id'>[] {
+  if (Array.isArray(data.table)) {
+    return data.table.flatMap((r): Omit<TableRow, 'id'>[] => {
+      if (typeof r === 'string') return [{ weight: 1, text: r }];
+      if (isObj(r) && typeof r.min === 'number' && typeof r.max === 'number') {
+        const text = typeof r.item === 'string' ? r.item : '';
+        return text ? [{ weight: Math.max(1, r.max - r.min + 1), text }] : [];
+      }
+      return [];
+    });
+  }
+  if (!Array.isArray(data.rows)) return [];
+  const labels = Array.isArray(data.colLabels) ? data.colLabels.map(cellText) : [];
+  const dice = DICE_LABEL.test(labels[0] ?? '');
+  return data.rows.flatMap((row): Omit<TableRow, 'id'>[] => {
+    if (!Array.isArray(row)) return [];
+    const range = dice ? cellRange(row[0]) : null;
+    if (dice && !range) return [];
+    const text = (dice ? row.slice(1) : row).map(cellText).filter(Boolean).join(' — ');
+    if (!text) return [];
+    return [{ weight: range ? Math.min(100, Math.max(1, range.to - range.from + 1)) : 1, text }];
+  });
+}
+
+/** Encounter tables are the ones full of creatures; the rest are loot. */
+export function kindForRows(rows: readonly Omit<TableRow, 'id'>[]): TableKind {
+  const creatures = rows.filter((r) => r.text?.includes('{@creature')).length;
+  return creatures * 2 >= rows.length && creatures > 0 ? 'encounter' : 'loot';
+}
+
+/** Builds a table from compendium rows (weights kept, ids added). */
+export function withRows(table: RollTable, rows: readonly Omit<TableRow, 'id'>[]): RollTable {
+  return rows.reduce((t, r) => {
+    const added = addRow(t, r);
+    const last = added.rows.at(-1);
+    return last && r.weight !== 1 ? updateRow(added, last.id, { weight: r.weight }) : added;
+  }, table);
+}

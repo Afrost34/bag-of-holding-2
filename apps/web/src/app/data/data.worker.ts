@@ -280,6 +280,10 @@ const api: DataWorkerApi = {
     return (await indexPromise).getEntity(key);
   },
 
+  async ofType(type) {
+    return (await indexPromise).ofType(type);
+  },
+
   async listRows(categoryId) {
     const category = categoryById(categoryId);
     if (!category) return [];

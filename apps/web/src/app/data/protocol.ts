@@ -92,6 +92,8 @@ export interface DataWorkerApi {
   sources(): Promise<SourceSummary[]>;
   search(text: string, options?: SearchOptions): Promise<EntitySummary[]>;
   entity(key: string): Promise<EntityDetail | undefined>;
+  /** Every entry of a type (small types only: treasure tables, gemstones…). */
+  ofType(type: string): Promise<EntityDetail[]>;
   /** All rows of a compendium list category (every source; filter in the UI). */
   listRows(categoryId: string): Promise<ListRow[]>;
   /** Books or adventures with text, newest first. */

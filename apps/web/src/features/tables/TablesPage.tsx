@@ -5,6 +5,7 @@ import { AppLink } from '../../app/AppLink';
 import { useActiveCampaign, useCampaigns } from '../../app/campaigns/store';
 import { TABLE_KINDS, type RollTable, type TableKind } from '../../app/tables/model';
 import { useTables } from '../../app/tables/store';
+import { TreasureRoller } from '../../app/tables/TreasureRoller';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 
@@ -54,6 +55,14 @@ export function TablesPage() {
         notes, encounters and creatures: they show it, ready to roll, and an encounter table builds
         the fight in one click.
       </p>
+
+      <section
+        aria-label="Treasure"
+        className="space-y-2 rounded-lg border border-border bg-surface p-4"
+      >
+        <h2 className="font-serif text-lg font-bold">Treasure by challenge rating</h2>
+        <TreasureRoller edition={active?.edition === '2014' ? '2014' : '2024'} />
+      </section>
 
       {creating && (
         <form
