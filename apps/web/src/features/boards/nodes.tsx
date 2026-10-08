@@ -13,10 +13,10 @@ import {
   Trash2,
 } from 'lucide-react';
 import { memo, useState, type ReactNode } from 'react';
-import { SHOWABLE_KINDS, type BoardCard } from '../../app/boards/model';
+import type { BoardCard } from '../../app/boards/model';
 import { CardBody } from './bodies';
 import { CardLinks } from './CardLinks';
-import { useBoardActions } from './context';
+import { useBoardActions, useIsPlayersBoard } from './context';
 import { FAR_ZOOM, KIND_ICONS, useCardTitle, type CardNodeType } from './kinds';
 
 const useFar = () => useStore((s) => s.transform[2] < FAR_ZOOM);
@@ -27,7 +27,8 @@ const itemClass =
 /** The ⋮ menu of a card (or of a tab in a stack). */
 function CardMenu({ card, title, inStack }: { card: BoardCard; title: string; inStack?: boolean }) {
   const actions = useBoardActions();
-  const showable = SHOWABLE_KINDS.has(card.kind);
+  // On the players' board itself there is nowhere to send it.
+  const showable = !useIsPlayersBoard() && card.kind !== 'frame';
   const openable = card.kind === 'entity' || card.kind === 'note';
   return (
     <Menu.Root>
@@ -57,8 +58,7 @@ function CardMenu({ card, title, inStack }: { card: BoardCard; title: string; in
                 actions.show(card);
               }}
             >
-              <MonitorUp className="h-4 w-4" aria-hidden />{' '}
-              {card.shown ? 'Hide from players' : 'Show to players'}
+              <MonitorUp className="h-4 w-4" aria-hidden /> Send to players
             </Menu.Item>
           )}
           {inStack && (
@@ -161,9 +161,6 @@ function Shell({
             <Icon className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
             <h3 className="min-w-0 flex-1 truncate font-serif text-sm font-bold">{title}</h3>
           </>
-        )}
-        {card.shown && (
-          <MonitorUp className="h-4 w-4 shrink-0 text-accent-ink" aria-label="Shown to players" />
         )}
         <CardMenu card={card} title={title} />
       </header>

@@ -42,7 +42,7 @@ import {
   type CalendarDate,
   type CalendarEvent,
 } from '../../app/calendar/model';
-import { showToPlayers } from '../../app/boards/player';
+import { sendToPlayers } from '../../app/boards/player';
 import { useCalendar } from '../../app/calendar/store';
 import { useActiveCampaign } from '../../app/campaigns/store';
 import { notePagePath } from '../../app/journal/paths';
@@ -159,10 +159,7 @@ function CalendarView({
   save: (c: Calendar) => void;
 }) {
   // Shown in the player window: it follows the calendar as time moves on.
-  const [showing, setShowing] = useState(false);
-  useEffect(() => {
-    if (showing) showToPlayers({ kind: 'calendar', campaignId, calendar: cal }, false);
-  }, [showing, cal, campaignId]);
+
   const [shown, setShown] = useState({ year: cal.today.year, month: cal.today.month });
   const [selected, setSelected] = useState<CalendarDate>(cal.today);
   const [editing, setEditing] = useState(false);
@@ -187,13 +184,11 @@ function CalendarView({
         <h1 className="min-w-0 flex-1 font-serif text-2xl font-bold">{cal.name}</h1>
         <Button
           variant="ghost"
-          aria-pressed={showing}
           onClick={() => {
-            if (!showing) showToPlayers({ kind: 'calendar', campaignId, calendar: cal });
-            setShowing(!showing);
+            void sendToPlayers([{ kind: 'calendar' }], campaignId);
           }}
         >
-          <MonitorUp className="h-4 w-4" aria-hidden /> Show to players
+          <MonitorUp className="h-4 w-4" aria-hidden /> Send to players
         </Button>
         <Button
           variant="ghost"

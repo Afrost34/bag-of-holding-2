@@ -107,12 +107,15 @@ test('the calendar goes on a board and to the players', async ({ page, context }
   await page.goto('./#/calendar');
   const [player] = await Promise.all([
     context.waitForEvent('page'),
-    page.getByRole('button', { name: 'Show to players' }).click(),
+    page.getByRole('button', { name: 'Send to players' }).click(),
   ]);
   await expect(player.getByText(/, 2 Deepwinter, Year 1/)).toBeVisible();
   await page
     .getByRole('region', { name: 'Today' })
     .getByRole('button', { name: 'Next day' })
     .click();
-  await expect(player.getByText(/, 3 Deepwinter, Year 1/)).toBeVisible();
+  // The players' calendar card reads the calendar again every few seconds.
+  await expect(player.getByText(/, 3 Deepwinter, Year 1/)).toBeVisible({ timeout: 12_000 });
+  // Without the DM's buttons.
+  await expect(player.getByRole('button', { name: 'Next day' })).toHaveCount(0);
 });

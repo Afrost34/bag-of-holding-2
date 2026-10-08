@@ -34,7 +34,6 @@ import {
   type RulesData,
 } from '@boh/rules';
 import {
-  GUEST_WORKER,
   type DataStatus,
   type DataWorkerApi,
   type InstallSummary,
@@ -73,11 +72,6 @@ const lockChecked = new Promise<void>((resolve) => {
 
 async function openIndex(): Promise<EntityIndex> {
   let db: SqlDatabase;
-  if (self.name === GUEST_WORKER) {
-    markLockChecked();
-    storage = 'memory';
-    return EntityIndex.open(await openMemoryDatabase());
-  }
   try {
     const owned = !('locks' in navigator) || (await holdLock(true));
     if (!owned) storage = 'busy';

@@ -76,18 +76,7 @@ export type BoardCard = CardContent & {
   parent?: string;
   /** The stack it is a tab of; not drawn on its own. */
   inStack?: string;
-  /** Shown in the player window. */
-  shown?: boolean;
-  /** Where it sits in the player window (laid out there by the DM); a grid place otherwise. */
-  player?: PlayerPlace;
 };
-
-export interface PlayerPlace {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
 
 export interface Board {
   version: 1;
@@ -98,6 +87,8 @@ export interface Board {
   cards: BoardCard[];
   /** Where the canvas was last looked at. */
   viewport?: { x: number; y: number; zoom: number };
+  /** The players' board (the player window), not listed with the DM's boards. */
+  players?: true;
   /** The campaign it belongs to; absent outside campaigns. Not stored: it is where the file is. */
   campaign?: string;
 }
@@ -408,6 +399,7 @@ export function parseBoard(text: string | null, id: string, campaign?: string): 
       h: num(c.h, SIZES[c.kind].h),
     })),
     ...(viewport ? { viewport } : {}),
+    ...(json.players === true ? { players: true as const } : {}),
     ...(campaign ? { campaign } : {}),
   };
 }
@@ -445,71 +437,24 @@ export function dropCard(board: Board, id: string): Board {
   return setFrame(board, id, frame?.id ?? null);
 }
 
-/** Cards the players may see (not trackers or character sheets, which are the DM's). */
-export const SHOWABLE_KINDS: ReadonlySet<CardKind> = new Set([
-  'entity',
-  'image',
-  'text',
-  'note',
-  'initiative',
-  'timer',
-  'map',
-  'npc',
-  'calendar',
-]);
-
-/** Moves or resizes a card in the player window. */
-export function placeForPlayers(board: Board, id: string, place: PlayerPlace): Board {
-  const rounded = {
-    x: Math.round(place.x),
-    y: Math.round(place.y),
-    w: Math.round(place.w),
-    h: Math.round(place.h),
-  };
-  return { ...board, cards: board.cards.map((c) => (c.id === id ? { ...c, player: rounded } : c)) };
-}
-
-/** Columns of the player window's starting grid, and the room between cards. */
-const PLAYER_COLUMNS = 3;
-const PLAYER_GAP = 24;
-
 /**
- * Where each shown card sits in the player window: its own place, or the next free cell of a
- * grid below the cards already placed (at a size good for reading on a screen).
+ * The players' board of a campaign (or of the library): what the player window shows, a board like
+ * any other that the DM sends cards to. One per campaign, so its id names the campaign.
  */
-export function playerPlaces(cards: readonly BoardCard[]): Map<string, PlayerPlace> {
-  const places = new Map<string, PlayerPlace>();
-  let bottom = 0;
-  for (const c of cards)
-    if (c.player) {
-      places.set(c.id, c.player);
-      bottom = Math.max(bottom, c.player.y + c.player.h + PLAYER_GAP);
-    }
-  let i = 0;
-  let x = 0;
-  let y = bottom;
-  let rowHeight = 0;
-  for (const c of cards) {
-    if (c.player) continue;
-    const w = Math.max(c.w, 360);
-    const h = Math.max(c.h, 320);
-    if (i > 0 && i % PLAYER_COLUMNS === 0) {
-      x = 0;
-      y += rowHeight + PLAYER_GAP;
-      rowHeight = 0;
-    }
-    places.set(c.id, { x, y, w, h });
-    x += w + PLAYER_GAP;
-    rowHeight = Math.max(rowHeight, h);
-    i++;
-  }
-  return places;
-}
+export const playersBoardId = (campaign?: string) => `players-${campaign ?? 'library'}`;
 
-/** Marks a card as shown to the players, or not. */
-export function toggleShown(board: Board, id: string): Board {
-  return updateBoardCard(board, id, (c) => {
-    const { shown: _s, ...rest } = c;
-    return c.shown ? rest : { ...c, shown: true };
-  });
+/** What a card holds, without where it sits: to send a copy of it somewhere else. */
+export function contentOf(card: BoardCard): CardContent {
+  const {
+    id: _id,
+    x: _x,
+    y: _y,
+    w: _w,
+    h: _h,
+    parent: _p,
+    inStack: _i,
+    collapsed: _c,
+    ...content
+  } = card;
+  return content;
 }
