@@ -3,6 +3,7 @@ import type { FileStore } from '@boh/storage';
 import { create } from 'zustand';
 import { campaignDir } from '../campaigns/model';
 import { useCampaigns } from '../campaigns/store';
+import { useNoteTypes } from './noteTypes';
 import { userStore } from '../userStore';
 
 /**
@@ -145,6 +146,8 @@ export const useJournal = create<JournalStore>()((set, get) => {
       if (loadingFor === campaignId && (get().loaded || campaignId === null)) return;
       if (get().campaignId && get().campaignId !== campaignId) await flushAll();
       loadingFor = campaignId;
+      // The campaign's own kinds of notes come with its journal.
+      void useNoteTypes.getState().load(campaignId);
       set({
         campaignId,
         loaded: false,

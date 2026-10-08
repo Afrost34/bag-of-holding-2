@@ -1,6 +1,7 @@
 import type { EntitySummary } from '@boh/data5e';
 import { Search } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { parseFrontmatter } from '@boh/journal';
+import { useEffect, useMemo, useState } from 'react';
 import { BookmarkList } from '../../app/annotations/BookmarkList';
 import { AppLink } from '../../app/AppLink';
 import { BROWSE_LINKS, LIBRARY_LINKS, type CompendiumLink } from '../../app/compendiumLinks';
@@ -11,6 +12,10 @@ import { useSourceList } from '../../app/data/sourceList';
 import { disabledSourceIds, useSourcePrefs } from '../../app/data/sourcePrefs';
 import { useData } from '../../app/data/store';
 import { typeLabel } from '../../app/format';
+import { useActiveCampaign } from '../../app/campaigns/store';
+import { NoteTypeIcon } from '../../app/journal/NoteTypeIcon';
+import { useAllNoteTypes, useNoteTypes } from '../../app/journal/noteTypes';
+import { useJournal } from '../../app/journal/store';
 import { PageHeading } from './PageHeading';
 
 /** Compendium home: search everything, or pick something to browse. */
@@ -106,6 +111,7 @@ export function CompendiumPage() {
               <BookmarkList />
               <Tiles label="Browse" links={BROWSE_LINKS} />
               <Tiles label="Library" links={LIBRARY_LINKS} />
+              <CampaignNotes />
             </>
           )}
         </>
@@ -129,6 +135,53 @@ function Tiles({ label, links }: { label: string; links: readonly CompendiumLink
                 <Icon className="h-5 w-5" aria-hidden />
               </span>
               <span className="font-semibold group-hover:text-accent-ink">{name}</span>
+            </AppLink>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
+/** The open campaign's notes by kind (NPCs, locations, the campaign's own kinds), as lists. */
+function CampaignNotes() {
+  const campaign = useActiveCampaign();
+  const journal = useJournal();
+  const types = useAllNoteTypes();
+  useEffect(() => {
+    if (campaign && journal.campaignId !== campaign.id) void journal.load(campaign.id);
+  }, [campaign, journal]);
+  const counts = useMemo(() => {
+    const n = new Map<string, number>();
+    for (const text of journal.notes.values()) {
+      const t = parseFrontmatter(text).data.type;
+      if (typeof t === 'string') n.set(t.toLowerCase(), (n.get(t.toLowerCase()) ?? 0) + 1);
+    }
+    return n;
+  }, [journal.notes]);
+  if (!campaign) return null;
+  const custom = new Set(useNoteTypes.getState().defs.map((d) => d.id));
+  const shown = types.filter((t) => (counts.get(t.id) ?? 0) > 0 || custom.has(t.id));
+  if (shown.length === 0) return null;
+  return (
+    <nav aria-label={campaign.name} className="mt-8">
+      <h2 className="mb-3 text-xs font-semibold tracking-wider text-muted uppercase">
+        {campaign.name}
+      </h2>
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        {shown.map((t) => (
+          <li key={t.id}>
+            <AppLink
+              to={`/compendium/notes/${t.id}`}
+              className="group flex items-center gap-3 rounded-lg border border-border bg-surface px-4 py-3.5 transition-colors hover:border-accent"
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-ink">
+                <NoteTypeIcon type={t} className="h-5 w-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-semibold group-hover:text-accent-ink">{t.plural}</span>
+                <span className="block text-xs text-muted">{counts.get(t.id) ?? 0}</span>
+              </span>
             </AppLink>
           </li>
         ))}

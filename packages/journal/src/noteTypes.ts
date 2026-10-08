@@ -363,8 +363,114 @@ export function fieldLabel(key: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
+/**
+ * A kind of note made by the DM (Ships, Guilds…): what is stored for it, without the parts the
+ * app fills in (folder matching, wizard steps, body).
+ */
+export interface CustomNoteTypeDef {
+  id: string;
+  label: string;
+  plural: string;
+  /** Icon name (see the app's NoteTypeIcon). */
+  icon: string;
+  fields: FieldDef[];
+  /** Columns of its lists; the first fields when absent. */
+  columns?: string[];
+}
+
+const FIELD_KINDS = new Set<FieldKind>([
+  'text',
+  'number',
+  'checkbox',
+  'date',
+  'link',
+  'links',
+  'list',
+]);
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** A custom kind as a full note type: its own folder, one wizard step, a description section. */
+export function customNoteType(def: CustomNoteTypeDef): NoteType {
+  return {
+    id: def.id,
+    label: def.label,
+    plural: def.plural,
+    icon: def.icon,
+    folder: def.plural,
+    folderMatch: new RegExp(`\\b${escapeRe(def.plural.toLowerCase())}\\b`, 'i'),
+    fields: def.fields,
+    steps: def.fields.length ? [{ label: 'Details', keys: def.fields.map((f) => f.key) }] : [],
+    body: '## Description\n\n',
+    columns: def.columns ?? def.fields.slice(0, 4).map((f) => f.key),
+  };
+}
+
+/** Custom kinds read from a campaign's file, skipping anything malformed. */
+export function parseNoteTypeDefs(json: unknown): CustomNoteTypeDef[] {
+  if (!Array.isArray(json)) return [];
+  const builtIn = new Set(NOTE_TYPES.map((t) => t.id));
+  return json.flatMap((d): CustomNoteTypeDef[] => {
+    if (typeof d !== 'object' || d === null) return [];
+    const r = d as Record<string, unknown>;
+    if (typeof r.id !== 'string' || typeof r.label !== 'string' || builtIn.has(r.id)) return [];
+    const fields = (Array.isArray(r.fields) ? r.fields : []).flatMap((f): FieldDef[] => {
+      if (typeof f !== 'object' || f === null) return [];
+      const ff = f as Record<string, unknown>;
+      if (typeof ff.key !== 'string' || !FIELD_KINDS.has(ff.kind as FieldKind)) return [];
+      return [
+        {
+          key: ff.key,
+          kind: ff.kind as FieldKind,
+          ...(Array.isArray(ff.options)
+            ? { options: ff.options.filter((o): o is string => typeof o === 'string') }
+            : {}),
+          ...(typeof ff.linkType === 'string' ? { linkType: ff.linkType } : {}),
+        },
+      ];
+    });
+    return [
+      {
+        id: r.id,
+        label: r.label,
+        plural: typeof r.plural === 'string' && r.plural ? r.plural : `${r.label}s`,
+        icon: typeof r.icon === 'string' ? r.icon : 'file',
+        fields,
+        ...(Array.isArray(r.columns)
+          ? { columns: r.columns.filter((c): c is string => typeof c === 'string') }
+          : {}),
+      },
+    ];
+  });
+}
+
+/** An id for a new kind ("Sea Ship" → `sea-ship`), unique among `taken`. */
+export function noteTypeId(label: string, taken: readonly string[]): string {
+  const base =
+    label
+      .toLowerCase()
+      .normalize('NFKD')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '') || 'kind';
+  const used = new Set([...taken, ...NOTE_TYPES.map((t) => t.id)]);
+  let id = base;
+  for (let n = 2; used.has(id); n++) id = `${base}-${String(n)}`;
+  return id;
+}
+
+let custom: NoteType[] = [];
+
+/** The open campaign's own kinds (the app sets them when it reads the campaign). */
+export function setCustomNoteTypes(defs: readonly CustomNoteTypeDef[]): void {
+  custom = defs.map(customNoteType);
+}
+
+/** Every kind: the built-in ones, then the campaign's own. */
+export function allNoteTypes(): readonly NoteType[] {
+  return [...NOTE_TYPES, ...custom];
+}
+
 export function noteType(id: unknown): NoteType | undefined {
-  return typeof id === 'string' ? NOTE_TYPES.find((t) => t.id === id.toLowerCase()) : undefined;
+  return typeof id === 'string' ? allNoteTypes().find((t) => t.id === id.toLowerCase()) : undefined;
 }
 
 /** A new note of a kind: its properties (empty but present, so they can be filled in) and body. */

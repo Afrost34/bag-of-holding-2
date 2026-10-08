@@ -5,6 +5,8 @@ import { useTabs } from './tabs/store';
 export interface NavigateOptions {
   /** Open in a new app tab instead of the current one. */
   newTab?: boolean;
+  /** Replace the current history entry (a redirect), so Back does not come back here. */
+  replace?: boolean;
 }
 
 /**
@@ -18,7 +20,9 @@ export function useAppNavigate() {
   return useCallback(
     (path: string, options: NavigateOptions = {}) => {
       if (options.newTab === true) openTab(path);
-      if (router.state.location.href !== path) router.history.push(path);
+      if (router.state.location.href === path) return;
+      if (options.replace === true) router.history.replace(path);
+      else router.history.push(path);
     },
     [router, openTab],
   );

@@ -7,7 +7,6 @@ import {
   isAttachment,
   linkTargetFor,
   newNoteText,
-  NOTE_TYPES,
   noteName,
   prettyName,
   noteType,
@@ -53,7 +52,9 @@ import { FileTree } from './FileTree';
 import { NoteInfoCard } from './NoteInfoCard';
 import { NoteWizard, type WizardResult } from './NoteWizard';
 import { ImportPanel } from './ImportPanel';
-import { NoteTypeIcon } from './NoteTypeIcon';
+import { NoteTypeIcon } from '../../app/journal/NoteTypeIcon';
+import { useAllNoteTypes } from '../../app/journal/noteTypes';
+import { NoteKindsDialog } from './NoteKindsDialog';
 import { EmbedContent } from '../../app/journal/notes/JournalEmbed';
 import { LinkPreviewContent, LinkPreviews } from './LinkPreview';
 import { NoteEditor } from '../../app/journal/notes/NoteEditor';
@@ -98,6 +99,8 @@ export function JournalPage({ note }: { note: string | undefined }) {
   const codeMode = useJournalPrefs((s) => s.codeMode);
   const setCodeMode = useJournalPrefs((s) => s.setCodeMode);
   const [wizard, setWizard] = useState<Wizard | null>(null);
+  const allTypes = useAllNoteTypes();
+  const [editingKinds, setEditingKinds] = useState(false);
   const [creating, setCreating] = useState<Creating | null>(null);
   const [importing, setImporting] = useState(false);
 
@@ -108,6 +111,19 @@ export function JournalPage({ note }: { note: string | undefined }) {
   useEffect(() => {
     if (campaign && journal.campaignId !== campaign.id) void journal.load(campaign.id);
   }, [campaign, journal]);
+
+  // The journal opens on the note last open in this campaign.
+  const journalReady = journal.loaded && journal.campaignId === campaign?.id;
+  useEffect(() => {
+    if (!campaign || !journalReady) return;
+    const prefs = useJournalPrefs.getState();
+    if (note) {
+      if (journal.notes.has(note)) prefs.setLastNote(campaign.id, note);
+      return;
+    }
+    const last = prefs.lastNote[campaign.id];
+    if (last && journal.notes.has(last)) navigate(journalPath(last), { replace: true });
+  }, [campaign, journalReady, note, journal.notes, navigate]);
 
   const paths = useMemo(() => [...journal.notes.keys()].sort(), [journal.notes]);
   const index = useMemo(() => buildIndex(journal.notes), [journal.notes]);
@@ -438,7 +454,11 @@ export function JournalPage({ note }: { note: string | undefined }) {
   const fileTree = (
     <FileTree
       templates={templates}
-      noteTypes={NOTE_TYPES}
+      noteTypes={allTypes}
+      onEditKinds={() => {
+        setEditingKinds(true);
+        setFilesOpen(false);
+      }}
       onNewFromTemplate={(p) => {
         setCreating({ kind: 'template', path: p });
         setFilesOpen(false);
@@ -507,6 +527,12 @@ export function JournalPage({ note }: { note: string | undefined }) {
 
   return (
     <JournalViewContext.Provider value={view}>
+      <NoteKindsDialog
+        open={editingKinds}
+        onClose={() => {
+          setEditingKinds(false);
+        }}
+      />
       <div className="flex h-full">
         <aside className="hidden w-64 shrink-0 flex-col overflow-y-auto border-r border-border bg-surface py-3 md:flex">
           {tree}
@@ -689,6 +715,7 @@ export function JournalPage({ note }: { note: string | undefined }) {
               </article>
             ) : (
               <EmptyJournal
+                noteTypes={allTypes}
                 campaign={campaign.name}
                 count={paths.length}
                 missing={note !== undefined}
@@ -843,7 +870,9 @@ function EmptyJournal({
   onNew,
   onNewOfType,
   onImport,
+  noteTypes,
 }: {
+  noteTypes: readonly NoteType[];
   campaign: string;
   count: number;
   missing: boolean;
@@ -870,7 +899,7 @@ function EmptyJournal({
         <div className="mt-6">
           <p className="text-xs font-semibold tracking-wide text-muted uppercase">Or start a…</p>
           <div className="mt-2 flex flex-wrap justify-center gap-2">
-            {NOTE_TYPES.map((t) => (
+            {noteTypes.map((t) => (
               <Button
                 key={t.id}
                 size="sm"

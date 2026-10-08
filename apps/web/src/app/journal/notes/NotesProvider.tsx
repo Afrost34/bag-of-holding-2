@@ -8,14 +8,14 @@ import {
   resolveLinkPath,
 } from '@boh/journal';
 import { useEffect, useMemo, type ReactNode } from 'react';
-import type { CampaignEdition } from '../../app/campaigns/model';
-import { entityPath } from '../../app/data/entities';
-import { resolveCompendiumRef } from '../../app/journal/compendium';
-import { JournalViewContext, type JournalView } from '../../app/journal/notes/context';
-import { EmbedContent } from '../../app/journal/notes/JournalEmbed';
-import { journalPath } from '../../app/journal/paths';
-import { useJournal } from '../../app/journal/store';
-import { useAppNavigate } from '../../app/navigation';
+import type { CampaignEdition } from '../../campaigns/model';
+import { entityPath } from '../../data/entities';
+import { resolveCompendiumRef } from '../../journal/compendium';
+import { JournalViewContext, type JournalView } from './context';
+import { EmbedContent } from './JournalEmbed';
+import { journalPath } from '../../journal/paths';
+import { useJournal } from '../../journal/store';
+import { useAppNavigate } from '../../navigation';
 
 /**
  * Lets note cards (and the player window) show a campaign's journal notes, read-only: links open

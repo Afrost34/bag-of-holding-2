@@ -36,6 +36,7 @@ import { Route as CompendiumAdventureIdRouteImport } from './routes/compendium_.
 import { Route as CompendiumBookIdRouteImport } from './routes/compendium_.book.$id'
 import { Route as CompendiumLibraryKindRouteImport } from './routes/compendium_.library.$kind'
 import { Route as CompendiumListCategoryRouteImport } from './routes/compendium_.list.$category'
+import { Route as CompendiumNotesTypeRouteImport } from './routes/compendium_.notes.$type'
 import { Route as CompendiumQuickrefIdRouteImport } from './routes/compendium_.quickref.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -173,6 +174,11 @@ const CompendiumListCategoryRoute = CompendiumListCategoryRouteImport.update({
   path: '/compendium/list/$category',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CompendiumNotesTypeRoute = CompendiumNotesTypeRouteImport.update({
+  id: '/compendium_/notes/$type',
+  path: '/compendium/notes/$type',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CompendiumQuickrefIdRoute = CompendiumQuickrefIdRouteImport.update({
   id: '/compendium_/quickref/$id',
   path: '/compendium/quickref/$id',
@@ -207,6 +213,7 @@ export interface FileRoutesByFullPath {
   '/compendium/book/$id': typeof CompendiumBookIdRoute
   '/compendium/library/$kind': typeof CompendiumLibraryKindRoute
   '/compendium/list/$category': typeof CompendiumListCategoryRoute
+  '/compendium/notes/$type': typeof CompendiumNotesTypeRoute
   '/compendium/quickref/$id': typeof CompendiumQuickrefIdRoute
 }
 export interface FileRoutesByTo {
@@ -237,6 +244,7 @@ export interface FileRoutesByTo {
   '/compendium/book/$id': typeof CompendiumBookIdRoute
   '/compendium/library/$kind': typeof CompendiumLibraryKindRoute
   '/compendium/list/$category': typeof CompendiumListCategoryRoute
+  '/compendium/notes/$type': typeof CompendiumNotesTypeRoute
   '/compendium/quickref/$id': typeof CompendiumQuickrefIdRoute
 }
 export interface FileRoutesById {
@@ -268,6 +276,7 @@ export interface FileRoutesById {
   '/compendium_/book/$id': typeof CompendiumBookIdRoute
   '/compendium_/library/$kind': typeof CompendiumLibraryKindRoute
   '/compendium_/list/$category': typeof CompendiumListCategoryRoute
+  '/compendium_/notes/$type': typeof CompendiumNotesTypeRoute
   '/compendium_/quickref/$id': typeof CompendiumQuickrefIdRoute
 }
 export interface FileRouteTypes {
@@ -300,6 +309,7 @@ export interface FileRouteTypes {
     | '/compendium/book/$id'
     | '/compendium/library/$kind'
     | '/compendium/list/$category'
+    | '/compendium/notes/$type'
     | '/compendium/quickref/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -330,6 +340,7 @@ export interface FileRouteTypes {
     | '/compendium/book/$id'
     | '/compendium/library/$kind'
     | '/compendium/list/$category'
+    | '/compendium/notes/$type'
     | '/compendium/quickref/$id'
   id:
     | '__root__'
@@ -360,6 +371,7 @@ export interface FileRouteTypes {
     | '/compendium_/book/$id'
     | '/compendium_/library/$kind'
     | '/compendium_/list/$category'
+    | '/compendium_/notes/$type'
     | '/compendium_/quickref/$id'
   fileRoutesById: FileRoutesById
 }
@@ -391,6 +403,7 @@ export interface RootRouteChildren {
   CompendiumBookIdRoute: typeof CompendiumBookIdRoute
   CompendiumLibraryKindRoute: typeof CompendiumLibraryKindRoute
   CompendiumListCategoryRoute: typeof CompendiumListCategoryRoute
+  CompendiumNotesTypeRoute: typeof CompendiumNotesTypeRoute
   CompendiumQuickrefIdRoute: typeof CompendiumQuickrefIdRoute
 }
 
@@ -585,6 +598,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompendiumListCategoryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/compendium_/notes/$type': {
+      id: '/compendium_/notes/$type'
+      path: '/compendium/notes/$type'
+      fullPath: '/compendium/notes/$type'
+      preLoaderRoute: typeof CompendiumNotesTypeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/compendium_/quickref/$id': {
       id: '/compendium_/quickref/$id'
       path: '/compendium/quickref/$id'
@@ -623,6 +643,7 @@ const rootRouteChildren: RootRouteChildren = {
   CompendiumBookIdRoute: CompendiumBookIdRoute,
   CompendiumLibraryKindRoute: CompendiumLibraryKindRoute,
   CompendiumListCategoryRoute: CompendiumListCategoryRoute,
+  CompendiumNotesTypeRoute: CompendiumNotesTypeRoute,
   CompendiumQuickrefIdRoute: CompendiumQuickrefIdRoute,
 }
 export const routeTree = rootRouteImport

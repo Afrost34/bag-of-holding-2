@@ -8,7 +8,7 @@ import { useJournal } from '../../app/journal/store';
 import { sortInitiative, timerLeft, type BoardCard } from '../../app/boards/model';
 import { ImageBody } from './bodies';
 import { MapBody } from './widgetBodies';
-import { NotesProvider } from './noteView';
+import { NotesProvider } from '../../app/journal/notes/NotesProvider';
 
 /** The player window: what the DM shows from a board, filling the screen. */
 export function PlayerPage() {
