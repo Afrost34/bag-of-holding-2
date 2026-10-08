@@ -412,4 +412,12 @@ test('Send to → Map pins a compendium entry on a new map', async ({ page }) =>
   await expect(
     page.getByRole('region', { name: 'Layers' }).getByRole('listitem').first(),
   ).toContainText('1');
+  if (isPhone(page)) return;
+  // Ctrl+click on the pin, while editing: its entry opens in a new tab.
+  const box = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
+  if (!box) throw new Error('no canvas');
+  await page.keyboard.down('Control');
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2 - 12);
+  await page.keyboard.up('Control');
+  await expect(page.getByRole('tab', { selected: true })).toHaveText(/Goblin/);
 });

@@ -301,24 +301,37 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
     };
   }, [focus, focused, boardId, board, flow]);
 
-  const [panel, setPanel] = useState<{ kind: PanelKind; at?: { x: number; y: number } } | null>(
-    null,
-  );
+  const [panel, setPanel] = useState<{
+    kind: PanelKind;
+    at?: { x: number; y: number };
+    near?: { left: number; top: number };
+  } | null>(null);
   // Right-click on the board: the Add menu, there.
   const [menu, setMenu] = useState<{ x: number; y: number; at: { x: number; y: number } } | null>(
     null,
   );
+  /** A panel's place by a right-clicked point, kept inside the canvas. */
+  const panelSpot = (at: { x: number; y: number }) => {
+    const r = wrapper.current?.getBoundingClientRect();
+    if (!r) return { left: 8, top: 8 };
+    const p = flow.flowToScreenPosition(at);
+    const width = Math.min(384, r.width - 16);
+    return {
+      left: Math.round(Math.max(8, Math.min(p.x - r.left, r.width - width - 8))),
+      top: Math.round(Math.max(8, Math.min(p.y - r.top, r.height - 320))),
+    };
+  };
+
   const options = useAddOptions(
     board,
     (contents, at) => {
       add(contents, at);
     },
     (kind, at) => {
-      setPanel({ kind, ...(at ? { at } : {}) });
+      setPanel({ kind, ...(at ? { at, near: panelSpot(at) } : {}) });
     },
   );
   const [confirmDelete, setConfirmDelete] = useState(false);
-
   return (
     <BoardActionsContext.Provider value={actions}>
       <Toolbar
@@ -365,6 +378,7 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
         {panel && (
           <Panel
             title={PANEL_TITLES[panel.kind]}
+            {...(panel.near ? { near: panel.near } : {})}
             onClose={() => {
               setPanel(null);
             }}
@@ -445,7 +459,14 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
           minZoom={0.05}
           maxZoom={2}
           onlyRenderVisibleElements
-          deleteKeyCode={null}
+          deleteKeyCode={['Delete', 'Backspace']}
+          onBeforeDelete={({ nodes: gone }) => {
+            // Only the cards picked go (a frame's cards stay, freed), as the card's own delete
+            // button does; the board store then redraws the canvas.
+            const ids = gone.filter((n) => n.selected).map((n) => n.id);
+            if (ids.length) commit((b) => ids.reduce(removeBoardCard, b));
+            return Promise.resolve(false);
+          }}
           nodesConnectable={false}
           zoomOnDoubleClick={false}
           onPaneContextMenu={(e) => {
@@ -797,17 +818,21 @@ function CharacterPicker({
 
 function Panel({
   title,
+  near,
   onClose,
   children,
 }: {
   title: string;
+  /** Where the board was right-clicked (px in the canvas): the panel opens there. */
+  near?: { left: number; top: number };
   onClose: () => void;
   children: ReactNode;
 }) {
   return (
     <section
       aria-label={title}
-      className="absolute top-2 right-2 left-2 z-20 rounded-lg border border-border bg-surface p-3 shadow-card sm:left-auto sm:w-96"
+      style={near}
+      className={`absolute z-20 rounded-lg border border-border bg-surface p-3 shadow-card ${near ? 'w-96 max-w-[calc(100%-1rem)]' : 'top-2 right-2 left-2 sm:left-auto sm:w-96'}`}
     >
       <div className="mb-2 flex items-center">
         <h2 className="flex-1 font-serif font-bold">{title}</h2>
