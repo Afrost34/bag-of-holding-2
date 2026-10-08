@@ -16,12 +16,10 @@ import { AppLink } from '../../app/AppLink';
 import {
   absolutePosition,
   addBoardCards,
-  SHOWABLE_KINDS,
-  toggleShown,
+  contentOf,
   COLLAPSED_H,
   dropCard,
   moveBoardCards,
-  placeForPlayers,
   removeBoardCard,
   setFrame,
   SIZES,
@@ -31,15 +29,10 @@ import {
   type BoardCard,
   type CardContent,
 } from '../../app/boards/model';
-import {
-  onPlayerAction,
-  openPlayerWindow,
-  openPlayerWindowIfClosed,
-  showToPlayers,
-} from '../../app/boards/player';
+import { openPlayerWindow, sendToPlayers } from '../../app/boards/player';
 import { useBoard, useBoards } from '../../app/boards/store';
 import { useCampaigns } from '../../app/campaigns/store';
-import { entityPath, loadEntity } from '../../app/data/entities';
+import { entityPath } from '../../app/data/entities';
 import { useEncounters } from '../../app/encounters/store';
 import { journalPath } from '../../app/journal/paths';
 import { generateNpc } from '../../app/boards/npc';
@@ -51,7 +44,7 @@ import { EntitySearch } from '../../app/search/EntitySearch';
 import { shrinkImage } from '../../app/shrinkImage';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 import { useTheme } from '../../app/theme';
-import { BoardActionsContext, type BoardActions } from './context';
+import { BoardActionsContext, PlayersBoardContext, type BoardActions } from './context';
 import { KIND_ICONS, KIND_LABELS, type CardNodeType } from './kinds';
 import { CardNode, FrameNode, StackNode } from './nodes';
 import { NotesProvider } from '../../app/journal/notes/NotesProvider';
@@ -163,15 +156,20 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
         });
       },
       show: (card) => {
-        commit((b) => toggleShown(b, card.id));
-        if (!card.shown) openPlayerWindowIfClosed();
+        // A stack sends its cards; anything else, a copy of itself.
+        const current = useBoards.getState().boards.find((b) => b.id === boardId);
+        const cards =
+          card.kind === 'stack'
+            ? card.items.flatMap((id) => current?.cards.find((c) => c.id === id) ?? [])
+            : [card];
+        void sendToPlayers(cards.map(contentOf), campaignId);
       },
       open: (card, newTab) => {
         if (card.kind === 'entity') navigate(entityPath(card.key), { newTab });
         if (card.kind === 'note') navigate(journalPath(card.path), { newTab });
       },
     }),
-    [commit, navigate],
+    [commit, navigate, boardId, campaignId],
   );
 
   // React Flow moves nodes while dragging; the board is saved when a drag ends.
@@ -233,70 +231,6 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
       );
   };
 
-  // The player window shows the cards marked as shown, and follows them as they change.
-  const shownKey = board.cards
-    .filter((c) => c.shown)
-    .map((c) => JSON.stringify(c))
-    .join('|');
-  useEffect(() => {
-    const cards = board.cards.filter((c) => c.shown && SHOWABLE_KINDS.has(c.kind));
-    let live = true;
-    const t = setTimeout(() => {
-      void Promise.all(
-        cards.map(async (card) => {
-          const entity = card.kind === 'entity' ? await loadEntity(card.key) : undefined;
-          return {
-            card,
-            title:
-              card.title ??
-              (card.kind === 'entity'
-                ? (entity?.name ?? '')
-                : card.kind === 'note'
-                  ? (card.path.split('/').pop()?.replace(/\.md$/i, '') ?? '')
-                  : card.kind === 'npc'
-                    ? card.npc.name
-                    : KIND_LABELS[card.kind]),
-            ...(entity ? { entity } : {}),
-          };
-        }),
-      ).then((shown) => {
-        if (!live) return;
-        showToPlayers(
-          shown.length
-            ? {
-                kind: 'board',
-                boardId,
-                name: board.name,
-                cards: shown,
-                ...(campaignId ? { campaignId } : {}),
-              }
-            : null,
-          false,
-        );
-      });
-    }, 250);
-    return () => {
-      live = false;
-      clearTimeout(t);
-    };
-    // `shownKey` stands for the shown cards (the board object changes on every save).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shownKey, board.name, campaignId]);
-
-  // What the DM does in the player window (move, resize, take off) comes back to this board.
-  useEffect(
-    () =>
-      onPlayerAction((a) => {
-        if (a.boardId !== boardId) return;
-        if (a.type === 'place') commit((b) => placeForPlayers(b, a.cardId, a.place));
-        else
-          commit((b) =>
-            b.cards.find((c) => c.id === a.cardId)?.shown ? toggleShown(b, a.cardId) : b,
-          );
-      }),
-    [boardId, commit],
-  );
-
   // A card asked for in the URL is brought into view once the canvas is ready.
   const [focused, setFocused] = useState<string | null>(null);
   useEffect(() => {
@@ -355,161 +289,163 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   return (
     <BoardActionsContext.Provider value={actions}>
-      <Toolbar
-        board={board}
-        onRename={(name) => {
-          commit((b) => ({ ...b, name }));
-        }}
-        options={options}
-        onDelete={() => {
-          setConfirmDelete(true);
-        }}
-      />
-      {confirmDelete && (
-        <div
-          role="alertdialog"
-          aria-label="Delete this board?"
-          className="flex flex-wrap items-center gap-2 border-b border-border bg-surface px-4 py-2 text-sm"
-        >
-          <span className="flex-1">Delete “{board.name}” and all its cards?</span>
-          <Button
-            variant="primary"
-            onClick={() => {
-              void useBoards
-                .getState()
-                .remove(board.id)
-                .then(() => {
-                  navigate('/boards');
-                });
-            }}
+      <PlayersBoardContext.Provider value={board.players === true}>
+        <Toolbar
+          board={board}
+          onRename={(name) => {
+            commit((b) => ({ ...b, name }));
+          }}
+          options={options}
+          onDelete={() => {
+            setConfirmDelete(true);
+          }}
+        />
+        {confirmDelete && (
+          <div
+            role="alertdialog"
+            aria-label="Delete this board?"
+            className="flex flex-wrap items-center gap-2 border-b border-border bg-surface px-4 py-2 text-sm"
           >
-            Delete
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setConfirmDelete(false);
-            }}
-          >
-            Cancel
-          </Button>
-        </div>
-      )}
-      <div ref={wrapper} className="relative min-h-0 flex-1">
-        {panel && (
-          <Panel
-            title={PANEL_TITLES[panel.kind]}
-            {...(panel.near ? { near: panel.near } : {})}
-            onClose={() => {
-              setPanel(null);
-            }}
-          >
-            {panel.kind === 'entity' ? (
-              <EntitySearch
-                label="Find a compendium entry"
-                placeholder="Spell, item, creature…"
-                onAdd={(key) => {
-                  add([{ kind: 'entity', key }], panel.at);
-                }}
-              />
-            ) : panel.kind === 'note' ? (
-              <NotePicker
-                onPick={(path) => {
-                  add([{ kind: 'note', path }], panel.at);
-                }}
-              />
-            ) : panel.kind === 'map' ? (
-              <MapPicker
-                campaign={board.campaign}
-                onPick={(map) => {
-                  add([{ kind: 'map', map }], panel.at);
-                  setPanel(null);
-                }}
-              />
-            ) : (
-              <CharacterPicker
-                campaign={board.campaign}
-                onPick={(character) => {
-                  add(
-                    [
-                      {
-                        kind: 'character',
-                        character,
-                        show: { spells: false, features: false, inventory: false },
-                      },
-                    ],
-                    panel.at,
-                  );
-                  setPanel(null);
-                }}
-              />
-            )}
-          </Panel>
+            <span className="flex-1">Delete “{board.name}” and all its cards?</span>
+            <Button
+              variant="primary"
+              onClick={() => {
+                void useBoards
+                  .getState()
+                  .remove(board.id)
+                  .then(() => {
+                    navigate('/boards');
+                  });
+              }}
+            >
+              Delete
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setConfirmDelete(false);
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
         )}
-        {menu && (
-          <ContextAddMenu
-            x={menu.x}
-            y={menu.y}
-            options={options}
-            at={menu.at}
-            onClose={() => {
+        <div ref={wrapper} className="relative min-h-0 flex-1">
+          {panel && (
+            <Panel
+              title={PANEL_TITLES[panel.kind]}
+              {...(panel.near ? { near: panel.near } : {})}
+              onClose={() => {
+                setPanel(null);
+              }}
+            >
+              {panel.kind === 'entity' ? (
+                <EntitySearch
+                  label="Find a compendium entry"
+                  placeholder="Spell, item, creature…"
+                  onAdd={(key) => {
+                    add([{ kind: 'entity', key }], panel.at);
+                  }}
+                />
+              ) : panel.kind === 'note' ? (
+                <NotePicker
+                  onPick={(path) => {
+                    add([{ kind: 'note', path }], panel.at);
+                  }}
+                />
+              ) : panel.kind === 'map' ? (
+                <MapPicker
+                  campaign={board.campaign}
+                  onPick={(map) => {
+                    add([{ kind: 'map', map }], panel.at);
+                    setPanel(null);
+                  }}
+                />
+              ) : (
+                <CharacterPicker
+                  campaign={board.campaign}
+                  onPick={(character) => {
+                    add(
+                      [
+                        {
+                          kind: 'character',
+                          character,
+                          show: { spells: false, features: false, inventory: false },
+                        },
+                      ],
+                      panel.at,
+                    );
+                    setPanel(null);
+                  }}
+                />
+              )}
+            </Panel>
+          )}
+          {menu && (
+            <ContextAddMenu
+              x={menu.x}
+              y={menu.y}
+              options={options}
+              at={menu.at}
+              onClose={() => {
+                setMenu(null);
+              }}
+            />
+          )}
+          <ReactFlow
+            nodes={nodes}
+            nodeTypes={NODE_TYPES}
+            onNodesChange={onNodesChange}
+            onNodeDragStop={(_, node, dragged) => {
+              const moved = new Map(dragged.map((n) => [n.id, n.position]));
+              commit((b) => {
+                const next = moveBoardCards(b, moved);
+                return dragged.length === 1 ? dropCard(next, node.id) : next;
+              });
+            }}
+            onMoveEnd={(_, vp) => {
+              commit((b) => ({
+                ...b,
+                viewport: { x: Math.round(vp.x), y: Math.round(vp.y), zoom: vp.zoom },
+              }));
+            }}
+            {...(board.viewport
+              ? { defaultViewport: board.viewport }
+              : { fitView: true, fitViewOptions: { maxZoom: 1 } })}
+            minZoom={0.05}
+            maxZoom={2}
+            onlyRenderVisibleElements
+            deleteKeyCode={['Delete', 'Backspace']}
+            onBeforeDelete={({ nodes: gone }) => {
+              // Only the cards picked go (a frame's cards stay, freed), as the card's own delete
+              // button does; the board store then redraws the canvas.
+              const ids = gone.filter((n) => n.selected).map((n) => n.id);
+              if (ids.length) commit((b) => ids.reduce(removeBoardCard, b));
+              return Promise.resolve(false);
+            }}
+            nodesConnectable={false}
+            zoomOnDoubleClick={false}
+            onPaneContextMenu={(e) => {
+              e.preventDefault();
+              const r = wrapper.current?.getBoundingClientRect();
+              if (!r) return;
+              setMenu({
+                x: e.clientX - r.left,
+                y: e.clientY - r.top,
+                at: flow.screenToFlowPosition({ x: e.clientX, y: e.clientY }),
+              });
+            }}
+            onPaneClick={() => {
               setMenu(null);
             }}
-          />
-        )}
-        <ReactFlow
-          nodes={nodes}
-          nodeTypes={NODE_TYPES}
-          onNodesChange={onNodesChange}
-          onNodeDragStop={(_, node, dragged) => {
-            const moved = new Map(dragged.map((n) => [n.id, n.position]));
-            commit((b) => {
-              const next = moveBoardCards(b, moved);
-              return dragged.length === 1 ? dropCard(next, node.id) : next;
-            });
-          }}
-          onMoveEnd={(_, vp) => {
-            commit((b) => ({
-              ...b,
-              viewport: { x: Math.round(vp.x), y: Math.round(vp.y), zoom: vp.zoom },
-            }));
-          }}
-          {...(board.viewport
-            ? { defaultViewport: board.viewport }
-            : { fitView: true, fitViewOptions: { maxZoom: 1 } })}
-          minZoom={0.05}
-          maxZoom={2}
-          onlyRenderVisibleElements
-          deleteKeyCode={['Delete', 'Backspace']}
-          onBeforeDelete={({ nodes: gone }) => {
-            // Only the cards picked go (a frame's cards stay, freed), as the card's own delete
-            // button does; the board store then redraws the canvas.
-            const ids = gone.filter((n) => n.selected).map((n) => n.id);
-            if (ids.length) commit((b) => ids.reduce(removeBoardCard, b));
-            return Promise.resolve(false);
-          }}
-          nodesConnectable={false}
-          zoomOnDoubleClick={false}
-          onPaneContextMenu={(e) => {
-            e.preventDefault();
-            const r = wrapper.current?.getBoundingClientRect();
-            if (!r) return;
-            setMenu({
-              x: e.clientX - r.left,
-              y: e.clientY - r.top,
-              at: flow.screenToFlowPosition({ x: e.clientX, y: e.clientY }),
-            });
-          }}
-          onPaneClick={() => {
-            setMenu(null);
-          }}
-          colorMode={theme}
-          aria-label="Board canvas"
-        >
-          <Background gap={24} />
-          <Controls showInteractive={false} />
-        </ReactFlow>
-      </div>
+            colorMode={theme}
+            aria-label="Board canvas"
+          >
+            <Background gap={24} />
+            <Controls showInteractive={false} />
+          </ReactFlow>
+        </div>
+      </PlayersBoardContext.Provider>
     </BoardActionsContext.Provider>
   );
 }
@@ -697,15 +633,19 @@ function Toolbar({
   onDelete: () => void;
 }) {
   const [name, setName] = useState(board.name);
+  // The players' board (the player window) has no other board to go back to, and stays.
+  const players = board.players === true;
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-border bg-surface px-3 py-2">
-      <AppLink
-        to="/boards"
-        aria-label="All boards"
-        className="rounded p-1 text-muted hover:bg-sunken hover:text-text"
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden />
-      </AppLink>
+      {!players && (
+        <AppLink
+          to="/boards"
+          aria-label="All boards"
+          className="rounded p-1 text-muted hover:bg-sunken hover:text-text"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden />
+        </AppLink>
+      )}
       <input
         value={name}
         aria-label="Board name"
@@ -749,14 +689,18 @@ function Toolbar({
           </Menu.Content>
         </Menu.Portal>
       </Menu.Root>
-      <Button variant="ghost" onClick={openPlayerWindow}>
-        <MonitorUp className="h-4 w-4" aria-hidden />
-        <span className="hidden sm:inline">Player window</span>
-        <span className="sr-only sm:hidden">Player window</span>
-      </Button>
-      <Button variant="ghost" aria-label="Delete board" onClick={onDelete}>
-        <Trash2 className="h-4 w-4" aria-hidden />
-      </Button>
+      {!players && (
+        <>
+          <Button variant="ghost" onClick={openPlayerWindow}>
+            <MonitorUp className="h-4 w-4" aria-hidden />
+            <span className="hidden sm:inline">Player window</span>
+            <span className="sr-only sm:hidden">Player window</span>
+          </Button>
+          <Button variant="ghost" aria-label="Delete board" onClick={onDelete}>
+            <Trash2 className="h-4 w-4" aria-hidden />
+          </Button>
+        </>
+      )}
     </div>
   );
 }

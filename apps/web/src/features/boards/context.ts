@@ -14,7 +14,7 @@ export interface BoardActions {
   unframe: (id: string) => void;
   /** Adds cards beside a card (a combat started from an encounter). */
   addBeside: (id: string, contents: CardContent[]) => void;
-  /** Shows a card in the player window. */
+  /** Sends a copy of a card to the players' board (the player window). */
   show: (card: BoardCard) => void;
   /** Opens what the card shows (a compendium page, a journal note) in the app. */
   open: (card: BoardCard, newTab: boolean) => void;
@@ -27,3 +27,8 @@ export function useBoardActions(): BoardActions {
   if (!actions) throw new Error('useBoardActions outside a board');
   return actions;
 }
+
+/** Whether the board is the players' board (the player window): no sending to players from it. */
+export const PlayersBoardContext = createContext(false);
+
+export const useIsPlayersBoard = () => useContext(PlayersBoardContext);

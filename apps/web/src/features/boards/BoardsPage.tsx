@@ -14,7 +14,9 @@ const LIBRARY = '@library';
 /** Boards: DM canvases of cards, the open campaign's first. */
 export function BoardsPage() {
   usePageTitle('Boards');
-  const { boards: sheets, loaded, load, create, remove } = useBoards();
+  const { boards: all, loaded, load, create, remove } = useBoards();
+  // The players' boards live in the player window, not with the DM's boards.
+  const sheets = all.filter((b) => b.players !== true);
   const { campaigns, loaded: campaignsLoaded, load: loadCampaigns } = useCampaigns();
   const active = useActiveCampaign();
   const navigate = useAppNavigate();

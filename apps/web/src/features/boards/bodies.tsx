@@ -20,7 +20,7 @@ import { NoteViewer } from '../../app/journal/notes/NoteViewer';
 import { useJournal } from '../../app/journal/store';
 import { CalendarGlance } from '../../app/calendar/CalendarGlance';
 import { CombatBody, EncounterBody } from './combatBodies';
-import { useBoardActions } from './context';
+import { useBoardActions, useIsPlayersBoard } from './context';
 import { CharacterBody, MapBody, NpcBody } from './widgetBodies';
 
 /** What a card shows under its title bar. */
@@ -61,7 +61,8 @@ export function CardBody({ card }: { card: BoardCard }) {
 /** The calendar of the board's campaign (boards show their campaign's journal and calendar). */
 function CalendarBody() {
   const campaignId = useContext(JournalViewContext)?.campaignId;
-  return <CalendarGlance campaignId={campaignId} />;
+  // On the players' board: no secrets and none of the DM's buttons.
+  return <CalendarGlance campaignId={campaignId} forPlayers={useIsPlayersBoard()} />;
 }
 
 function EntityBody({ entityKey }: { entityKey: string }) {

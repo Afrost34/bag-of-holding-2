@@ -117,7 +117,10 @@ test('a board holds compendium and board cards, stacked and framed', async ({ pa
   await expect(page.getByText('No boards yet.')).toBeVisible();
 });
 
-test('a card shown to players opens in the player window', async ({ page, context }) => {
+test('the player window is a board of its own, that cards are sent to', async ({
+  page,
+  context,
+}) => {
   test.skip(isPhone(page), 'The player window is for a second screen.');
   await page.goto(`./#/compendium/${encodeURIComponent('spell:fireball@xphb')}`);
   await page.getByRole('button', { name: 'Send to' }).click();
@@ -126,42 +129,37 @@ test('a card shown to players opens in the player window', async ({ page, contex
   await page.getByRole('button', { name: 'Fireball menu', exact: true }).click();
   const [player] = await Promise.all([
     context.waitForEvent('page'),
-    page.getByRole('menuitem', { name: 'Show to players' }).click(),
+    page.getByRole('menuitem', { name: 'Send to players' }).click(),
   ]);
-  // The players see a board of the shown cards (here one), not the app.
-  await expect(player.getByRole('region', { name: 'Fireball' })).toBeVisible();
+  // A copy on the players' board, with its text read through the DM's window, and no app around.
+  const fireball = player.getByRole('region', { name: 'Fireball', exact: true });
+  await expect(fireball).toContainText('Casting Time');
   await expect(player.getByRole('navigation')).toHaveCount(0);
-  await expect(page.getByLabel('Shown to players')).toBeVisible();
+  await expect(player.getByRole('button', { name: 'Delete board' })).toHaveCount(0);
+
+  // It is a board: cards are added and removed there.
+  await player.getByRole('button', { name: 'Add', exact: true }).click();
+  await player.getByRole('menuitem', { name: 'Text' }).click();
+  await player.getByRole('textbox', { name: 'Text' }).fill('Welcome to Rustcrown');
+  await fireball.locator('.card-drag').first().click();
+  await player.keyboard.press('Delete');
+  await expect(fireball).toHaveCount(0);
+
+  // Sent again while it is open: it arrives there, beside what is on the board.
+  await page.bringToFront();
+  await page.getByRole('button', { name: 'Fireball menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Send to players' }).click();
+  await expect(fireball).toBeVisible();
+  await expect(player.getByRole('textbox', { name: 'Text' })).toHaveValue('Welcome to Rustcrown');
+
   // The player window never takes the data: the DM's window, reloaded, still has it.
-  const board = page.url();
   await page.goto(`./#/compendium/${encodeURIComponent('spell:fireball@xphb')}`);
   await page.reload();
   await expect(page.getByRole('heading', { level: 1, name: 'Fireball' })).toBeVisible();
   await expect(page.getByText('open in another tab or window')).toHaveCount(0);
-  await page.goto(board);
-  // Hidden again: gone from their window.
-  await page.getByRole('button', { name: 'Fireball menu', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Hide from players' }).click();
-  await expect(player.getByRole('region', { name: 'Fireball' })).toHaveCount(0);
-
-  // The player window is a board: a card moved there stays put; taken off there, it is hidden.
-  await page.getByRole('button', { name: 'Fireball menu', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Show to players' }).click();
-  const shown = player.getByRole('region', { name: 'Fireball' });
-  await expect(shown).toBeVisible();
-  const bar = await shown.locator('header').boundingBox();
-  if (!bar) throw new Error('no title bar');
-  await player.mouse.move(bar.x + 40, bar.y + bar.height / 2);
-  await player.mouse.down();
-  await player.mouse.move(bar.x + 44, bar.y + bar.height / 2 + 4, { steps: 2 });
-  await player.mouse.move(bar.x + 140, bar.y + 120, { steps: 10 });
-  await player.mouse.up();
-  const moved = await shown.locator('header').boundingBox();
-  await page.waitForTimeout(600);
-  await expect.poll(async () => (await shown.locator('header').boundingBox())?.x).toBe(moved?.x);
-  await shown.getByRole('button', { name: 'Take Fireball off the screen' }).click();
-  await expect(shown).toHaveCount(0);
-  await expect(page.getByLabel('Shown to players')).toHaveCount(0);
+  // The players' board is not one of the DM's boards.
+  await page.goto('./#/boards');
+  await expect(page.getByRole('link', { name: /Players/ })).toHaveCount(0);
 });
 
 test('right-click adds where clicked; the NPC generator; frames rename', async ({ page }) => {

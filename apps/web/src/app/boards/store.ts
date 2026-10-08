@@ -8,6 +8,7 @@ import {
   serializeBoard,
   boardDir,
   boardPath,
+  playersBoardId,
   type Board,
   type CardContent,
 } from './model';
@@ -26,6 +27,8 @@ interface BoardsStore {
   save: (board: Board) => void;
   /** Adds cards right of what is on a board. */
   send: (boardId: string, contents: readonly CardContent[]) => void;
+  /** The players' board of a campaign (or the library), made when first needed. */
+  ensurePlayers: (campaign?: string) => Promise<Board>;
   flush: () => Promise<void>;
   remove: (id: string) => Promise<void>;
 }
@@ -114,6 +117,24 @@ export const useBoards = create<BoardsStore>()((set, get) => ({
   send: (boardId, contents) => {
     const board = get().boards.find((s) => s.id === boardId);
     if (board) get().save(addBoardCards(board, contents).board);
+  },
+
+  ensurePlayers: async (campaign) => {
+    if (!get().loaded) await get().load();
+    const id = playersBoardId(campaign);
+    const found = get().boards.find((b) => b.id === id);
+    if (found) return found;
+    const now = new Date().toISOString();
+    const board: Board = {
+      ...newBoard('Players', [], now),
+      id,
+      players: true,
+      ...(campaign ? { campaign } : {}),
+    };
+    const store = await userStore();
+    await store.writeFile(boardPath(id, campaign), serializeBoard(board));
+    set({ boards: sortBoards([...get().boards, board]) });
+    return board;
   },
 
   flush: writeNow,
