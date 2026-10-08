@@ -7,7 +7,7 @@ import { DiceTray } from '../dice/DiceTray';
 import { RollInputDialog } from '../dice/RollInputDialog';
 import { RollResults } from '../dice/RollResults';
 import { AppRendererProvider } from '../renderer/services';
-import { SearchPalette } from '../search/SearchPalette';
+import { LazySearchPalette } from '../search/LazySearchPalette';
 import { startAutoSync } from '../sync/store';
 import { useTabs } from '../tabs/store';
 import { useApplyTheme } from '../theme';
@@ -94,7 +94,7 @@ export function AppShell() {
       <RollResults />
       <DiceTray />
       <RollInputDialog />
-      <SearchPalette />
+      <LazySearchPalette />
       <KeyboardShortcuts />
       <UpdatePrompt />
     </div>

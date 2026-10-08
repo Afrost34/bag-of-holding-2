@@ -11,9 +11,6 @@ import { useMaps } from '../maps/store';
 import { useCardSheets } from '../cards/store';
 import { useCharacters } from '../characters/store';
 import { useHomebrew } from '../data/homebrew';
-import { forgetAllAttachments } from '../journal/attachments';
-import { useNoteTypes } from '../journal/noteTypes';
-import { useJournal } from '../journal/store';
 import { userStore } from '../userStore';
 import { isLazy } from './lazy';
 import { remoteIdOf, repoFor, useSyncSettings } from './settings';
@@ -75,7 +72,8 @@ export const useSync = create<SyncStore>()((set) => ({
       set({ status: 'syncing', error: null, progress: null });
       try {
         // Everything typed so far goes along.
-        await useJournal.getState().flush();
+        // The journal's code is loaded when first needed, not with the first screen.
+        await (await import('../journal/store')).useJournal.getState().flush();
         await flushAnnotations();
         await useCharacters.getState().flush();
         await useCardSheets.getState().flush();
@@ -109,9 +107,15 @@ async function refreshAfterSync(paths: string[]): Promise<void> {
   const touched = (prefix: RegExp) => paths.some((p) => prefix.test(p));
   if (touched(/^(campaigns\/[^/]+\/campaign\.json|templates\/)/)) await reloadCampaigns();
   if (touched(/annotations\.json$/)) await reloadAnnotations();
-  if (touched(/^campaigns\/[^/]+\/note-types\.json$/))
+  if (touched(/^campaigns\/[^/]+\/note-types\.json$/)) {
+    const { useNoteTypes } = await import('../journal/noteTypes');
     await useNoteTypes.getState().load(useNoteTypes.getState().campaignId);
+  }
   if (touched(/^campaigns\/[^/]+\/journal\//)) {
+    const [{ forgetAllAttachments }, { useJournal }] = await Promise.all([
+      import('../journal/attachments'),
+      import('../journal/store'),
+    ]);
     forgetAllAttachments();
     await useJournal.getState().refresh();
   }
