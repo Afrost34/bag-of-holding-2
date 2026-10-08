@@ -241,16 +241,21 @@ function Editor({ doc }: { doc: MapDoc }) {
     }
     const p = scene.toMap(screen.x, screen.y);
     const base = { start: p, screen, last: p };
-    if (e.button === 1 || space.current || tool === 'pan' || viewing) {
-      if (viewing && e.button === 0) {
-        const hit = scene.hit(p);
-        if (hit?.kind === 'pin') {
-          if (hit.map) navigate(`/maps/${hit.map}`);
-          else if (hit.note) navigate(journalPath(hit.note));
-          else if (hit.entity) navigate(entityPath(hit.entity));
-          return;
-        }
+    // A pin's link: a click while viewing, Ctrl/Cmd+click while editing (in a new tab).
+    const ctrl = e.ctrlKey || e.metaKey;
+    if (e.button === 0 && (viewing || ctrl)) {
+      const hit = scene.hit(p);
+      if (hit?.kind === 'pin' && (hit.map || hit.note || hit.entity)) {
+        const to = hit.map
+          ? `/maps/${hit.map}`
+          : hit.note
+            ? journalPath(hit.note)
+            : entityPath(hit.entity ?? '');
+        navigate(to, { newTab: ctrl });
+        return;
       }
+    }
+    if (e.button === 1 || space.current || tool === 'pan' || viewing) {
       drag.current = { mode: 'pan', ...base };
       return;
     }

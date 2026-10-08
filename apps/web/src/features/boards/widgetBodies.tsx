@@ -32,6 +32,7 @@ export function MapBody({ card }: { card: Extract<BoardCard, { kind: 'map' }> })
     const el = host.current;
     if (!el || !doc) return;
     const s = new MapScene();
+    s.followResize = true;
     let live = true;
     void s.init(el).then(() => {
       if (!live) return;

@@ -165,6 +165,25 @@ test('right-click adds where clicked; the NPC generator; frames rename', async (
   const before = await npc.getByRole('heading').first().textContent();
   await npc.getByRole('button', { name: 'Another' }).click();
   await expect(npc.getByRole('heading').first()).not.toHaveText(before ?? '');
+  // A picked card goes with the Delete key.
+  const bar = await npc.locator('.card-drag').first().boundingBox();
+  if (!bar) throw new Error('no NPC card');
+  await page.mouse.click(bar.x + 12, bar.y + bar.height / 2);
+  await page.keyboard.press('Delete');
+  await expect(npc).toHaveCount(0);
+  // A search panel asked for by right-click opens where the pointer was.
+  await page.mouse.click(box.x + 150, box.y + 120, { button: 'right' });
+  await page
+    .getByRole('menu', { name: 'Add here' })
+    .getByRole('menuitem', { name: 'Compendium entry…' })
+    .click();
+  const panel = await page.getByRole('region', { name: 'Add from the compendium' }).boundingBox();
+  expect(Math.abs((panel?.x ?? 0) - (box.x + 150))).toBeLessThan(20);
+  expect(Math.abs((panel?.y ?? 0) - (box.y + 120))).toBeLessThan(20);
+  await page
+    .getByRole('region', { name: 'Add from the compendium' })
+    .getByRole('button', { name: 'Close' })
+    .click();
   // A frame, renamed without dragging its title around.
   await page.mouse.click(box.x + box.width - 80, box.y + 40, { button: 'right' });
   await page

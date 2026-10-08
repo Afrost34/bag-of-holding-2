@@ -146,6 +146,8 @@ export class MapScene {
   private destroyed = false;
   private frame = 0;
   private resizing: ResizeObserver | null = null;
+  /** Scale the view with the host when it is resized (a map in a board card), not just crop it. */
+  followResize = false;
 
   async init(host: HTMLElement): Promise<void> {
     await this.app.init({
@@ -169,7 +171,19 @@ export class MapScene {
     this.world.addChild(this.background, this.layers, this.gridLines, this.overlay);
     this.app.stage.addChild(this.world);
     this.ready = true;
+    let size = { w: host.clientWidth, h: host.clientHeight };
     this.resizing = new ResizeObserver(() => {
+      const next = { w: host.clientWidth, h: host.clientHeight };
+      if (next.w === size.w && next.h === size.h) return;
+      // The canvas takes the host's new size now (Pixi itself only follows the window).
+      this.app.resize();
+      if (this.followResize && size.w > 0 && size.h > 0 && next.w > 0 && next.h > 0) {
+        // The view grows and shrinks with the host: what was in the middle stays there.
+        const middle = this.toMap(size.w / 2, size.h / 2);
+        const zoom = this.world.scale.x * Math.min(next.w / size.w, next.h / size.h);
+        this.setView(next.w / 2 - middle.x * zoom, next.h / 2 - middle.y * zoom, zoom);
+      }
+      size = next;
       this.requestRender();
     });
     this.resizing.observe(host);
