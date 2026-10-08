@@ -47,6 +47,7 @@ import {
 } from '../../app/maps/model';
 import { useMapDoc, useMaps } from '../../app/maps/store';
 import { pinLink } from '../../app/maps/pinLink';
+import { emptyHistory, record, redo as redoStep, undo as undoStep } from '../../app/history';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 import { MapPanels } from './MapPanels';
@@ -163,11 +164,10 @@ function Editor({ doc }: { doc: MapDoc }) {
   const pointers = useRef(new Map<number, Point>());
   const pinch = useRef<{ distance: number; mid: Point } | null>(null);
   const space = useRef(false);
-  const past = useRef<MapDoc[]>([]);
-  const future = useRef<MapDoc[]>([]);
+  const steps = useRef(emptyHistory<MapDoc>());
   const [history, setHistory] = useState({ past: 0, future: 0 });
   const counted = () => {
-    setHistory({ past: past.current.length, future: future.current.length });
+    setHistory({ past: steps.current.past.length, future: steps.current.future.length });
   };
   const docId = doc.id;
 
@@ -205,8 +205,8 @@ function Editor({ doc }: { doc: MapDoc }) {
       if (!current) return;
       const next = change(current);
       if (next === current) return;
-      past.current = [...past.current.slice(-49), current];
-      future.current = [];
+      // Each change is a step of its own (a stroke, a move), never folded.
+      steps.current = record(steps.current, current, Date.now(), 0);
       counted();
       s.save(next);
     },
@@ -215,22 +215,20 @@ function Editor({ doc }: { doc: MapDoc }) {
   const undo = useCallback(() => {
     const s = useMaps.getState();
     const current = s.maps.find((m) => m.id === docId);
-    const previous = past.current.at(-1);
-    if (!current || !previous) return;
-    past.current = past.current.slice(0, -1);
-    future.current = [...future.current, current];
+    const done = current && undoStep(steps.current, current);
+    if (!done) return;
+    steps.current = done.history;
     counted();
-    s.save(previous);
+    s.save(done.value);
   }, [docId]);
   const redo = useCallback(() => {
     const s = useMaps.getState();
     const current = s.maps.find((m) => m.id === docId);
-    const next = future.current.at(-1);
-    if (!current || !next) return;
-    future.current = future.current.slice(0, -1);
-    past.current = [...past.current, current];
+    const done = current && redoStep(steps.current, current);
+    if (!done) return;
+    steps.current = done.history;
     counted();
-    s.save(next);
+    s.save(done.value);
   }, [docId]);
 
   const layer = doc.layers.find((l) => l.id === layerId) ?? doc.layers[0];
