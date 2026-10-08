@@ -76,7 +76,16 @@ export type BoardCard = CardContent & {
   inStack?: string;
   /** Shown in the player window. */
   shown?: boolean;
+  /** Where it sits in the player window (laid out there by the DM); a grid place otherwise. */
+  player?: PlayerPlace;
 };
+
+export interface PlayerPlace {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
 
 export interface Board {
   version: 1;
@@ -444,6 +453,54 @@ export const SHOWABLE_KINDS: ReadonlySet<CardKind> = new Set([
   'map',
   'npc',
 ]);
+
+/** Moves or resizes a card in the player window. */
+export function placeForPlayers(board: Board, id: string, place: PlayerPlace): Board {
+  const rounded = {
+    x: Math.round(place.x),
+    y: Math.round(place.y),
+    w: Math.round(place.w),
+    h: Math.round(place.h),
+  };
+  return { ...board, cards: board.cards.map((c) => (c.id === id ? { ...c, player: rounded } : c)) };
+}
+
+/** Columns of the player window's starting grid, and the room between cards. */
+const PLAYER_COLUMNS = 3;
+const PLAYER_GAP = 24;
+
+/**
+ * Where each shown card sits in the player window: its own place, or the next free cell of a
+ * grid below the cards already placed (at a size good for reading on a screen).
+ */
+export function playerPlaces(cards: readonly BoardCard[]): Map<string, PlayerPlace> {
+  const places = new Map<string, PlayerPlace>();
+  let bottom = 0;
+  for (const c of cards)
+    if (c.player) {
+      places.set(c.id, c.player);
+      bottom = Math.max(bottom, c.player.y + c.player.h + PLAYER_GAP);
+    }
+  let i = 0;
+  let x = 0;
+  let y = bottom;
+  let rowHeight = 0;
+  for (const c of cards) {
+    if (c.player) continue;
+    const w = Math.max(c.w, 360);
+    const h = Math.max(c.h, 320);
+    if (i > 0 && i % PLAYER_COLUMNS === 0) {
+      x = 0;
+      y += rowHeight + PLAYER_GAP;
+      rowHeight = 0;
+    }
+    places.set(c.id, { x, y, w, h });
+    x += w + PLAYER_GAP;
+    rowHeight = Math.max(rowHeight, h);
+    i++;
+  }
+  return places;
+}
 
 /** Marks a card as shown to the players, or not. */
 export function toggleShown(board: Board, id: string): Board {

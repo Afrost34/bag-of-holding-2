@@ -7,6 +7,8 @@ import {
   newBoard,
   nextTurn,
   parseBoard,
+  placeForPlayers,
+  playerPlaces,
   removeBoardCard,
   serializeBoard,
   setFrame,
@@ -16,6 +18,7 @@ import {
   timerLeft,
   unstack,
   type Board,
+  type BoardCard,
 } from './model';
 
 const empty = (): Board => newBoard('Session 1', [], '2026-10-07T00:00:00Z');
@@ -145,5 +148,34 @@ describe('boards', () => {
     odd.cards.push({ id: 'z', kind: 'teleporter' });
     expect(parseBoard(JSON.stringify(odd), board.id)?.cards).toHaveLength(1);
     expect(parseBoard('nope', 'x')).toBeNull();
+  });
+});
+
+describe('the player window', () => {
+  const card = (id: string, extra: Pick<BoardCard, 'player'> = {}): BoardCard => ({
+    id,
+    kind: 'text',
+    text: id,
+    x: 0,
+    y: 0,
+    w: 240,
+    h: 170,
+    shown: true,
+    ...extra,
+  });
+
+  it('lays out shown cards in a grid below those the DM placed', () => {
+    const placed = card('a', { player: { x: 10, y: 20, w: 400, h: 300 } });
+    const places = playerPlaces([placed, card('b'), card('c'), card('d'), card('e')]);
+    expect(places.get('a')).toEqual({ x: 10, y: 20, w: 400, h: 300 });
+    expect(places.get('b')).toEqual({ x: 0, y: 344, w: 360, h: 320 });
+    expect(places.get('c')?.x).toBe(384);
+    expect(places.get('e')).toEqual({ x: 0, y: 688, w: 360, h: 320 });
+  });
+
+  it('keeps where the DM moves a card', () => {
+    const board = { ...empty(), cards: [card('a')] };
+    const moved = placeForPlayers(board, 'a', { x: 5.4, y: 9.6, w: 300, h: 200 });
+    expect(moved.cards[0]?.player).toEqual({ x: 5, y: 10, w: 300, h: 200 });
   });
 });

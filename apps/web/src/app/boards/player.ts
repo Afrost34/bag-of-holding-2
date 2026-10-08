@@ -1,5 +1,5 @@
 import type { EntityDetail } from '@boh/data5e';
-import type { BoardCard } from './model';
+import type { BoardCard, PlayerPlace } from './model';
 import { useEffect, useState } from 'react';
 
 /**
@@ -25,12 +25,27 @@ export type PlayerShow =
    */
   | {
       kind: 'board';
+      /** The board it comes from: what the players' window changes goes back to it. */
+      boardId: string;
       name: string;
       campaignId?: string;
       cards: { card: BoardCard; title: string; entity?: EntityDetail }[];
     };
 
-type Message = { type: 'show'; item: PlayerShow | null } | { type: 'hello' };
+/**
+ * What the DM does in the player window, which works like a board: moving or resizing a card,
+ * or taking it off the screen. The DM's window applies it to the board (only it writes the file).
+ */
+export type PlayerAction =
+  | { type: 'place'; boardId: string; cardId: string; place: PlayerPlace }
+  | { type: 'hide'; boardId: string; cardId: string };
+
+type Message =
+  | { type: 'show'; item: PlayerShow | null }
+  | { type: 'hello' }
+  | { type: 'action'; action: PlayerAction };
+
+const listeners = new Set<(action: PlayerAction) => void>();
 
 const CHANNEL = 'boh-player';
 export const PLAYER_ROUTE = '/player';
@@ -45,6 +60,7 @@ function dmChannel(): BroadcastChannel {
     channel = new BroadcastChannel(CHANNEL);
     channel.onmessage = (e: MessageEvent<Message>) => {
       if (e.data.type === 'hello') channel?.postMessage({ type: 'show', item: current });
+      if (e.data.type === 'action') for (const l of listeners) l(e.data.action);
     };
   }
   return channel;
@@ -55,6 +71,23 @@ export function showToPlayers(item: PlayerShow | null, open = true): void {
   current = item;
   if (open) openPlayerWindowIfClosed();
   dmChannel().postMessage({ type: 'show', item } satisfies Message);
+}
+
+/** The DM side: hears what is done in the player window. Returns a function to stop. */
+export function onPlayerAction(listener: (action: PlayerAction) => void): () => void {
+  dmChannel();
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+let playerChannel: BroadcastChannel | null = null;
+
+/** The player side: tells the DM's window what was done here. */
+export function sendPlayerAction(action: PlayerAction): void {
+  playerChannel ??= new BroadcastChannel(CHANNEL);
+  playerChannel.postMessage({ type: 'action', action } satisfies Message);
 }
 
 export function openPlayerWindowIfClosed(): void {
