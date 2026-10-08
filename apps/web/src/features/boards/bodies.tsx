@@ -18,6 +18,7 @@ import { attachmentUrl } from '../../app/journal/attachments';
 import { JournalViewContext } from '../../app/journal/notes/context';
 import { NoteViewer } from '../../app/journal/notes/NoteViewer';
 import { useJournal } from '../../app/journal/store';
+import { CalendarGlance } from '../../app/calendar/CalendarGlance';
 import { CombatBody, EncounterBody } from './combatBodies';
 import { useBoardActions } from './context';
 import { CharacterBody, MapBody, NpcBody } from './widgetBodies';
@@ -49,10 +50,18 @@ export function CardBody({ card }: { card: BoardCard }) {
       return <CharacterBody card={card} />;
     case 'npc':
       return <NpcBody card={card} />;
+    case 'calendar':
+      return <CalendarBody />;
     case 'frame':
     case 'stack':
       return null;
   }
+}
+
+/** The calendar of the board's campaign (boards show their campaign's journal and calendar). */
+function CalendarBody() {
+  const campaignId = useContext(JournalViewContext)?.campaignId;
+  return <CalendarGlance campaignId={campaignId} />;
 }
 
 function EntityBody({ entityKey }: { entityKey: string }) {

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createCampaign, installData } from './helpers/journal';
+import { createCampaign, installData, isPhone } from './helpers/journal';
 
 /** The campaign calendar: today in the world, events on days, a calendar from Calendarium. */
 
@@ -79,4 +79,35 @@ test('a calendar comes from Calendarium', async ({ page }) => {
   await expect(page.getByRole('button', { name: /, 1 Sol-Rise, Year 1379$/ })).toContainText(
     'Festival of the First Ray',
   );
+});
+
+test('the calendar goes on a board and to the players', async ({ page, context }) => {
+  await page.goto('./#/calendar');
+  await page.getByRole('button', { name: 'Start a calendar' }).click();
+  await expect(page.getByRole('region', { name: 'Today' })).toContainText('1 Deepwinter');
+
+  await page.goto('./#/boards');
+  await page.reload();
+  await page.getByRole('button', { name: 'New board' }).click();
+  await page.getByLabel('Name').fill('Session');
+  await page.getByRole('button', { name: 'Create' }).click();
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Calendar' }).click();
+  const card = page.locator('.react-flow__node').filter({ hasText: 'Coming up' });
+  await expect(card).toContainText(', 1 Deepwinter, Year 1');
+  await card.getByRole('button', { name: 'Next day' }).click();
+  await expect(card).toContainText(', 2 Deepwinter, Year 1');
+
+  if (isPhone(page)) return;
+  await page.goto('./#/calendar');
+  const [player] = await Promise.all([
+    context.waitForEvent('page'),
+    page.getByRole('button', { name: 'Show to players' }).click(),
+  ]);
+  await expect(player.getByText(/, 2 Deepwinter, Year 1/)).toBeVisible();
+  await page
+    .getByRole('region', { name: 'Today' })
+    .getByRole('button', { name: 'Next day' })
+    .click();
+  await expect(player.getByText(/, 3 Deepwinter, Year 1/)).toBeVisible();
 });

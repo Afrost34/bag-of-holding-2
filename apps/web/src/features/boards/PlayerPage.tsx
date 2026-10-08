@@ -20,6 +20,7 @@ import { useTheme } from '../../app/theme';
 import { useCampaigns } from '../../app/campaigns/store';
 import { NoteViewer } from '../../app/journal/notes/NoteViewer';
 import { useJournal } from '../../app/journal/store';
+import { CalendarGlance } from '../../app/calendar/CalendarGlance';
 import { playerPlaces, sortInitiative, timerLeft, type BoardCard } from '../../app/boards/model';
 import { ImageBody } from './bodies';
 import { MapBody } from './widgetBodies';
@@ -56,6 +57,12 @@ function Shown({ item }: { item: PlayerShow }) {
       return <ShownEntity entity={item.entity} />;
     case 'note':
       return <ShownNote campaignId={item.campaignId} path={item.path} />;
+    case 'calendar':
+      return (
+        <div className="w-full max-w-xl self-start">
+          <CalendarGlance campaignId={item.campaignId} calendar={item.calendar} forPlayers />
+        </div>
+      );
     case 'board':
       return (
         <ReactFlowProvider>
@@ -293,6 +300,8 @@ function PlayerCardBody({
           <MapBody card={card} />
         </div>
       );
+    case 'calendar':
+      return <CalendarGlance campaignId={campaignId} forPlayers />;
     case 'npc':
       return (
         <div className="space-y-1 text-lg">

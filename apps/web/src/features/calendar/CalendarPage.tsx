@@ -4,6 +4,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  MonitorUp,
   Moon as MoonIcon,
   NotebookPen,
   Pencil,
@@ -40,6 +41,7 @@ import {
   type CalendarDate,
   type CalendarEvent,
 } from '../../app/calendar/model';
+import { showToPlayers } from '../../app/boards/player';
 import { useCalendar } from '../../app/calendar/store';
 import { useActiveCampaign } from '../../app/campaigns/store';
 import { notePagePath } from '../../app/journal/paths';
@@ -78,7 +80,7 @@ export function CalendarPage() {
   if (!campaign) return <p className="p-8 text-muted">Open a campaign to see its calendar.</p>;
   if (!loaded || campaignId !== campaign.id) return <p className="p-8 text-muted">Loading…</p>;
   if (!calendar) return <StartCalendar campaignName={campaign.name} onStart={save} />;
-  return <CalendarView calendar={calendar} save={save} />;
+  return <CalendarView calendar={calendar} campaignId={campaign.id} save={save} />;
 }
 
 function StartCalendar({
@@ -148,11 +150,18 @@ const PHASE_GLYPHS = ['●', '◔', '◑', '◕', '○', '◕', '◑', '◔'];
 
 function CalendarView({
   calendar: cal,
+  campaignId,
   save,
 }: {
   calendar: Calendar;
+  campaignId: string;
   save: (c: Calendar) => void;
 }) {
+  // Shown in the player window: it follows the calendar as time moves on.
+  const [showing, setShowing] = useState(false);
+  useEffect(() => {
+    if (showing) showToPlayers({ kind: 'calendar', campaignId, calendar: cal }, false);
+  }, [showing, cal, campaignId]);
   const [shown, setShown] = useState({ year: cal.today.year, month: cal.today.month });
   const [selected, setSelected] = useState<CalendarDate>(cal.today);
   const [editing, setEditing] = useState(false);
@@ -175,6 +184,16 @@ function CalendarView({
     <div className="mx-auto max-w-6xl px-4 py-6 md:px-8">
       <header className="mb-4 flex flex-wrap items-center gap-3 border-b-2 border-accent pb-3">
         <h1 className="min-w-0 flex-1 font-serif text-2xl font-bold">{cal.name}</h1>
+        <Button
+          variant="ghost"
+          aria-pressed={showing}
+          onClick={() => {
+            if (!showing) showToPlayers({ kind: 'calendar', campaignId, calendar: cal });
+            setShowing(!showing);
+          }}
+        >
+          <MonitorUp className="h-4 w-4" aria-hidden /> Show to players
+        </Button>
         <Button
           variant="ghost"
           onClick={() => {

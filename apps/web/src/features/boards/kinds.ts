@@ -1,6 +1,7 @@
 import type { Node } from '@xyflow/react';
 import {
   BookOpen,
+  CalendarDays,
   Dices,
   Frame,
   Image,
@@ -45,6 +46,7 @@ export const KIND_ICONS: Record<CardKind, LucideIcon> = {
   map: MapIcon,
   character: UserRound,
   npc: Wand2,
+  calendar: CalendarDays,
   frame: Frame,
   stack: Layers,
 };
@@ -62,6 +64,7 @@ export const KIND_LABELS: Record<CardKind, string> = {
   map: 'Map',
   character: 'Character',
   npc: 'NPC',
+  calendar: 'Calendar',
   frame: 'Frame',
   stack: 'Stack',
 };
