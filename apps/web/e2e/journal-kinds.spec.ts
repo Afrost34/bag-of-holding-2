@@ -60,3 +60,14 @@ test('a kind of the DM’s own: made, used, and listed in the compendium', async
   await page.goto('./#/journal');
   await expect(page).toHaveURL(/note=Ships(%2F|\/)Sea%20Hag\.md/);
 });
+
+test('the journal side lists every kind of note to create', async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 0) < 1024, 'The side panel is for wide screens.');
+  const create = page.getByRole('region', { name: 'Create' });
+  await create.getByRole('button', { name: 'New NPC' }).click();
+  const wizard = page.getByRole('dialog', { name: 'New NPC' });
+  await wizard.getByLabel('Name', { exact: true }).fill('Volo');
+  await wizard.getByRole('button', { name: 'Create', exact: true }).click();
+  await expect(page.getByLabel('Note title')).toHaveValue('Volo');
+  await expect(create.getByRole('button', { name: 'New kind of note…' })).toBeVisible();
+});

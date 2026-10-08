@@ -32,7 +32,7 @@ test('notes link to each other and to the compendium', async ({ page }) => {
   await expect(page.getByLabel('Note title')).toHaveValue('Waterdeep');
   if ((page.viewportSize()?.width ?? 0) >= 1280) {
     await expect(
-      page.getByRole('complementary', { name: 'Backlinks' }).getByRole('button', {
+      page.getByRole('region', { name: 'Backlinks' }).getByRole('button', {
         name: 'Session 1',
       }),
     ).toBeVisible();

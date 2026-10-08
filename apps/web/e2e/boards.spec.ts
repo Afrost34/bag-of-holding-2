@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { installData, isPhone } from './helpers/journal';
+import { waitForSaved } from './helpers/saved';
 
 /** DM boards: cards sent from the compendium and added on the board, moved, stacked, framed. */
 
@@ -105,6 +106,7 @@ test('a board holds compendium and board cards, stacked and framed', async ({ pa
   }
 
   // Kept after a reload.
+  await waitForSaved(page, 'boards', 'The innkeeper lies.');
   await page.reload();
   await expect(page.getByRole('textbox', { name: 'Text' })).toHaveValue('The innkeeper lies.');
 

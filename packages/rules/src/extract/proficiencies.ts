@@ -101,7 +101,8 @@ export const poolOption = (pool: Pool) => `pool:${pool}`;
 /** What a value in a block means as a grant: an item key for weapons, the name otherwise. */
 function grantValue(kind: ChoiceKind, value: string): string {
   if (kind === 'weapon' && value.includes('|')) return refKey('item', value);
-  return value.toLowerCase();
+  // A tool or language may name its source (`gunnery kit|gunslinger`): the name is what counts.
+  return (value.split('|')[0] ?? value).toLowerCase();
 }
 
 function grantKind(kind: ChoiceKind, value: string): Grant['kind'] | null {

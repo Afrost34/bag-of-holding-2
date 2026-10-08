@@ -146,17 +146,17 @@ export function EncounterPage({ id }: { id: string }) {
           />
           {npcs.length > 0 && (
             <label className="flex items-center gap-2 text-sm">
-              <span className="font-medium">Add an NPC</span>
+              <span className="font-medium">Add from the journal</span>
               <select
                 value=""
-                aria-label="Add an NPC"
+                aria-label="Add from the journal"
                 onChange={(ev) => {
                   const npc = npcs.find((n) => n.note === ev.target.value);
                   if (npc) change((e) => addNpc(e, npc));
                 }}
                 className="min-w-0 flex-1 rounded-md border border-border bg-surface px-2 py-1.5"
               >
-                <option value="">Choose one of the campaign’s NPCs…</option>
+                <option value="">An NPC, a ship… anything with a stat block</option>
                 {npcs.map((n) => (
                   <option key={n.note} value={n.note}>
                     {n.name}
