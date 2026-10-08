@@ -173,6 +173,8 @@ test('a companion is a stat block attached to the character', async ({ page }) =
 });
 
 test('the character sheet prints on A4 pages', async ({ page }, testInfo) => {
+  // A PDF and a picture of every page: more than the default 30 s on a busy machine.
+  test.setTimeout(60_000);
   await newCharacter(page, 'Lia', '2014 rules');
   await addClass(page, /Bard/);
   await page.getByLabel('Level', { exact: true }).selectOption('3');

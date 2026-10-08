@@ -1,6 +1,9 @@
 name: Release desktop app
 
 # Push a tag like v0.1.0 to build the Windows installer and attach it to a draft GitHub Release.
+# Publishing the release makes it the update installed apps offer (they read latest.json from
+# the latest release). Updates are signed with the key in the TAURI_SIGNING_PRIVATE_KEY secret;
+# without it the installer is still built, but installed apps are not offered the update.
 on:
   push:
     tags: ['v*']
@@ -24,10 +27,29 @@ jobs:
         with:
           workspaces: apps/desktop/src-tauri
       - run: pnpm install --frozen-lockfile
+      # The version comes from the tag (v0.2.0 → 0.2.0): installed apps update to a higher one.
+      - name: Version from the tag; updates only with the signing key
+        id: config
+        shell: bash
+        env:
+          KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]] || version="0.0.0"
+          if [ -z "$KEY" ]; then
+            echo "No TAURI_SIGNING_PRIVATE_KEY secret: building the installer without update files."
+            echo "args=--config {\"version\":\"$version\",\"bundle\":{\"createUpdaterArtifacts\":false}}" >> "$GITHUB_OUTPUT"
+          else
+            echo "args=--config {\"version\":\"$version\"}" >> "$GITHUB_OUTPUT"
+          fi
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
         with:
+          args: ${{ steps.config.outputs.args }}
+          includeUpdaterJson: true
           projectPath: apps/desktop
           tagName: ${{ github.ref_name }}
           releaseName: Bag of Holding ${{ github.ref_name }}

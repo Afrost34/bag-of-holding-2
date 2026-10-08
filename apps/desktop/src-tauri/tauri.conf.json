@@ -10,20 +10,10 @@
     "frontendDist": "../../web/dist"
   },
   "app": {
-    "windows": [
-      {
-        "label": "main",
-        "title": "Bag of Holding",
-        "width": 1440,
-        "height": 900,
-        "minWidth": 400,
-        "minHeight": 500,
-        "center": true
-      }
-    ],
     "security": {
       "csp": null
-    }
+    },
+    "windows": []
   },
   "bundle": {
     "active": true,
@@ -38,6 +28,18 @@
     "windows": {
       "nsis": {
         "installMode": "currentUser"
+      }
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhFQTEwNzczNzlBODEzOUYKUldTZkU2aDVjd2VoamoybVpQRGV6TzhLKzhkVDluRVRaMDlUQW5OcGNvdGVjQ3docGpic2I0VEwK",
+      "endpoints": [
+        "https://github.com/Afrost34/bag-of-holding-2/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
       }
     }
   }
