@@ -15,6 +15,7 @@ import {
 import { memo, useState, type ReactNode } from 'react';
 import { SHOWABLE_KINDS, type BoardCard } from '../../app/boards/model';
 import { CardBody } from './bodies';
+import { CardLinks } from './CardLinks';
 import { useBoardActions } from './context';
 import { FAR_ZOOM, KIND_ICONS, useCardTitle, type CardNodeType } from './kinds';
 
@@ -184,7 +185,9 @@ export const CardNode = memo(function CardNode({ data, selected }: NodeProps<Car
   const title = useCardTitle(data.card);
   return (
     <Shell card={data.card} title={title} selected={selected}>
-      <CardBody card={data.card} />
+      <CardLinks card={data.card}>
+        <CardBody card={data.card} />
+      </CardLinks>
     </Shell>
   );
 });
@@ -251,7 +254,11 @@ export const StackNode = memo(function StackNode({ data, selected }: NodeProps<C
         </div>
       }
     >
-      {active && <CardBody card={active} />}
+      {active && (
+        <CardLinks card={card}>
+          <CardBody card={active} />
+        </CardLinks>
+      )}
     </Shell>
   );
 });

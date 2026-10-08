@@ -263,3 +263,17 @@ test('a board of 300 cards pans and zooms smoothly', async ({ page }, testInfo) 
   expect(median).toBeLessThan(34);
   expect(p90).toBeLessThan(80);
 });
+
+test('a link in a card brings its entry onto the board; Ctrl+click opens it', async ({ page }) => {
+  await page.goto(`./#/compendium/${encodeURIComponent('table:wild surge@phb')}`);
+  await page.getByRole('button', { name: 'Send to' }).click();
+  await page.getByRole('menuitem', { name: /New board with Wild Surge/ }).click();
+  await page.getByRole('status').getByRole('link').click();
+  const surge = page.getByRole('region', { name: 'Wild Surge', exact: true });
+  await surge.getByRole('link', { name: 'Magic Missile' }).click();
+  await expect(page.getByRole('region', { name: 'Magic Missile', exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/#\/boards\//);
+  if (isPhone(page)) return;
+  await surge.getByRole('link', { name: 'Magic Missile' }).click({ modifiers: ['Control'] });
+  await expect(page.getByRole('tab', { selected: true }).first()).toHaveText(/Magic Missile/);
+});
