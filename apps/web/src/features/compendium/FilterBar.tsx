@@ -18,6 +18,8 @@ export interface FilterBarProps {
   onClearField: (field: string) => void;
   onReset: () => void;
   onToggleAdvanced: () => void;
+  /** Offer the Source filter (off for lists of the campaign's own notes). */
+  withSource?: boolean;
 }
 
 const SOURCE: FieldDef = { id: SOURCE_FIELD, label: 'Source', kind: 'enum', filter: 'more' };
@@ -34,13 +36,17 @@ export function FilterBar({
   onClearField,
   onReset,
   onToggleAdvanced,
+  withSource = true,
 }: FilterBarProps) {
   const nameId = useId();
   const sources = useSourceList((s) => s.sources);
   const sourceName = (id: string) =>
     sources.find((s) => s.id.toLowerCase() === id.toLowerCase())?.name ?? id;
   const main = category.fields.filter((f) => f.filter === 'main');
-  const more = [...category.fields.filter((f) => f.filter === 'more'), SOURCE];
+  const more = [
+    ...category.fields.filter((f) => f.filter === 'more'),
+    ...(withSource ? [SOURCE] : []),
+  ];
   const advancedActive = more.reduce((n, f) => n + (filters[f.id]?.length ?? 0), 0);
   const anyActive = q !== '' || Object.values(filters).some((v) => v.length > 0);
 

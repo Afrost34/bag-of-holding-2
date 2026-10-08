@@ -1,10 +1,8 @@
 import { fieldLabel, noteType, parseFrontmatter, type PropertyValue } from '@boh/journal';
-import { cn } from '@boh/ui';
-import { ArrowDown, ArrowLeft, ArrowUp, ChevronDown, ExternalLink, Search } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
 import { useActiveCampaign } from '../../app/campaigns/store';
-import { NoteTypeIcon } from '../../app/journal/NoteTypeIcon';
 import { NotesProvider } from '../../app/journal/notes/NotesProvider';
 import { NoteViewer } from '../../app/journal/notes/NoteViewer';
 import { useAllNoteTypes } from '../../app/journal/noteTypes';
@@ -12,16 +10,18 @@ import { journalPath } from '../../app/journal/paths';
 import { propertyText } from '../../app/journal/propertyText';
 import { useJournal } from '../../app/journal/store';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
+import { FilterBar } from './FilterBar';
+import { filterRows, sortRows, type ListState } from './listModel';
+import { ListRows } from './ListRows';
+import { noteCategory, noteRows } from './notesList';
+import { PageHeading } from './PageHeading';
 
-interface Row {
-  path: string;
-  name: string;
-  props: Record<string, PropertyValue>;
-}
+const NO_SOURCES = new Set<string>();
 
 /**
- * The campaign's notes of one kind (NPCs, locations, ships…), as a compendium list: sortable
- * columns from the kind's properties, a filter, and each row opening on the note.
+ * The campaign's notes of one kind (NPCs, locations, ships…), as a compendium list like spells
+ * and items: a name search, filters from the kind's properties, sortable columns, and rows that
+ * open on the note.
  */
 export function NotesListPage({ typeId }: { typeId: string }) {
   useAllNoteTypes();
@@ -32,159 +32,159 @@ export function NotesListPage({ typeId }: { typeId: string }) {
   useEffect(() => {
     if (campaign && journal.campaignId !== campaign.id) void journal.load(campaign.id);
   }, [campaign, journal]);
-  const [query, setQuery] = useState('');
-  const [sort, setSort] = useState<{ key: string; asc: boolean }>({ key: 'name', asc: true });
-  const [open, setOpen] = useState<string | null>(null);
+  const [state, setState] = useState<ListState>({
+    q: '',
+    filters: {},
+    sort: 'name',
+    dir: 'asc',
+    sel: null,
+  });
+  const [advanced, setAdvanced] = useState(false);
+  const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null);
+  const update = (patch: Partial<ListState>) => {
+    setState((s) => ({ ...s, ...patch }));
+  };
 
-  const rows = useMemo<Row[]>(
-    () =>
-      [...journal.notes].flatMap(([path, text]) => {
-        const props = parseFrontmatter(text).data as Record<string, PropertyValue>;
-        return typeof props.type === 'string' && props.type.toLowerCase() === typeId
-          ? [{ path, name: path.split('/').pop()?.replace(/\.md$/i, '') ?? path, props }]
-          : [];
-      }),
-    [journal.notes, typeId],
+  const rows = useMemo(() => noteRows(journal.notes, typeId), [journal.notes, typeId]);
+  const category = useMemo(() => (type ? noteCategory(type, rows) : null), [type, rows]);
+  // Filter value counts reflect the name search, not the filters themselves.
+  const base = useMemo(
+    () => filterRows(rows, { ...state, filters: {} }, NO_SOURCES),
+    [rows, state],
   );
-  const columns = type?.columns ?? [];
-  const q = query.trim().toLowerCase();
-  const shown = rows
-    .filter(
-      (r) =>
-        !q ||
-        r.name.toLowerCase().includes(q) ||
-        columns.some((c) => propertyText(r.props[c]).toLowerCase().includes(q)),
-    )
-    .sort((a, b) => {
-      const va = sort.key === 'name' ? a.name : propertyText(a.props[sort.key]);
-      const vb = sort.key === 'name' ? b.name : propertyText(b.props[sort.key]);
-      return (sort.asc ? 1 : -1) * va.localeCompare(vb, 'en', { numeric: true });
-    });
+  const visible = useMemo(
+    () =>
+      category ? sortRows(filterRows(base, { ...state, q: '' }, NO_SOURCES), state, category) : [],
+    [base, state, category],
+  );
 
   if (!campaign)
     return <p className="p-8 text-muted">Open a campaign to see its {type?.plural ?? 'notes'}.</p>;
-  if (!type) return <p className="p-8">There is no such kind of note in this campaign.</p>;
+  if (!type || !category)
+    return <p className="p-8">There is no such kind of note in this campaign.</p>;
 
-  const header = (key: string, label: string) => (
-    <button
-      type="button"
-      aria-label={`Sort by ${label}${sort.key === key ? (sort.asc ? ', ascending' : ', descending') : ''}`}
-      onClick={() => {
-        setSort(sort.key === key ? { key, asc: !sort.asc } : { key, asc: true });
-      }}
-      className={cn(
-        'flex min-w-0 items-center gap-1 text-left text-[11px] font-semibold tracking-wider uppercase hover:text-accent-ink',
-        sort.key === key ? 'text-text' : 'text-muted',
-      )}
-    >
-      <span className="truncate">{label}</span>
-      {sort.key === key &&
-        (sort.asc ? (
-          <ArrowUp className="h-3 w-3 shrink-0" aria-hidden />
-        ) : (
-          <ArrowDown className="h-3 w-3 shrink-0" aria-hidden />
-        ))}
-    </button>
-  );
-  const grid = {
-    gridTemplateColumns: `minmax(10rem,2fr) ${columns.map(() => 'minmax(0,1fr)').join(' ')} 1.5rem`,
-  };
-
+  const count = visible.length;
   return (
     <NotesProvider campaign={campaign}>
-      <div className="mx-auto max-w-6xl px-4 py-6 md:px-8">
-        <header className="mb-4 flex flex-wrap items-center gap-3">
-          <AppLink to="/compendium" aria-label="Compendium" className="text-muted hover:text-text">
-            <ArrowLeft className="h-5 w-5" />
-          </AppLink>
-          <NoteTypeIcon type={type} className="h-6 w-6 text-accent-ink" />
-          <h1 className="font-serif text-2xl font-bold">{type.plural}</h1>
-          <span className="text-sm text-muted">
-            {rows.length} in {campaign.name}
-          </span>
-        </header>
-        <label className="relative mb-3 block">
-          <Search
-            className="pointer-events-none absolute top-2.5 left-3 h-4 w-4 text-faint"
-            aria-hidden
-          />
-          <input
-            type="search"
-            value={query}
-            aria-label={`Filter ${type.plural}`}
-            placeholder={`Filter ${type.plural.toLowerCase()}…`}
-            onChange={(e) => {
-              setQuery(e.target.value);
-            }}
-            className="h-10 w-full rounded-lg border border-border bg-surface pr-3 pl-9 text-sm"
-          />
-        </label>
-        {rows.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border p-8 text-center text-muted">
-            No {type.plural.toLowerCase()} yet. Make one in the{' '}
-            <AppLink to="/journal" className="text-link hover:underline">
-              journal
-            </AppLink>
-            .
-          </p>
-        ) : (
-          <div className="overflow-hidden rounded-lg border border-border bg-surface">
-            <div
-              className="sticky top-0 z-10 grid items-center gap-x-4 border-b border-border bg-bg px-4 py-2.5"
-              style={grid}
-            >
-              {header('name', 'Name')}
-              {columns.map((c) => (
-                <span key={c}>{header(c, fieldLabel(c))}</span>
-              ))}
-              <span />
-            </div>
-            <ul aria-label={type.plural}>
-              {shown.map((r) => (
-                <li key={r.path} className="border-b border-border last:border-0">
-                  <button
-                    type="button"
-                    aria-expanded={open === r.path}
-                    onClick={() => {
-                      setOpen(open === r.path ? null : r.path);
-                    }}
-                    className="grid w-full items-center gap-x-4 px-4 py-2.5 text-left text-sm odd:bg-surface-2 hover:bg-sunken"
-                    style={grid}
-                  >
-                    <span className="truncate font-semibold">{r.name}</span>
-                    {columns.map((c) => (
-                      <span key={c} className="truncate text-muted">
-                        {propertyText(r.props[c])}
-                      </span>
-                    ))}
-                    <ChevronDown
-                      className={cn(
-                        'h-4 w-4 text-muted transition-transform',
-                        open === r.path && 'rotate-180',
-                      )}
-                      aria-hidden
-                    />
-                  </button>
-                  {open === r.path && (
-                    <div className="border-t border-border px-4 py-3">
-                      <NoteViewer
-                        key={journal.notes.get(r.path)}
-                        text={journal.notes.get(r.path) ?? ''}
-                      />
-                      <AppLink
-                        to={journalPath(r.path)}
-                        className="mt-3 inline-flex items-center gap-1 rounded-md bg-accent px-3 py-1.5 text-xs font-bold tracking-wide text-accent-fg uppercase hover:bg-accent-hover"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" aria-hidden /> Open in the journal
-                      </AppLink>
-                    </div>
+      <div ref={setScrollElement} className="relative h-full overflow-y-auto">
+        <div className="mx-auto max-w-6xl px-4 py-6 md:px-8">
+          <PageHeading
+            aside={
+              <span aria-live="polite">
+                {count} {count === 1 ? type.label.toLowerCase() : type.plural.toLowerCase()} in{' '}
+                {campaign.name}
+              </span>
+            }
+          >
+            {type.plural}
+          </PageHeading>
+          {rows.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-border p-8 text-center text-muted">
+              No {type.plural.toLowerCase()} yet. Make one in the{' '}
+              <AppLink to="/journal" className="text-link hover:underline">
+                journal
+              </AppLink>
+              .
+            </p>
+          ) : (
+            <>
+              <FilterBar
+                category={category}
+                rows={base}
+                q={state.q}
+                filters={state.filters}
+                advanced={advanced}
+                withSource={false}
+                onQuery={(q) => {
+                  update({ q });
+                }}
+                onToggle={(field, value) => {
+                  const current = state.filters[field] ?? [];
+                  const next = current.includes(value)
+                    ? current.filter((v) => v !== value)
+                    : [...current, value];
+                  update({ filters: { ...state.filters, [field]: next } });
+                }}
+                onClearField={(field) => {
+                  update({ filters: { ...state.filters, [field]: [] } });
+                }}
+                onReset={() => {
+                  update({ q: '', filters: {} });
+                }}
+                onToggleAdvanced={() => {
+                  setAdvanced(!advanced);
+                }}
+              />
+              {count === 0 ? (
+                <p className="py-6 text-muted">
+                  No {type.plural.toLowerCase()} match these filters.
+                </p>
+              ) : (
+                <ListRows
+                  category={category}
+                  rows={visible}
+                  sort={state.sort}
+                  dir={state.dir}
+                  onSort={(field) => {
+                    update(
+                      state.sort === field
+                        ? { dir: state.dir === 'asc' ? 'desc' : 'asc' }
+                        : { sort: field, dir: 'asc' },
+                    );
+                  }}
+                  expanded={state.sel}
+                  onExpand={(sel) => {
+                    update({ sel });
+                  }}
+                  scrollElement={scrollElement}
+                  sourceName={() => campaign.name}
+                  pathOf={(row) => journalPath(row.key)}
+                  details={(row) => (
+                    <>
+                      <NoteDetails text={journal.notes.get(row.key) ?? ''} />
+                      <div className="mt-4 border-t border-border pt-4">
+                        <AppLink
+                          to={journalPath(row.key)}
+                          className="inline-flex items-center gap-1 rounded-md bg-accent px-4 py-2 text-xs font-bold tracking-wide text-accent-fg uppercase hover:bg-accent-hover"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" aria-hidden /> Open in the journal
+                        </AppLink>
+                      </div>
+                    </>
                   )}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+                />
+              )}
+            </>
+          )}
+        </div>
       </div>
     </NotesProvider>
+  );
+}
+
+/** Properties a reader does not need to see in the list (the kind, tags, picture…). */
+const HIDDEN = new Set(['type', 'tags', 'image', 'aliases', 'cssclasses', 'banner']);
+
+/** A note opened in the list: its properties as a card, then its text. */
+function NoteDetails({ text }: { text: string }) {
+  const { data, bodyStart } = parseFrontmatter(text);
+  const props = Object.entries(data as Record<string, PropertyValue>)
+    .filter(([k]) => !HIDDEN.has(k))
+    .map(([k, v]) => [fieldLabel(k), propertyText(v)] as const)
+    .filter(([, v]) => v !== '');
+  return (
+    <>
+      {props.length > 0 && (
+        <dl className="mb-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-md border border-border bg-surface-2 px-4 py-3 text-sm sm:grid-cols-[auto_1fr_auto_1fr]">
+          {props.map(([k, v]) => (
+            <div key={k} className="contents">
+              <dt className="font-semibold text-muted">{k}</dt>
+              <dd className="min-w-0 break-words">{v}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      <NoteViewer key={text} text={text.slice(bodyStart)} />
+    </>
   );
 }

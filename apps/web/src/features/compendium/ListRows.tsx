@@ -3,7 +3,14 @@ import { Entries, EntityView } from '@boh/renderer';
 import { cn } from '@boh/ui';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ArrowDown, ArrowUp, ChevronsUpDown, Minus, Plus } from 'lucide-react';
-import { useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type MouseEvent,
+  type ReactNode,
+} from 'react';
 import { AppLink } from '../../app/AppLink';
 import {
   entityPath,
@@ -30,6 +37,9 @@ export interface ListRowsProps {
   /** The page's scroll container: the list scrolls with the page. */
   scrollElement: HTMLElement | null;
   sourceName: (id: string) => string;
+  /** What an expanded row shows, and where its page is (compendium entries otherwise). */
+  details?: (row: ListRow) => ReactNode;
+  pathOf?: (row: ListRow) => string;
 }
 
 const GAP = 8;
@@ -48,6 +58,8 @@ export function ListRows({
   onExpand,
   scrollElement,
   sourceName,
+  details,
+  pathOf = (row) => entityPath(row.key),
 }: ListRowsProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
@@ -169,11 +181,11 @@ export function ListRows({
                   aria-expanded={open}
                   aria-controls={open ? panelId : undefined}
                   onClick={(e: MouseEvent) => {
-                    if (wantsNewTab(e)) navigate(entityPath(row.key), { newTab: true });
+                    if (wantsNewTab(e)) navigate(pathOf(row), { newTab: true });
                     else onExpand(open ? null : row.key);
                   }}
                   onAuxClick={(e) => {
-                    if (e.button === 1) navigate(entityPath(row.key), { newTab: true });
+                    if (e.button === 1) navigate(pathOf(row), { newTab: true });
                   }}
                   className={cn(gridClass, 'min-h-16 w-full px-4 py-2.5 text-left text-sm')}
                 >
@@ -219,7 +231,11 @@ export function ListRows({
                 </button>
                 {open && (
                   <div id={panelId} className="border-t border-border px-4 py-4">
-                    <RowDetails row={row} sourceName={sourceName(row.source)} />
+                    {details ? (
+                      details(row)
+                    ) : (
+                      <RowDetails row={row} sourceName={sourceName(row.source)} />
+                    )}
                   </div>
                 )}
               </div>
