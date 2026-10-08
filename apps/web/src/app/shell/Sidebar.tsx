@@ -11,7 +11,7 @@ import {
 } from '../compendiumLinks';
 import { moduleForPath, navModules, type NavModule } from '../nav';
 import { CampaignSwitcher } from './CampaignSwitcher';
-import { LogoMark } from './Logo';
+import { LogoMark, Wordmark } from './Logo';
 
 export interface SidebarProps {
   /** Icons only. Ignored in the mobile drawer. */
@@ -36,11 +36,9 @@ export function Sidebar({ collapsed, onToggleCollapsed, onNavigate, className }:
         className,
       )}
     >
-      <div className={cn('flex h-14 items-center gap-2.5 px-3', collapsed && 'justify-center')}>
-        <LogoMark className="h-9 w-9 shrink-0" />
-        {!collapsed && (
-          <span className="font-serif text-[15px] leading-tight font-bold">Bag of Holding</span>
-        )}
+      <div className={cn('flex h-16 items-center gap-3 px-3', collapsed && 'justify-center')}>
+        <LogoMark className={cn('shrink-0', collapsed ? 'w-10' : 'w-14')} />
+        {!collapsed && <Wordmark className="text-[17px]" />}
       </div>
 
       {!collapsed && <CampaignSwitcher {...(onNavigate ? { onNavigate } : {})} />}

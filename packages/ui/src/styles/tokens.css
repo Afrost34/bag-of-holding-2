@@ -21,12 +21,14 @@
   --boh-text: #1d1d22;
   --boh-text-muted: #5f5b55;
   --boh-text-faint: #6e6a63;
-  --boh-accent: #c53131;
-  --boh-accent-hover: #a82828;
+  --boh-accent: #d4a017;
+  --boh-accent-hover: #b8890f;
   /* Accent as text: dark enough on every light surface (the accent itself is for fills). */
-  --boh-accent-ink: #b32a2a;
-  --boh-accent-fg: #ffffff;
-  --boh-accent-soft: rgb(197 49 49 / 0.1);
+  --boh-accent-ink: #7f5a00;
+  --boh-accent-fg: #1b1b1b;
+  --boh-accent-soft: rgb(212 160 23 / 0.14);
+  /* The logo and the title: the same gold in both themes (they sit on the dark chrome). */
+  --boh-brand: #d4a017;
   --boh-chrome: #22252e;
   --boh-chrome-2: #2c303b;
   --boh-chrome-fg: #f2f2f4;
@@ -98,11 +100,11 @@
     --boh-text: #ecebe8;
     --boh-text-muted: #a6a39c;
     --boh-text-faint: #8a8780;
-    --boh-accent: #d13a40;
-    --boh-accent-hover: #f06367;
-    --boh-accent-ink: #f06367;
-    --boh-accent-fg: #ffffff;
-    --boh-accent-soft: rgb(229 72 77 / 0.14);
+    --boh-accent: #e0b23a;
+    --boh-accent-hover: #f0c75a;
+    --boh-accent-ink: #f0c75a;
+    --boh-accent-fg: #1b1b1b;
+    --boh-accent-soft: rgb(224 178 58 / 0.16);
     --boh-chrome: #1d2027;
     --boh-chrome-2: #2a2e38;
     --boh-chrome-fg: #ecebe8;
@@ -158,11 +160,11 @@
   --boh-text: #ecebe8;
   --boh-text-muted: #a6a39c;
   --boh-text-faint: #8a8780;
-  --boh-accent: #d13a40;
-  --boh-accent-hover: #f06367;
-  --boh-accent-ink: #f06367;
-  --boh-accent-fg: #ffffff;
-  --boh-accent-soft: rgb(229 72 77 / 0.14);
+  --boh-accent: #e0b23a;
+  --boh-accent-hover: #f0c75a;
+  --boh-accent-ink: #f0c75a;
+  --boh-accent-fg: #1b1b1b;
+  --boh-accent-soft: rgb(224 178 58 / 0.16);
   --boh-chrome: #1d2027;
   --boh-chrome-2: #2a2e38;
   --boh-chrome-fg: #ecebe8;
@@ -224,6 +226,7 @@
   --color-accent-ink: var(--boh-accent-ink);
   --color-accent-fg: var(--boh-accent-fg);
   --color-accent-soft: var(--boh-accent-soft);
+  --color-brand: var(--boh-brand);
   --color-chrome: var(--boh-chrome);
   --color-chrome-2: var(--boh-chrome-2);
   --color-chrome-fg: var(--boh-chrome-fg);
