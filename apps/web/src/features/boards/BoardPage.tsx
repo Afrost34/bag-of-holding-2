@@ -21,6 +21,7 @@ import {
   COLLAPSED_H,
   dropCard,
   moveBoardCards,
+  placeForPlayers,
   removeBoardCard,
   setFrame,
   SIZES,
@@ -30,7 +31,12 @@ import {
   type BoardCard,
   type CardContent,
 } from '../../app/boards/model';
-import { openPlayerWindow, openPlayerWindowIfClosed, showToPlayers } from '../../app/boards/player';
+import {
+  onPlayerAction,
+  openPlayerWindow,
+  openPlayerWindowIfClosed,
+  showToPlayers,
+} from '../../app/boards/player';
 import { useBoard, useBoards } from '../../app/boards/store';
 import { useCampaigns } from '../../app/campaigns/store';
 import { entityPath, loadEntity } from '../../app/data/entities';
@@ -259,6 +265,7 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
           shown.length
             ? {
                 kind: 'board',
+                boardId,
                 name: board.name,
                 cards: shown,
                 ...(campaignId ? { campaignId } : {}),
@@ -275,6 +282,20 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
     // `shownKey` stands for the shown cards (the board object changes on every save).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownKey, board.name, campaignId]);
+
+  // What the DM does in the player window (move, resize, take off) comes back to this board.
+  useEffect(
+    () =>
+      onPlayerAction((a) => {
+        if (a.boardId !== boardId) return;
+        if (a.type === 'place') commit((b) => placeForPlayers(b, a.cardId, a.place));
+        else
+          commit((b) =>
+            b.cards.find((c) => c.id === a.cardId)?.shown ? toggleShown(b, a.cardId) : b,
+          );
+      }),
+    [boardId, commit],
+  );
 
   // A card asked for in the URL is brought into view once the canvas is ready.
   const [focused, setFocused] = useState<string | null>(null);

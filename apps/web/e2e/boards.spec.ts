@@ -141,6 +141,25 @@ test('a card shown to players opens in the player window', async ({ page, contex
   await page.getByRole('button', { name: 'Fireball menu', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Hide from players' }).click();
   await expect(player.getByRole('region', { name: 'Fireball' })).toHaveCount(0);
+
+  // The player window is a board: a card moved there stays put; taken off there, it is hidden.
+  await page.getByRole('button', { name: 'Fireball menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Show to players' }).click();
+  const shown = player.getByRole('region', { name: 'Fireball' });
+  await expect(shown).toBeVisible();
+  const bar = await shown.locator('header').boundingBox();
+  if (!bar) throw new Error('no title bar');
+  await player.mouse.move(bar.x + 40, bar.y + bar.height / 2);
+  await player.mouse.down();
+  await player.mouse.move(bar.x + 44, bar.y + bar.height / 2 + 4, { steps: 2 });
+  await player.mouse.move(bar.x + 140, bar.y + 120, { steps: 10 });
+  await player.mouse.up();
+  const moved = await shown.locator('header').boundingBox();
+  await page.waitForTimeout(600);
+  await expect.poll(async () => (await shown.locator('header').boundingBox())?.x).toBe(moved?.x);
+  await shown.getByRole('button', { name: 'Take Fireball off the screen' }).click();
+  await expect(shown).toHaveCount(0);
+  await expect(page.getByLabel('Shown to players')).toHaveCount(0);
 });
 
 test('right-click adds where clicked; the NPC generator; frames rename', async ({ page }) => {
