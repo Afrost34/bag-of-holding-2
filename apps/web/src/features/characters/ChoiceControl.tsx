@@ -1,5 +1,7 @@
 import type { AnsweredChoice, CharacterDecisions, OptionSummary } from '@boh/rules';
+import { Entries } from '@boh/renderer';
 import { cn } from '@boh/ui';
+import { useEntity } from '../../app/data/entities';
 import { useId } from 'react';
 import { pickName } from './steps';
 import { SpellChoicePanel } from './SpellChoicePanel';
@@ -72,29 +74,82 @@ function DropdownChoice({
         <p className="text-sm text-muted">Nothing in your sources matches this choice.</p>
       ) : (
         slots.map((value, slot) => (
-          <select
-            key={slot}
-            aria-label={choice.count > 1 ? `${choice.label} (${String(slot + 1)})` : choice.label}
-            value={value}
-            onChange={(e) => {
-              set(slot, e.target.value);
-            }}
-            className={cn(selectClass, value ? '' : 'border-accent text-muted')}
-          >
-            <option value="">{placeholder}</option>
-            {visible
-              .filter((o) => o.id === value || o.id.startsWith('pool:') || !slots.includes(o.id))
-              .map((o) => (
-                <option key={o.id} value={o.id}>
-                  {label(o)}
-                </option>
-              ))}
-            {value && !visible.some((o) => o.id === value) && (
-              <option value={value}>{pickName(value)}</option>
+          <div key={slot} className="space-y-1">
+            <select
+              aria-label={choice.count > 1 ? `${choice.label} (${String(slot + 1)})` : choice.label}
+              value={value}
+              onChange={(e) => {
+                set(slot, e.target.value);
+              }}
+              className={cn(selectClass, value ? '' : 'border-accent text-muted')}
+            >
+              <option value="">{placeholder}</option>
+              {visible
+                .filter((o) => o.id === value || o.id.startsWith('pool:') || !slots.includes(o.id))
+                .map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {label(o)}
+                  </option>
+                ))}
+              {value && !visible.some((o) => o.id === value) && (
+                <option value={value}>{pickName(value)}</option>
+              )}
+            </select>
+            {value && (
+              <ChoiceDescription
+                choiceId={choice.id}
+                value={value}
+                label={visible.find((o) => o.id === value)?.name ?? ''}
+              />
             )}
-          </select>
+          </div>
         ))
       )}
+    </div>
+  );
+}
+
+const isObject = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/**
+ * What a pick does, under its dropdown: an entry's own text (an invocation, Magician, a feat),
+ * or, for a species' lineage picked by name (Wood Elf), that lineage's trait.
+ */
+function ChoiceDescription({
+  choiceId,
+  value,
+  label,
+}: {
+  choiceId: string;
+  value: string;
+  label: string;
+}) {
+  const isEntry = /^[a-z]+:.+@/.test(value);
+  const owner = choiceId.split('/')[0] ?? '';
+  const state = useEntity(isEntry ? value : /^(race|subrace):/.test(owner) ? owner : null);
+  if (state.status !== 'found') return null;
+  let entries: unknown;
+  if (isEntry) entries = state.entity.data.entries;
+  else {
+    // "Elf; Wood Elf Lineage": the version's replaced trait describes the lineage.
+    const versions = Array.isArray(state.entity.data._versions) ? state.entity.data._versions : [];
+    const version: unknown = versions.find(
+      (v) =>
+        isObject(v) &&
+        typeof v.name === 'string' &&
+        label !== '' &&
+        v.name.toLowerCase().includes('; ' + label.toLowerCase() + ' '),
+    );
+    const mods = isObject(version) && isObject(version._mod) ? version._mod.entries : undefined;
+    entries = (Array.isArray(mods) ? mods : [mods]).flatMap((m) =>
+      isObject(m) && m.items !== undefined ? [m.items] : [],
+    );
+  }
+  if (!Array.isArray(entries) || entries.length === 0) return null;
+  return (
+    <div className="max-h-56 overflow-y-auto rounded-md border border-border bg-surface-2 px-3 py-2 text-sm">
+      <Entries entries={entries} />
     </div>
   );
 }

@@ -212,6 +212,14 @@ export function moonPhase(cal: Calendar, moon: Moon, date: CalendarDate): number
   return Math.round(position * 8) % 8;
 }
 
+/** The day of a new or a full moon (one day each per cycle), or null. */
+export function moonEvent(cal: Calendar, moon: Moon, date: CalendarDate): 'new' | 'full' | null {
+  if (moon.cycle <= 0) return null;
+  const day = mod(dayNumber(cal, date) + moon.offset, moon.cycle);
+  if (day === 0) return 'new';
+  return day === Math.floor(moon.cycle / 2) ? 'full' : null;
+}
+
 export function seasonOf(cal: Calendar, date: CalendarDate): Season | null {
   const total = cal.seasons.reduce((n, s) => n + s.days, 0);
   if (total <= 0) return null;

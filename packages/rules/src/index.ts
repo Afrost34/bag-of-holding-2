@@ -43,6 +43,7 @@ export {
 } from './build';
 export {
   computeSheet,
+  pactWeaponFeature,
   modifier,
   proficiencyBonus,
   type AbilityLine,

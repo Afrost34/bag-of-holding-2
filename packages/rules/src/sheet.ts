@@ -223,6 +223,35 @@ function heldItems(data: RulesData, inventory: readonly InventoryItem[]): HeldIt
 const has = (built: BuiltCharacter, name: string) =>
   built.features.some((f) => f.name.toLowerCase() === name.toLowerCase());
 
+/** Features that bind a weapon to the character (it then attacks with Charisma). */
+const PACT_FEATURES = ['Pact of the Blade', 'Hex Warrior'];
+
+/** The feature that lets this character bind a weapon, if any. */
+export function pactWeaponFeature(built: BuiltCharacter): string | null {
+  return PACT_FEATURES.find((f) => has(built, f)) ?? null;
+}
+
+/**
+ * A species version picked through its spells (2024 lineages and legacies: "Elf; Wood Elf
+ * Lineage"), with what it changes: speed, darkvision, resistances.
+ */
+function pickedVersion(
+  e: EntityDetail,
+  decisions: CharacterDecisions,
+): Record<string, unknown> | null {
+  const spells = e.data.additionalSpells;
+  const versions = e.data._versions;
+  if (!Array.isArray(spells) || !Array.isArray(versions) || spells.length < 2) return null;
+  const pick = decisions.choices[`${e.key}/spells`]?.[0];
+  const option: unknown = pick === undefined ? undefined : spells[Number(pick)];
+  const name = isObj(option) && typeof option.name === 'string' ? option.name.toLowerCase() : null;
+  if (!name) return null;
+  const version: unknown = versions.find(
+    (v) => isObj(v) && typeof v.name === 'string' && v.name.toLowerCase().includes(`; ${name} `),
+  );
+  return isObj(version) ? version : null;
+}
+
 export function computeSheet(
   data: RulesData,
   decisions: CharacterDecisions,
@@ -299,6 +328,11 @@ export function computeSheet(
     };
   }
 
+  // Druid Magician: Wisdom (at least +1) on Intelligence (Arcana or Nature) checks.
+  const magician =
+    has(built, 'Magician') && built.classes.some((c) => c.key.startsWith('class:druid'))
+      ? Math.max(1, mod('wis'))
+      : 0;
   const skills: Record<string, SkillLine> = {};
   for (const [skill, a] of Object.entries(SKILLS)) {
     const level2 = expertise.has(skill) && skillProf.has(skill);
@@ -313,6 +347,8 @@ export function computeSheet(
     if (proficiency >= 1)
       parts.push({ label: level2 ? 'Expertise' : 'Proficiency', value: pb * proficiency });
     parts.push(...jackPart(proficiency >= 1), ...checkItems);
+    if (magician && (skill === 'arcana' || skill === 'nature'))
+      parts.push({ label: 'Magician (Wisdom)', value: magician });
     skills[skill] = { ...final(`skill.${skill}`, value(parts)), ability: a, proficiency };
   }
   const passive = (skill: string): SheetValue => {
@@ -401,6 +437,7 @@ export function computeSheet(
   // Speed and senses come from the species (a subspecies replaces what it sets).
   const speed: Record<string, number> = {};
   const senses: Record<string, number> = {};
+  const lineageResist = new Set<string>();
   const species = [...built.entities.values()].filter(
     (e) => e.type === 'race' || e.type === 'subrace',
   );
@@ -411,6 +448,16 @@ export function computeSheet(
       for (const [k, v] of Object.entries(s)) if (typeof v === 'number') speed[k] = v;
     if (typeof e.data.darkvision === 'number') senses.darkvision = e.data.darkvision;
     if (typeof e.data.blindsight === 'number') senses.blindsight = e.data.blindsight;
+    // The lineage picked (Wood Elf: speed 35; Drow: darkvision 120; legacies: resistances).
+    const version = pickedVersion(e, decisions);
+    if (version) {
+      if (typeof version.speed === 'number') speed.walk = version.speed;
+      else if (isObj(version.speed))
+        for (const [k, v] of Object.entries(version.speed)) if (typeof v === 'number') speed[k] = v;
+      if (typeof version.darkvision === 'number') senses.darkvision = version.darkvision;
+      if (Array.isArray(version.resist))
+        for (const r of version.resist) if (typeof r === 'string') lineageResist.add(r);
+    }
   }
   if (!('walk' in speed)) speed.walk = 30;
   for (const { entity } of active) {
@@ -480,24 +527,29 @@ export function computeSheet(
 
   // Attacks: carried weapons, and cantrips that attack or force a save.
   const weaponProf = new Set(grantValues('weapon'));
+  const pactFeature = pactWeaponFeature(built);
   const attacks: Attack[] = [];
   for (const { entity, item } of items) {
     const d = entity.data;
     if (d.weapon !== true && !d.dmg1) continue;
     const props = Array.isArray(d.property) ? d.property.map(code) : [];
     const ranged = code(d.type) === 'R';
-    const ability: Ability = props.includes('F')
+    const usual: Ability = props.includes('F')
       ? mod('dex') >= mod('str')
         ? 'dex'
         : 'str'
       : ranged
         ? 'dex'
         : 'str';
+    // A pact weapon attacks with Charisma when that is better.
+    const pactBound = item.pact === true && pactFeature !== null;
+    const ability: Ability = pactBound && mod('cha') > mod(usual) ? 'cha' : usual;
     const baseKey =
       isObj(d) && typeof d.baseItem === 'string'
         ? `item:${d.baseItem.replace('|', '@')}`.toLowerCase()
         : entity.key;
     const proficient =
+      pactBound ||
       (typeof d.weaponCategory === 'string' && weaponProf.has(d.weaponCategory)) ||
       // "Firearms" (homebrew classes, 2014 DMG option): every weapon 5etools flags as one.
       (d.firearm === true && weaponProf.has('firearms')) ||
@@ -506,7 +558,10 @@ export function computeSheet(
       );
     const magic = bonus(d.bonusWeapon) + bonus(d.bonusWeaponAttack);
     const toHit = value([
-      { label: NAMES[ability], value: mod(ability) },
+      {
+        label: ability === 'cha' && pactBound ? `Charisma (${pactFeature})` : NAMES[ability],
+        value: mod(ability),
+      },
       ...(proficient ? [{ label: 'Proficiency', value: pb }] : []),
       ...(magic ? [{ label: entity.name, value: magic }] : []),
     ]);
@@ -573,7 +628,7 @@ export function computeSheet(
       languages: grantValues('language'),
     },
     defences: {
-      resist: grantValues('resist'),
+      resist: [...new Set([...grantValues('resist'), ...lineageResist])].sort(),
       immune: grantValues('immune'),
       conditionImmune: grantValues('conditionImmune'),
       vulnerable: grantValues('vulnerable'),

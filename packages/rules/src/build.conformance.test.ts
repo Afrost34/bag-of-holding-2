@@ -219,6 +219,52 @@ describe.runIf(hasLocalData())('the builder over the pinned 5etools release', ()
     expect(sheet.ac).toMatchObject({ value: 14, computed: 13 });
   });
 
+  it('applies lineages, Druid Magician and pact weapons to the sheet', () => {
+    const druid: CharacterDecisions = {
+      ...newCharacter('2024'),
+      baseScores: { str: 8, dex: 10, con: 12, int: 14, wis: 18, cha: 10 },
+      species: 'race:elf@xphb',
+      classes: [{ class: 'class:druid@xphb', levels: 3 }],
+      choices: {
+        'race:elf@xphb/spells': ['2'],
+        'classfeature:primal order|druid|xphb|1@xphb/options': [
+          'classfeature:magician|druid|xphb|1@xphb',
+        ],
+        'class:druid@xphb/level:1/skill': ['arcana', 'medicine'],
+      },
+    };
+    const wood = computeSheet(data, druid, buildCharacter(data, druid));
+    expect(wood.speed.walk).toBe(35);
+    // Intelligence +2, Proficiency +2, Magician (Wisdom) +4; Nature without proficiency.
+    expect(wood.skills.arcana?.value).toBe(8);
+    expect(wood.skills.nature?.value).toBe(6);
+    expect(wood.skills.history?.value).toBe(2);
+    const drow = { ...druid, choices: { ...druid.choices, 'race:elf@xphb/spells': ['0'] } };
+    const dark = computeSheet(data, drow, buildCharacter(data, drow));
+    expect(dark.speed.walk).toBe(30);
+    expect(dark.senses.darkvision).toBe(120);
+
+    const warlock: CharacterDecisions = {
+      ...newCharacter('2024'),
+      baseScores: { str: 10, dex: 14, con: 12, int: 10, wis: 10, cha: 16 },
+      classes: [{ class: 'class:warlock@xphb', levels: 3 }],
+      choices: {
+        'class:warlock@xphb/optionalfeature:eldritch invocations': [
+          'optionalfeature:pact of the blade@xphb',
+        ],
+      },
+      inventory: [{ key: 'baseitem:glaive@xphb', quantity: 1, equipped: true, pact: true }],
+    };
+    const glaive = () =>
+      computeSheet(data, warlock, buildCharacter(data, warlock)).attacks.find(
+        (a) => a.name === 'Glaive',
+      );
+    expect(glaive()?.toHit?.value).toBe(5);
+    expect(glaive()?.damage).toMatch(/^1d10\+3 /);
+    warlock.inventory = [{ key: 'baseitem:glaive@xphb', quantity: 1, equipped: true }];
+    expect(glaive()?.toHit?.value).toBe(0);
+  });
+
   it('rebuilds Glubs from decisions alone', () => {
     const glubs = buildCharacter(data, GLUBS);
     expect(glubs.pending.map((c) => c.id)).toEqual([]);
