@@ -1,6 +1,7 @@
 import {
   BookOpen,
   CalendarDays,
+  Dices,
   Castle,
   FlaskConical,
   House,
@@ -89,6 +90,13 @@ export const navModules: readonly NavModule[] = [
     icon: Swords,
     description: 'Balance encounters for your party and run combat.',
     milestone: 10,
+  },
+  {
+    path: '/tables',
+    label: 'Tables',
+    icon: Dices,
+    description:
+      'Loot, shops and random encounters to roll, linked to notes, encounters and creatures.',
   },
   {
     path: '/maps',

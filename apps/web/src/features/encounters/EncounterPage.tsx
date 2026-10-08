@@ -24,6 +24,8 @@ import { useEncounterInfo, type EncounterInfo } from '../../app/encounters/useDi
 import { useAppNavigate } from '../../app/navigation';
 import { EntitySearch } from '../../app/search/EntitySearch';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
+import { encounterLink } from '../../app/tables/model';
+import { LinkedTables } from '../../app/tables/LinkedTables';
 
 /** One encounter: its monsters, its difficulty for the party, and the way to the fight. */
 export function EncounterPage({ id }: { id: string }) {
@@ -196,6 +198,14 @@ export function EncounterPage({ id }: { id: string }) {
               </ul>
             </section>
           )}
+          <LinkedTables
+            link={encounterLink(encounter.id)}
+            campaign={encounter.campaign ?? null}
+            onCreatures={(keys) => {
+              change((e) => addMonsters(e, keys));
+            }}
+            creaturesLabel="Add to this encounter"
+          />
           <label className="block">
             <span className="mb-1 block text-sm font-medium">Notes</span>
             <textarea

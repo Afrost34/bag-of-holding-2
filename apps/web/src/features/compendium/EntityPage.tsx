@@ -9,6 +9,7 @@ import { BusyNotice } from '../../app/data/BusyNotice';
 import { useData } from '../../app/data/store';
 import { EntityMeta } from '../../app/renderer/EntityCard';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
+import { LinkedTables } from '../../app/tables/LinkedTables';
 
 export function EntityPage({ entityKey }: { entityKey: string }) {
   const state = useEntity(entityKey);
@@ -88,6 +89,10 @@ export function EntityPage({ entityKey }: { entityKey: string }) {
       </div>
 
       {entity.type === 'magicvariant' && <AppliesTo entityKey={entity.key} />}
+
+      <div className="clear-both mt-6 empty:hidden">
+        <LinkedTables link={entity.key} />
+      </div>
 
       {lore !== undefined && (
         <section className="clear-both mt-8">

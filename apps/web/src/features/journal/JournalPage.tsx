@@ -61,6 +61,8 @@ import { NoteEditor } from '../../app/journal/notes/NoteEditor';
 import { PropertiesPanel } from './PropertiesPanel';
 import { TagsPane } from './TagsPane';
 import { buildTagTree, moveTarget } from './tree';
+import { noteLink } from '../../app/tables/model';
+import { LinkedTables } from '../../app/tables/LinkedTables';
 import { useAttachmentUrl } from '../../app/journal/notes/useAttachmentUrl';
 
 const folderOf = (path: string) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '');
@@ -777,6 +779,9 @@ export function JournalPage({ note }: { note: string | undefined }) {
               </button>
             </div>
           </section>
+          {note !== undefined && (
+            <LinkedTables link={noteLink(note)} campaign={campaign.id} compact />
+          )}
           {note !== undefined && text !== undefined && (
             <section aria-label="Backlinks">
               <h2 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold tracking-wider text-muted uppercase">
