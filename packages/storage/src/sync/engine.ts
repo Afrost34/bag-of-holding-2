@@ -40,6 +40,12 @@ export interface SyncOptions {
   onProgress?: (done: number, total: number) => void;
   /** Files never synced (besides the sync's own folder). */
   ignore?: (path: string) => boolean;
+  /**
+   * Files downloaded only when needed (big pictures): one that is not on this device is neither
+   * downloaded nor taken as deleted here; it is fetched with `fetchLazyFile` when opened. One that
+   * is here syncs like any other file.
+   */
+  lazy?: (path: string) => boolean;
 }
 
 async function walk(store: FileStore, dir = ''): Promise<string[]> {
@@ -107,6 +113,9 @@ export async function syncStore(
   }
   const remoteAll = await repo.tree(head.tree);
   const remote = Object.fromEntries(Object.entries(remoteAll).filter(([p]) => !ignored(p)));
+  // Lazy files not on this device count as here and unchanged: nothing to download or delete.
+  for (const [path, sha] of Object.entries(remote))
+    if (!(path in local) && options.lazy?.(path) === true) local[path] = sha;
 
   const plan = planSync(state.files, local, remote);
   const download = [...plan.download];
@@ -212,4 +221,21 @@ export async function syncStore(
     conflicts,
     commit,
   };
+}
+
+/**
+ * A lazy file this device has not downloaded yet, fetched from the repository as it was at the
+ * last sync, and kept. Null when the repository has no such file (or this device never synced).
+ */
+export async function fetchLazyFile(
+  store: FileStore,
+  repo: RemoteRepo,
+  remoteId: string,
+  path: string,
+): Promise<Uint8Array | null> {
+  const sha = (await readState(store, remoteId)).files[path];
+  if (!sha) return null;
+  const bytes = await repo.readBlob(sha);
+  await store.writeFile(path, bytes);
+  return bytes;
 }
