@@ -1,4 +1,5 @@
 import type { EntityDetail } from '@boh/data5e';
+import type { Calendar } from '../calendar/model';
 import type { BoardCard, PlayerPlace } from './model';
 import { useEffect, useState } from 'react';
 
@@ -19,6 +20,8 @@ export type PlayerShow =
   | { kind: 'entity'; entity: EntityDetail }
   | { kind: 'note'; campaignId: string; path: string }
   | { kind: 'text'; title?: string; text: string }
+  /** The campaign's calendar: today, this month and what comes next (secrets left out). */
+  | { kind: 'calendar'; campaignId: string; calendar: Calendar }
   /**
    * The cards the DM marked as shown, laid out for the players. Entries go whole (see above);
    * `campaignId` is where notes, pictures and maps are read from.

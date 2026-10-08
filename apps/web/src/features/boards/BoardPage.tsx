@@ -604,6 +604,7 @@ function useAddOptions(
         openPanel('character', at);
       },
     },
+    { ...simple('calendar', 'calendar', () => ({ kind: 'calendar' })), disabled: !board.campaign },
     {
       ...simple('npc', 'npc', () => ({ kind: 'npc', npc: generateNpc() })),
       label: 'NPC generator',

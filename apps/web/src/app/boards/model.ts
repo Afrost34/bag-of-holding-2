@@ -53,6 +53,8 @@ export type CardContent =
       character: string;
       show: { spells: boolean; features: boolean; inventory: boolean; story?: boolean };
     }
+  /** The campaign's calendar: today, this month and what comes next. */
+  | { kind: 'calendar' }
   /** A generated NPC (the DM's own text from then on). */
   | { kind: 'npc'; npc: Npc }
   | { kind: 'frame'; title: string }
@@ -116,6 +118,7 @@ export const SIZES: Record<CardKind, { w: number; h: number }> = {
   npc: { w: 340, h: 380 },
   frame: { w: 760, h: 480 },
   stack: { w: 340, h: 380 },
+  calendar: { w: 340, h: 460 },
 };
 
 /** Height of a collapsed card (its title bar). */
@@ -452,6 +455,7 @@ export const SHOWABLE_KINDS: ReadonlySet<CardKind> = new Set([
   'timer',
   'map',
   'npc',
+  'calendar',
 ]);
 
 /** Moves or resizes a card in the player window. */
