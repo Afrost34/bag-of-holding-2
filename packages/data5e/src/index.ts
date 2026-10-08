@@ -110,7 +110,23 @@ export {
   setPackCover,
   removeClass,
   classFeatures,
+  putSubclass,
+  removeSubclass,
+  subclassFeatures,
+  putBook,
+  removeBook,
+  bookDataOf,
 } from './brew/pack';
+export {
+  bookIdFor,
+  bookToForm,
+  emptyBook,
+  formToBook,
+  type BookChapterForm,
+  type BookForm,
+  type BookSectionForm,
+} from './brew/books';
+export { richEntries, richText, type RichText } from './brew/text';
 export {
   DAMAGE_TYPES,
   emptyItem,
@@ -182,4 +198,9 @@ export {
   type SpeciesForm,
   type ClassForm,
   type Caster,
+  type FeatureForm,
+  emptySubclass,
+  formToSubclass,
+  subclassToForm,
+  type SubclassForm,
 } from './brew/characterOptions';

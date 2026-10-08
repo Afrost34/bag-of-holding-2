@@ -13,6 +13,13 @@ import {
   setPackCover,
   type PackMeta,
   type RawEntity,
+  bookDataOf,
+  identify,
+  putBook,
+  putSubclass,
+  removeBook,
+  removeSubclass,
+  subclassFeatures,
 } from '@boh/data5e';
 import { Entries, EntityView } from '@boh/renderer';
 import { Button, cn } from '@boh/ui';
@@ -20,6 +27,7 @@ import { BookOpen, ChevronRight, Download, ImagePlus, Pencil, Plus, Trash2 } fro
 import { useEffect, useState, type ReactNode } from 'react';
 import { AppLink } from '../../app/AppLink';
 import { entityPath } from '../../app/data/entities';
+import { readerPath } from '../../app/renderer/referenceTarget';
 import { useHomebrew } from '../../app/data/homebrew';
 import { typeLabel } from '../../app/format';
 import { useAppNavigate } from '../../app/navigation';
@@ -29,6 +37,7 @@ import { CreatureEditor } from './CreatureEditor';
 import { ItemEditor } from './ItemEditor';
 import { BackgroundEditor, ClassEditor, FeatEditor, SpeciesEditor } from './OptionEditors';
 import { SpellEditor } from './SpellEditor';
+import { BookEditor, SubclassEditor } from './SubclassBookEditors';
 import { packFile, packPath, plural } from './packs';
 
 /** What a pack can hold, in the order its sections and New buttons show. */
@@ -40,6 +49,8 @@ const KINDS = [
   { type: 'background', label: 'background' },
   { type: 'race', label: 'species' },
   { type: 'class', label: 'class' },
+  { type: 'subclass', label: 'subclass' },
+  { type: 'book', label: 'book' },
 ] as const;
 type Kind = (typeof KINDS)[number]['type'];
 const order = (t: string) => {
@@ -128,6 +139,22 @@ export function PackPage({
     }
   };
 
+  const saveSubclass = (sc: RawEntity, features: RawEntity[]): Promise<string | null> => {
+    try {
+      return write(putSubclass(pack.json, sc, features, editing?.name), String(sc.name));
+    } catch (error) {
+      return Promise.resolve(error instanceof Error ? error.message : String(error));
+    }
+  };
+  const saveBook = (book: RawEntity, text: RawEntity): Promise<string | null> => {
+    try {
+      const previous = editing?.type === 'book' ? String(editing.entity.id) : undefined;
+      return write(putBook(pack.json, book, text, previous), String(book.name));
+    } catch (error) {
+      return Promise.resolve(error instanceof Error ? error.message : String(error));
+    }
+  };
+
   const exportPack = () => {
     const blob = new Blob([JSON.stringify(pack.json, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -185,6 +212,23 @@ export function PackPage({
           onSave={saveClass}
         />
       ),
+      subclass: (
+        <SubclassEditor
+          key={edit ?? 'new'}
+          {...props}
+          features={editing ? subclassFeatures(pack.json, editing.entity) : []}
+          classes={entries.filter((e) => e.type === 'class').map((e) => e.entity)}
+          onSave={saveSubclass}
+        />
+      ),
+      book: (
+        <BookEditor
+          key={edit ?? 'new'}
+          {...props}
+          bookData={editing ? bookDataOf(pack.json, String(editing.entity.id)) : undefined}
+          onSave={saveBook}
+        />
+      ),
     };
     const label = KINDS.find((k) => k.type === kind)?.label ?? kind;
     return (
@@ -205,10 +249,15 @@ export function PackPage({
   const groups = new Map<string, typeof entries>();
   for (const e of entries) groups.set(e.type, [...(groups.get(e.type) ?? []), e]);
   const deleteEntry = (type: string, entryName: string) => {
+    const entity = entries.find((e) => e.type === type && e.name === entryName)?.entity;
     const json =
       type === 'class'
         ? removeClass(pack.json, entryName)
-        : putFluffImage(removeEntry(pack.json, type, entryName), type, entryName, null);
+        : type === 'subclass'
+          ? removeSubclass(pack.json, entryName)
+          : type === 'book'
+            ? removeBook(pack.json, typeof entity?.id === 'string' ? entity.id : entryName)
+            : putFluffImage(removeEntry(pack.json, type, entryName), type, entryName, null);
     void savePack(path, json);
   };
 
@@ -437,7 +486,7 @@ function EntryRow({
         </button>
         {image && <img src={image} alt="" className="h-8 w-8 rounded object-cover" />}
         <AppLink
-          to={entityPath(makeKey(type, [name], meta.id))}
+          to={entryPath(type, name, entity, meta.id)}
           className="min-w-0 flex-1 truncate font-medium text-link hover:underline"
         >
           {name}
@@ -487,7 +536,11 @@ function EntryRow({
             />
           )}
           <div className="min-w-0 flex-1">
-            {type === 'class' ? (
+            {type === 'subclass' ? (
+              <ClassSummary entity={entity} features={subclassFeatures(pack, entity)} />
+            ) : type === 'book' ? (
+              <BookSummary entity={entity} />
+            ) : type === 'class' ? (
               <ClassSummary entity={entity} features={classFeatures(pack, name)} />
             ) : (
               <EntityView type={type} data={entity} edition={meta.edition} />
@@ -520,5 +573,38 @@ function ClassSummary({ entity, features }: { entity: RawEntity; features: reado
           </section>
         ))}
     </div>
+  );
+}
+
+/** Where an entry of the pack opens: its compendium page, or the reader for a book. */
+function entryPath(type: string, name: string, entity: RawEntity, source: string): string {
+  if (type === 'book') return readerPath('book', String(entity.id));
+  const id = identify(type, { ...entity, source });
+  return entityPath(id?.key ?? makeKey(type, [name], source));
+}
+
+/** A book's chapters and sections, as in its contents. */
+function BookSummary({ entity }: { entity: RawEntity }) {
+  const contents = Array.isArray(entity.contents) ? (entity.contents as unknown[]) : [];
+  return (
+    <ol className="list-decimal space-y-1 pl-5 text-sm">
+      {contents.map((c, i) => {
+        const chapter = typeof c === 'object' && c !== null ? (c as RawEntity) : {};
+        const headers = Array.isArray(chapter.headers) ? (chapter.headers as unknown[]) : [];
+        return (
+          <li key={i}>
+            <span className="font-medium">
+              {typeof chapter.name === 'string' ? chapter.name : ''}
+            </span>
+            {headers.length > 0 && (
+              <span className="text-muted">
+                {' '}
+                — {headers.filter((h): h is string => typeof h === 'string').join(', ')}
+              </span>
+            )}
+          </li>
+        );
+      })}
+    </ol>
   );
 }

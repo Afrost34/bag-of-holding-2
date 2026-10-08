@@ -227,6 +227,45 @@ describe('homebrew', () => {
     expect(index.hasKey('spell:fireball@phb')).toBe(true);
   });
 
+  it('reads a pack’s own book: in the library, with its chapters', async () => {
+    await installData(index, fixtureSource());
+    syncHomebrew(index, [
+      {
+        path: 'homebrew/my-brew.json',
+        sha: 'b',
+        json: {
+          ...pack([]),
+          book: [
+            {
+              name: 'Frost Lore',
+              id: 'FrostLore',
+              source: 'MyBrew',
+              contents: [{ name: 'Ice', headers: ['Cold'] }],
+            },
+          ],
+          bookData: [
+            {
+              id: 'FrostLore',
+              source: 'MyBrew',
+              data: [
+                {
+                  type: 'section',
+                  name: 'Ice',
+                  entries: [{ type: 'entries', name: 'Cold', entries: ['Brr.'] }],
+                },
+              ],
+            },
+          ],
+        },
+      },
+    ]);
+    expect(index.library('book').map((b) => b.id)).toContain('FrostLore');
+    const content = index.bookContent('book', 'FrostLore');
+    expect(content?.name).toBe('Frost Lore');
+    expect(content?.toc[0]?.headers[0]?.header).toBe('Cold');
+    expect(content?.chapters).toHaveLength(1);
+  });
+
   it('rejects files that are not homebrew packs', () => {
     expect(() => homebrewSources({ spell: [] })).toThrow(HomebrewError);
     expect(() => homebrewSources({ _meta: { sources: [] } })).toThrow(HomebrewError);

@@ -5,6 +5,7 @@ import { cn } from '@boh/ui';
 import { AppLink } from '../../app/AppLink';
 import { ArtImage } from '../../app/ArtImage';
 import { useLibrary } from '../../app/data/books';
+import { usePackCovers } from '../../app/data/packCovers';
 import { readerPath } from '../../app/renderer/referenceTarget';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 
@@ -42,6 +43,7 @@ type Show = 'all' | 'book' | 'adventure';
 /** Books and adventures together, grouped; a switch narrows to one kind. */
 export function LibraryPage({ initial = 'all' }: { initial?: Show }) {
   const books = useLibrary('book');
+  const packCovers = usePackCovers();
   const adventures = useLibrary('adventure');
   const [show, setShow] = useState<Show>(initial);
   const [filter, setFilter] = useState('');
@@ -121,7 +123,13 @@ export function LibraryPage({ initial = 'all' }: { initial?: Show }) {
               <li key={b.id}>
                 <AppLink to={readerPath(kind, b.id)} className="group block">
                   <div className="aspect-[3/4] overflow-hidden rounded-md border border-border bg-sunken shadow-card transition-transform group-hover:-translate-y-0.5">
-                    {b.coverPath ? (
+                    {packCovers.get(b.source.toLowerCase()) ? (
+                      <img
+                        src={packCovers.get(b.source.toLowerCase())}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    ) : b.coverPath ? (
                       <ArtImage
                         path={b.coverPath}
                         widths={[240, 400]}

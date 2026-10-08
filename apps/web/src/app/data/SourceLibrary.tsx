@@ -1,10 +1,10 @@
-import { packCover, packMeta, type SourceSummary } from '@boh/data5e';
+import type { SourceSummary } from '@boh/data5e';
 import { Button, cn, Panel } from '@boh/ui';
 import { Check, ChevronRight, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { ArtImage } from '../ArtImage';
 import { useLibrary } from './books';
-import { useHomebrew } from './homebrew';
+import { usePackCovers } from './packCovers';
 import { SOURCE_GROUPS, sourceGroup, useSourceList, type SourceGroupId } from './sourceList';
 import { isSourceEnabled } from './sourcePrefs';
 
@@ -15,19 +15,15 @@ const OPEN_BY_DEFAULT = new Set<SourceGroupId>(['core2024', 'core2014', 'homebre
 function useSourceCovers(): Map<string, string> {
   const books = useLibrary('book');
   const adventures = useLibrary('adventure');
-  const packs = useHomebrew((s) => s.packs);
+  const packCovers = usePackCovers();
   return useMemo(() => {
     const covers = new Map<string, string>();
     for (const b of [...(books ?? []), ...(adventures ?? [])]) {
       if (b.coverPath) covers.set(b.source.toLowerCase(), b.coverPath);
     }
-    for (const p of packs) {
-      const id = packMeta(p.json)?.id;
-      const cover = packCover(p.json);
-      if (id && cover) covers.set(id.toLowerCase(), cover);
-    }
+    for (const [id, cover] of packCovers) covers.set(id, cover);
     return covers;
-  }, [books, adventures, packs]);
+  }, [books, adventures, packCovers]);
 }
 
 export interface SourceLibraryProps {

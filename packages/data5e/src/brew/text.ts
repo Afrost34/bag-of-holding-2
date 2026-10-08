@@ -46,3 +46,28 @@ export function textToEntries(text: string): string[] {
 export function entriesToText(entries: readonly string[]): string {
   return entries.map(untag).join('\n\n');
 }
+
+/**
+ * Entries as text to edit, when they may hold more than paragraphs (tables, lists, inset boxes):
+ * `original` remembers them so that saving text left alone keeps them exactly, and saving changed
+ * text keeps what is not a paragraph after the new paragraphs.
+ */
+export interface RichText {
+  text: string;
+  original?: { text: string; entries: unknown[] };
+}
+
+export function richText(entries: unknown): RichText {
+  const list = Array.isArray(entries) ? (entries as unknown[]) : [];
+  const text = entriesToText(list.filter((e): e is string => typeof e === 'string'));
+  return list.some((e) => typeof e !== 'string')
+    ? { text, original: { text, entries: list } }
+    : { text };
+}
+
+export function richEntries(value: RichText): unknown[] {
+  const { original } = value;
+  if (!original) return textToEntries(value.text);
+  if (original.text === value.text) return original.entries;
+  return [...textToEntries(value.text), ...original.entries.filter((e) => typeof e !== 'string')];
+}
