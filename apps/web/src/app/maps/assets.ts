@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { fetchMissing } from '../sync/lazy';
 import { userStore } from '../userStore';
-import { mapAssetPath, STAMPS_DIR } from './model';
+import { mapAssetPath, mapThumbPath, STAMPS_DIR } from './model';
 
 /**
  * Pictures for maps: backgrounds (kept with the campaign's maps) and the stamp library (shared by
@@ -70,6 +70,32 @@ export async function importBackground(
   await store.writeFile(path, new Uint8Array(await file.arrayBuffer()));
   return { path, ...size };
 }
+
+/** How wide a map's thumbnail is (px). */
+const THUMB_WIDTH = 400;
+
+/**
+ * The small picture of a map shown in the maps list, made from its picture. Kept apart from the
+ * map's assets so every device has it without downloading the full picture (ADR 0008).
+ */
+export async function saveThumbnail(picture: Blob, mapId: string, campaign?: string) {
+  const bitmap = await createImageBitmap(picture);
+  const scale = Math.min(1, THUMB_WIDTH / bitmap.width);
+  const width = Math.max(1, Math.round(bitmap.width * scale));
+  const height = Math.max(1, Math.round(bitmap.height * scale));
+  const canvas = new OffscreenCanvas(width, height);
+  canvas.getContext('2d')?.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close();
+  const blob = await canvas.convertToBlob({ type: 'image/webp', quality: 0.8 });
+  const path = mapThumbPath(mapId, campaign);
+  const store = await userStore();
+  await store.writeFile(path, new Uint8Array(await blob.arrayBuffer()));
+  urls.delete(path);
+}
+
+/** A map's thumbnail, or null when it has none (a blank canvas, an older map). */
+export const thumbnailUrl = (mapId: string, campaign?: string) =>
+  fileUrl(mapThumbPath(mapId, campaign));
 
 export interface Stamp {
   /** Path inside the library, e.g. `Forest/Trees/oak.png`. */

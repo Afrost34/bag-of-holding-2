@@ -1,9 +1,10 @@
 import { Button, ConfirmDelete } from '@boh/ui';
-import { Map as MapIcon, Plus } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Map as MapIcon, Plus, Search } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
 import { useActiveCampaign, useCampaigns } from '../../app/campaigns/store';
-import type { MapDoc } from '../../app/maps/model';
+import { thumbnailUrl } from '../../app/maps/assets';
+import { filterMaps, mapFolders, mapTags, type MapDoc, type MapFilter } from '../../app/maps/model';
 import { useMaps } from '../../app/maps/store';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
@@ -27,15 +28,27 @@ export function MapsPage() {
     if (!campaignsLoaded) void loadCampaigns();
   }, [loaded, load, campaignsLoaded, loadCampaigns]);
 
+  const [filter, setFilter] = useState<MapFilter>({ q: '', folder: '', tags: [] });
+  const folders = useMemo(() => mapFolders(sheets), [sheets]);
+  const tags = useMemo(() => mapTags(sheets), [sheets]);
+  const found = useMemo(
+    () =>
+      filterMaps(sheets, filter).sort(
+        (a, b) =>
+          (a.folder ?? '').localeCompare(b.folder ?? '', 'en') ||
+          a.name.localeCompare(b.name, 'en', { numeric: true }),
+      ),
+    [sheets, filter],
+  );
   const groups: { id: string; title: string; list: MapDoc[] }[] = [
     ...[...campaigns]
       .sort((a, b) => Number(b.id === active?.id) - Number(a.id === active?.id))
-      .map((c) => ({ id: c.id, title: c.name, list: sheets.filter((s) => s.campaign === c.id) })),
-    { id: LIBRARY, title: 'Not in a campaign', list: sheets.filter((s) => !s.campaign) },
+      .map((c) => ({ id: c.id, title: c.name, list: found.filter((s) => s.campaign === c.id) })),
+    { id: LIBRARY, title: 'Map library', list: found.filter((s) => !s.campaign) },
   ].filter((g) => g.list.length > 0);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 px-4 py-6 md:px-8 md:py-10">
+    <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 md:px-8 md:py-10">
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="flex-1 font-serif text-2xl font-bold">Maps</h1>
         <Button
@@ -99,7 +112,7 @@ export function MapsPage() {
                     {c.name}
                   </option>
                 ))}
-                <option value={LIBRARY}>Not in a campaign</option>
+                <option value={LIBRARY}>Map library (no campaign)</option>
               </select>
             </div>
           </div>
@@ -127,26 +140,102 @@ export function MapsPage() {
         </div>
       )}
 
+      {sheets.length > 0 && (
+        <section aria-label="Find a map" className="space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <label className="relative min-w-0 flex-1">
+              <Search
+                className="pointer-events-none absolute top-2.5 left-3 h-4 w-4 text-faint"
+                aria-hidden
+              />
+              <input
+                type="search"
+                value={filter.q}
+                aria-label="Search maps"
+                placeholder="Search maps by name, folder or tag"
+                onChange={(e) => {
+                  setFilter({ ...filter, q: e.target.value });
+                }}
+                className="h-10 w-full rounded-md border border-border bg-surface pr-3 pl-9 text-sm"
+              />
+            </label>
+            {folders.length > 0 && (
+              <select
+                value={filter.folder}
+                aria-label="Folder"
+                onChange={(e) => {
+                  setFilter({ ...filter, folder: e.target.value });
+                }}
+                className="h-10 rounded-md border border-border bg-surface px-2 text-sm"
+              >
+                <option value="">All folders</option>
+                {folders.map((f) => (
+                  <option key={f} value={f}>
+                    {f.split('/').join(' › ')}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+          {tags.length > 0 && (
+            <div role="group" aria-label="Tags" className="flex flex-wrap gap-1.5">
+              {tags.slice(0, 30).map(([t, n]) => {
+                const on = filter.tags.includes(t);
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => {
+                      setFilter({
+                        ...filter,
+                        tags: on ? filter.tags.filter((x) => x !== t) : [...filter.tags, t],
+                      });
+                    }}
+                    className={
+                      on
+                        ? 'rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-accent-fg'
+                        : 'rounded-full border border-border px-2.5 py-0.5 text-xs hover:bg-sunken'
+                    }
+                  >
+                    {t} <span className={on ? '' : 'text-muted'}>{n}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
+      {loaded && sheets.length > 0 && groups.length === 0 && (
+        <p className="text-muted">No map matches.</p>
+      )}
+
       {groups.map((g) => (
         <section key={g.id} aria-label={g.title}>
-          <h2 className="mb-2 font-serif text-lg font-bold">{g.title}</h2>
-          <ul className="grid gap-3 sm:grid-cols-2">
+          <h2 className="mb-2 font-serif text-lg font-bold">
+            {g.title} <span className="text-sm font-normal text-muted">{g.list.length}</span>
+          </h2>
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {g.list.map((s) => (
               <li key={s.id} className="relative">
                 <AppLink
                   to={`/maps/${s.id}`}
-                  className="block rounded-lg border border-border bg-surface p-4 hover:border-accent"
+                  className="block overflow-hidden rounded-lg border border-border bg-surface hover:border-accent"
                 >
-                  <span className="block truncate font-serif text-lg font-bold">{s.name}</span>
-                  <span className="block text-sm text-muted">
-                    {s.width} × {s.height} px · {s.layers.reduce((n, l) => n + l.items.length, 0)}{' '}
-                    items
+                  <Thumbnail map={s} />
+                  <span className="block px-2.5 pt-1.5 font-serif text-sm leading-snug font-bold">
+                    {s.name}
+                  </span>
+                  <span className="block truncate px-2.5 pb-2 text-xs text-muted">
+                    {[s.folder, ...(s.tags ?? [])].filter(Boolean).join(' · ') ||
+                      `${String(s.width)} × ${String(s.height)} px`}
                   </span>
                 </AppLink>
                 <ConfirmDelete
                   name={s.name}
                   onDelete={() => void remove(s.id)}
-                  className="absolute top-2 right-2"
+                  className="absolute top-1 right-1"
                 />
               </li>
             ))}
@@ -154,5 +243,26 @@ export function MapsPage() {
         </section>
       ))}
     </div>
+  );
+}
+
+/** A map's thumbnail, or its icon when it has none (a blank canvas, an older map). */
+function Thumbnail({ map }: { map: MapDoc }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    void thumbnailUrl(map.id, map.campaign).then((u) => {
+      if (live) setUrl(u);
+    });
+    return () => {
+      live = false;
+    };
+  }, [map.id, map.campaign]);
+  return url ? (
+    <img src={url} alt="" loading="lazy" className="aspect-[4/3] w-full bg-sunken object-cover" />
+  ) : (
+    <span className="flex aspect-[4/3] w-full items-center justify-center bg-sunken text-faint">
+      <MapIcon className="h-8 w-8" aria-hidden />
+    </span>
   );
 }

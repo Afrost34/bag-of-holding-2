@@ -17,7 +17,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { entityPath } from '../../app/data/entities';
 import { useEncounters } from '../../app/encounters/store';
 import { useJournal } from '../../app/journal/store';
-import { importBackground } from '../../app/maps/assets';
+import { importBackground, saveThumbnail } from '../../app/maps/assets';
 import {
   addLayer,
   addPicture,
@@ -29,6 +29,7 @@ import {
   removeLayer,
   updateItem,
   updateLayer,
+  mapFolders,
   type MapDoc,
   type MapItem,
   type TemplateShape,
@@ -469,6 +470,70 @@ function NumberField({
   );
 }
 
+/** Where the map is filed in the maps list, and the words to find it by. */
+function Filing({ doc, commit }: Pick<MapPanelsProps, 'doc' | 'commit'>) {
+  const all = useMaps((s) => s.maps);
+  const [folder, setFolder] = useState(doc.folder ?? '');
+  const [tags, setTags] = useState((doc.tags ?? []).join(', '));
+  const save = () => {
+    const nextTags = [
+      ...new Set(
+        tags
+          .split(',')
+          .map((t) => t.trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    ];
+    const nextFolder = folder
+      .split('/')
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .join('/');
+    commit((d) => {
+      const { folder: _f, tags: _t, ...rest } = d;
+      return {
+        ...rest,
+        ...(nextFolder ? { folder: nextFolder } : {}),
+        ...(nextTags.length ? { tags: nextTags } : {}),
+      };
+    });
+  };
+  return (
+    <Section title="Filed under">
+      <label className="block text-sm">
+        Folder
+        <input
+          value={folder}
+          list="map-folders"
+          placeholder="Battle maps/Dungeons"
+          onChange={(e) => {
+            setFolder(e.target.value);
+          }}
+          onBlur={save}
+          className={field}
+        />
+        <datalist id="map-folders">
+          {mapFolders(all).map((f) => (
+            <option key={f} value={f} />
+          ))}
+        </datalist>
+      </label>
+      <label className="block text-sm">
+        Tags
+        <input
+          value={tags}
+          placeholder="tavern, night"
+          onChange={(e) => {
+            setTags(e.target.value);
+          }}
+          onBlur={save}
+          className={field}
+        />
+      </label>
+    </Section>
+  );
+}
+
 function MapSettings({ doc, commit, setTool, snap, setSnap }: MapPanelsProps) {
   const encounters = useEncounters((s) => s.encounters);
   const [importing, setImporting] = useState(false);
@@ -481,6 +546,8 @@ function MapSettings({ doc, commit, setTool, snap, setSnap }: MapPanelsProps) {
     void importBackground(file, doc.campaign)
       .then((bg) => {
         commit((d) => ({ ...d, background: bg, width: bg.width, height: bg.height }));
+        // The maps list shows it small.
+        void saveThumbnail(file, doc.id, doc.campaign);
       })
       .finally(() => {
         setImporting(false);
@@ -532,6 +599,7 @@ function MapSettings({ doc, commit, setTool, snap, setSnap }: MapPanelsProps) {
         )}
       </Section>
       {doc.background && <PictureLayers doc={doc} commit={commit} />}
+      <Filing key={doc.id} doc={doc} commit={commit} />
       <Section title="Grid">
         <label className="block text-sm">
           Type

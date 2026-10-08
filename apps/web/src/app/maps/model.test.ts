@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { distanceFeet, hexCentre, snapToCell, snapToCorner, templateOutline } from './geometry';
 import {
   addItem,
+  filterMaps,
+  mapFolders,
+  mapTags,
+  type MapFilter,
   addPicture,
   removePicture,
   updatePicture,
@@ -156,3 +160,29 @@ describe('pin categories', () => {
     expect(pinStyle(doc, pin('p1'))).toEqual({ icon: null, color: PIN_COLOR, hidden: false });
   });
 });
+
+describe('finding maps', () => {
+  const maps = [
+    { name: 'Pirate Tavern – Basement', folder: 'Battle maps/Pirate Tavern', tags: ['tavern', 'night'] },
+    { name: 'Pirate Tavern – Top Floor', folder: 'Battle maps/Pirate Tavern', tags: ['tavern'] },
+    { name: 'Goblin Bridge', folder: 'Battle maps', tags: ['forest', 'night'] },
+    { name: 'Rustcrown' },
+  ];
+
+  it('by words, folder and tags', () => {
+    const names = (f: Partial<MapFilter>) =>
+      filterMaps(maps, { q: '', folder: '', tags: [], ...f }).map((m) => m.name);
+    expect(names({ q: 'tavern base' })).toEqual(['Pirate Tavern – Basement']);
+    expect(names({ folder: 'Battle maps' })).toHaveLength(3);
+    expect(names({ folder: 'Battle maps/Pirate Tavern', tags: ['night'] })).toEqual([
+      'Pirate Tavern – Basement',
+    ]);
+    expect(mapFolders(maps)).toEqual(['Battle maps', 'Battle maps/Pirate Tavern']);
+    expect(mapTags(maps)[0]).toEqual(['night', 2]);
+  });
+
+  it('keep their folder and tags in the file', () => {
+    const doc = { ...newMap('Mine', [], 'now'), folder: 'Battle maps', tags: ['cave'] };
+    expect(parseMap(serializeMap(doc), doc.id)).toMatchObject({ folder: 'Battle maps', tags: ['cave'] });
+  });
+}); // prettier-ignore
