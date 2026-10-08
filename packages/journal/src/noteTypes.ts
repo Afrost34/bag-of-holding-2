@@ -10,7 +10,9 @@ import { applyTemplate } from './templates';
  * Creatures, items and spells are not here: they are custom compendium entries.
  */
 
-export type FieldKind = 'text' | 'number' | 'checkbox' | 'date' | 'link' | 'links' | 'list';
+/** `creature`: a compendium creature (`[[creature:Spy@XMM|Spy]]`), picked from the compendium. */
+export type FieldKind =
+  'text' | 'number' | 'checkbox' | 'date' | 'link' | 'links' | 'list' | 'creature';
 
 export interface FieldDef {
   key: string;
@@ -88,6 +90,7 @@ export const NOTE_TYPES: readonly NoteType[] = [
       { label: 'Basics', keys: ['race', 'class', 'level', 'alignment', 'status'] },
       { label: 'Place in the world', keys: ['role', 'location', 'faction'] },
       { label: 'Story', keys: ['motivation', 'secret', 'danger_level'] },
+      { label: 'In a fight', keys: ['stat_block'] },
     ],
     fields: [
       { key: 'race', kind: 'text' },
@@ -106,6 +109,8 @@ export const NOTE_TYPES: readonly NoteType[] = [
       },
       { key: 'motivation', kind: 'text' },
       { key: 'secret', kind: 'text' },
+      // The stat block it fights with: lets the encounter builder add the NPC by name.
+      { key: 'stat_block', kind: 'creature' },
     ],
     body: [
       '## Appearance',

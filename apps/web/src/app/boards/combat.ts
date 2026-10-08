@@ -169,6 +169,8 @@ export interface MonsterInput {
   key: string;
   count: number;
   data: Record<string, unknown>;
+  /** A campaign NPC's name, shown instead of the stat block's. */
+  name?: string;
 }
 
 export interface CharacterInput {
@@ -195,18 +197,21 @@ export function startCombat(
     return v;
   };
   const totals = new Map<string, number>();
-  for (const m of monsters) totals.set(m.key, (totals.get(m.key) ?? 0) + m.count);
+  // Numbered per name: three Guards are Guard 1–3; an NPC is numbered apart from plain ones.
+  const group = (m: MonsterInput) => m.name ?? m.key;
+  for (const m of monsters) totals.set(group(m), (totals.get(group(m)) ?? 0) + m.count);
   const seen = new Map<string, number>();
   const list: Combatant[] = [];
   for (const m of monsters) {
     const s = monsterStats(m.data);
     for (let i = 0; i < m.count; i++) {
-      const n = (seen.get(m.key) ?? 0) + 1;
-      seen.set(m.key, n);
+      const n = (seen.get(group(m)) ?? 0) + 1;
+      seen.set(group(m), n);
       list.push({
         id: id(),
         key: m.key,
-        ...((totals.get(m.key) ?? 0) > 1 ? { n } : {}),
+        ...(m.name ? { name: m.name } : {}),
+        ...((totals.get(group(m)) ?? 0) > 1 ? { n } : {}),
         initiative: rng(20) + s.initBonus,
         initBonus: s.initBonus,
         hp: s.hp,

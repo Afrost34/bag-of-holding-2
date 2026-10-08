@@ -7,6 +7,8 @@ import { newId } from '../cards/model';
  *   campaigns/<campaign>/encounters/<id>.json  a campaign's encounters
  *
  * Monsters are entity keys (`monster:goblin@xphb`) with a count, never copies of their stats.
+ * A line can also be one of the campaign's NPCs: its journal note and name, fighting with the
+ * stat block its note names.
  * The party is the campaign's characters; outside campaigns (or to plan for another party) it is
  * a list of character levels typed in by hand.
  */
@@ -14,9 +16,17 @@ import { newId } from '../cards/model';
 export const ENCOUNTERS_DIR = 'encounters';
 
 export interface EncounterMonster {
+  /** The stat block. */
   key: string;
   count: number;
+  /** A campaign NPC: the journal note it comes from. */
+  npc?: string;
+  /** The NPC's name, shown instead of the stat block's. */
+  name?: string;
 }
+
+/** What tells lines apart: the NPC's note, else the stat block. */
+export const lineId = (m: EncounterMonster) => m.npc ?? m.key;
 
 export interface Encounter {
   version: 1;
@@ -55,22 +65,42 @@ export function newEncounter(name: string, existingIds: readonly string[], now: 
 export function addMonsters(encounter: Encounter, keys: readonly string[]): Encounter {
   const monsters = encounter.monsters.map((m) => ({ ...m }));
   for (const key of keys) {
-    const line = monsters.find((m) => m.key === key);
+    const line = monsters.find((m) => m.key === key && !m.npc);
     if (line) line.count += 1;
     else monsters.push({ key, count: 1 });
   }
   return { ...encounter, monsters };
 }
 
-/** Sets how many of a monster there are; 0 removes the line. */
-export function setCount(encounter: Encounter, key: string, count: number): Encounter {
+/** Adds a campaign NPC (one more if already there), fighting with its stat block. */
+export function addNpc(
+  encounter: Encounter,
+  npc: { note: string; name: string; statBlock: string },
+): Encounter {
+  if (encounter.monsters.some((m) => m.npc === npc.note))
+    return setCount(
+      encounter,
+      npc.note,
+      (encounter.monsters.find((m) => m.npc === npc.note)?.count ?? 0) + 1,
+    );
+  return {
+    ...encounter,
+    monsters: [
+      ...encounter.monsters,
+      { key: npc.statBlock, count: 1, npc: npc.note, name: npc.name },
+    ],
+  };
+}
+
+/** Sets how many there are on a line (see `lineId`); 0 removes it. */
+export function setCount(encounter: Encounter, id: string, count: number): Encounter {
   const n = Math.max(0, Math.min(99, Math.round(count)));
   return {
     ...encounter,
     monsters:
       n === 0
-        ? encounter.monsters.filter((m) => m.key !== key)
-        : encounter.monsters.map((m) => (m.key === key ? { ...m, count: n } : m)),
+        ? encounter.monsters.filter((m) => lineId(m) !== id)
+        : encounter.monsters.map((m) => (lineId(m) === id ? { ...m, count: n } : m)),
   };
 }
 
@@ -96,7 +126,14 @@ export function parseEncounter(
   if (!isObj(json)) return null;
   const monsters = (Array.isArray(json.monsters) ? json.monsters : []).flatMap((m) =>
     isObj(m) && typeof m.key === 'string'
-      ? [{ key: m.key, count: typeof m.count === 'number' && m.count > 0 ? m.count : 1 }]
+      ? [
+          {
+            key: m.key,
+            count: typeof m.count === 'number' && m.count > 0 ? m.count : 1,
+            ...(typeof m.npc === 'string' ? { npc: m.npc } : {}),
+            ...(typeof m.name === 'string' ? { name: m.name } : {}),
+          },
+        ]
       : [],
   );
   const party = Array.isArray(json.party)

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createCampaign, installData } from './helpers/journal';
+import { createCampaign, installData, showFiles } from './helpers/journal';
 
 /** Encounters: monsters from the compendium, their difficulty, and the fight on a board. */
 
@@ -125,4 +125,40 @@ test('milestone campaigns show difficulty without XP', async ({ page }) => {
   await expect(difficulty.getByLabel(/^Difficulty: /)).toBeVisible();
   await expect(difficulty).not.toContainText('XP');
   await expect(page.getByRole('listitem', { name: 'Goblin' })).not.toContainText('XP');
+});
+
+test('a campaign NPC with a stat block joins an encounter by name', async ({ page }) => {
+  await createCampaign(page, 'Rust and Sunfire');
+  await page.goto('./#/journal');
+  await showFiles(page);
+  await page
+    .getByRole('navigation', { name: 'Journal files' })
+    .filter({ visible: true })
+    .getByRole('button', { name: 'New note from template' })
+    .click();
+  await page.getByRole('menuitem', { name: 'NPC', exact: true }).click();
+  const wizard = page.getByRole('dialog', { name: 'New NPC' });
+  await wizard.getByLabel('Name', { exact: true }).fill('Brakka the Boss');
+  await wizard.getByRole('button', { name: /In a fight/ }).click();
+  await wizard.getByRole('searchbox', { name: 'Stat block' }).fill('goblin boss');
+  await wizard
+    .getByRole('list', { name: 'Found' })
+    .getByRole('button', { name: /Goblin Boss/ })
+    .click();
+  await expect(wizard).toContainText('Goblin Boss');
+  await wizard.getByRole('button', { name: 'Create', exact: true }).click();
+  await expect(page.getByLabel('Note title')).toHaveValue('Brakka the Boss');
+
+  // In an encounter of the campaign, the NPC is offered by name, beside its goblins.
+  await page.goto(`./#/compendium/${encodeURIComponent('monster:goblin@mm')}`);
+  await page.getByRole('button', { name: 'Send to' }).click();
+  await page.getByRole('menuitem', { name: /New encounter with Goblin/ }).click();
+  await page.getByRole('status').getByRole('link').click();
+  await page.getByLabel('Add an NPC').selectOption({ label: 'Brakka the Boss' });
+  const brakka = page.getByRole('listitem', { name: 'Brakka the Boss' });
+  await expect(brakka).toContainText('(Goblin Boss)');
+  await brakka.getByRole('button', { name: 'Show Brakka the Boss' }).click();
+  await expect(brakka).toContainText('Scimitar');
+  await brakka.getByRole('link', { name: 'Brakka the Boss' }).click();
+  await expect(page.getByLabel('Note title')).toHaveValue('Brakka the Boss');
 });
