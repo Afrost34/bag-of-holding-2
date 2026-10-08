@@ -1,11 +1,19 @@
 import { NOTE_TYPES, newNoteText, setProperty } from '@boh/journal';
-import { Button } from '@boh/ui';
-import { ExternalLink, NotebookPen, Shuffle } from 'lucide-react';
+import { Button, cn } from '@boh/ui';
+import {
+  Backpack,
+  BookOpen,
+  ExternalLink,
+  NotebookPen,
+  ScrollText,
+  Shuffle,
+  Sparkles,
+} from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
 import type { BoardCard } from '../../app/boards/model';
 import { generateNpc, NPC_SPECIES } from '../../app/boards/npc';
-import { CharacterCard } from '../../app/characters/CharacterCard';
+import { CharacterSheetCard } from '../../app/characters/CharacterSheetCard';
 import { journalPath } from '../../app/journal/paths';
 import { useJournal } from '../../app/journal/store';
 import { MapScene } from '../../app/maps/scene';
@@ -96,31 +104,56 @@ export function MapBody({ card }: { card: Extract<BoardCard, { kind: 'map' }> })
   );
 }
 
-/** A character at a glance; the DM picks which sections show. */
+const SECTIONS = [
+  { part: 'spells', label: 'Spells', Icon: Sparkles },
+  { part: 'features', label: 'Features', Icon: ScrollText },
+  { part: 'inventory', label: 'Inventory', Icon: Backpack },
+  { part: 'story', label: 'Story', Icon: BookOpen },
+] as const;
+
+/**
+ * A character as the first page of its sheet; the rail on the card's side opens and closes its
+ * spells, features, inventory and story.
+ */
 export function CharacterBody({ card }: { card: Extract<BoardCard, { kind: 'character' }> }) {
   const { update } = useBoardActions();
-  const toggle = (part: keyof typeof card.show) => {
+  const toggle = (part: (typeof SECTIONS)[number]['part']) => {
     update(card.id, (c) =>
       c.kind === 'character' ? { ...c, show: { ...c.show, [part]: !c.show[part] } } : c,
     );
   };
   return (
-    <div className="space-y-2">
-      <div role="group" aria-label="Show" className="flex flex-wrap gap-3 text-xs">
-        {(['spells', 'features', 'inventory'] as const).map((part) => (
-          <label key={part} className="flex items-center gap-1 capitalize">
-            <input
-              type="checkbox"
-              checked={card.show[part]}
-              onChange={() => {
-                toggle(part);
-              }}
-            />
-            {part}
-          </label>
+    <div className="-m-3 flex h-[calc(100%+1.5rem)]">
+      <div
+        role="group"
+        aria-label="Sections"
+        className="flex shrink-0 flex-col gap-1 border-r border-border bg-surface-2 p-1"
+      >
+        {SECTIONS.map(({ part, label, Icon }) => (
+          <button
+            key={part}
+            type="button"
+            aria-pressed={card.show[part] === true}
+            aria-label={label}
+            title={label}
+            onClick={() => {
+              toggle(part);
+            }}
+            className={cn(
+              'flex flex-col items-center gap-0.5 rounded px-1 py-1.5 text-[10px] font-semibold',
+              card.show[part]
+                ? 'bg-accent text-accent-fg'
+                : 'text-muted hover:bg-sunken hover:text-text',
+            )}
+          >
+            <Icon className="h-4 w-4" aria-hidden />
+            {label}
+          </button>
         ))}
       </div>
-      <CharacterCard characterId={card.character} show={card.show} />
+      <div className="min-w-0 flex-1 overflow-auto p-3">
+        <CharacterSheetCard characterId={card.character} show={card.show} />
+      </div>
     </div>
   );
 }
