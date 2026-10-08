@@ -51,7 +51,7 @@ export type CardContent =
   | {
       kind: 'character';
       character: string;
-      show: { spells: boolean; features: boolean; inventory: boolean };
+      show: { spells: boolean; features: boolean; inventory: boolean; story?: boolean };
     }
   /** A generated NPC (the DM's own text from then on). */
   | { kind: 'npc'; npc: Npc }
@@ -103,7 +103,7 @@ export const SIZES: Record<CardKind, { w: number; h: number }> = {
   combat: { w: 480, h: 560 },
   encounter: { w: 340, h: 320 },
   map: { w: 520, h: 400 },
-  character: { w: 380, h: 460 },
+  character: { w: 460, h: 620 },
   npc: { w: 340, h: 380 },
   frame: { w: 760, h: 480 },
   stack: { w: 340, h: 380 },

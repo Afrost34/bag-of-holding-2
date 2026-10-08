@@ -277,3 +277,29 @@ test('a link in a card brings its entry onto the board; Ctrl+click opens it', as
   await surge.getByRole('link', { name: 'Magic Missile' }).click({ modifiers: ['Control'] });
   await expect(page.getByRole('tab', { selected: true }).first()).toHaveText(/Magic Missile/);
 });
+
+test('a character card is the first page of its sheet, with sections on its side', async ({
+  page,
+}) => {
+  await page.goto('./#/characters');
+  await page.getByRole('button', { name: 'New character' }).click();
+  const form = page.getByRole('form', { name: 'New character' });
+  await form.getByLabel('Name').fill('Lia');
+  await form.getByRole('radio', { name: '2024 rules' }).check();
+  await form.getByRole('button', { name: 'Start building' }).click();
+  await expect(page).toHaveURL(/characters\/[a-z0-9]+/);
+  await page.goto('./#/boards');
+  await page.reload();
+  await page.getByRole('button', { name: 'New board' }).click();
+  await page.getByLabel('Name').fill('Party');
+  await page.getByRole('button', { name: 'Create' }).click();
+  await addCard(page, 'Character…');
+  await page.getByRole('list', { name: 'Characters' }).getByRole('button', { name: /Lia/ }).click();
+  const sheet = page.locator('.react-flow__node').filter({ hasText: 'Lia' });
+  await expect(sheet.getByRole('region', { name: 'Skills' })).toContainText('Stealth');
+  const story = sheet.getByRole('button', { name: 'Story' });
+  await expect(story).toHaveAttribute('aria-pressed', 'false');
+  await story.click();
+  await expect(story).toHaveAttribute('aria-pressed', 'true');
+  await expect(sheet.getByRole('region', { name: 'Story' })).toBeVisible();
+});
