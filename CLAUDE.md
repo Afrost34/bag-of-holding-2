@@ -58,7 +58,8 @@ The 5etools index lives in a Web Worker (`apps/web/src/app/data/data.worker.ts`)
 it through `DataWorkerApi` (`protocol.ts`) via Comlink. Never query SQLite from the main thread.
 See ADR 0003 for how the index is built.
 
-User data (characters, card sheets, boards, encounters, maps, the stamp library) lives in stores
+User data (characters, card sheets, boards, encounters, maps, the stamp library, the campaign
+calendar) lives in stores
 under `apps/web/src/app/<kind>/`: a pure `model.ts` with its tests (paths, parse/serialize, every
 change as a function) and a zustand `store.ts` that writes each file on change, in `<kind>/` or
 `campaigns/<c>/<kind>/`, and is reloaded after a sync (`app/sync/store.ts`). Code two features
