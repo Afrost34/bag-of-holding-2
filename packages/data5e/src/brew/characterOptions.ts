@@ -20,6 +20,7 @@ const isObj = (v: unknown): v is RawEntity =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 const strings = (v: unknown): string[] =>
   Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+const text = (v: unknown): string => (typeof v === 'string' ? v : '');
 const plainEntries = (v: unknown) => entriesToText(strings(v));
 const editionMark = (edition: Edition) => (edition === '2024' ? { edition: 'one' } : {});
 
@@ -84,7 +85,7 @@ export function featToForm(feat: RawEntity): FeatForm {
   const ability = Array.isArray(feat.ability) ? feat.ability.find(isObj) : undefined;
   const choose = isObj(ability?.choose) ? ability.choose : undefined;
   return {
-    name: String(feat.name ?? ''),
+    name: text(feat.name),
     category: typeof feat.category === 'string' ? feat.category : '',
     level: typeof pre?.level === 'number' ? pre.level : 0,
     prerequisite: typeof pre?.other === 'string' ? pre.other : '',
@@ -202,14 +203,14 @@ export function backgroundToForm(bg: RawEntity): BackgroundForm {
   const weighted =
     isObj(ability?.choose) && isObj(ability.choose.weighted) ? ability.choose.weighted : undefined;
   const feats = Array.isArray(bg.feats) ? bg.feats.find(isObj) : undefined;
-  const entries = Array.isArray(bg.entries) ? bg.entries : [];
+  const entries: unknown[] = Array.isArray(bg.entries) ? bg.entries : [];
   const list = entries.find((e) => isObj(e) && e.type === 'list');
-  const equipment =
+  const equipment: unknown =
     isObj(list) && Array.isArray(list.items)
       ? list.items.find((i) => isObj(i) && i.name === 'Equipment:')
       : undefined;
   return {
-    name: String(bg.name ?? ''),
+    name: text(bg.name),
     skills: skills ? Object.keys(skills).filter((k) => skills[k] === true) : [],
     tool: tools ? (Object.keys(tools)[0] ?? '') : '',
     languages: typeof langs?.anyStandard === 'number' ? langs.anyStandard : 0,
@@ -264,7 +265,7 @@ export function formToSpecies(
 export function speciesToForm(race: RawEntity): SpeciesForm {
   const size = strings(race.size)[0];
   return {
-    name: String(race.name ?? ''),
+    name: text(race.name),
     size: size === 'S' || size === 'L' ? size : 'M',
     speed:
       typeof race.speed === 'number'
@@ -399,7 +400,7 @@ export function classToForm(cls: RawEntity, features: readonly RawEntity[]): Cla
   const asAbility = (v: unknown): AbilityId =>
     (ABILITY_IDS as readonly string[]).includes(String(v)) ? (v as AbilityId) : 'int';
   return {
-    name: String(cls.name ?? ''),
+    name: text(cls.name),
     hitDie: hd === 6 || hd === 10 || hd === 12 ? hd : 8,
     primary: primary ? asAbility(Object.keys(primary)[0]) : 'str',
     saves: strings(cls.proficiency).filter((a): a is AbilityId =>
@@ -424,7 +425,7 @@ export function classToForm(cls: RawEntity, features: readonly RawEntity[]): Cla
       .filter((f) => f.className === cls.name)
       .map((f) => ({
         level: typeof f.level === 'number' ? f.level : 1,
-        name: String(f.name ?? ''),
+        name: text(f.name),
         text: plainEntries(f.entries),
       })),
   };

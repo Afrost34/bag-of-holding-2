@@ -241,7 +241,7 @@ export function packCover(pack: RawEntity): string | null {
 /** Sets or clears the pack's cover. */
 export function setPackCover(pack: RawEntity, cover: string | null, now = new Date()): RawEntity {
   const meta = isObj(pack._meta) ? pack._meta : {};
-  const sources = Array.isArray(meta.sources) ? meta.sources : [];
+  const sources: unknown[] = Array.isArray(meta.sources) ? meta.sources : [];
   const first = sources.findIndex(isObj);
   if (first < 0) return pack;
   const source: RawEntity = { ...(sources[first] as RawEntity) };
