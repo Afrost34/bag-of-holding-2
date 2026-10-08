@@ -76,7 +76,8 @@ export function PrintCard({
         {subtitle ?? subtitleOf(entity)}
       </p>
       {extra}
-      <div className="[&_p]:my-1">
+      {/* Headings inside an entry stay small: the card's title is its only big type. */}
+      <div className="[&_p]:my-1 [&_h2]:mt-1.5 [&_h2]:text-[11px] [&_h3]:mt-1.5 [&_h3]:text-[11px] [&_h4]:mt-1.5 [&_h4]:text-[11px] [&_h5]:text-[11px]">
         {entity.type === 'spell' ? (
           <>
             <dl className="mb-1 grid grid-cols-2 gap-x-2 border-b border-border pb-1 text-[10px]">

@@ -7,6 +7,7 @@ import { PrintCard } from '../../../app/cards/PrintCard';
 import { loadEntity } from '../../../app/data/entities';
 import type { CharacterView } from '../../../app/data/protocol';
 import { FeatureCard, SaveLine } from './PrintCards';
+import { asksOnly, lineageTrait, withoutReferences } from './featureCards';
 import { ORDINAL, sourceLabel } from './printText';
 import type { PrintSection } from './sections';
 
@@ -19,6 +20,8 @@ export interface PrintData {
   entities: Map<string, EntityDetail>;
   /** Known spells, by level then name. */
   spells: EntityDetail[];
+  /** The features the sheet lists (not those that only ask for a choice). */
+  features: CharacterView['features'];
   cards: readonly PackItem[];
   packing: Packing;
   /** Off-screen copy of the cards that measures them; render it once, on screen. */
@@ -101,15 +104,15 @@ export function usePrintData(
     if (shown('featureCards')) {
       groups.push({
         title: 'Features and traits',
-        cards: view.features.flatMap((f) => {
-          const text = featureText(f.key, f.name, entities);
-          return text === undefined
+        cards: printedFeatures(character, view, entities).flatMap(({ feature: f, text }) => {
+          return text.length === 0
             ? []
             : [
                 {
                   id: `feature:${f.key}`,
                   node: (
                     <FeatureCard
+                      from={f.from}
                       title={f.name}
                       subtitle={`${sourceLabel(f.from, view)}${f.level ? ` — Level ${String(f.level)}` : ''}`}
                     >
@@ -150,7 +153,33 @@ export function usePrintData(
 
   const key = `${cards.map((c) => c.id).join('|')}#${String(entities.size)}`;
   const { packing, measurer } = usePacking(cards, key);
-  return { entities, spells, cards, packing, measurer };
+  const features = useMemo(
+    () =>
+      character && view ? printedFeatures(character, view, entities).map((p) => p.feature) : [],
+    [character, view, entities],
+  );
+  return { entities, spells, features, cards, packing, measurer };
+}
+
+/**
+ * The features the sheet prints, each with its text: without the features it only embeds (they
+ * print on their own), without the ones that only ask for a choice, and species traits as the
+ * chosen lineage tells them.
+ */
+export function printedFeatures(
+  character: CharacterFile,
+  view: CharacterView,
+  entities: Map<string, EntityDetail>,
+): { feature: CharacterView['features'][number]; text: unknown[] }[] {
+  return view.features.flatMap((f) => {
+    const hash = f.key.indexOf('#');
+    const species = hash < 0 ? undefined : entities.get(f.key.slice(0, hash));
+    const raw =
+      (species && lineageTrait(species, f.name, character.decisions)) ??
+      featureText(f.key, f.name, entities);
+    const text = withoutReferences(raw);
+    return asksOnly(f, view.choices, text) ? [] : [{ feature: f, text }];
+  });
 }
 
 /** A feature's text: its entity's, or a species trait's from the species entries. */
