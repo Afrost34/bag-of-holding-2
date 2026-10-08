@@ -138,3 +138,43 @@ test('a shop’s wares show on the encounter it is linked to, and loot rolls int
       .getByRole('link', { name: 'Market brawl' }),
   ).toBeVisible();
 });
+
+test('treasure by challenge rating goes into the encounter’s notes', async ({ page }) => {
+  await page.goto('./#/tables');
+  const treasure = page.getByRole('region', { name: 'Treasure' });
+  await treasure.getByLabel('Rules').selectOption({ label: '2014 rules' });
+  await treasure.getByRole('button', { name: 'Roll treasure' }).click();
+  const rolled = treasure.getByRole('list', { name: 'Treasure rolled' });
+  await expect(rolled).toContainText(/\d+ gp/);
+  await expect(rolled).toContainText('Blue quartz');
+  await expect(rolled).toContainText('Potion of Climbing');
+
+  // On an encounter, the fight's highest CR; what is rolled can go into its notes.
+  await page.goto(`./#/compendium/${encodeURIComponent('monster:goblin@mm')}`);
+  await page.getByRole('button', { name: 'Send to' }).click();
+  await page.getByRole('menuitem', { name: /New encounter with Goblin/ }).click();
+  await page.getByRole('status').getByRole('link').click();
+  const here = page.getByRole('region', { name: 'Treasure' });
+  await expect(here.getByLabel('Challenge rating')).toHaveValue('1/4');
+  await here.getByLabel('Rules').selectOption({ label: '2014 rules' });
+  await here.getByRole('button', { name: 'Roll treasure' }).click();
+  await here.getByRole('button', { name: 'Add to the notes' }).click();
+  await expect(page.getByRole('textbox', { name: /^Notes/ })).toHaveValue(
+    /Treasure — Challenge 0-4 \(DMG\)[\s\S]*Blue quartz \(10 gp\)[\s\S]*Potion of Climbing/,
+  );
+});
+
+test('a compendium table is copied into a roll table of one’s own', async ({ page }) => {
+  await page.goto(`./#/compendium/${encodeURIComponent('table:wild surge@phb')}`);
+  await page.getByRole('button', { name: 'Copy to my tables' }).click();
+  await expect(page.getByRole('textbox', { name: 'Table name' })).toHaveValue('Wild Surge');
+  const rows = page.getByRole('region', { name: 'Rows' });
+  await expect(rows.getByRole('columnheader', { name: 'd4' })).toBeVisible();
+  await expect(rows.getByRole('row', { name: 'Nothing happens.' })).toContainText('3–4');
+  // Links in the text still work.
+  await expect(rows.getByRole('row').filter({ hasText: '1' }).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Roll Wild Surge' }).click();
+  await expect(
+    page.getByRole('list', { name: 'Rolled on Wild Surge' }).getByRole('listitem'),
+  ).toHaveCount(1);
+});

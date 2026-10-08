@@ -252,6 +252,44 @@ export function fixtureFiles(): Record<string, unknown> {
         },
       ],
     },
+    // Treasure tables, cut down to one hoard that always holds a gem and a magic item.
+    'data/loot.json': {
+      individual: [
+        {
+          name: 'Challenge 0-4',
+          source: 'DMG',
+          crMin: 0,
+          crMax: 30,
+          table: [{ min: 1, max: 100, coins: { gp: '3d6' } }],
+        },
+      ],
+      hoard: [
+        {
+          name: 'Challenge 0-4',
+          source: 'DMG',
+          crMin: 0,
+          crMax: 30,
+          coins: { gp: '2d6*10' },
+          table: [
+            {
+              min: 1,
+              max: 100,
+              gems: { type: 10, amount: '1' },
+              magicItems: [{ type: 'A', amount: '1' }],
+            },
+          ],
+        },
+      ],
+      gems: [{ name: '10 gp Gemstones', source: 'DMG', type: 10, table: ['Blue quartz'] }],
+      magicItems: [
+        {
+          name: 'Magic Item Table A',
+          source: 'DMG',
+          type: 'A',
+          table: [{ min: 1, max: 100, item: 'Potion of Climbing' }],
+        },
+      ],
+    },
     'data/races.json': {
       race: [
         {

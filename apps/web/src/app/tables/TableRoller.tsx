@@ -1,3 +1,4 @@
+import { RichText } from '@boh/renderer';
 import { Button } from '@boh/ui';
 import { Dices, Swords, X } from 'lucide-react';
 import { useState } from 'react';
@@ -33,7 +34,11 @@ export function RowLabel({ row }: { row: TableRow }) {
     <>
       {row.key && <EntryName entryKey={row.key} />}
       {row.key && row.text && ' '}
-      {row.text && <span className={row.key ? 'text-muted' : ''}>{row.text}</span>}
+      {row.text && (
+        <span className={row.key ? 'text-muted' : ''}>
+          <RichText text={row.text} />
+        </span>
+      )}
     </>
   );
 }

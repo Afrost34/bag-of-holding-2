@@ -10,6 +10,7 @@ import { useData } from '../../app/data/store';
 import { EntityMeta } from '../../app/renderer/EntityCard';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 import { LinkedTables } from '../../app/tables/LinkedTables';
+import { CopyToTables } from '../../app/tables/CopyToTables';
 
 export function EntityPage({ entityKey }: { entityKey: string }) {
   const state = useEntity(entityKey);
@@ -68,6 +69,9 @@ export function EntityPage({ entityKey }: { entityKey: string }) {
       </header>
       <div className="mb-5">
         <PageTools noteId={entity.key} label={entity.name} />
+      </div>
+      <div className="-mt-3 mb-5 empty:hidden">
+        <CopyToTables entity={entity} />
       </div>
 
       {images.length > 0 && SIDE_IMAGE_TYPES.has(entity.type) && (

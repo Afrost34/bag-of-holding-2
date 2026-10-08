@@ -10,7 +10,7 @@ export function clearListCaches(): void {
   rowCache.clear();
 }
 
-function loadRows(categoryId: string): Promise<ListRow[]> {
+export function loadRows(categoryId: string): Promise<ListRow[]> {
   let promise = rowCache.get(categoryId);
   if (!promise) {
     promise = dataWorker().listRows(categoryId);

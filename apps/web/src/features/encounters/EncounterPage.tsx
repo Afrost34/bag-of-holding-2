@@ -26,12 +26,14 @@ import { EntitySearch } from '../../app/search/EntitySearch';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 import { encounterLink } from '../../app/tables/model';
 import { LinkedTables } from '../../app/tables/LinkedTables';
+import { crNumber } from '../../app/tables/treasure';
+import { TreasureRoller } from '../../app/tables/TreasureRoller';
 
 /** One encounter: its monsters, its difficulty for the party, and the way to the fight. */
 export function EncounterPage({ id }: { id: string }) {
   const { loaded, load, save, remove } = useEncounters();
   const encounter = useEncounter(id);
-  const { loaded: campaignsLoaded, load: loadCampaigns } = useCampaigns();
+  const { campaigns, loaded: campaignsLoaded, load: loadCampaigns } = useCampaigns();
   const navigate = useAppNavigate();
   usePageTitle(encounter?.name ?? 'Encounter');
   useEffect(() => {
@@ -206,6 +208,21 @@ export function EncounterPage({ id }: { id: string }) {
             }}
             creaturesLabel="Add to this encounter"
           />
+          <section aria-label="Treasure" className="space-y-2">
+            <h2 className="font-serif text-lg font-bold">Treasure</h2>
+            <TreasureRoller
+              key={topCr(encounter, info.crs)}
+              cr={topCr(encounter, info.crs)}
+              edition={
+                campaigns.find((c) => c.id === encounter.campaign)?.edition === '2014'
+                  ? '2014'
+                  : '2024'
+              }
+              onKeep={(text) => {
+                change((x) => ({ ...x, notes: x.notes ? `${x.notes}\n\n${text}` : text }));
+              }}
+            />
+          </section>
           <label className="block">
             <span className="mb-1 block text-sm font-medium">Notes</span>
             <textarea
@@ -224,6 +241,17 @@ export function EncounterPage({ id }: { id: string }) {
       </div>
     </div>
   );
+}
+
+/** The highest challenge rating in the fight, as the treasure roller writes it (`1/4`, `5`). */
+function topCr(encounter: Encounter, crs: ReadonlyMap<string, unknown>): string {
+  let best: unknown = undefined;
+  for (const m of encounter.monsters) {
+    const cr = crs.get(m.key);
+    if (cr !== undefined && (best === undefined || crNumber(cr) > crNumber(best))) best = cr;
+  }
+  const text = typeof best === 'object' && best !== null && 'cr' in best ? best.cr : best;
+  return typeof text === 'string' || typeof text === 'number' ? String(text) : '1';
 }
 
 function NameInput({ name, onRename }: { name: string; onRename: (name: string) => void }) {
