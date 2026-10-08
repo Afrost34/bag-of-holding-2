@@ -406,7 +406,7 @@ export function PrintSheet({
 
       {/* Page 4: features. */}
       {shown('features') &&
-        pageRows(view.features, 44, 46).map((part, page) => (
+        pageRows(data.features, 44, 46).map((part, page) => (
           <Page key={`features-${String(page)}`}>
             <Box title={page === 0 ? 'Features' : 'Features (continued)'}>
               {page === 0 && (
@@ -508,7 +508,7 @@ function Box({
         grow && 'flex min-h-0 flex-1 flex-col',
       )}
     >
-      <h3 className="border-b-2 border-accent bg-surface-2 px-2 py-0.5 font-serif text-[11px] font-bold tracking-wide text-accent-ink uppercase">
+      <h3 className="bg-header px-2 py-0.5 font-serif text-[11px] font-bold tracking-wide text-header-fg uppercase">
         {heading}
       </h3>
       <div className={cn('p-1.5', grow && 'min-h-0 flex-1')}>{children}</div>
@@ -555,8 +555,15 @@ function ProfLine({ label, items }: { label: string; items: string[] }) {
 
 function Bubbles({ count, label }: { count: number; label?: string }) {
   return (
-    <span className="inline-flex items-center gap-0.5">
-      {label && <span className="w-3 text-[10px]">{label}</span>}
+    <span className="flex items-center gap-0.5">
+      {label && (
+        <span
+          className="w-3 text-[11px] font-bold"
+          style={{ color: label === '✓' ? 'var(--boh-dex)' : 'var(--boh-str)' }}
+        >
+          {label}
+        </span>
+      )}
       {Array.from({ length: count }, (_, i) => (
         <span key={i} className="inline-block h-3 w-3 rounded-full border border-text" />
       ))}

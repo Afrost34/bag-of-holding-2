@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { fetchMissing } from '../sync/lazy';
 import { userStore } from '../userStore';
 import { mapAssetPath, mapThumbPath, STAMPS_DIR } from './model';
 
@@ -26,7 +27,8 @@ export function fileUrl(path: string): Promise<string | null> {
   let url = urls.get(path);
   if (!url) {
     url = userStore()
-      .then((store) => store.readFile(path))
+      // A map picture not downloaded yet comes from the data repository now (ADR 0006: lazy).
+      .then(async (store) => (await store.readFile(path)) ?? (await fetchMissing(path)))
       .then((bytes) =>
         bytes
           ? URL.createObjectURL(
@@ -36,7 +38,12 @@ export function fileUrl(path: string): Promise<string | null> {
             )
           : null,
       )
-      .catch(() => null);
+      .catch(() => null)
+      .then((found) => {
+        // Missing (offline, say): asked again next time rather than remembered as missing.
+        if (found === null) urls.delete(path);
+        return found;
+      });
     urls.set(path, url);
   }
   return url;

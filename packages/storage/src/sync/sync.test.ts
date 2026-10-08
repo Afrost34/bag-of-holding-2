@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryFileStore } from '../memory';
-import { syncStore } from './engine';
+import { fetchLazyFile, syncStore } from './engine';
 import { planSync, resolveConflict } from './plan';
 import { blobSha, type RemoteHead, type RemoteRepo } from './remote';
 
@@ -242,4 +242,42 @@ describe('sync between two devices', () => {
     const result = await syncStore(pc, other, { remoteId: 'me/other@main', device: 'PC' });
     expect(result.uploaded).toEqual(['a.md']);
   });
+});
+
+describe('lazy files (map pictures)', () => {
+  const lazy = (device: string) => ({
+    ...options(device),
+    lazy: (p: string) => p.includes('/assets/'),
+  });
+
+  it('are fetched when needed, never taken as deleted, and sync once they are here', async () => {
+    const repo = new MemoryRepo();
+    const pc = new MemoryFileStore();
+    const phone = new MemoryFileStore();
+    await pc.writeFile('maps/m1.json', '{"name":"Mine"}');
+    await pc.writeFile('maps/assets/mine.webp', new Uint8Array([1, 2, 3]));
+    await syncStore(pc, repo, lazy('PC'));
+
+    // The phone gets the map, not its picture; syncing again neither downloads nor deletes it.
+    const first = await syncStore(phone, repo, lazy('phone'));
+    expect(first.downloaded.sort()).toEqual(['README.md', 'maps/m1.json']);
+    expect(await phone.readFile('maps/assets/mine.webp')).toBeNull();
+    const again = await syncStore(phone, repo, lazy('phone'));
+    expect(again).toMatchObject({ downloaded: [], deletedThere: [], commit: null });
+
+    // Opened: fetched once, and kept.
+    expect(await fetchLazyFile(phone, repo, 'me/data@main', 'maps/assets/mine.webp')).toEqual(
+      new Uint8Array([1, 2, 3]),
+    );
+    expect(await phone.readFile('maps/assets/mine.webp')).toEqual(new Uint8Array([1, 2, 3]));
+    expect(await fetchLazyFile(phone, repo, 'me/data@main', 'maps/assets/none.webp')).toBeNull();
+
+    // A new picture made on the phone goes up; a changed one comes down where it is kept.
+    await phone.writeFile('maps/assets/new.webp', new Uint8Array([9]));
+    expect((await syncStore(phone, repo, lazy('phone'))).uploaded).toEqual(['maps/assets/new.webp']);
+    await pc.writeFile('maps/assets/mine.webp', new Uint8Array([4, 5]));
+    await syncStore(pc, repo, lazy('PC'));
+    expect((await syncStore(phone, repo, lazy('phone'))).downloaded).toEqual(['maps/assets/mine.webp']);
+    expect(await pc.readFile('maps/assets/new.webp')).toBeNull();
+  }); // prettier-ignore
 });

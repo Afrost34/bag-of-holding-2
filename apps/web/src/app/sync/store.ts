@@ -1,6 +1,5 @@
-import { GitHubError, GitHubRepo, syncStore, type SyncResult } from '@boh/storage';
+import { GitHubError, syncStore, type SyncResult } from '@boh/storage';
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
 import { flushAnnotations, reloadAnnotations } from '../annotations/store';
 import { useCalendar } from '../calendar/store';
 import { reloadCampaigns } from '../campaigns/store';
@@ -15,37 +14,15 @@ import { forgetAllAttachments } from '../journal/attachments';
 import { useNoteTypes } from '../journal/noteTypes';
 import { useJournal } from '../journal/store';
 import { userStore } from '../userStore';
+import { isLazy } from './lazy';
+import { remoteIdOf, repoFor, useSyncSettings } from './settings';
 
 /**
  * Sync with the private data repository on GitHub (ADR 0006): this device's settings, its state,
  * and the automatic runs. The token never leaves this device and is never synced.
  */
 
-export interface SyncSettings {
-  /** `owner/name` of the data repository. */
-  repository: string;
-  branch: string;
-  token: string;
-  /** This device's name in the repository's history ("PC", "phone"…). */
-  device: string;
-}
-
-interface SyncSettingsStore {
-  settings: SyncSettings | null;
-  setSettings: (settings: SyncSettings | null) => void;
-}
-
-export const useSyncSettings = create<SyncSettingsStore>()(
-  persist(
-    (set) => ({
-      settings: null,
-      setSettings: (settings) => {
-        set({ settings });
-      },
-    }),
-    { name: 'boh.sync', version: 1, storage: createJSONStorage(() => localStorage) },
-  ),
-);
+export { repoFor, useSyncSettings, type SyncSettings } from './settings';
 
 export type SyncStatus = 'off' | 'idle' | 'syncing' | 'offline' | 'error';
 
@@ -57,11 +34,6 @@ interface SyncStore {
   error: string | null;
   progress: { done: number; total: number } | null;
   syncNow: () => Promise<void>;
-}
-
-export function repoFor(settings: SyncSettings): GitHubRepo {
-  const [owner = '', repo = ''] = settings.repository.split('/');
-  return new GitHubRepo({ owner, repo, branch: settings.branch, token: settings.token });
 }
 
 /** A message people can act on, from what GitHub answered. */
@@ -110,7 +82,8 @@ export const useSync = create<SyncStore>()((set) => ({
         await useEncounters.getState().flush();
         await useMaps.getState().flush();
         const result = await syncStore(await userStore(), repoFor(settings), {
-          remoteId: `${settings.repository}@${settings.branch}`,
+          remoteId: remoteIdOf(settings),
+          lazy: isLazy,
           device: settings.device || 'a device',
           onProgress: (done, total) => {
             set({ progress: { done, total } });

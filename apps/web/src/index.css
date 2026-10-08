@@ -95,6 +95,16 @@
   --boh-dice-bg: transparent;
   --boh-dice-fg: var(--boh-text);
   --boh-dice-border: transparent;
+  /* Ability colours as full, bright fills (on screen they are darker, to read as text). */
+  --boh-str: #e03a3e;
+  --boh-dex: #22a45d;
+  --boh-con: #ef8a17;
+  --boh-int: #3478e0;
+  --boh-wis: #8b46d6;
+  --boh-cha: #e0a400;
+  /* Print backgrounds and colours as they are, not lightened or dropped by the browser. */
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 
 /* Ruled lines on paper, for what is written in by hand. */
