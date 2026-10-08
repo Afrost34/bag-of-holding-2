@@ -5,6 +5,7 @@ import { useCalendar } from '../calendar/store';
 import { reloadCampaigns } from '../campaigns/store';
 import { useBoards } from '../boards/store';
 import { useEncounters } from '../encounters/store';
+import { useTables } from '../tables/store';
 import { useStamps } from '../maps/assets';
 import { useMaps } from '../maps/store';
 import { useCardSheets } from '../cards/store';
@@ -80,6 +81,7 @@ export const useSync = create<SyncStore>()((set) => ({
         await useCardSheets.getState().flush();
         await useBoards.getState().flush();
         await useEncounters.getState().flush();
+        await useTables.getState().flush();
         await useMaps.getState().flush();
         const result = await syncStore(await userStore(), repoFor(settings), {
           remoteId: remoteIdOf(settings),
@@ -121,6 +123,7 @@ async function refreshAfterSync(paths: string[]): Promise<void> {
   if (touched(/^(boards\/|campaigns\/[^/]+\/boards\/)/)) await useBoards.getState().reload();
   if (touched(/^(encounters\/|campaigns\/[^/]+\/encounters\/)/))
     await useEncounters.getState().reload();
+  if (touched(/^(tables\/|campaigns\/[^/]+\/tables\/)/)) await useTables.getState().reload();
   if (touched(/^(maps\/|campaigns\/[^/]+\/maps\/)[^/]+\.json$/)) await useMaps.getState().reload();
   if (touched(/^stamps\//) && useStamps.getState().loaded) await useStamps.getState().load();
   if (touched(/^campaigns\/[^/]+\/calendar\.json$/)) await useCalendar.getState().reload();

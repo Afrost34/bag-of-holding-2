@@ -22,6 +22,7 @@ import { Route as JournalRouteImport } from './routes/journal'
 import { Route as MapsRouteImport } from './routes/maps'
 import { Route as PlayerRouteImport } from './routes/player'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as TablesRouteImport } from './routes/tables'
 import { Route as BoardsIdRouteImport } from './routes/boards_.$id'
 import { Route as CampaignsIdRouteImport } from './routes/campaigns_.$id'
 import { Route as CardsIdRouteImport } from './routes/cards_.$id'
@@ -32,6 +33,7 @@ import { Route as HomebrewPackRouteImport } from './routes/homebrew_.$pack'
 import { Route as MapsIdRouteImport } from './routes/maps_.$id'
 import { Route as SettingsDataRouteImport } from './routes/settings_.data'
 import { Route as SettingsSyncRouteImport } from './routes/settings_.sync'
+import { Route as TablesIdRouteImport } from './routes/tables_.$id'
 import { Route as CharactersIdPrintRouteImport } from './routes/characters_.$id_.print'
 import { Route as CompendiumAdventureIdRouteImport } from './routes/compendium_.adventure.$id'
 import { Route as CompendiumBookIdRouteImport } from './routes/compendium_.book.$id'
@@ -105,6 +107,11 @@ const SettingsRoute = SettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TablesRoute = TablesRouteImport.update({
+  id: '/tables',
+  path: '/tables',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BoardsIdRoute = BoardsIdRouteImport.update({
   id: '/boards_/$id',
   path: '/boards/$id',
@@ -153,6 +160,11 @@ const SettingsDataRoute = SettingsDataRouteImport.update({
 const SettingsSyncRoute = SettingsSyncRouteImport.update({
   id: '/settings_/sync',
   path: '/settings/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TablesIdRoute = TablesIdRouteImport.update({
+  id: '/tables_/$id',
+  path: '/tables/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CharactersIdPrintRoute = CharactersIdPrintRouteImport.update({
@@ -205,6 +217,7 @@ export interface FileRoutesByFullPath {
   '/maps': typeof MapsRoute
   '/player': typeof PlayerRoute
   '/settings': typeof SettingsRoute
+  '/tables': typeof TablesRoute
   '/boards/$id': typeof BoardsIdRoute
   '/campaigns/$id': typeof CampaignsIdRoute
   '/cards/$id': typeof CardsIdRoute
@@ -215,6 +228,7 @@ export interface FileRoutesByFullPath {
   '/maps/$id': typeof MapsIdRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/sync': typeof SettingsSyncRoute
+  '/tables/$id': typeof TablesIdRoute
   '/characters/$id/print': typeof CharactersIdPrintRoute
   '/compendium/adventure/$id': typeof CompendiumAdventureIdRoute
   '/compendium/book/$id': typeof CompendiumBookIdRoute
@@ -237,6 +251,7 @@ export interface FileRoutesByTo {
   '/maps': typeof MapsRoute
   '/player': typeof PlayerRoute
   '/settings': typeof SettingsRoute
+  '/tables': typeof TablesRoute
   '/boards/$id': typeof BoardsIdRoute
   '/campaigns/$id': typeof CampaignsIdRoute
   '/cards/$id': typeof CardsIdRoute
@@ -247,6 +262,7 @@ export interface FileRoutesByTo {
   '/maps/$id': typeof MapsIdRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/sync': typeof SettingsSyncRoute
+  '/tables/$id': typeof TablesIdRoute
   '/characters/$id/print': typeof CharactersIdPrintRoute
   '/compendium/adventure/$id': typeof CompendiumAdventureIdRoute
   '/compendium/book/$id': typeof CompendiumBookIdRoute
@@ -270,6 +286,7 @@ export interface FileRoutesById {
   '/maps': typeof MapsRoute
   '/player': typeof PlayerRoute
   '/settings': typeof SettingsRoute
+  '/tables': typeof TablesRoute
   '/boards_/$id': typeof BoardsIdRoute
   '/campaigns_/$id': typeof CampaignsIdRoute
   '/cards_/$id': typeof CardsIdRoute
@@ -280,6 +297,7 @@ export interface FileRoutesById {
   '/maps_/$id': typeof MapsIdRoute
   '/settings_/data': typeof SettingsDataRoute
   '/settings_/sync': typeof SettingsSyncRoute
+  '/tables_/$id': typeof TablesIdRoute
   '/characters_/$id_/print': typeof CharactersIdPrintRoute
   '/compendium_/adventure/$id': typeof CompendiumAdventureIdRoute
   '/compendium_/book/$id': typeof CompendiumBookIdRoute
@@ -304,6 +322,7 @@ export interface FileRouteTypes {
     | '/maps'
     | '/player'
     | '/settings'
+    | '/tables'
     | '/boards/$id'
     | '/campaigns/$id'
     | '/cards/$id'
@@ -314,6 +333,7 @@ export interface FileRouteTypes {
     | '/maps/$id'
     | '/settings/data'
     | '/settings/sync'
+    | '/tables/$id'
     | '/characters/$id/print'
     | '/compendium/adventure/$id'
     | '/compendium/book/$id'
@@ -336,6 +356,7 @@ export interface FileRouteTypes {
     | '/maps'
     | '/player'
     | '/settings'
+    | '/tables'
     | '/boards/$id'
     | '/campaigns/$id'
     | '/cards/$id'
@@ -346,6 +367,7 @@ export interface FileRouteTypes {
     | '/maps/$id'
     | '/settings/data'
     | '/settings/sync'
+    | '/tables/$id'
     | '/characters/$id/print'
     | '/compendium/adventure/$id'
     | '/compendium/book/$id'
@@ -368,6 +390,7 @@ export interface FileRouteTypes {
     | '/maps'
     | '/player'
     | '/settings'
+    | '/tables'
     | '/boards_/$id'
     | '/campaigns_/$id'
     | '/cards_/$id'
@@ -378,6 +401,7 @@ export interface FileRouteTypes {
     | '/maps_/$id'
     | '/settings_/data'
     | '/settings_/sync'
+    | '/tables_/$id'
     | '/characters_/$id_/print'
     | '/compendium_/adventure/$id'
     | '/compendium_/book/$id'
@@ -401,6 +425,7 @@ export interface RootRouteChildren {
   MapsRoute: typeof MapsRoute
   PlayerRoute: typeof PlayerRoute
   SettingsRoute: typeof SettingsRoute
+  TablesRoute: typeof TablesRoute
   BoardsIdRoute: typeof BoardsIdRoute
   CampaignsIdRoute: typeof CampaignsIdRoute
   CardsIdRoute: typeof CardsIdRoute
@@ -411,6 +436,7 @@ export interface RootRouteChildren {
   MapsIdRoute: typeof MapsIdRoute
   SettingsDataRoute: typeof SettingsDataRoute
   SettingsSyncRoute: typeof SettingsSyncRoute
+  TablesIdRoute: typeof TablesIdRoute
   CharactersIdPrintRoute: typeof CharactersIdPrintRoute
   CompendiumAdventureIdRoute: typeof CompendiumAdventureIdRoute
   CompendiumBookIdRoute: typeof CompendiumBookIdRoute
@@ -513,6 +539,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tables': {
+      id: '/tables'
+      path: '/tables'
+      fullPath: '/tables'
+      preLoaderRoute: typeof TablesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/boards_/$id': {
       id: '/boards_/$id'
       path: '/boards/$id'
@@ -583,6 +616,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsSyncRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tables_/$id': {
+      id: '/tables_/$id'
+      path: '/tables/$id'
+      fullPath: '/tables/$id'
+      preLoaderRoute: typeof TablesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/characters_/$id_/print': {
       id: '/characters_/$id_/print'
       path: '/characters/$id/print'
@@ -649,6 +689,7 @@ const rootRouteChildren: RootRouteChildren = {
   MapsRoute: MapsRoute,
   PlayerRoute: PlayerRoute,
   SettingsRoute: SettingsRoute,
+  TablesRoute: TablesRoute,
   BoardsIdRoute: BoardsIdRoute,
   CampaignsIdRoute: CampaignsIdRoute,
   CardsIdRoute: CardsIdRoute,
@@ -659,6 +700,7 @@ const rootRouteChildren: RootRouteChildren = {
   MapsIdRoute: MapsIdRoute,
   SettingsDataRoute: SettingsDataRoute,
   SettingsSyncRoute: SettingsSyncRoute,
+  TablesIdRoute: TablesIdRoute,
   CharactersIdPrintRoute: CharactersIdPrintRoute,
   CompendiumAdventureIdRoute: CompendiumAdventureIdRoute,
   CompendiumBookIdRoute: CompendiumBookIdRoute,

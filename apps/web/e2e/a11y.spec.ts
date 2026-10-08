@@ -35,6 +35,7 @@ test('the main pages pass axe', async ({ page }) => {
     ['./#/cards', 'Cards'],
     ['./#/boards', 'Boards'],
     ['./#/encounters', 'Encounters'],
+    ['./#/tables', 'Tables'],
     ['./#/maps', 'Maps'],
     ['./#/settings', 'Settings'],
   ];
@@ -67,6 +68,7 @@ test('editors pass axe: character, board, encounter, map, note', async ({ page }
     ['./#/boards', 'New board', 'Board'],
     ['./#/encounters', 'New encounter', 'Encounter'],
     ['./#/maps', 'New map', 'Map editor'],
+    ['./#/tables', 'New table', 'Table'],
   ] as const) {
     await create(path, button, button);
     await page.getByRole('button', { name: 'Create' }).click();
