@@ -147,12 +147,21 @@ export interface MapDoc {
   encounter?: string;
   /** Kinds of pins, with the icon and colour their pins take. */
   pinCategories?: PinCategory[];
+  /** Where it is filed in the maps list ('Battle maps/Dungeons'). */
+  folder?: string;
+  /** Words to find it by ('tavern', 'night'). */
+  tags?: string[];
   /** The campaign it belongs to; absent outside campaigns. Not stored: it is where the file is. */
   campaign?: string;
 }
 
 export function mapDir(campaign?: string): string {
   return campaign ? `campaigns/${campaign}/${MAPS_DIR}` : MAPS_DIR;
+}
+
+/** A small picture of the map for lists: synced whole (pictures in `assets` download on open). */
+export function mapThumbPath(id: string, campaign?: string): string {
+  return `${mapDir(campaign)}/thumbs/${id}.webp`;
 }
 
 export function mapPath(id: string, campaign?: string): string {
@@ -322,6 +331,12 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
           },
         }
       : {}),
+    ...(typeof json.folder === 'string' && json.folder.trim()
+      ? { folder: json.folder.trim() }
+      : {}),
+    ...(Array.isArray(json.tags)
+      ? { tags: json.tags.filter((t): t is string => typeof t === 'string' && t.trim() !== '') }
+      : {}),
     width: num(json.width, 2800),
     height: num(json.height, 2100),
     grid: {
@@ -474,6 +489,52 @@ export function pinStyle(
     color: category?.color ?? (pin.map ? MAP_PIN_COLOR : PIN_COLOR),
     hidden: category?.hidden === true,
   };
+}
+
+// endregion
+
+// region Finding maps
+
+export interface MapFilter {
+  /** Words in the name, folder or tags. */
+  q: string;
+  /** A folder and everything in it; empty for all. */
+  folder: string;
+  /** Tags a map must all have. */
+  tags: readonly string[];
+}
+
+const words = (s: string) => s.toLowerCase().split(/\s+/).filter(Boolean);
+
+export function filterMaps<M extends Pick<MapDoc, 'name' | 'folder' | 'tags'>>(
+  maps: readonly M[],
+  filter: MapFilter,
+): M[] {
+  const wanted = words(filter.q);
+  return maps.filter((m) => {
+    const inFolder = m.folder === filter.folder || m.folder?.startsWith(`${filter.folder}/`);
+    if (filter.folder && !inFolder) return false;
+    if (filter.tags.some((t) => !(m.tags ?? []).includes(t))) return false;
+    const text = [m.name, m.folder ?? '', ...(m.tags ?? [])].join(' ').toLowerCase();
+    return wanted.every((w) => text.includes(w));
+  });
+}
+
+/** Every folder in use, with the folders above them (`A`, `A/B`), sorted. */
+export function mapFolders(maps: readonly Pick<MapDoc, 'folder'>[]): string[] {
+  const out = new Set<string>();
+  for (const m of maps) {
+    const parts = (m.folder ?? '').split('/').filter(Boolean);
+    for (let i = 1; i <= parts.length; i++) out.add(parts.slice(0, i).join('/'));
+  }
+  return [...out].sort((a, b) => a.localeCompare(b, 'en'));
+}
+
+/** Every tag in use, with how many maps have it, most used first. */
+export function mapTags(maps: readonly Pick<MapDoc, 'tags'>[]): [string, number][] {
+  const counts = new Map<string, number>();
+  for (const m of maps) for (const t of m.tags ?? []) counts.set(t, (counts.get(t) ?? 0) + 1);
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'en'));
 }
 
 // endregion

@@ -1,7 +1,15 @@
 import { create } from 'zustand';
 import { CAMPAIGNS_DIR } from '../campaigns/model';
 import { userStore } from '../userStore';
-import { newMap, parseMap, serializeMap, mapDir, mapPath, type MapDoc } from './model';
+import {
+  newMap,
+  parseMap,
+  serializeMap,
+  mapDir,
+  mapPath,
+  mapThumbPath,
+  type MapDoc,
+} from './model';
 
 /**
  * Every map, in the library and in each campaign, kept in memory and written back on
@@ -109,6 +117,8 @@ export const useMaps = create<MapsStore>()((set, get) => ({
     pending.delete(id);
     const store = await userStore();
     await store.remove(mapPath(id, map.campaign));
+    // A map without a picture has no thumbnail.
+    await store.remove(mapThumbPath(id, map.campaign)).catch(() => undefined);
     set({ maps: get().maps.filter((s) => s.id !== id) });
   },
 }));

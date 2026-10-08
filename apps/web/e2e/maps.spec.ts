@@ -460,3 +460,35 @@ test('picture layers (a night version) are shown and hidden over the picture', a
       .getByRole('button', { name: 'Show Mine Night' }),
   ).toBeVisible();
 });
+
+test('the maps list finds maps by name, folder and tag, with their thumbnails', async ({
+  page,
+}) => {
+  await installData(page);
+  await newMap(page, 'Pirate Tavern');
+  if (isPhone(page)) await page.getByRole('button', { name: 'Panels' }).click();
+  await page.getByRole('tab', { name: 'Map' }).click();
+  await page
+    .getByLabel('Choose a picture')
+    .setInputFiles({ name: 'tavern.png', mimeType: 'image/png', buffer: PIXEL });
+  await expect(page.getByLabel('Replace the picture')).toBeAttached();
+  const filing = page.getByRole('region', { name: 'Filed under' });
+  await filing.getByLabel('Folder').fill('Battle maps/Taverns');
+  await filing.getByLabel('Tags').fill('Tavern, night');
+  await filing.getByLabel('Folder').click();
+  await waitForSaved(page, 'maps', '"tags":["tavern","night"]');
+  await newMap(page, 'Goblin Bridge');
+
+  await page.goto('./#/maps');
+  const library = page.getByRole('region', { name: 'Map library' });
+  await expect(library.getByRole('link', { name: /Pirate Tavern/ }).locator('img')).toBeVisible();
+  await page.getByLabel('Search maps').fill('tavern');
+  await expect(library.getByRole('link')).toHaveCount(1);
+  await page.getByLabel('Search maps').fill('');
+  await page.getByRole('group', { name: 'Tags' }).getByRole('button', { name: /night/ }).click();
+  await expect(library.getByRole('link')).toHaveCount(1);
+  await page.getByRole('group', { name: 'Tags' }).getByRole('button', { name: /night/ }).click();
+  await page.getByLabel('Folder').selectOption({ label: 'Battle maps › Taverns' });
+  await expect(library.getByRole('link', { name: /Pirate Tavern/ })).toBeVisible();
+  await expect(library.getByRole('link', { name: /Goblin Bridge/ })).toHaveCount(0);
+});
