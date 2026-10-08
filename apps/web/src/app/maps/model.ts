@@ -118,6 +118,13 @@ export interface Layer {
   items: MapItem[];
 }
 
+export interface MapPicture {
+  name: string;
+  /** In the map assets, like the background. */
+  path: string;
+  visible: boolean;
+}
+
 export interface MapDoc {
   version: 1;
   id: string;
@@ -126,6 +133,11 @@ export interface MapDoc {
   updatedAt: string;
   /** A picture in the map assets; its size is the map's size. */
   background?: { path: string; width: number; height: number };
+  /**
+   * More pictures of the same place, drawn over the background bottom first and each shown or
+   * hidden: a night version, snow, an overlay with a transparent background.
+   */
+  pictures?: MapPicture[];
   width: number;
   height: number;
   grid: Grid;
@@ -339,8 +351,42 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
           ),
         }
       : {}),
+    ...(Array.isArray(json.pictures)
+      ? {
+          pictures: json.pictures.flatMap((p) =>
+            isObj(p) && typeof p.path === 'string'
+              ? [
+                  {
+                    name: typeof p.name === 'string' ? p.name : 'Picture',
+                    path: p.path,
+                    visible: p.visible === true,
+                  },
+                ]
+              : [],
+          ),
+        }
+      : {}),
     ...(campaign ? { campaign } : {}),
   };
+}
+
+/** Adds a picture layer over the background (hidden or shown). */
+export function addPicture(doc: MapDoc, picture: MapPicture): MapDoc {
+  return { ...doc, pictures: [...(doc.pictures ?? []), picture] };
+}
+
+export function updatePicture(doc: MapDoc, index: number, change: Partial<MapPicture>): MapDoc {
+  return {
+    ...doc,
+    pictures: (doc.pictures ?? []).map((p, i) => (i === index ? { ...p, ...change } : p)),
+  };
+}
+
+export function removePicture(doc: MapDoc, index: number): MapDoc {
+  const pictures = (doc.pictures ?? []).filter((_, i) => i !== index);
+  if (pictures.length > 0) return { ...doc, pictures };
+  const { pictures: _p, ...rest } = doc;
+  return rest;
 }
 
 export function serializeMap(doc: MapDoc): string {

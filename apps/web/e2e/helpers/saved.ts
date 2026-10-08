@@ -9,16 +9,21 @@ export async function waitForSaved(page: Page, dir: string, text: string): Promi
     .poll(() =>
       page.evaluate(
         async ({ dir: folder, text: wanted }) => {
-          let handle = await (
-            await navigator.storage.getDirectory()
-          ).getDirectoryHandle('user-data');
-          for (const part of folder.split('/')) handle = await handle.getDirectoryHandle(part);
-          for await (const entry of handle.values())
-            if (
-              entry.kind === 'file' &&
-              (await entry.getFile().then((f) => f.text())).includes(wanted)
-            )
-              return true;
+          // The folder may not be there yet: then nothing is saved yet.
+          try {
+            let handle = await (
+              await navigator.storage.getDirectory()
+            ).getDirectoryHandle('user-data');
+            for (const part of folder.split('/')) handle = await handle.getDirectoryHandle(part);
+            for await (const entry of handle.values())
+              if (
+                entry.kind === 'file' &&
+                (await entry.getFile().then((f) => f.text())).includes(wanted)
+              )
+                return true;
+          } catch {
+            return false;
+          }
           return false;
         },
         { dir, text },
