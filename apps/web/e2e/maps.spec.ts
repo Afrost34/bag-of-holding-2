@@ -492,3 +492,29 @@ test('the maps list finds maps by name, folder and tag, with their thumbnails', 
   await expect(library.getByRole('link', { name: /Pirate Tavern/ })).toBeVisible();
   await expect(library.getByRole('link', { name: /Goblin Bridge/ })).toHaveCount(0);
 });
+
+test('a world map measures distances and travel times', async ({ page }) => {
+  test.skip(isPhone(page), 'Measuring by dragging is checked on the desktop.');
+  await installData(page);
+  await newMap(page, 'The Sunash Sea');
+  await page.getByRole('tab', { name: 'Map' }).click();
+  const scale = page.getByRole('region', { name: 'Scale and travel' });
+  await scale.getByLabel('Unit').selectOption('km');
+  await scale.getByLabel('Distance across the map').fill('28000');
+  await scale.getByRole('button', { name: 'Add a speed' }).click();
+  await scale.getByLabel('Speed 1 name').fill('Skiff');
+  await scale.getByLabel('Speed 1 per day').fill('1400');
+  await scale.getByLabel('Distance across the map').click();
+  await waitForSaved(page, 'maps', '"travel":[{"name":"Skiff","perDay":1400}]');
+
+  const box = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
+  if (!box) throw new Error('no canvas');
+  await tool(page, 'Measure').click();
+  await page.mouse.move(box.x + 100, box.y + 300);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 400, box.y + 300, { steps: 5 });
+  await expect(
+    page.getByRole('status').filter({ hasText: /Distance: [\d,]+ km · Skiff: (\d|about)/ }),
+  ).toBeVisible();
+  await page.mouse.up();
+});

@@ -35,6 +35,7 @@ import {
   type TemplateShape,
 } from '../../app/maps/model';
 import { useMaps } from '../../app/maps/store';
+import { DEFAULT_SPEEDS, scaleForWidth, type DistanceUnit } from '../../app/maps/travel';
 import { useAppNavigate } from '../../app/navigation';
 import { TERRAINS, terrainTile } from '../../app/maps/terrain';
 import { PinCategories, PinLook } from './PinPanels';
@@ -470,6 +471,134 @@ function NumberField({
   );
 }
 
+/**
+ * A world or region map's real size, given as the distance across it, and the speeds a party
+ * travels at: the measure tool then says how far, and how long at each speed.
+ */
+function ScaleAndTravel({ doc, commit }: Pick<MapPanelsProps, 'doc' | 'commit'>) {
+  const [unit, setUnit] = useState<DistanceUnit | ''>(doc.scale?.unit ?? '');
+  const [across, setAcross] = useState(
+    doc.scale ? String(Math.round(doc.scale.perPixel * doc.width)) : '',
+  );
+  const [speeds, setSpeeds] = useState(
+    (doc.travel ?? []).map((t) => ({ name: t.name, perDay: String(t.perDay) })),
+  );
+  const save = (nextUnit = unit, nextAcross = across, nextSpeeds = speeds) => {
+    const distance = Number(nextAcross);
+    const travel = nextSpeeds
+      .map((s) => ({ name: s.name.trim(), perDay: Number(s.perDay) }))
+      .filter((s) => s.name && s.perDay > 0);
+    commit((d) => {
+      const { scale: _s, travel: _t, ...rest } = d;
+      return {
+        ...rest,
+        ...(nextUnit && distance > 0 ? { scale: scaleForWidth(d.width, distance, nextUnit) } : {}),
+        ...(travel.length ? { travel } : {}),
+      };
+    });
+  };
+  return (
+    <Section title="Scale and travel">
+      <p className="text-xs text-muted">
+        For a world or region map: the measure tool then gives distances and travel times.
+      </p>
+      <div className="grid grid-cols-[1fr_auto] gap-2">
+        <label className="block text-sm">
+          Distance across the map
+          <input
+            type="number"
+            min={0}
+            value={across}
+            disabled={!unit}
+            onChange={(e) => {
+              setAcross(e.target.value);
+            }}
+            onBlur={() => {
+              save();
+            }}
+            className={field}
+          />
+        </label>
+        <label className="block text-sm">
+          Unit
+          <select
+            value={unit}
+            onChange={(e) => {
+              const next = e.target.value === 'km' || e.target.value === 'mi' ? e.target.value : '';
+              setUnit(next);
+              save(next);
+            }}
+            className={field}
+          >
+            <option value="">Grid (feet)</option>
+            <option value="km">km</option>
+            <option value="mi">miles</option>
+          </select>
+        </label>
+      </div>
+      {unit && (
+        <div className="space-y-1.5">
+          <p className="text-sm font-medium">Travel speeds ({unit} per day)</p>
+          {speeds.map((s, i) => (
+            <div key={i} className="flex gap-1.5">
+              <input
+                value={s.name}
+                aria-label={`Speed ${String(i + 1)} name`}
+                placeholder="Merchant skyship"
+                onChange={(e) => {
+                  setSpeeds(speeds.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)));
+                }}
+                onBlur={() => {
+                  save();
+                }}
+                className={cn(field, 'min-w-0 flex-1')}
+              />
+              <input
+                type="number"
+                min={0}
+                value={s.perDay}
+                aria-label={`Speed ${String(i + 1)} per day`}
+                onChange={(e) => {
+                  setSpeeds(speeds.map((x, j) => (j === i ? { ...x, perDay: e.target.value } : x)));
+                }}
+                onBlur={() => {
+                  save();
+                }}
+                className={cn(field, 'w-20')}
+              />
+              <button
+                type="button"
+                aria-label={`Remove speed ${String(i + 1)}`}
+                onClick={() => {
+                  const next = speeds.filter((_, j) => j !== i);
+                  setSpeeds(next);
+                  save(unit, across, next);
+                }}
+                className="rounded p-1 text-muted hover:bg-sunken"
+              >
+                <X className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
+          ))}
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setSpeeds([...speeds, { name: '', perDay: '' }]);
+            }}
+          >
+            <Plus className="h-4 w-4" aria-hidden /> Add a speed
+          </Button>
+          {speeds.length === 0 && (
+            <p className="text-xs text-muted">
+              Without speeds, travel is on foot ({DEFAULT_SPEEDS[unit][0]?.perDay} {unit} a day).
+            </p>
+          )}
+        </div>
+      )}
+    </Section>
+  );
+}
+
 /** Where the map is filed in the maps list, and the words to find it by. */
 function Filing({ doc, commit }: Pick<MapPanelsProps, 'doc' | 'commit'>) {
   const all = useMaps((s) => s.maps);
@@ -600,6 +729,7 @@ function MapSettings({ doc, commit, setTool, snap, setSnap }: MapPanelsProps) {
       </Section>
       {doc.background && <PictureLayers doc={doc} commit={commit} />}
       <Filing key={doc.id} doc={doc} commit={commit} />
+      <ScaleAndTravel key={'scale-' + doc.id} doc={doc} commit={commit} />
       <Section title="Grid">
         <label className="block text-sm">
           Type
