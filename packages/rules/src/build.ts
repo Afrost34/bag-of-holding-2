@@ -71,6 +71,11 @@ export interface InventoryItem {
   quantity: number;
   equipped?: boolean;
   attuned?: boolean;
+  /**
+   * Bound to the character as a pact weapon (Pact of the Blade) or by Hex Warrior: it attacks
+   * with Charisma when that is better, and the character is proficient with it.
+   */
+  pact?: boolean;
 }
 
 export interface CampaignRules {

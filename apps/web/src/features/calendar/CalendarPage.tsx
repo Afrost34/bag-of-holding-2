@@ -29,6 +29,7 @@ import {
   gameDateValue,
   monthWeeks,
   MOON_PHASES,
+  moonEvent,
   moonPhase,
   newCalendar,
   parseGameDate,
@@ -299,92 +300,95 @@ function CalendarView({
             </button>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[36rem] table-fixed border-collapse text-sm">
+            <div
+              className="grid border-t border-l border-border text-sm"
+              style={{ gridTemplateColumns: 'repeat(' + String(week) + ', minmax(0, 1fr))' }}
+            >
               {!cal.months[shown.month]?.intercalary && (
-                <thead>
-                  <tr>
-                    {cal.weekdays.map((w) => (
-                      <th
-                        key={w}
-                        className="truncate px-1 py-1 text-[11px] font-semibold tracking-wide text-muted uppercase"
-                      >
-                        {w}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
+                <>
+                  {cal.weekdays.map((w) => (
+                    <div
+                      key={w}
+                      className="truncate border-r border-b border-border px-1 py-1 text-center text-[11px] font-semibold tracking-wide text-muted uppercase"
+                    >
+                      {w}
+                    </div>
+                  ))}
+                </>
               )}
-              <tbody>
-                {weeks.map((row, i) => (
-                  <tr key={i}>
-                    {row.map((day, j) => {
-                      if (day === null) return <td key={j} className="border border-border" />;
-                      const date = { ...shown, day };
-                      const events = eventsOn(cal, date);
-                      const notes = dated.filter((n) => sameDay(n.date, date));
-                      const isToday = sameDay(date, cal.today);
-                      const isSelected = sameDay(date, selected);
-                      const moons = cal.moons.filter((m) => {
-                        const p = moonPhase(cal, m, date);
-                        return p === 0 || p === 4;
-                      });
-                      return (
-                        <td key={j} className="h-20 border border-border p-0 align-top">
-                          <button
-                            type="button"
-                            aria-label={formatDate(cal, date)}
-                            aria-pressed={isSelected}
-                            onClick={() => {
-                              setSelected(date);
-                            }}
+              {weeks.flatMap((row, i) =>
+                row.map((day, j) => {
+                  if (day === null)
+                    return (
+                      <div
+                        key={String(i) + '-' + String(j)}
+                        className="border-r border-b border-border"
+                      />
+                    );
+                  const date = { ...shown, day };
+                  const events = eventsOn(cal, date);
+                  const notes = dated.filter((n) => sameDay(n.date, date));
+                  const isToday = sameDay(date, cal.today);
+                  const isSelected = sameDay(date, selected);
+                  const moons = cal.moons.filter((m) => moonEvent(cal, m, date) !== null);
+                  return (
+                    <div
+                      key={String(i) + '-' + String(j)}
+                      className="border-r border-b border-border"
+                    >
+                      <button
+                        type="button"
+                        aria-label={formatDate(cal, date)}
+                        aria-pressed={isSelected}
+                        onClick={() => {
+                          setSelected(date);
+                        }}
+                        className={cn(
+                          'flex h-full min-h-14 w-full flex-col gap-0.5 overflow-hidden p-0.5 text-left hover:bg-sunken sm:min-h-20 sm:p-1',
+                          isSelected && 'bg-accent-soft',
+                        )}
+                      >
+                        <span className="flex items-center gap-1">
+                          <span
                             className={cn(
-                              'flex h-full min-h-20 w-full flex-col gap-0.5 p-1 text-left hover:bg-sunken',
-                              isSelected && 'bg-accent-soft',
+                              'inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs font-semibold',
+                              isToday && 'bg-accent text-accent-fg',
                             )}
                           >
-                            <span className="flex items-center gap-1">
-                              <span
-                                className={cn(
-                                  'inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs font-semibold',
-                                  isToday && 'bg-accent text-accent-fg',
-                                )}
-                              >
-                                {day}
-                              </span>
-                              {moons.map((m) => (
-                                <span key={m.name} aria-hidden title={m.name} className="text-xs">
-                                  {PHASE_GLYPHS[moonPhase(cal, m, date)]}
-                                </span>
-                              ))}
+                            {day}
+                          </span>
+                          {moons.map((m) => (
+                            <span key={m.name} aria-hidden title={m.name} className="text-xs">
+                              {moonEvent(cal, m, date) === 'new' ? '●' : '○'}
                             </span>
-                            {events.slice(0, 3).map((e) => (
-                              <span
-                                key={e.id}
-                                className="truncate border-l-4 pl-1 text-[11px] leading-tight"
-                                style={{ borderColor: color(e.category) ?? 'currentColor' }}
-                              >
-                                {e.name}
-                              </span>
-                            ))}
-                            {notes.slice(0, 2).map((n) => (
-                              <span key={n.path} className="truncate text-[11px] text-muted">
-                                <NotebookPen className="mr-0.5 inline h-3 w-3" aria-hidden />
-                                {noteName(n.path)}
-                              </span>
-                            ))}
-                            {events.length + notes.length > 5 && (
-                              <span className="text-[11px] text-muted">
-                                +{events.length + notes.length - 5} more
-                              </span>
-                            )}
-                          </button>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                          ))}
+                        </span>
+                        {events.slice(0, 3).map((e) => (
+                          <span
+                            key={e.id}
+                            className="truncate border-l-4 pl-1 text-[11px] leading-tight"
+                            style={{ borderColor: color(e.category) ?? 'currentColor' }}
+                          >
+                            {e.name}
+                          </span>
+                        ))}
+                        {notes.slice(0, 2).map((n) => (
+                          <span key={n.path} className="truncate text-[11px] text-muted">
+                            <NotebookPen className="mr-0.5 inline h-3 w-3" aria-hidden />
+                            {noteName(n.path)}
+                          </span>
+                        ))}
+                        {events.length + notes.length > 5 && (
+                          <span className="text-[11px] text-muted">
+                            +{events.length + notes.length - 5} more
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                  );
+                }),
+              )}
+            </div>
           </div>
         </section>
 

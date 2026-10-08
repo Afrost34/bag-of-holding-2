@@ -62,6 +62,10 @@ test('a character is built from its choices and kept', async ({ page }) => {
     .getByRole('region', { name: 'Subspecies' })
     .getByLabel('Choose a subspecies')
     .selectOption({ label: 'High' });
+  // What the pick does shows under it.
+  await expect(page.getByRole('region', { name: 'Subspecies' })).toContainText(
+    'You know one wizard cantrip.',
+  );
 
   // Abilities: the standard array plus the species' increases.
   await step(page, /Abilities/).click();

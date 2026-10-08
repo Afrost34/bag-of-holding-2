@@ -64,6 +64,11 @@ export function EquipmentStep({
   const decisions: CharacterDecisions = character.decisions;
   const inventory = decisions.inventory ?? [];
   const entities = useItemEntities(inventory);
+  // Pact of the Blade or Hex Warrior: a weapon can be bound to the character.
+  const pactFeature =
+    ['Pact of the Blade', 'Hex Warrior'].find((f) =>
+      (view?.features ?? []).some((x) => x.name.toLowerCase() === f.toLowerCase()),
+    ) ?? null;
   const setInventory = (next: InventoryItem[]) => {
     save({ ...character, decisions: { ...decisions, inventory: next } });
   };
@@ -152,6 +157,7 @@ export function EquipmentStep({
         )}
         {inventory.map((it, i) => (
           <InventoryRow
+            pactFeature={pactFeature}
             key={`${it.key}${it.name ?? ''}-${String(i)}`}
             item={it}
             entity={entities.get(it.key)}
@@ -227,10 +233,13 @@ function useItemEntities(inventory: readonly InventoryItem[]): Map<string, Entit
 function InventoryRow({
   item,
   entity,
+  pactFeature,
   onChange,
   onRemove,
 }: {
   item: InventoryItem;
+  /** The feature that binds a weapon (Pact of the Blade, Hex Warrior), if the character has one. */
+  pactFeature: string | null;
   entity: EntityDetail | undefined;
   onChange: (patch: Partial<InventoryItem>) => void;
   onRemove: () => void;
@@ -288,6 +297,26 @@ function InventoryRow({
             )}
           >
             {item.equipped ? DONE[wearLabel] : wearLabel}
+          </button>
+        )}
+        {pactFeature && ['M', 'R'].includes(type) && (
+          <button
+            type="button"
+            aria-pressed={item.pact === true}
+            aria-label={'Pact weapon: ' + name}
+            title={
+              pactFeature +
+              ': attacks with Charisma when it is better, and you are proficient with it'
+            }
+            onClick={() => {
+              onChange({ pact: item.pact !== true });
+            }}
+            className={cn(
+              'rounded border px-2 py-0.5 text-xs font-bold uppercase',
+              item.pact ? 'border-accent bg-accent text-accent-fg' : 'border-border text-muted',
+            )}
+          >
+            {item.pact ? 'Pact weapon' : 'Make pact weapon'}
           </button>
         )}
         {attunes && (

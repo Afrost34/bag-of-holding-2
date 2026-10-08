@@ -79,6 +79,11 @@ test('a calendar comes from Calendarium', async ({ page }) => {
   await expect(page.getByRole('button', { name: /, 1 Sol-Rise, Year 1379$/ })).toContainText(
     'Festival of the First Ray',
   );
+  const cell = page.getByRole('button', { name: /, 23 Sol-Rise, Year 1379$/ });
+  const box = await cell.boundingBox();
+  if (!box) throw new Error('no cell');
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height - 4);
+  await expect(cell).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('the calendar goes on a board and to the players', async ({ page, context }) => {

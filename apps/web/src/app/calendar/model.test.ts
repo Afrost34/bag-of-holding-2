@@ -8,6 +8,7 @@ import {
   fromCalendarium,
   gameDateValue,
   monthWeeks,
+  moonEvent,
   moonPhase,
   newCalendar,
   parseCalendar,
@@ -130,6 +131,11 @@ describe('calendar', () => {
     if (!aethel) throw new Error('no moon');
     expect(moonPhase(cal, aethel, { year: 0, month: 0, day: 1 })).toBe(0);
     expect(moonPhase(cal, aethel, { year: 0, month: 0, day: 21 })).toBe(4);
+    // One new-moon day and one full-moon day per cycle.
+    const marked = Array.from({ length: 40 }, (_, i) =>
+      moonEvent(cal, aethel, { year: 0, month: 0, day: i + 1 }),
+    ).filter(Boolean);
+    expect(marked).toEqual(['new', 'full']);
     expect(seasonOf(cal, { year: 5, month: 2, day: 1 })?.name).toBe('The Wane');
     expect(eventsOn(cal, { year: 1400, month: 0, day: 1 }).map((e) => e.name)).toEqual([
       'Festival of the First Ray',
