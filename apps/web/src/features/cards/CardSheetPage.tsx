@@ -39,7 +39,7 @@ export function CardSheetPage({ id }: { id: string }) {
     if (!loaded) void load();
   }, [loaded, load]);
   const { entities, loaded: entitiesLoaded } = useEntities(sheet?.cards.map((c) => c.key) ?? []);
-  const { packing, measurer } = useCardPacking(sheet?.cards ?? [], entities);
+  const { packing, measurer, items } = useCardPacking(sheet?.cards ?? [], entities);
   const [scale, setScale] = useState(1);
   const previewRef = useRef<HTMLDivElement>(null);
 
@@ -227,7 +227,7 @@ export function CardSheetPage({ id }: { id: string }) {
         <div ref={previewRef} className="min-w-0 overflow-auto bg-sunken p-2 sm:p-4">
           {packing.pages.length > 0 && (
             <div style={{ zoom: scale }}>
-              <CardPagesView packing={packing} cards={sheet.cards} entities={entities} />
+              <CardPagesView packing={packing} items={items} />
             </div>
           )}
         </div>
@@ -237,7 +237,7 @@ export function CardSheetPage({ id }: { id: string }) {
       {packing.pages.length > 0 &&
         createPortal(
           <div className="print-root">
-            <CardPagesView packing={packing} cards={sheet.cards} entities={entities} />
+            <CardPagesView packing={packing} items={items} />
           </div>,
           document.body,
         )}

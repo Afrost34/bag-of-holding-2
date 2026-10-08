@@ -130,6 +130,13 @@ test('a card shown to players opens in the player window', async ({ page, contex
   await expect(player.getByRole('region', { name: 'Fireball' })).toBeVisible();
   await expect(player.getByRole('navigation')).toHaveCount(0);
   await expect(page.getByLabel('Shown to players')).toBeVisible();
+  // The player window never takes the data: the DM's window, reloaded, still has it.
+  const board = page.url();
+  await page.goto(`./#/compendium/${encodeURIComponent('spell:fireball@xphb')}`);
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1, name: 'Fireball' })).toBeVisible();
+  await expect(page.getByText('open in another tab or window')).toHaveCount(0);
+  await page.goto(board);
   // Hidden again: gone from their window.
   await page.getByRole('button', { name: 'Fireball menu', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Hide from players' }).click();

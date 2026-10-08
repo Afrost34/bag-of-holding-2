@@ -52,6 +52,15 @@ describe('packing', () => {
     ]);
   });
 
+  it('keeps a heading with the card after it', () => {
+    const pages = packCards(
+      [card('a', 70), { id: 'h', height: 10, keepWithNext: true }, card('b', 40)],
+      100,
+      5,
+    );
+    expect(pages.map((p) => p.columns)).toEqual([[['a'], ['h', 'b']]]);
+  });
+
   it('starts a new page where asked, and gives a too-tall card a whole page', () => {
     const pages = packCards(
       [card('a', 30), card('big', 150), card('b', 30, true), card('c', 30)],
