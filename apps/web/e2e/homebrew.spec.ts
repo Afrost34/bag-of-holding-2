@@ -90,13 +90,13 @@ test('a pack exported on one install imports on another', async ({ page, browser
   await other.close();
 });
 
-test('a creature is made with its numbers worked out', async ({ page }) => {
+test('a monster is made with its numbers worked out', async ({ page }) => {
   await page.goto('./#/homebrew');
   await page.getByRole('button', { name: 'New pack' }).click();
   await page.getByRole('form', { name: 'New pack' }).getByLabel('Name').fill('Monsters');
   await page.getByRole('button', { name: 'Create pack' }).click();
-  await page.getByRole('button', { name: 'New creature' }).click();
-  const form = page.getByRole('form', { name: 'Creature' });
+  await page.getByRole('button', { name: 'New monster' }).click();
+  const form = page.getByRole('form', { name: 'Monster' });
   await form.getByLabel('Name', { exact: true }).fill('Rust Goblin');
   await form.getByLabel('DEX', { exact: true }).fill('14');
   await form.getByRole('button', { name: 'Dexterity saving throw' }).click();
@@ -112,7 +112,7 @@ test('a creature is made with its numbers worked out', async ({ page }) => {
   const preview = page.getByRole('complementary', { name: 'Preview' });
   await expect(preview).toContainText('Stealth +4');
   await expect(preview.getByRole('button', { name: '1d6 + 2' })).toBeVisible();
-  await form.getByRole('button', { name: 'Save creature' }).click();
+  await form.getByRole('button', { name: 'Save monster' }).click();
   await page.getByRole('link', { name: 'Rust Goblin' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Rust Goblin' })).toBeVisible();
   await expect(page.getByRole('main')).toContainText('Melee Attack Roll');
@@ -142,4 +142,74 @@ test('a spell is made and shows like the book ones', async ({ page }) => {
   await form.getByRole('button', { name: 'Save spell' }).click();
   await page.getByRole('link', { name: 'Rust Burst' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Rust Burst' })).toBeVisible();
+});
+
+test('a pack is a source with a cover, and holds feats, species and classes', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto('./#/homebrew');
+  await page.getByRole('button', { name: 'New pack' }).click();
+  await page.getByRole('form', { name: 'New pack' }).getByLabel('Name').fill('Corsairs');
+  await page.getByRole('button', { name: 'Create pack' }).click();
+
+  // A cover, like a book's.
+  await page.getByLabel('Cover file').setInputFiles({
+    name: 'cover.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(PNG, 'base64'),
+  });
+  await expect(page.getByRole('img', { name: 'Cover' })).toHaveAttribute('src', /^data:image\//);
+
+  // A feat.
+  await page.getByRole('button', { name: 'New feat' }).click();
+  const feat = page.getByRole('form', { name: 'Feat' });
+  await feat.getByLabel('Name', { exact: true }).fill('Sea Legs');
+  await feat.getByLabel('Benefits').fill('You never fall on a moving deck.');
+  await expect(page.getByRole('complementary', { name: 'Preview' })).toContainText(
+    'You never fall on a moving deck.',
+  );
+  await feat.getByRole('button', { name: 'Save feat' }).click();
+  await expect(page.getByRole('status')).toContainText('Saved “Sea Legs”');
+
+  // Species with a trait.
+  await page.getByRole('button', { name: 'New species' }).click();
+  const species = page.getByRole('form', { name: 'Species' });
+  await species.getByLabel('Name', { exact: true }).fill('Tidekin');
+  await species.getByRole('button', { name: 'Add a trait' }).click();
+  await species.getByLabel('Trait 1', { exact: true }).fill('Amphibious');
+  await species.getByLabel('What trait 1 does').fill('You can breathe air and water.');
+  await species.getByRole('button', { name: 'Save species' }).click();
+
+  // A class with a feature.
+  await page.getByRole('button', { name: 'New class' }).click();
+  const cls = page.getByRole('form', { name: 'Class' });
+  await cls.getByLabel('Name', { exact: true }).fill('Corsair');
+  await cls.getByRole('button', { name: 'Dexterity' }).first().click();
+  await cls.getByRole('button', { name: 'Add a feature' }).click();
+  await cls.getByLabel('Feature 1', { exact: true }).fill('Sea Dog');
+  await cls.getByLabel('What feature 1 does').fill('You know ships.');
+  await expect(page.getByRole('complementary', { name: 'Preview' })).toContainText('Sea Dog');
+  await cls.getByRole('button', { name: 'Save class' }).click();
+
+  // The pack lists them like the compendium: open a row to read it.
+  for (const name of ['Feats', 'Species', 'Classes']) {
+    await expect(page.getByRole('region', { name })).toBeVisible();
+  }
+  await page.getByRole('button', { name: 'Show Tidekin' }).click();
+  await expect(page.getByRole('main')).toContainText('You can breathe air and water.');
+  await page.getByRole('button', { name: 'Show Corsair' }).click();
+  await expect(page.getByRole('main')).toContainText('You know ships.');
+
+  // They are in the compendium like the book ones.
+  await page.getByRole('link', { name: 'Sea Legs' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Sea Legs' })).toBeVisible();
+  await page.goBack();
+  await page.getByRole('link', { name: 'Corsair', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Corsair' })).toBeVisible();
+  await expect(page.getByRole('main')).toContainText('Sea Dog');
+
+  // The homebrew list shows the cover.
+  await page.goto('./#/homebrew');
+  await expect(
+    page.getByRole('list', { name: 'Packs' }).locator('img[src^="data:image/"]'),
+  ).toBeVisible();
 });

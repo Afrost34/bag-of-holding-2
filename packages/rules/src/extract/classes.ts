@@ -192,7 +192,10 @@ export function readClassLevel(
   // Whose spell list the class's spells come from (subclass casters borrow another's).
   const className = isSubclass
     ? (SUBCLASS_SPELL_LISTS[String(entity.name).toLowerCase()] ?? String(entity.className))
-    : String(entity.name);
+    : // A homebrew class made in the app names the list it uses ("Wizard"); 5etools ignores it.
+      typeof entity.spellList === 'string' && entity.spellList
+      ? entity.spellList
+      : String(entity.name);
 
   if (!isSubclass && level === 1) {
     if (options.first) {

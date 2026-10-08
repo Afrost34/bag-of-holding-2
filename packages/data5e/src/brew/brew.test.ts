@@ -4,6 +4,11 @@ import { emptyItem, formToItem, itemToForm } from './items';
 import {
   fluffImage,
   newPack,
+  packCover,
+  setPackCover,
+  putClass,
+  removeClass,
+  classFeatures,
   packEntries,
   packMeta,
   putEntry,
@@ -167,5 +172,33 @@ describe('pictures', () => {
     expect(fluffImage(p, 'item', 'Dawnblade')).toBe('https://example.com/a.png');
     p = putFluffImage(p, 'item', 'Dawnblade', null);
     expect(p.itemFluff).toBeUndefined();
+  });
+});
+
+describe('pack covers and classes', () => {
+  const meta = { id: 'RS', name: 'Rust', edition: '2024' as const, author: '' };
+  it('keeps a cover on the pack’s source', () => {
+    let p = newPack(meta);
+    expect(packCover(p)).toBeNull();
+    p = setPackCover(p, 'data:image/webp;base64,AA');
+    expect(packCover(p)).toBe('data:image/webp;base64,AA');
+    expect(packMeta(p)).toEqual(meta);
+    expect(packCover(setPackCover(p, null))).toBeNull();
+  });
+  it('swaps a class’s features as a set, and follows a rename', () => {
+    const f = (name: string, className: string) => ({ name, className, level: 1 });
+    let p = putClass(newPack(meta), { name: 'Corsair' }, [f('Sea Dog', 'Corsair')]);
+    p = putClass(
+      p,
+      { name: 'Pirate' },
+      [f('Plunder', 'Pirate'), f('Sea Dog', 'Pirate')],
+      'Corsair',
+    );
+    expect(classFeatures(p, 'Corsair')).toEqual([]);
+    expect(classFeatures(p, 'Pirate').map((x) => x.name)).toEqual(['Plunder', 'Sea Dog']);
+    expect(packEntries(p).map((e) => e.name)).toEqual(['Pirate']);
+    p = removeClass(p, 'Pirate');
+    expect(p.classFeature).toBeUndefined();
+    expect(packEntries(p)).toEqual([]);
   });
 });

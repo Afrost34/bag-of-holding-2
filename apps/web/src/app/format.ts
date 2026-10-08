@@ -28,9 +28,9 @@ export function formatDuration(ms: number): string {
   return s < 60 ? `${String(s)} s` : `${String(Math.floor(s / 60))} min ${String(s % 60)} s`;
 }
 
-/** `classFeature` → `Class feature`, `monster` → `Creature`. */
+/** `classFeature` → `Class feature`, `monster` → `Monster`. */
 const TYPE_LABELS: Record<string, string> = {
-  monster: 'Creature',
+  monster: 'Monster',
   baseitem: 'Item (base)',
   magicvariant: 'Magic variant',
   optionalfeature: 'Option',

@@ -1,6 +1,6 @@
-import { packEntries, packMeta, sourceIdFor } from '@boh/data5e';
+import { packCover, packEntries, packMeta, sourceIdFor } from '@boh/data5e';
 import { Button, Panel } from '@boh/ui';
-import { FlaskConical, Plus, Upload } from 'lucide-react';
+import { BookOpen, FlaskConical, Plus, Upload } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
 import { useActiveCampaign } from '../../app/campaigns/store';
@@ -9,7 +9,7 @@ import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 import { packPath, packSummary } from './packs';
 
-/** Homebrew: your packs of custom items (creatures and spells next), made in the app or imported. */
+/** Homebrew: your packs (each one a source, like a book), made in the app or imported. */
 export function HomebrewPage() {
   usePageTitle('Homebrew');
   const { packs, loaded, load, importFile, createPack } = useHomebrew();
@@ -73,9 +73,9 @@ export function HomebrewPage() {
         </Button>
       </div>
       <p className="text-muted">
-        Your own items, creatures and spells. They show up in the compendium, in search and in links
-        like everything else, sync to your other devices, and can be shared as a 5etools homebrew
-        file.
+        Your own items, monsters, spells, feats, backgrounds, species and classes. Each pack is a
+        source like a book: its entries show up in the compendium, in search, in links and in the
+        character builder, sync to your other devices, and can be shared as a 5etools homebrew file.
       </p>
       {message && (
         <p role="status" className="rounded-md bg-sunken px-3 py-2 text-sm">
@@ -167,19 +167,29 @@ export function HomebrewPage() {
         <ul aria-label="Packs" className="grid gap-3 sm:grid-cols-2">
           {packs.map((p) => {
             const meta = packMeta(p.json);
+            const cover = packCover(p.json);
             return (
               <li key={p.path}>
                 <AppLink
                   to={packPath(p.path)}
-                  className="block rounded-lg border border-border bg-surface p-4 hover:border-accent"
+                  className="flex gap-3 rounded-lg border border-border bg-surface p-3 hover:border-accent"
                 >
-                  <span className="block font-serif text-lg font-bold">
-                    {meta?.name ?? p.fileName}
+                  <span className="flex aspect-[3/4] w-16 shrink-0 items-center justify-center overflow-hidden rounded bg-sunken">
+                    {cover ? (
+                      <img src={cover} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <BookOpen className="h-6 w-6 text-faint" aria-hidden />
+                    )}
                   </span>
-                  <span className="block text-xs text-muted">
-                    {meta ? `${meta.id} · ${meta.edition} rules` : p.fileName}
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-serif text-lg font-bold">
+                      {meta?.name ?? p.fileName}
+                    </span>
+                    <span className="block text-xs text-muted">
+                      {meta ? `${meta.id} · ${meta.edition} rules` : p.fileName}
+                    </span>
+                    <span className="mt-2 block text-sm">{packSummary(packEntries(p.json))}</span>
                   </span>
-                  <span className="mt-2 block text-sm">{packSummary(packEntries(p.json))}</span>
                 </AppLink>
               </li>
             );
