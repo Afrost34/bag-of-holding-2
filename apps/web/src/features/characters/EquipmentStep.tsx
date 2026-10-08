@@ -6,6 +6,8 @@ import { ChevronDown, PackagePlus, Search, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import {
   addCoins,
+  carrying,
+  packItems,
   coinsFromCopper,
   NO_COINS,
   type CharacterFile,
@@ -16,6 +18,7 @@ import { loadEntity } from '../../app/data/entities';
 import type { CharacterView } from '../../app/data/protocol';
 import { ChoiceControl } from './ChoiceControl';
 import { pickName } from './steps';
+import { useTableRules } from './tableRules';
 import { Accordion, StepTitle } from './ui';
 
 const COIN_KEYS = ['pp', 'gp', 'ep', 'sp', 'cp'] as const;
@@ -70,11 +73,11 @@ export function EquipmentStep({
   const starting = (view?.grants ?? []).filter(
     (g) => g.kind === 'item' || g.kind === 'money' || g.kind === 'special',
   );
-  const addStarting = () => {
+  const addStarting = async () => {
     const items: InventoryItem[] = [...inventory];
     let coins: Coins = character.coins;
     for (const g of starting) {
-      if (g.kind === 'item') items.push({ key: g.key, quantity: g.quantity });
+      if (g.kind === 'item') items.push(...(await unpacked(g.key, g.quantity)));
       else if (g.kind === 'special') items.push({ key: '', name: g.text, quantity: g.quantity });
       else coins = addCoins(coins, coinsFromCopper(g.cp));
     }
@@ -84,6 +87,9 @@ export function EquipmentStep({
     const w = entities.get(it.key)?.data.weight;
     return n + (typeof w === 'number' ? w * it.quantity : 0);
   }, 0);
+  // Carrying rules: the campaign's (or the character's own outside campaigns).
+  const table = useTableRules(character);
+  const load = carrying(view?.sheet.abilities.str.score.value ?? 10, weight, table.encumbrance);
 
   return (
     <div className="space-y-4">
@@ -111,7 +117,7 @@ export function EquipmentStep({
             />
           ))}
           {starting.length > 0 ? (
-            <Button variant="primary" onClick={addStarting}>
+            <Button variant="primary" onClick={() => void addStarting()}>
               <PackagePlus className="h-4 w-4" aria-hidden /> Add starting equipment
             </Button>
           ) : (
@@ -127,6 +133,23 @@ export function EquipmentStep({
           <h3 className="flex-1 font-bold">Current Inventory ({inventory.length})</h3>
           <span className="text-sm">Total Weight: {Math.round(weight * 10) / 10} lb</span>
         </div>
+        {load && (
+          <p
+            role="status"
+            className={cn(
+              'rounded-md px-3 py-1.5 text-sm',
+              load.state === 'fine'
+                ? 'bg-sunken text-muted'
+                : 'bg-accent-soft font-semibold text-accent-ink',
+            )}
+          >
+            {load.state === 'fine'
+              ? `Carrying ${String(Math.round(weight))} of ${String(load.capacity)} lb.`
+              : load.state === 'over capacity'
+                ? `Over capacity: ${String(Math.round(weight))} of ${String(load.capacity)} lb. Speed 5 ft.`
+                : `${load.state === 'encumbered' ? 'Encumbered' : 'Heavily encumbered'}: speed −${String(load.speedPenalty)} ft${load.state === 'heavily encumbered' ? ', disadvantage on Strength, Dexterity and Constitution checks, attacks and saves' : ''}.`}
+          </p>
+        )}
         {inventory.map((it, i) => (
           <InventoryRow
             key={`${it.key}${it.name ?? ''}-${String(i)}`}
@@ -143,7 +166,9 @@ export function EquipmentStep({
         <AddItem
           disabledSources={disabledSources}
           onAdd={(key) => {
-            setInventory([...inventory, { key, quantity: 1 }]);
+            void unpacked(key, 1).then((items) => {
+              setInventory([...inventory, ...items]);
+            });
           }}
         />
       </section>
@@ -380,4 +405,10 @@ function AddItem({
       )}
     </div>
   );
+}
+
+/** An item as inventory lines: a pack becomes what is in it (an Entertainer's Pack → its items). */
+async function unpacked(key: string, quantity: number): Promise<InventoryItem[]> {
+  const entity = (await loadEntity(key)) ?? (await loadEntity(key.replace(/^item:/, 'baseitem:')));
+  return (entity && packItems(entity.data, quantity)) ?? [{ key, quantity }];
 }

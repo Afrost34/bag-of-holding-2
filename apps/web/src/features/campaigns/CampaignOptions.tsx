@@ -12,6 +12,19 @@ const EDITIONS: { id: CampaignEdition; hint: string }[] = [
   { id: 'mixed', hint: 'Choose per character and encounter, with warnings where they mix.' },
 ];
 
+const ADVANCEMENT: { id: CampaignRules['advancement']; label: string; hint: string }[] = [
+  {
+    id: 'milestone',
+    label: 'Milestones',
+    hint: 'Characters level up when you say so; no XP anywhere.',
+  },
+  {
+    id: 'xp',
+    label: 'Experience points',
+    hint: 'Characters track XP; encounters show what they are worth.',
+  },
+];
+
 const ENCUMBRANCE: { id: CampaignRules['encumbrance']; label: string }[] = [
   { id: 'off', label: 'Off' },
   { id: 'standard', label: 'Standard (carrying capacity)' },
@@ -68,8 +81,31 @@ export function RulesFields({
   onChange: (rules: CampaignRules) => void;
 }) {
   const name = useId();
+  const advancementName = useId();
   return (
     <div className="space-y-4">
+      <fieldset>
+        <legend className={fieldLabel}>Advancement</legend>
+        <div className="flex flex-col gap-1.5">
+          {ADVANCEMENT.map((o) => (
+            <label key={o.id} className="flex items-start gap-2 text-sm">
+              <input
+                type="radio"
+                name={advancementName}
+                checked={value.advancement === o.id}
+                onChange={() => {
+                  onChange({ ...value, advancement: o.id });
+                }}
+                className="mt-0.5 accent-accent"
+              />
+              <span>
+                {o.label}
+                <span className="block text-xs text-muted">{o.hint}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
       <fieldset>
         <legend className={fieldLabel}>Encumbrance</legend>
         <div className="flex flex-col gap-1.5">

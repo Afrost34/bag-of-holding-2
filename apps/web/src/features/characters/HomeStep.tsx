@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { AppLink } from '../../app/AppLink';
 import type { CharacterFile, CharacterPreferences } from '../../app/characters/model';
 import { selectClass } from './styles';
+import { useTableRules } from './tableRules';
 import { StepTitle } from './ui';
 
 /**
@@ -19,6 +20,7 @@ export function HomeStep({
   save: (c: CharacterFile) => void;
 }) {
   const prefs = character.preferences;
+  const table = useTableRules(character);
   const decisions = character.decisions;
   const setPref = <K extends keyof CharacterPreferences>(
     key: K,
@@ -139,6 +141,44 @@ export function HomeStep({
           <option value="modifiers">Modifiers Top</option>
           <option value="scores">Scores Top</option>
         </select>
+      </Group>
+
+      <Group
+        title="Advancement and encumbrance"
+        hint={
+          table.fromCampaign
+            ? `Set by the campaign${campaignName ? ` (${campaignName})` : ''}.`
+            : 'How this character levels up, and whether what it carries counts.'
+        }
+      >
+        <div className="flex flex-wrap gap-3">
+          <select
+            aria-label="Advancement"
+            value={table.advancement}
+            disabled={table.fromCampaign}
+            onChange={(e) => {
+              setPref('advancement', e.target.value === 'xp' ? 'xp' : 'milestone');
+            }}
+            className={cn(selectClass, 'max-w-xs')}
+          >
+            <option value="milestone">Milestone advancement</option>
+            <option value="xp">Experience points</option>
+          </select>
+          <select
+            aria-label="Encumbrance"
+            value={table.encumbrance}
+            disabled={table.fromCampaign}
+            onChange={(e) => {
+              const v = e.target.value;
+              setPref('encumbrance', v === 'standard' || v === 'variant' ? v : 'off');
+            }}
+            className={cn(selectClass, 'max-w-xs')}
+          >
+            <option value="off">Encumbrance off</option>
+            <option value="standard">Carrying capacity</option>
+            <option value="variant">Variant encumbrance</option>
+          </select>
+        </div>
       </Group>
     </div>
   );

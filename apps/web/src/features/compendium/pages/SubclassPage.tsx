@@ -5,6 +5,7 @@ import { entityPath } from '../../../app/data/entities';
 import { useSubclassPage } from '../../../app/data/pages';
 import { usePageTitle } from '../../../app/tabs/usePageTitle';
 import { ArticleLayout, EntityHero, type TocItem } from './ArticleLayout';
+import { ExpandAllFeatures } from './ArticleLayout';
 import { FeatureList } from './ClassPage';
 import { PageMissing } from './PageMissing';
 import { scrollToSection } from './scroll';
@@ -77,6 +78,9 @@ export function SubclassPage({ entityKey }: { entityKey: string }) {
         />
       )}
       <section id="features" className="mt-6 scroll-mt-4">
+        <div className="flex justify-end">
+          <ExpandAllFeatures />
+        </div>
         <FeatureList features={features} idOf={featureId} />
       </section>
     </ArticleLayout>

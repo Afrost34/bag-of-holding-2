@@ -1,11 +1,17 @@
 import type { Category, FieldDef, ListRow } from '@boh/data5e';
-import { EntityView } from '@boh/renderer';
+import { Entries, EntityView } from '@boh/renderer';
 import { cn } from '@boh/ui';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ArrowDown, ArrowUp, ChevronsUpDown, Minus, Plus } from 'lucide-react';
 import { useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { AppLink } from '../../app/AppLink';
-import { entityPath, useEntity } from '../../app/data/entities';
+import {
+  entityPath,
+  fluffImages,
+  SIDE_IMAGE_TYPES,
+  useEntity,
+  useFluff,
+} from '../../app/data/entities';
 import { useAppNavigate, wantsNewTab } from '../../app/navigation';
 import { LegacyBadge } from '../../app/lists/LegacyBadge';
 import { Cell, SchoolIcon } from '../../app/lists/cells';
@@ -232,11 +238,19 @@ function maxWidth(columns: readonly FieldDef[]): number {
 /** The full entry inside an expanded row, with a link to its page. */
 function RowDetails({ row, sourceName }: { row: ListRow; sourceName: string }) {
   const state = useEntity(row.key);
+  const found = state.status === 'found' ? state.entity : null;
+  const images = fluffImages(useFluff(found?.type ?? '', found?.name ?? '', found?.source ?? ''));
   const classes = Array.isArray(row.f.classes) ? row.f.classes : [];
   return (
     <>
       {state.status === 'found' ? (
         <div className="text-[15px] leading-relaxed">
+          {/* The entry's picture beside it, so a creature can be told by its look. */}
+          {images.length > 0 && SIDE_IMAGE_TYPES.has(state.entity.type) && (
+            <div className="float-right mb-3 ml-4 w-32 sm:w-48">
+              <Entries entries={images.slice(0, 1)} />
+            </div>
+          )}
           {state.entity.type === 'spell' ? (
             <SpellDetails row={row} entity={state.entity} />
           ) : (

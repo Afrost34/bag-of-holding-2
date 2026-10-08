@@ -61,7 +61,7 @@ export function CompendiumPage() {
         </p>
       ) : (
         <>
-          <label className="relative block max-w-xl">
+          <label className="relative block">
             <Search
               className="pointer-events-none absolute top-3 left-3 h-5 w-5 text-faint"
               aria-hidden
@@ -80,7 +80,7 @@ export function CompendiumPage() {
           </label>
           <ul
             hidden={query.length < 2}
-            className="mt-3 max-w-xl divide-y divide-border rounded-lg border border-border bg-surface"
+            className="mt-3 divide-y divide-border rounded-lg border border-border bg-surface"
             aria-label="Results"
           >
             {shown.map((r) => (

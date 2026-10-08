@@ -11,9 +11,14 @@
 
 export type CampaignEdition = '2014' | '2024' | 'mixed';
 
+export type Advancement = 'milestone' | 'xp';
+export type Encumbrance = 'off' | 'standard' | 'variant';
+
 export interface CampaignRules {
+  /** Levels come when the DM says (milestones) or from experience points. */
+  advancement: Advancement;
   /** Carrying capacity: off, the standard rule, or variant encumbrance. */
-  encumbrance: 'off' | 'standard' | 'variant';
+  encumbrance: Encumbrance;
   /** 2014 optional class features (Tasha's) offered by the character builder. */
   optionalClassFeatures: boolean;
 }
@@ -42,7 +47,11 @@ export interface CampaignTemplate {
   builtIn: boolean;
 }
 
-export const DEFAULT_RULES: CampaignRules = { encumbrance: 'off', optionalClassFeatures: true };
+export const DEFAULT_RULES: CampaignRules = {
+  advancement: 'milestone',
+  encumbrance: 'off',
+  optionalClassFeatures: true,
+};
 
 export const EDITION_LABELS: Record<CampaignEdition, string> = {
   '2024': '2024 rules',
@@ -156,6 +165,7 @@ function parseSources(v: unknown): Record<string, boolean> {
 function parseRules(v: unknown): CampaignRules {
   const r = isObj(v) ? v : {};
   return {
+    advancement: r.advancement === 'xp' ? 'xp' : 'milestone',
     encumbrance:
       r.encumbrance === 'standard' || r.encumbrance === 'variant' ? r.encumbrance : 'off',
     optionalClassFeatures:

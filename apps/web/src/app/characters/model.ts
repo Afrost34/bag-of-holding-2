@@ -1,4 +1,11 @@
-import { ABILITIES, newCharacter, type Ability, type CharacterDecisions } from '@boh/rules';
+import {
+  ABILITIES,
+  newCharacter,
+  type Ability,
+  type CharacterDecisions,
+  type InventoryItem,
+} from '@boh/rules';
+import type { Advancement, Campaign, Encumbrance } from '../campaigns/model';
 
 /**
  * Characters as stored in the user's data:
@@ -50,6 +57,10 @@ export interface CharacterPreferences {
   abilityDisplay: 'modifiers' | 'scores';
   /** Parts of the printed sheet left out (ids from the print page). */
   printHidden?: string[];
+  /** Outside campaigns: how levels come (in a campaign, the campaign decides). */
+  advancement?: Advancement;
+  /** Outside campaigns: carrying rules (in a campaign, the campaign decides). */
+  encumbrance?: Encumbrance;
 }
 
 export const DEFAULT_PREFERENCES: CharacterPreferences = {
@@ -81,6 +92,8 @@ export interface CharacterFile {
    * 5etools data by its image path (`art:races/XPHB/Elf.webp`, a reference, not a copy).
    */
   portrait?: string;
+  /** Experience points, under XP advancement. */
+  xp?: number;
   /** The campaign it belongs to; absent in the library. Not stored: it is where the file is. */
   campaign?: string;
 }
@@ -212,6 +225,7 @@ export function parseCharacter(
         )
       : [],
     ...(typeof json.portrait === 'string' ? { portrait: json.portrait } : {}),
+    ...(typeof json.xp === 'number' && json.xp >= 0 ? { xp: Math.floor(json.xp) } : {}),
     preferences: {
       ...DEFAULT_PREFERENCES,
       ...(isObj(json.preferences) ? (json.preferences as Partial<CharacterPreferences>) : {}),
@@ -277,4 +291,93 @@ export function summaryLine(
       : (classes[0]?.name ?? '');
   const parts = [species, cls].filter(Boolean).join(' ');
   return level > 0 ? `Level ${String(level)}${parts ? ` ${parts}` : ''}` : parts || 'Not built yet';
+}
+
+/** Experience needed for each level (index 0 = level 1). */
+export const XP_FOR_LEVEL = [
+  0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000,
+  195000, 225000, 265000, 305000, 355000,
+] as const;
+
+/** The level a total of experience points reaches (1–20). */
+export function levelForXp(xp: number): number {
+  let level = 1;
+  for (let i = 1; i < XP_FOR_LEVEL.length; i++)
+    if (xp >= (XP_FOR_LEVEL[i] ?? Infinity)) level = i + 1;
+  return level;
+}
+
+/** The table rules a character plays by: its campaign's, or its own outside campaigns. */
+export function tableRules(
+  character: Pick<CharacterFile, 'campaign' | 'preferences'>,
+  campaign: Pick<Campaign, 'rules'> | undefined,
+): { advancement: Advancement; encumbrance: Encumbrance; fromCampaign: boolean } {
+  if (character.campaign && campaign)
+    return {
+      advancement: campaign.rules.advancement,
+      encumbrance: campaign.rules.encumbrance,
+      fromCampaign: true,
+    };
+  return {
+    advancement: character.preferences.advancement ?? 'milestone',
+    encumbrance: character.preferences.encumbrance ?? 'off',
+    fromCampaign: false,
+  };
+}
+
+export interface Load {
+  /** Pounds that can be carried at all. */
+  capacity: number;
+  /** Variant rule thresholds (5 × and 10 × Strength). */
+  encumberedAt?: number;
+  heavilyAt?: number;
+  state: 'fine' | 'encumbered' | 'heavily encumbered' | 'over capacity';
+  /** Speed lost (variant rule). */
+  speedPenalty: number;
+}
+
+/** What a load of `weight` pounds means for a Medium creature of `strength` under `rule`. */
+export function carrying(strength: number, weight: number, rule: Encumbrance): Load | null {
+  if (rule === 'off') return null;
+  const capacity = strength * 15;
+  if (rule === 'standard')
+    return { capacity, state: weight > capacity ? 'over capacity' : 'fine', speedPenalty: 0 };
+  const encumberedAt = strength * 5;
+  const heavilyAt = strength * 10;
+  const state =
+    weight > capacity
+      ? 'over capacity'
+      : weight > heavilyAt
+        ? 'heavily encumbered'
+        : weight > encumberedAt
+          ? 'encumbered'
+          : 'fine';
+  return {
+    capacity,
+    encumberedAt,
+    heavilyAt,
+    state,
+    speedPenalty: state === 'encumbered' ? 10 : state === 'fine' ? 0 : 20,
+  };
+}
+
+/**
+ * What an equipment pack holds, as inventory lines ("Entertainer's Pack" → backpack, bedroll,
+ * 2 costumes…); null when the item is not a pack. `count` packs multiply the quantities.
+ */
+export function packItems(data: Record<string, unknown>, count = 1): InventoryItem[] | null {
+  if (!Array.isArray(data.packContents)) return null;
+  const toKey = (ref: string) => {
+    const [name = '', source = 'phb'] = ref.split('|');
+    return `item:${name.toLowerCase()}@${source.toLowerCase()}`;
+  };
+  return (data.packContents as unknown[]).flatMap((c): InventoryItem[] => {
+    if (typeof c === 'string') return [{ key: toKey(c), quantity: count }];
+    if (typeof c !== 'object' || c === null) return [];
+    const quantity = ('quantity' in c && typeof c.quantity === 'number' ? c.quantity : 1) * count;
+    if ('item' in c && typeof c.item === 'string') return [{ key: toKey(c.item), quantity }];
+    if ('special' in c && typeof c.special === 'string')
+      return [{ key: '', name: c.special, quantity }];
+    return [];
+  });
 }

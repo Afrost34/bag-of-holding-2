@@ -10,6 +10,9 @@ test.beforeEach(async ({ page }) => {
 test('an encounter opens as a filled combat tracker on a board in one click', async ({ page }) => {
   // A campaign with a character in it.
   await createCampaign(page, 'Rust and Sunfire');
+  // An XP campaign: encounters show what they are worth.
+  await page.goto('./#/campaigns/rust-and-sunfire');
+  await page.getByRole('radio', { name: /Experience points/ }).check();
   await page.goto('./#/characters');
   await page.getByRole('button', { name: 'New character' }).click();
   const form = page.getByRole('form', { name: 'New character' });
@@ -102,4 +105,18 @@ test('the encounters list groups encounters by campaign', async ({ page }) => {
   await expect(page.getByRole('region', { name: 'Not in a campaign' })).toContainText(
     'Owlbear den',
   );
+});
+
+test('milestone campaigns show difficulty without XP', async ({ page }) => {
+  await createCampaign(page, 'Lost Mine');
+  await page.goto(`./#/compendium/${encodeURIComponent('monster:goblin@mm')}`);
+  await page.getByRole('button', { name: 'Send to' }).click();
+  await page.getByRole('menuitem', { name: /New encounter with Goblin/ }).click();
+  await page.getByRole('status').getByRole('link').click();
+  await page.getByLabel('Character levels').fill('3, 3');
+  await page.getByLabel('Character levels').blur();
+  const difficulty = page.getByRole('complementary', { name: 'Difficulty' });
+  await expect(difficulty.getByLabel(/^Difficulty: /)).toBeVisible();
+  await expect(difficulty).not.toContainText('XP');
+  await expect(page.getByRole('listitem', { name: 'Goblin' })).not.toContainText('XP');
 });

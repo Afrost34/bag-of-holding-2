@@ -1,4 +1,4 @@
-import { Button } from '@boh/ui';
+import { Button, ConfirmDelete } from '@boh/ui';
 import { Plus, Swords } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
@@ -14,7 +14,7 @@ const LIBRARY = '@library';
 /** Encounters: fights prepared ahead, the open campaign's first. */
 export function EncountersPage() {
   usePageTitle('Encounters');
-  const { encounters: sheets, loaded, load, create } = useEncounters();
+  const { encounters: sheets, loaded, load, create, remove } = useEncounters();
   const { campaigns, loaded: campaignsLoaded, load: loadCampaigns } = useCampaigns();
   const active = useActiveCampaign();
   const navigate = useAppNavigate();
@@ -133,7 +133,7 @@ export function EncountersPage() {
           <h2 className="mb-2 font-serif text-lg font-bold">{g.title}</h2>
           <ul className="grid gap-3 sm:grid-cols-2">
             {g.list.map((s) => (
-              <li key={s.id}>
+              <li key={s.id} className="relative">
                 <AppLink
                   to={`/encounters/${s.id}`}
                   className="block rounded-lg border border-border bg-surface p-4 hover:border-accent"
@@ -141,6 +141,11 @@ export function EncountersPage() {
                   <span className="block truncate font-serif text-lg font-bold">{s.name}</span>
                   <span className="block text-sm text-muted">{creatureCount(s)} creatures</span>
                 </AppLink>
+                <ConfirmDelete
+                  name={s.name}
+                  onDelete={() => void remove(s.id)}
+                  className="absolute top-2 right-2"
+                />
               </li>
             ))}
           </ul>

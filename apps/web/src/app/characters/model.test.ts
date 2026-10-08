@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   newCharacterFile,
+  carrying,
+  DEFAULT_PREFERENCES,
+  levelForXp,
+  packItems,
+  tableRules,
   parseCharacter,
   addCoins,
   coinsFromCopper,
@@ -94,5 +99,69 @@ describe('companions', () => {
     expect(c?.companions).toEqual([{ key: 'monster:owl@xmm', kind: 'familiar', name: 'Hoot' }]);
     expect(c?.campaign).toBe('rust');
     if (c) expect(serializeCharacter(c)).not.toContain('rust');
+  });
+});
+
+describe('table rules', () => {
+  it('turns experience points into levels', () => {
+    expect(levelForXp(0)).toBe(1);
+    expect(levelForXp(299)).toBe(1);
+    expect(levelForXp(300)).toBe(2);
+    expect(levelForXp(6500)).toBe(5);
+    expect(levelForXp(1_000_000)).toBe(20);
+  });
+
+  it('weighs what a character carries under each rule', () => {
+    expect(carrying(10, 500, 'off')).toBeNull();
+    expect(carrying(10, 140, 'standard')).toMatchObject({ capacity: 150, state: 'fine' });
+    expect(carrying(10, 160, 'standard')?.state).toBe('over capacity');
+    expect(carrying(10, 60, 'variant')).toMatchObject({ state: 'encumbered', speedPenalty: 10 });
+    expect(carrying(10, 110, 'variant')).toMatchObject({
+      state: 'heavily encumbered',
+      speedPenalty: 20,
+    });
+  });
+
+  it('follows the campaign, or the character outside campaigns', () => {
+    const prefs = {
+      ...DEFAULT_PREFERENCES,
+      advancement: 'xp' as const,
+      encumbrance: 'variant' as const,
+    };
+    const campaign = {
+      rules: {
+        advancement: 'milestone' as const,
+        encumbrance: 'off' as const,
+        optionalClassFeatures: true,
+      },
+    };
+    expect(tableRules({ campaign: 'c', preferences: prefs }, campaign)).toEqual({
+      advancement: 'milestone',
+      encumbrance: 'off',
+      fromCampaign: true,
+    });
+    expect(tableRules({ preferences: prefs }, undefined)).toMatchObject({
+      advancement: 'xp',
+      encumbrance: 'variant',
+      fromCampaign: false,
+    });
+  });
+});
+
+describe('equipment packs', () => {
+  it('unpacks into their contents', () => {
+    const pack = {
+      packContents: [
+        'backpack|phb',
+        { item: 'costume clothes|phb', quantity: 2 },
+        { special: 'a little bag of sand' },
+      ],
+    };
+    expect(packItems(pack, 2)).toEqual([
+      { key: 'item:backpack@phb', quantity: 2 },
+      { key: 'item:costume clothes@phb', quantity: 4 },
+      { key: '', name: 'a little bag of sand', quantity: 2 },
+    ]);
+    expect(packItems({ name: 'Rope' })).toBeNull();
   });
 });

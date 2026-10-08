@@ -133,7 +133,7 @@ function ArtCard({ row, sourceName }: { row: ListRow; sourceName: string }) {
             path={image}
             widths={[320, 480, 720]}
             sizes="(min-width: 1024px) 300px, (min-width: 640px) 40vw, 80vw"
-            className="absolute inset-y-0 right-0 h-full w-3/4 object-cover object-top"
+            className="absolute inset-0 h-full w-full object-cover object-top"
           />
         )}
         <div

@@ -1,24 +1,14 @@
-import { makeKey } from '@boh/data5e';
 import { Entries, EntityView, RichText } from '@boh/renderer';
 import { useEffect } from 'react';
 import { PageTools } from '../../app/annotations/PageTools';
 import { AppLink } from '../../app/AppLink';
-import { entityPath, useEntity } from '../../app/data/entities';
+import { entityPath, SIDE_IMAGE_TYPES, useEntity, useFluff } from '../../app/data/entities';
 import { useSpecificVariants } from '../../app/data/pages';
 import { useSourceList } from '../../app/data/sourceList';
 import { BusyNotice } from '../../app/data/BusyNotice';
 import { useData } from '../../app/data/store';
 import { EntityMeta } from '../../app/renderer/EntityCard';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
-
-/** Types whose first picture sits beside their text (creatures, items). */
-const SIDE_IMAGE_TYPES = new Set(['monster', 'item', 'baseitem', 'magicvariant']);
-
-/** Fluff (lore and art) lives in a parallel `<type>Fluff` entity with the same name and source. */
-function useFluff(type: string, name: string, source: string) {
-  const key = type.endsWith('Fluff') || !name ? null : makeKey(`${type}Fluff`, [name], source);
-  return useEntity(key);
-}
 
 export function EntityPage({ entityKey }: { entityKey: string }) {
   const state = useEntity(entityKey);

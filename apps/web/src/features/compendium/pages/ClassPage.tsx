@@ -6,7 +6,13 @@ import { AppLink } from '../../../app/AppLink';
 import { entityPath } from '../../../app/data/entities';
 import { useClassPage, useSubclassPage } from '../../../app/data/pages';
 import { usePageTitle } from '../../../app/tabs/usePageTitle';
-import { ArticleLayout, EntityHero, FeatureSection, type TocItem } from './ArticleLayout';
+import {
+  ArticleLayout,
+  EntityHero,
+  ExpandAllFeatures,
+  FeatureSection,
+  type TocItem,
+} from './ArticleLayout';
 import { mergeFeatures } from './classMerge';
 import { PageMissing } from './PageMissing';
 import { scrollToSection } from './scroll';
@@ -90,9 +96,12 @@ function ClassArticle({ page, selected }: { page: ClassPageData; selected: strin
       </section>
 
       <section id="features" className="mt-8 scroll-mt-4">
-        <h2 className="border-b border-border pb-1 font-serif text-2xl font-bold">
-          {name} Class Features
-          {summary && <span className="font-normal text-muted"> · {summary.name}</span>}
+        <h2 className="flex flex-wrap items-center gap-2 border-b border-border pb-1 font-serif text-2xl font-bold">
+          <span className="flex-1">
+            {name} Class Features
+            {summary && <span className="font-normal text-muted"> · {summary.name}</span>}
+          </span>
+          <ExpandAllFeatures />
         </h2>
         <p className="mt-2 text-muted">
           As a {name}, you gain the following class features when you reach the specified {name}{' '}
@@ -125,12 +134,16 @@ function ClassArticle({ page, selected }: { page: ClassPageData; selected: strin
           <FeatureSection
             key={`${from}:${feature.key}`}
             id={featureId(i)}
+            // Only the feature where the subclass is chosen starts open (it holds the picker).
+            defaultOpen={i === merged.findIndex((m) => m.feature.gainSubclass)}
             level={feature.level}
             name={feature.name}
             entity={feature.entity}
             {...(from === 'subclass' && summary ? { badge: summary.name } : {})}
           >
-            {feature.gainSubclass && subclasses.length > 0 && <div className="mt-3">{picker}</div>}
+            {i === merged.findIndex((m) => m.feature.gainSubclass) && subclasses.length > 0 && (
+              <div className="mt-3">{picker}</div>
+            )}
           </FeatureSection>
         ))}
       </section>

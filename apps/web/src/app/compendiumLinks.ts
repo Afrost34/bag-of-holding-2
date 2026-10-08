@@ -6,7 +6,6 @@ import {
   FileText,
   Gem,
   Library,
-  Map as MapIcon,
   Medal,
   PersonStanding,
   ScrollText,
@@ -40,10 +39,9 @@ export const BROWSE_LINKS: readonly CompendiumLink[] = BROWSE_CATEGORIES.map((c)
   icon: CATEGORY_ICONS[c.id] ?? FileText,
 }));
 
-/** Books, adventures, the quick reference and random tables. */
+/** Books (and adventures), the quick reference and random tables. */
 export const LIBRARY_LINKS: readonly CompendiumLink[] = [
   { to: '/compendium/library/books', label: 'Books', icon: Library },
-  { to: '/compendium/library/adventures', label: 'Adventures', icon: MapIcon },
   { to: '/compendium/quickref/bookref-quick', label: 'Quick Reference', icon: BookMarked },
   { to: '/compendium/list/tables', label: 'Random Tables', icon: Dices },
 ];
@@ -54,7 +52,11 @@ export function activeCompendiumLink(pathname: string): string | undefined {
   const exact = all.find((l) => pathname === l.to || pathname.startsWith(`${l.to}/`));
   if (exact) return exact.to;
   if (pathname.startsWith('/compendium/book/')) return '/compendium/library/books';
-  if (pathname.startsWith('/compendium/adventure/')) return '/compendium/library/adventures';
-  if (pathname.startsWith('/compendium/quickref/')) return LIBRARY_LINKS[2]?.to;
+  if (
+    pathname.startsWith('/compendium/adventure/') ||
+    pathname === '/compendium/library/adventures'
+  )
+    return '/compendium/library/books';
+  if (pathname.startsWith('/compendium/quickref/')) return LIBRARY_LINKS[1]?.to;
   return undefined;
 }
