@@ -2,6 +2,7 @@ import { GitHubError, GitHubRepo, syncStore, type SyncResult } from '@boh/storag
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { flushAnnotations, reloadAnnotations } from '../annotations/store';
+import { useCalendar } from '../calendar/store';
 import { reloadCampaigns } from '../campaigns/store';
 import { useBoards } from '../boards/store';
 import { useEncounters } from '../encounters/store';
@@ -149,6 +150,7 @@ async function refreshAfterSync(paths: string[]): Promise<void> {
     await useEncounters.getState().reload();
   if (touched(/^(maps\/|campaigns\/[^/]+\/maps\/)[^/]+\.json$/)) await useMaps.getState().reload();
   if (touched(/^stamps\//) && useStamps.getState().loaded) await useStamps.getState().load();
+  if (touched(/^campaigns\/[^/]+\/calendar\.json$/)) await useCalendar.getState().reload();
 }
 
 const EVERY_MS = 3 * 60 * 1000;

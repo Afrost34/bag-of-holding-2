@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BoardsRouteImport } from './routes/boards'
+import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as CampaignsRouteImport } from './routes/campaigns'
 import { Route as CardsRouteImport } from './routes/cards'
 import { Route as CharactersRouteImport } from './routes/characters'
@@ -47,6 +48,11 @@ const IndexRoute = IndexRouteImport.update({
 const BoardsRoute = BoardsRouteImport.update({
   id: '/boards',
   path: '/boards',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CalendarRoute = CalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CampaignsRoute = CampaignsRouteImport.update({
@@ -188,6 +194,7 @@ const CompendiumQuickrefIdRoute = CompendiumQuickrefIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/boards': typeof BoardsRoute
+  '/calendar': typeof CalendarRoute
   '/campaigns': typeof CampaignsRoute
   '/cards': typeof CardsRoute
   '/characters': typeof CharactersRoute
@@ -219,6 +226,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/boards': typeof BoardsRoute
+  '/calendar': typeof CalendarRoute
   '/campaigns': typeof CampaignsRoute
   '/cards': typeof CardsRoute
   '/characters': typeof CharactersRoute
@@ -251,6 +259,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/boards': typeof BoardsRoute
+  '/calendar': typeof CalendarRoute
   '/campaigns': typeof CampaignsRoute
   '/cards': typeof CardsRoute
   '/characters': typeof CharactersRoute
@@ -284,6 +293,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/boards'
+    | '/calendar'
     | '/campaigns'
     | '/cards'
     | '/characters'
@@ -315,6 +325,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/boards'
+    | '/calendar'
     | '/campaigns'
     | '/cards'
     | '/characters'
@@ -346,6 +357,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/boards'
+    | '/calendar'
     | '/campaigns'
     | '/cards'
     | '/characters'
@@ -378,6 +390,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BoardsRoute: typeof BoardsRoute
+  CalendarRoute: typeof CalendarRoute
   CampaignsRoute: typeof CampaignsRoute
   CardsRoute: typeof CardsRoute
   CharactersRoute: typeof CharactersRoute
@@ -421,6 +434,13 @@ declare module '@tanstack/react-router' {
       path: '/boards'
       fullPath: '/boards'
       preLoaderRoute: typeof BoardsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/calendar': {
+      id: '/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof CalendarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/campaigns': {
@@ -618,6 +638,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BoardsRoute: BoardsRoute,
+  CalendarRoute: CalendarRoute,
   CampaignsRoute: CampaignsRoute,
   CardsRoute: CardsRoute,
   CharactersRoute: CharactersRoute,

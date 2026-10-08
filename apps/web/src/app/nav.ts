@@ -1,5 +1,6 @@
 import {
   BookOpen,
+  CalendarDays,
   Castle,
   FlaskConical,
   House,
@@ -95,6 +96,13 @@ export const navModules: readonly NavModule[] = [
     icon: Map,
     description: 'Battle, city and world maps with stamps, grids, pins and nested maps.',
     milestone: 11,
+  },
+  {
+    path: '/calendar',
+    label: 'Calendar',
+    icon: CalendarDays,
+    description:
+      'The campaign’s own calendar: today in the world, festivals, moons and what happened when.',
   },
   {
     path: '/settings',
