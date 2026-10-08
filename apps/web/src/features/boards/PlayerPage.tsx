@@ -1,11 +1,26 @@
 import type { EntityDetail } from '@boh/data5e';
 import { EntityView } from '@boh/renderer';
-import { useEffect, useState, type ReactNode } from 'react';
-import { usePlayerShow, type PlayerShow } from '../../app/boards/player';
+import { cn } from '@boh/ui';
+import {
+  applyNodeChanges,
+  Background,
+  Controls,
+  NodeResizer,
+  ReactFlow,
+  ReactFlowProvider,
+  type Node,
+  type NodeChange,
+  type NodeProps,
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+import { X } from 'lucide-react';
+import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { sendPlayerAction, usePlayerShow, type PlayerShow } from '../../app/boards/player';
+import { useTheme } from '../../app/theme';
 import { useCampaigns } from '../../app/campaigns/store';
 import { NoteViewer } from '../../app/journal/notes/NoteViewer';
 import { useJournal } from '../../app/journal/store';
-import { sortInitiative, timerLeft, type BoardCard } from '../../app/boards/model';
+import { playerPlaces, sortInitiative, timerLeft, type BoardCard } from '../../app/boards/model';
 import { ImageBody } from './bodies';
 import { MapBody } from './widgetBodies';
 import { NotesProvider } from '../../app/journal/notes/NotesProvider';
@@ -19,7 +34,7 @@ export function PlayerPage() {
   return (
     <div className="flex h-full items-center justify-center overflow-auto bg-bg p-6 text-text">
       {item ? (
-        <Shown key={seq} item={item} />
+        <Shown key={item.kind === 'board' ? `board:${item.boardId}` : seq} item={item} />
       ) : (
         <p className="text-center font-serif text-2xl text-muted">
           Waiting for the DM to show something…
@@ -42,7 +57,11 @@ function Shown({ item }: { item: PlayerShow }) {
     case 'note':
       return <ShownNote campaignId={item.campaignId} path={item.path} />;
     case 'board':
-      return <PlayerBoard item={item} />;
+      return (
+        <ReactFlowProvider>
+          <PlayerBoard item={item} />
+        </ReactFlowProvider>
+      );
     case 'text':
       return (
         <article className="max-w-3xl text-xl leading-relaxed">
@@ -97,24 +116,130 @@ function ShownNote({
   );
 }
 
-/** The cards the DM shows, side by side, read-only, following the board as it changes. */
-function PlayerBoard({ item }: { item: Extract<PlayerShow, { kind: 'board' }> }) {
+interface PlayerNodeData extends Record<string, unknown> {
+  card: BoardCard;
+  title: string;
+  entity: EntityDetail | undefined;
+  campaignId: string | undefined;
+  boardId: string;
+}
+type PlayerNodeType = Node<PlayerNodeData, 'player'>;
+
+/** A shown card in the player window: moved by its title bar, resized from its edges. */
+const PlayerNode = memo(function PlayerNode({ data, selected }: NodeProps<PlayerNodeType>) {
+  const { card, title, entity, campaignId, boardId } = data;
+  const place = (w: number, h: number, x: number, y: number) => {
+    sendPlayerAction({ type: 'place', boardId, cardId: card.id, place: { x, y, w, h } });
+  };
   return (
-    <div className="h-full w-full self-start overflow-auto">
-      <h1 className="mb-4 text-center font-serif text-2xl font-bold">{item.name}</h1>
-      <div className="columns-1 gap-4 md:columns-2 xl:columns-3">
-        {item.cards.map(({ card, title, entity }) => (
-          <section
-            key={card.id}
-            aria-label={title}
-            className="mb-4 break-inside-avoid overflow-hidden rounded-lg border border-border bg-surface shadow-card"
-          >
-            <h2 className="bg-header px-3 py-1.5 font-serif font-bold text-header-fg">{title}</h2>
-            <div className="p-3">
-              <PlayerCardBody card={card} entity={entity} campaignId={item.campaignId} />
-            </div>
-          </section>
-        ))}
+    <section
+      aria-label={title}
+      className={cn(
+        'flex h-full flex-col overflow-hidden rounded-lg border bg-surface shadow-card',
+        selected ? 'border-accent' : 'border-border',
+      )}
+    >
+      <NodeResizer
+        isVisible={selected}
+        minWidth={160}
+        minHeight={80}
+        onResizeEnd={(_, p) => {
+          place(p.width, p.height, p.x, p.y);
+        }}
+      />
+      <header className="player-drag flex shrink-0 cursor-grab items-center gap-2 bg-header px-3 py-1.5 text-header-fg active:cursor-grabbing">
+        <h2 className="min-w-0 flex-1 truncate font-serif font-bold">{title}</h2>
+        <button
+          type="button"
+          aria-label={'Take ' + title + ' off the screen'}
+          onClick={() => {
+            sendPlayerAction({ type: 'hide', boardId, cardId: card.id });
+          }}
+          className="nodrag rounded p-0.5 opacity-70 hover:opacity-100"
+        >
+          <X className="h-4 w-4" aria-hidden />
+        </button>
+      </header>
+      <div className="nowheel nodrag min-h-0 flex-1 cursor-auto overflow-auto p-3 select-text">
+        <PlayerCardBody card={card} entity={entity} campaignId={campaignId} />
+      </div>
+    </section>
+  );
+});
+
+const PLAYER_NODE_TYPES = { player: PlayerNode };
+
+/**
+ * The cards the DM shows, as a board of their own: moved, resized and taken off the screen right
+ * here (the board in the DM's window keeps it), zoomed and panned like any board.
+ */
+function PlayerBoard({ item }: { item: Extract<PlayerShow, { kind: 'board' }> }) {
+  const theme = useTheme((s) => s.mode);
+  const derived = useMemo<PlayerNodeType[]>(() => {
+    const places = playerPlaces(item.cards.map((c) => c.card));
+    return item.cards.map(({ card, title, entity }) => {
+      const place = places.get(card.id) ?? { x: 0, y: 0, w: 360, h: 320 };
+      return {
+        id: card.id,
+        type: 'player',
+        position: { x: place.x, y: place.y },
+        width: place.w,
+        height: place.h,
+        dragHandle: '.player-drag',
+        data: { card, title, entity, campaignId: item.campaignId, boardId: item.boardId },
+      };
+    });
+  }, [item]);
+  const [nodes, setNodes] = useState(derived);
+  const [shownFrom, setShownFrom] = useState(derived);
+  if (shownFrom !== derived) {
+    setShownFrom(derived);
+    const selected = new Set(nodes.filter((n) => n.selected).map((n) => n.id));
+    setNodes(derived.map((n) => (selected.has(n.id) ? { ...n, selected: true } : n)));
+  }
+  const onNodesChange = useCallback((changes: NodeChange<PlayerNodeType>[]) => {
+    setNodes((ns) => applyNodeChanges(changes, ns));
+  }, []);
+  return (
+    <div className="flex h-full w-full flex-col self-stretch">
+      <h1 className="shrink-0 pb-2 text-center font-serif text-2xl font-bold">{item.name}</h1>
+      <div className="min-h-0 flex-1">
+        <ReactFlow
+          nodes={nodes}
+          nodeTypes={PLAYER_NODE_TYPES}
+          onNodesChange={onNodesChange}
+          onNodeDragStop={(_, node) => {
+            sendPlayerAction({
+              type: 'place',
+              boardId: item.boardId,
+              cardId: node.id,
+              place: {
+                x: node.position.x,
+                y: node.position.y,
+                w: node.width ?? node.measured?.width ?? 360,
+                h: node.height ?? node.measured?.height ?? 320,
+              },
+            });
+          }}
+          deleteKeyCode={['Delete', 'Backspace']}
+          onBeforeDelete={({ nodes: gone }) => {
+            for (const n of gone)
+              if (n.selected)
+                sendPlayerAction({ type: 'hide', boardId: item.boardId, cardId: n.id });
+            return Promise.resolve(false);
+          }}
+          fitView
+          fitViewOptions={{ maxZoom: 1 }}
+          minZoom={0.1}
+          maxZoom={3}
+          nodesConnectable={false}
+          zoomOnDoubleClick={false}
+          colorMode={theme}
+          aria-label="Player board"
+        >
+          <Background gap={24} />
+          <Controls showInteractive={false} />
+        </ReactFlow>
       </div>
     </div>
   );
