@@ -1,23 +1,20 @@
 import { Button } from '@boh/ui';
-import * as Menu from '@radix-ui/react-dropdown-menu';
 import {
+  applyNodeChanges,
   Background,
   Controls,
   ReactFlow,
   ReactFlowProvider,
-  applyNodeChanges,
   useReactFlow,
   type NodeChange,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { ArrowLeft, MonitorUp, Plus, Redo2, Trash2, Undo2, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { AppLink } from '../../app/AppLink';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   absolutePosition,
   addBoardCards,
-  contentOf,
   COLLAPSED_H,
+  contentOf,
   dropCard,
   moveBoardCards,
   removeBoardCard,
@@ -29,26 +26,24 @@ import {
   type BoardCard,
   type CardContent,
 } from '../../app/boards/model';
-import { openPlayerWindow, sendToPlayers } from '../../app/boards/player';
+import { sendToPlayers } from '../../app/boards/player';
 import { useBoard, useBoards } from '../../app/boards/store';
-import { emptyHistory, record, redo, typingIn, undo } from '../../app/history';
 import { useCampaigns } from '../../app/campaigns/store';
 import { entityPath } from '../../app/data/entities';
 import { useEncounters } from '../../app/encounters/store';
+import { emptyHistory, record, redo, typingIn, undo } from '../../app/history';
+import { NotesProvider } from '../../app/journal/notes/NotesProvider';
 import { journalPath } from '../../app/journal/paths';
-import { generateNpc } from '../../app/boards/npc';
-import { useCharacters } from '../../app/characters/store';
-import { useJournal } from '../../app/journal/store';
-import { useMaps } from '../../app/maps/store';
 import { useAppNavigate } from '../../app/navigation';
 import { EntitySearch } from '../../app/search/EntitySearch';
-import { shrinkImage } from '../../app/shrinkImage';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 import { useTheme } from '../../app/theme';
+import { PANEL_TITLES, useAddOptions, type PanelKind } from './addOptions';
+import { CharacterPicker, MapPicker, NotePicker, Panel } from './BoardPickers';
+import { ContextAddMenu, Toolbar } from './BoardToolbar';
 import { BoardActionsContext, PlayersBoardContext, type BoardActions } from './context';
-import { KIND_ICONS, KIND_LABELS, type CardNodeType } from './kinds';
+import { type CardNodeType } from './kinds';
 import { CardNode, FrameNode, StackNode } from './nodes';
-import { NotesProvider } from '../../app/journal/notes/NotesProvider';
 
 const NODE_TYPES = { card: CardNode, stack: StackNode, frame: FrameNode };
 
@@ -515,433 +510,5 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
         </div>
       </PlayersBoardContext.Provider>
     </BoardActionsContext.Provider>
-  );
-}
-
-type PanelKind = 'entity' | 'note' | 'map' | 'character';
-
-const PANEL_TITLES: Record<PanelKind, string> = {
-  entity: 'Add from the compendium',
-  note: 'Add a journal note',
-  map: 'Add a map',
-  character: 'Add a character',
-};
-
-/** One thing the Add menus offer. */
-interface AddOption {
-  id: string;
-  label: string;
-  kind: keyof typeof KIND_ICONS;
-  disabled?: boolean;
-  /** Picks, then adds (`at`: where the board was right-clicked). */
-  run: (at?: { x: number; y: number }) => void;
-  /** Starts a new group in the menu. */
-  separator?: boolean;
-}
-
-/** What can be added to a board: the toolbar's Add menu and the right-click menu share it. */
-function useAddOptions(
-  board: Board,
-  add: (contents: CardContent[], at?: { x: number; y: number }) => void,
-  openPanel: (kind: PanelKind, at?: { x: number; y: number }) => void,
-): AddOption[] {
-  const addAttachment = useJournal((s) => s.addAttachment);
-  const journalFor = useJournal((s) => s.campaignId);
-  const pickPicture = (at?: { x: number; y: number }) => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      void (async () => {
-        // A campaign's pictures go with its journal files, full size; others are kept smaller.
-        const src =
-          board.campaign && journalFor === board.campaign
-            ? `journal:${await addAttachment(file.name, new Uint8Array(await file.arrayBuffer()))}`
-            : await shrinkImage(file, 1600);
-        add([{ kind: 'image', src }], at);
-      })();
-    };
-    input.click();
-  };
-  const simple = (id: string, kind: AddOption['kind'], content: () => CardContent): AddOption => ({
-    id,
-    label: KIND_LABELS[kind],
-    kind,
-    run: (at) => {
-      add([content()], at);
-    },
-  });
-  return [
-    {
-      id: 'entity',
-      label: 'Compendium entry…',
-      kind: 'entity',
-      run: (at) => {
-        openPanel('entity', at);
-      },
-    },
-    {
-      id: 'note',
-      label: 'Journal note…',
-      kind: 'note',
-      disabled: !board.campaign,
-      run: (at) => {
-        openPanel('note', at);
-      },
-    },
-    { id: 'image', label: 'Picture…', kind: 'image', run: pickPicture },
-    {
-      id: 'map',
-      label: 'Map…',
-      kind: 'map',
-      run: (at) => {
-        openPanel('map', at);
-      },
-    },
-    {
-      id: 'character',
-      label: 'Character…',
-      kind: 'character',
-      run: (at) => {
-        openPanel('character', at);
-      },
-    },
-    { ...simple('calendar', 'calendar', () => ({ kind: 'calendar' })), disabled: !board.campaign },
-    {
-      ...simple('npc', 'npc', () => ({ kind: 'npc', npc: generateNpc() })),
-      label: 'NPC generator',
-      separator: true,
-    },
-    simple('text', 'text', () => ({ kind: 'text', text: '' })),
-    simple('dice', 'dice', () => ({ kind: 'dice', formulas: [] })),
-    simple('timer', 'timer', () => ({ kind: 'timer', seconds: 600, elapsed: 0 })),
-    simple('initiative', 'initiative', () => ({ kind: 'initiative', rows: [], turn: 0, round: 1 })),
-    simple('frame', 'frame', () => ({ kind: 'frame', title: 'Frame' })),
-  ];
-}
-
-const itemClass =
-  'flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm outline-none data-[highlighted]:bg-sunken data-[disabled]:text-faint hover:bg-sunken disabled:text-faint';
-
-function OptionIcon({ kind }: { kind: AddOption['kind'] }) {
-  const I = KIND_ICONS[kind];
-  return <I className="h-4 w-4" aria-hidden />;
-}
-
-/** The Add menu where the board was right-clicked; cards land there. */
-function ContextAddMenu({
-  x,
-  y,
-  at,
-  options,
-  onClose,
-}: {
-  x: number;
-  y: number;
-  at: { x: number; y: number };
-  options: AddOption[];
-  onClose: () => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    ref.current?.querySelector('button')?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    const onDown = (e: PointerEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    window.addEventListener('pointerdown', onDown);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      window.removeEventListener('pointerdown', onDown);
-    };
-  }, [onClose]);
-  return (
-    <div
-      ref={ref}
-      role="menu"
-      aria-label="Add here"
-      className="absolute z-30 min-w-52 rounded-md border border-border bg-surface p-1 text-text shadow-card"
-      style={{ left: x, top: y }}
-    >
-      {options.map((o) => (
-        <div key={o.id}>
-          {o.separator && <div className="my-1 h-px bg-border" />}
-          <button
-            type="button"
-            role="menuitem"
-            disabled={o.disabled}
-            className={itemClass}
-            onClick={() => {
-              o.run(at);
-              onClose();
-            }}
-          >
-            <OptionIcon kind={o.kind} /> {o.label}
-          </button>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Toolbar({
-  board,
-  onRename,
-  options,
-  onDelete,
-  onUndo,
-  onRedo,
-}: {
-  board: Board;
-  onRename: (name: string) => void;
-  options: AddOption[];
-  onDelete: () => void;
-  /** Absent when there is nothing to undo (or redo). */
-  onUndo: (() => void) | undefined;
-  onRedo: (() => void) | undefined;
-}) {
-  const [name, setName] = useState(board.name);
-  // The players' board (the player window) has no other board to go back to, and stays.
-  const players = board.players === true;
-  return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-border bg-surface px-3 py-2">
-      {!players && (
-        <AppLink
-          to="/boards"
-          aria-label="All boards"
-          className="rounded p-1 text-muted hover:bg-sunken hover:text-text"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden />
-        </AppLink>
-      )}
-      <input
-        value={name}
-        aria-label="Board name"
-        onChange={(e) => {
-          setName(e.target.value);
-        }}
-        onBlur={() => {
-          if (name.trim() && name !== board.name) onRename(name.trim());
-        }}
-        className="min-w-0 flex-1 rounded bg-transparent px-1 font-serif text-lg font-bold focus:bg-sunken focus:outline-none"
-      />
-      <span className="hidden text-sm text-muted sm:inline">
-        {board.cards.filter((c) => c.kind !== 'stack' && c.kind !== 'frame').length} cards
-      </span>
-      <Button
-        variant="ghost"
-        aria-label="Undo"
-        title="Undo (Ctrl+Z)"
-        disabled={!onUndo}
-        onClick={onUndo}
-      >
-        <Undo2 className="h-4 w-4" aria-hidden />
-      </Button>
-      <Button
-        variant="ghost"
-        aria-label="Redo"
-        title="Redo (Ctrl+Y)"
-        disabled={!onRedo}
-        onClick={onRedo}
-      >
-        <Redo2 className="h-4 w-4" aria-hidden />
-      </Button>
-      <Menu.Root>
-        <Menu.Trigger asChild>
-          <Button variant="primary">
-            <Plus className="h-4 w-4" aria-hidden /> Add
-          </Button>
-        </Menu.Trigger>
-        <Menu.Portal>
-          <Menu.Content
-            align="end"
-            sideOffset={4}
-            className="z-50 min-w-52 rounded-md border border-border bg-surface p-1 text-text shadow-card"
-          >
-            {options.map((o) => (
-              <div key={o.id}>
-                {o.separator && <Menu.Separator className="my-1 h-px bg-border" />}
-                <Menu.Item
-                  className={itemClass}
-                  disabled={o.disabled === true}
-                  onSelect={() => {
-                    o.run();
-                  }}
-                >
-                  <OptionIcon kind={o.kind} /> {o.label}
-                </Menu.Item>
-              </div>
-            ))}
-          </Menu.Content>
-        </Menu.Portal>
-      </Menu.Root>
-      {!players && (
-        <>
-          <Button variant="ghost" onClick={openPlayerWindow}>
-            <MonitorUp className="h-4 w-4" aria-hidden />
-            <span className="hidden sm:inline">Player window</span>
-            <span className="sr-only sm:hidden">Player window</span>
-          </Button>
-          <Button variant="ghost" aria-label="Delete board" onClick={onDelete}>
-            <Trash2 className="h-4 w-4" aria-hidden />
-          </Button>
-        </>
-      )}
-    </div>
-  );
-}
-
-function MapPicker({
-  campaign,
-  onPick,
-}: {
-  campaign?: string | undefined;
-  onPick: (id: string) => void;
-}) {
-  const { maps, loaded, load } = useMaps();
-  useEffect(() => {
-    if (!loaded) void load();
-  }, [loaded, load]);
-  const mine = maps.filter((m) => (m.campaign ?? null) === (campaign ?? null));
-  if (mine.length === 0)
-    return (
-      <p className="text-sm text-muted">
-        No maps here yet:{' '}
-        <AppLink to="/maps" className="text-link hover:underline">
-          make one
-        </AppLink>
-        .
-      </p>
-    );
-  return (
-    <ul aria-label="Maps" className="max-h-72 overflow-y-auto">
-      {mine.map((m) => (
-        <li key={m.id}>
-          <button
-            type="button"
-            onClick={() => {
-              onPick(m.id);
-            }}
-            className="w-full truncate px-2 py-1.5 text-left text-sm hover:bg-sunken"
-          >
-            {m.name}
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function CharacterPicker({
-  campaign,
-  onPick,
-}: {
-  campaign?: string | undefined;
-  onPick: (id: string) => void;
-}) {
-  const { characters, loaded, load } = useCharacters();
-  useEffect(() => {
-    if (!loaded) void load();
-  }, [loaded, load]);
-  // The campaign's characters first, then the library's.
-  const list = [...characters].sort(
-    (a, b) => Number(b.campaign === campaign) - Number(a.campaign === campaign),
-  );
-  if (list.length === 0) return <p className="text-sm text-muted">No characters yet.</p>;
-  return (
-    <ul aria-label="Characters" className="max-h-72 overflow-y-auto">
-      {list.map((c) => (
-        <li key={c.id}>
-          <button
-            type="button"
-            onClick={() => {
-              onPick(c.id);
-            }}
-            className="flex w-full items-baseline gap-2 px-2 py-1.5 text-left text-sm hover:bg-sunken"
-          >
-            <span className="font-medium">{c.name}</span>
-            <span className="ml-auto truncate text-xs text-muted">{c.summary}</span>
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function Panel({
-  title,
-  near,
-  onClose,
-  children,
-}: {
-  title: string;
-  /** Where the board was right-clicked (px in the canvas): the panel opens there. */
-  near?: { left: number; top: number };
-  onClose: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <section
-      aria-label={title}
-      style={near}
-      className={`absolute z-20 rounded-lg border border-border bg-surface p-3 shadow-card ${near ? 'w-96 max-w-[calc(100%-1rem)]' : 'top-2 right-2 left-2 sm:left-auto sm:w-96'}`}
-    >
-      <div className="mb-2 flex items-center">
-        <h2 className="flex-1 font-serif font-bold">{title}</h2>
-        <button
-          type="button"
-          aria-label="Close"
-          onClick={onClose}
-          className="rounded p-1 text-muted hover:bg-sunken"
-        >
-          <X className="h-4 w-4" aria-hidden />
-        </button>
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function NotePicker({ onPick }: { onPick: (path: string) => void }) {
-  const notes = useJournal((s) => s.notes);
-  const [query, setQuery] = useState('');
-  const q = query.trim().toLowerCase();
-  const found = [...notes.keys()]
-    .filter((p) => !q || p.toLowerCase().includes(q))
-    .sort((a, b) => a.localeCompare(b, 'en'))
-    .slice(0, 50);
-  return (
-    <div>
-      <input
-        type="search"
-        value={query}
-        aria-label="Find a note"
-        placeholder="Note name…"
-        onChange={(e) => {
-          setQuery(e.target.value);
-        }}
-        className="w-full rounded-md border border-border bg-surface px-3 py-2 text-base focus:border-accent focus:outline-none sm:text-sm"
-      />
-      <ul aria-label="Notes" className="mt-1 max-h-72 overflow-y-auto">
-        {found.map((p) => (
-          <li key={p}>
-            <button
-              type="button"
-              onClick={() => {
-                onPick(p);
-              }}
-              className="w-full truncate px-2 py-1.5 text-left text-sm hover:bg-sunken"
-            >
-              {p.replace(/\.md$/i, '')}
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }
