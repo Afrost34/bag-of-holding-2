@@ -1,12 +1,5 @@
 import { Button, cn } from '@boh/ui';
 import {
-  formatDistance,
-  measureLine,
-  routeLength,
-  speedsOf,
-  travelTimes,
-} from '../../app/maps/travel';
-import {
   ArrowLeft,
   Download,
   Expand,
@@ -14,22 +7,21 @@ import {
   PanelRight,
   Redo2,
   Swords,
-  Trash2,
   Undo2,
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
 import { useCampaigns } from '../../app/campaigns/store';
-import { useEncounters } from '../../app/encounters/store';
-import { runOnBoard } from '../../app/encounters/run';
 import { entityPath } from '../../app/data/entities';
+import { runOnBoard } from '../../app/encounters/run';
+import { useEncounters } from '../../app/encounters/store';
+import { emptyHistory, record, redo as redoStep, undo as undoStep } from '../../app/history';
 import { journalPath } from '../../app/journal/paths';
 import { useJournal } from '../../app/journal/store';
 import { useStamps } from '../../app/maps/assets';
 import {
   distanceFeet,
-  eraseStroke,
   snapToCell,
   snapToCorner,
   templateOutline,
@@ -45,41 +37,28 @@ import {
   type MapDoc,
   type MapItem,
 } from '../../app/maps/model';
-import { useMapDoc, useMaps } from '../../app/maps/store';
 import { pinLink } from '../../app/maps/pinLink';
-import { emptyHistory, record, redo as redoStep, undo as undoStep } from '../../app/history';
-import { useAppNavigate } from '../../app/navigation';
-import { usePageTitle } from '../../app/tabs/usePageTitle';
-import { MapPanels } from './MapPanels';
 import {
-  MapScene,
   drawRoute,
+  MapScene,
   routeWidth,
   WALL_COLOR,
   type StrokeStyle,
 } from '../../app/maps/scene';
+import { useMapDoc, useMaps } from '../../app/maps/store';
+import { measureLine } from '../../app/maps/travel';
+import { useAppNavigate } from '../../app/navigation';
+import { usePageTitle } from '../../app/tabs/usePageTitle';
+import { eraseStrokes, ROUTE_COLOR, routeStatus, simplify, type Drag } from './editorModel';
+import { DeleteMap, NameInput } from './EditorParts';
+import { MapPanels } from './MapPanels';
 import {
-  toolsFor,
   TOOLS_WITH_SETTINGS,
+  toolsFor,
   type BrushSettings,
   type TemplateSettings,
   type Tool,
 } from './tools';
-
-/** New routes' colour (the item keeps it, so it can be changed later). */
-const ROUTE_COLOR = '#b91c1c';
-
-/** What the status line says while a route is drawn: how far so far, and how long. */
-function routeStatus(points: readonly number[], doc: MapDoc): string {
-  const hint = 'Click each stop; double-click or Enter to finish the route.';
-  if (!doc.scale || points.length < 4) return hint;
-  const distance = routeLength(points, doc.scale);
-  const times = travelTimes(distance, speedsOf(doc.scale, doc.travel));
-  return [
-    formatDistance(distance, doc.scale.unit),
-    ...times.map((t) => `${t.name}: ${t.time}`),
-  ].join(' · ');
-}
 
 /** One map, edited: the canvas, the tool bar and the side panels. */
 export function MapEditor({ id }: { id: string }) {
@@ -113,15 +92,6 @@ export function MapEditor({ id }: { id: string }) {
   if (!loaded) return <p className="p-8 text-muted">Loading…</p>;
   if (!doc) return <p className="p-8">This map does not exist (any more).</p>;
   return <Editor doc={doc} />;
-}
-
-interface Drag {
-  mode: 'pan' | 'move' | 'stroke' | 'erase' | 'measure' | 'template' | 'calibrate';
-  start: Point;
-  screen: Point;
-  last: Point;
-  item?: MapItem;
-  points?: number[];
 }
 
 function Editor({ doc }: { doc: MapDoc }) {
@@ -938,101 +908,5 @@ function Editor({ doc }: { doc: MapDoc }) {
         )}
       </div>
     </div>
-  );
-}
-
-/**
- * The map after the eraser went along `path`: brush strokes it touched, on layers shown and
- * not locked, lose what it went over (and may fall apart into pieces).
- */
-function eraseStrokes(doc: MapDoc, path: readonly number[], radius: number): MapDoc {
-  let next = doc;
-  for (const layer of doc.layers) {
-    if (!layer.visible || layer.locked) continue;
-    for (const item of layer.items) {
-      if (item.kind !== 'stroke') continue;
-      const pieces = eraseStroke(item.points, path, radius + item.width / 2);
-      if (pieces.length === 1 && pieces[0] === item.points) continue;
-      if (pieces.length === 1 && pieces[0]?.length === item.points.length) continue;
-      next = removeItem(next, item.id);
-      for (const piece of pieces)
-        next = addItem(next, layer.id, { ...item, id: itemId(next), points: simplify(piece) });
-    }
-  }
-  return next;
-}
-
-/** Drops points closer than 2 px to the last kept one: brush strokes stay small on disk. */
-function simplify(points: readonly number[]): number[] {
-  const out: number[] = [];
-  for (let i = 0; i + 1 < points.length; i += 2) {
-    const x = Math.round(points[i] ?? 0);
-    const y = Math.round(points[i + 1] ?? 0);
-    const lx = out.at(-2);
-    const ly = out.at(-1);
-    if (lx === undefined || ly === undefined || Math.hypot(x - lx, y - ly) >= 2) out.push(x, y);
-  }
-  return out;
-}
-
-function NameInput({ name, onRename }: { name: string; onRename: (name: string) => void }) {
-  const [value, setValue] = useState(name);
-  return (
-    <input
-      value={value}
-      aria-label="Map name"
-      onChange={(e) => {
-        setValue(e.target.value);
-      }}
-      onBlur={() => {
-        if (value.trim() && value !== name) onRename(value.trim());
-      }}
-      className="min-w-0 flex-1 rounded bg-transparent px-1 font-serif text-lg font-bold focus:bg-sunken focus:outline-none"
-    />
-  );
-}
-
-function DeleteMap({ doc }: { doc: MapDoc }) {
-  const navigate = useAppNavigate();
-  const [confirm, setConfirm] = useState(false);
-  return confirm ? (
-    <span
-      role="alertdialog"
-      aria-label="Delete this map?"
-      className="flex items-center gap-1 text-sm"
-    >
-      Delete “{doc.name}”?
-      <Button
-        variant="primary"
-        onClick={() => {
-          void useMaps
-            .getState()
-            .remove(doc.id)
-            .then(() => {
-              navigate('/maps');
-            });
-        }}
-      >
-        Delete
-      </Button>
-      <Button
-        variant="ghost"
-        onClick={() => {
-          setConfirm(false);
-        }}
-      >
-        Cancel
-      </Button>
-    </span>
-  ) : (
-    <Button
-      variant="ghost"
-      aria-label="Delete map"
-      onClick={() => {
-        setConfirm(true);
-      }}
-    >
-      <Trash2 className="h-4 w-4" aria-hidden />
-    </Button>
   );
 }
