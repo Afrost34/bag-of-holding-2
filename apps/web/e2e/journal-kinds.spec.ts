@@ -50,7 +50,7 @@ test('a kind of the DM’s own: made, used, and listed in the compendium', async
     .getByRole('link', { name: /Ships/ })
     .click();
   await expect(page.getByRole('heading', { level: 1, name: 'Ships' })).toBeVisible();
-  const list = page.getByRole('list', { name: 'Ships' });
+  const list = page.getByRole('list', { name: 'Ships list' });
   await expect(list).toContainText('Sea Hag');
   await expect(list).toContainText('40');
   await list.getByRole('button', { name: /Sea Hag/ }).click();
