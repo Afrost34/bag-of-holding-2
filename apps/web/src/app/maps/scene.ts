@@ -13,6 +13,7 @@ import {
 } from 'pixi.js';
 import { fileUrl, stampFile } from './assets';
 import { hexCorners, templateOutline, type Point } from './geometry';
+import { resizedView, type ViewBase } from './view';
 import { pinStyle, type Grid, type MapDoc, type MapItem } from './model';
 import { pinIconSvg } from './pinIcons';
 import { terrainTile, type TerrainId } from './terrain';
@@ -175,16 +176,35 @@ export class MapScene {
     this.app.stage.addChild(this.world);
     this.ready = true;
     let size = { w: host.clientWidth, h: host.clientHeight };
+    /**
+     * The view as last set by hand (or by `fit`), and the host size it was set at. Every resize
+     * scales from it, never from the previous resize: a host that shrinks and grows back shows
+     * exactly what it showed before, instead of drifting smaller each time.
+     */
+    let base: ViewBase | null = null;
+    /** The view a resize set last: anything else means it was changed by hand since. */
+    let resized: { x: number; y: number; zoom: number } | null = null;
     this.resizing = new ResizeObserver(() => {
       const next = { w: host.clientWidth, h: host.clientHeight };
       if (next.w === size.w && next.h === size.h) return;
       // The canvas takes the host's new size now (Pixi itself only follows the window).
       this.app.resize();
       if (this.followResize && size.w > 0 && size.h > 0 && next.w > 0 && next.h > 0) {
+        const moved =
+          resized?.x !== this.world.x ||
+          resized.y !== this.world.y ||
+          resized.zoom !== this.world.scale.x;
+        if (!base || moved)
+          base = {
+            w: size.w,
+            h: size.h,
+            zoom: this.world.scale.x,
+            middle: this.toMap(size.w / 2, size.h / 2),
+          };
         // The view grows and shrinks with the host: what was in the middle stays there.
-        const middle = this.toMap(size.w / 2, size.h / 2);
-        const zoom = this.world.scale.x * Math.min(next.w / size.w, next.h / size.h);
-        this.setView(next.w / 2 - middle.x * zoom, next.h / 2 - middle.y * zoom, zoom);
+        const view = resizedView(base, next);
+        this.setView(view.x, view.y, view.zoom);
+        resized = { x: this.world.x, y: this.world.y, zoom: this.world.scale.x };
       }
       size = next;
       this.requestRender();

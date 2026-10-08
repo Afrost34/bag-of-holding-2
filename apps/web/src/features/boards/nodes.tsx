@@ -7,12 +7,14 @@ import {
   ExternalLink,
   Frame,
   Layers,
+  Maximize2,
+  Minimize2,
   MonitorUp,
   MoreVertical,
   Pencil,
   Trash2,
 } from 'lucide-react';
-import { memo, useState, type ReactNode } from 'react';
+import { memo, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { BoardCard } from '../../app/boards/model';
 import { CardBody } from './bodies';
 import { CardLinks } from './CardLinks';
@@ -95,6 +97,24 @@ function CardMenu({ card, title, inStack }: { card: BoardCard; title: string; in
   );
 }
 
+/**
+ * Whether the element fills the screen (the browser's full screen, which also lifts it out of
+ * the board's pan and zoom: a map card then takes the whole window and pans and zooms itself).
+ */
+function useFullScreen(el: RefObject<HTMLElement | null>): boolean {
+  const [full, setFull] = useState(false);
+  useEffect(() => {
+    const onChange = () => {
+      setFull(document.fullscreenElement !== null && document.fullscreenElement === el.current);
+    };
+    document.addEventListener('fullscreenchange', onChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onChange);
+    };
+  }, [el]);
+  return full;
+}
+
 /** Card chrome: title bar (drag handle), collapse, menu, resize handles. */
 function Shell({
   card,
@@ -111,14 +131,20 @@ function Shell({
   children: ReactNode;
 }) {
   const actions = useBoardActions();
-  const far = useFar();
+  const zoomedOut = useFar();
   const Icon = KIND_ICONS[card.kind];
+  const box = useRef<HTMLElement>(null);
+  const full = useFullScreen(box);
+  // Full screen always shows the card itself, however far the board is zoomed out.
+  const far = zoomedOut && !full;
   return (
     <section
+      ref={box}
       aria-label={title}
       className={cn(
-        'flex h-full flex-col overflow-hidden rounded-lg border bg-surface text-text shadow-card',
-        selected ? 'border-accent' : 'border-border',
+        'flex h-full flex-col overflow-hidden bg-surface text-text',
+        full ? 'rounded-none border-0' : 'rounded-lg border shadow-card',
+        !full && (selected ? 'border-accent' : 'border-border'),
       )}
     >
       <NodeResizer
@@ -161,6 +187,24 @@ function Shell({
             <Icon className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
             <h3 className="min-w-0 flex-1 truncate font-serif text-sm font-bold">{title}</h3>
           </>
+        )}
+        {document.fullscreenEnabled && !card.collapsed && (
+          <button
+            type="button"
+            aria-label={full ? 'Leave full screen' : `Full screen ${title}`}
+            title={full ? 'Leave full screen (Esc)' : 'Full screen'}
+            onClick={() => {
+              if (full) void document.exitFullscreen();
+              else void box.current?.requestFullscreen();
+            }}
+            className="nodrag rounded p-1 hover:bg-black/10"
+          >
+            {full ? (
+              <Minimize2 className="h-4 w-4" aria-hidden />
+            ) : (
+              <Maximize2 className="h-4 w-4" aria-hidden />
+            )}
+          </button>
         )}
         <CardMenu card={card} title={title} />
       </header>
