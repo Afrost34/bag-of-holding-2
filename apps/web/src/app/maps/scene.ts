@@ -14,6 +14,7 @@ import {
 import { fileUrl, stampFile } from './assets';
 import { hexCorners, templateOutline, type Point } from './geometry';
 import { resizedView, type ViewBase } from './view';
+import { hiddenFromPlayers } from './pinLink';
 import { pinStyle, type Grid, type MapDoc, type MapItem } from './model';
 import { pinIconSvg } from './pinIcons';
 import { terrainTile, type TerrainId } from './terrain';
@@ -184,6 +185,8 @@ export class MapScene {
   private resizing: ResizeObserver | null = null;
   /** Scale the view with the host when it is resized (a map in a board card), not just crop it. */
   followResize = false;
+  /** The players see it (the player window): pins hidden from them are left off. */
+  forPlayers = false;
 
   async init(host: HTMLElement): Promise<void> {
     await this.app.init({
@@ -521,7 +524,9 @@ export class MapScene {
         const style = pinStyle(doc, item);
         const holder = new Container();
         holder.position.set(item.x, item.y);
-        holder.visible = !style.hidden;
+        holder.visible = !style.hidden && !(this.forPlayers && item.secret);
+        // Hidden from players: faint for the DM, so it is plain which pins they will not see.
+        if (item.secret) holder.alpha = 0.55;
         const r = PIN_RADIUS;
         const color = colorOf(style.color);
         const marker = new Graphics()
@@ -575,6 +580,7 @@ export class MapScene {
     for (const layer of [...this.doc.layers].reverse()) {
       if (!layer.visible || layer.locked) continue;
       for (const item of [...layer.items].reverse()) {
+        if (this.forPlayers && hiddenFromPlayers(item)) continue;
         if (item.kind === 'stroke' || item.kind === 'wall' || item.kind === 'route') {
           const width =
             item.kind === 'wall'

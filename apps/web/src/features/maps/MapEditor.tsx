@@ -46,6 +46,7 @@ import {
   type MapItem,
 } from '../../app/maps/model';
 import { useMapDoc, useMaps } from '../../app/maps/store';
+import { pinLink } from '../../app/maps/pinLink';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 import { MapPanels } from './MapPanels';
@@ -128,6 +129,8 @@ function Editor({ doc }: { doc: MapDoc }) {
   const shell = useRef<HTMLDivElement>(null);
   const [scene, setScene] = useState<MapScene | null>(null);
   const [tool, setTool] = useState<Tool>('select');
+  /** Where the pointer went down (screen), to tell a click from a drag. */
+  const downAt = useRef<Point | null>(null);
   const tools = toolsFor(mapKind(doc));
   // A tool the map's kind does not have (its kind was just changed) gives way to Select.
   if (tool !== 'select' && tool !== 'calibrate' && !tools.some((t) => t.id === tool))
@@ -247,6 +250,21 @@ function Editor({ doc }: { doc: MapDoc }) {
     return { x: e.clientX - (r?.left ?? 0), y: e.clientY - (r?.top ?? 0) };
   };
 
+  /** Goes where a pin leads; false when it leads nowhere. */
+  const followPin = (pin: Extract<MapItem, { kind: 'pin' }>, newTab: boolean): boolean => {
+    const link = pinLink(pin);
+    if (!link) return false;
+    navigate(
+      link.kind === 'map'
+        ? `/maps/${link.id}`
+        : link.kind === 'note'
+          ? journalPath(link.path)
+          : entityPath(link.key),
+      { newTab },
+    );
+    return true;
+  };
+
   const finishWall = () => {
     if (wall && wall.length >= 4 && layer) {
       const item: MapItem =
@@ -277,19 +295,13 @@ function Editor({ doc }: { doc: MapDoc }) {
     }
     const p = scene.toMap(screen.x, screen.y);
     const base = { start: p, screen, last: p };
-    // A pin's link: a click while viewing, Ctrl/Cmd+click while editing (in a new tab).
+    downAt.current = screen;
+    // A pin's link: a click while viewing, Ctrl/Cmd+click while editing (in a new tab); with the
+    // Pan tool, a click that does not pan (see onPointerUp).
     const ctrl = e.ctrlKey || e.metaKey;
     if (e.button === 0 && (viewing || ctrl)) {
       const hit = scene.hit(p);
-      if (hit?.kind === 'pin' && (hit.map || hit.note || hit.entity)) {
-        const to = hit.map
-          ? `/maps/${hit.map}`
-          : hit.note
-            ? journalPath(hit.note)
-            : entityPath(hit.entity ?? '');
-        navigate(to, { newTab: ctrl });
-        return;
-      }
+      if (hit?.kind === 'pin' && followPin(hit, ctrl)) return;
     }
     if (e.button === 1 || space.current || tool === 'pan' || viewing) {
       drag.current = { mode: 'pan', ...base };
@@ -517,6 +529,14 @@ function Editor({ doc }: { doc: MapDoc }) {
     const d = drag.current;
     drag.current = null;
     if (!d || !scene) return;
+    if (d.mode === 'pan' && tool === 'pan' && !viewing) {
+      const up = local(e);
+      const from = downAt.current;
+      if (from && Math.hypot(up.x - from.x, up.y - from.y) < 5) {
+        const hit = scene.hit(scene.toMap(up.x, up.y));
+        if (hit?.kind === 'pin') followPin(hit, false);
+      }
+    }
     const p = d.last;
     switch (d.mode) {
       case 'move': {
