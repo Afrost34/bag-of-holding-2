@@ -282,13 +282,13 @@ export function SearchPalette() {
                 >
                   {r.kind === 'page' ? (
                     <>
-                      <ArrowRight className="h-4 w-4 text-accent" aria-hidden />
+                      <ArrowRight className="h-4 w-4 text-accent-ink" aria-hidden />
                       <span className="flex-1 font-medium">{r.label}</span>
                       <span className="text-xs text-muted">{r.detail}</span>
                     </>
                   ) : r.kind === 'note' ? (
                     <>
-                      <NotebookPen className="h-4 w-4 shrink-0 text-accent" aria-hidden />
+                      <NotebookPen className="h-4 w-4 shrink-0 text-accent-ink" aria-hidden />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-medium">{r.note.name}</span>
                         {r.note.snippet && (

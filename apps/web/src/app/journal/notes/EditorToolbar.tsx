@@ -154,7 +154,9 @@ export function EditorToolbar({
         onClick={onToggleCode}
         className={cn(
           'flex shrink-0 items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium',
-          codeMode ? 'bg-accent-soft text-accent' : 'text-muted hover:bg-sunken hover:text-text',
+          codeMode
+            ? 'bg-accent-soft text-accent-ink'
+            : 'text-muted hover:bg-sunken hover:text-text',
         )}
       >
         <FileCode2 className="h-4 w-4" aria-hidden /> Markdown

@@ -24,7 +24,7 @@ export function BookmarkList() {
               to={b.path}
               className="flex items-center gap-1.5 py-1.5 pr-1 pl-2.5 font-medium"
             >
-              <Star className="h-3.5 w-3.5 fill-current text-accent" aria-hidden />
+              <Star className="h-3.5 w-3.5 fill-current text-accent-ink" aria-hidden />
               {b.label}
             </AppLink>
             <button

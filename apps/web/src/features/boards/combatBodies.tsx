@@ -181,7 +181,7 @@ function Row({
           className={cn(
             'min-w-0 flex-1 truncate text-left',
             current && 'font-semibold',
-            c.key && 'hover:text-accent',
+            c.key && 'hover:text-accent-ink',
             down && 'line-through',
           )}
         >

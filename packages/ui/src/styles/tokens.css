@@ -20,9 +20,11 @@
   --boh-border-strong: #c4bfb6;
   --boh-text: #1d1d22;
   --boh-text-muted: #5f5b55;
-  --boh-text-faint: #8a857d;
+  --boh-text-faint: #6e6a63;
   --boh-accent: #c53131;
   --boh-accent-hover: #a82828;
+  /* Accent as text: dark enough on every light surface (the accent itself is for fills). */
+  --boh-accent-ink: #b32a2a;
   --boh-accent-fg: #ffffff;
   --boh-accent-soft: rgb(197 49 49 / 0.1);
   --boh-chrome: #22252e;
@@ -43,14 +45,14 @@
   --boh-callout-secret: #9c36b5;
   --boh-highlight: #fff3a3;
   --boh-dice-bg: #fdecdc;
-  --boh-dice-fg: #b4520f;
+  --boh-dice-fg: #a34a0d;
   --boh-dice-border: #e9a46b;
-  --boh-str: #d43c3c;
-  --boh-dex: #2e9e4f;
-  --boh-con: #e07b1a;
-  --boh-int: #2f7fd8;
-  --boh-wis: #8a4fd0;
-  --boh-cha: #c99712;
+  --boh-str: #b82a2a;
+  --boh-dex: #1a6e33;
+  --boh-con: #9c4c09;
+  --boh-int: #1f5fb3;
+  --boh-wis: #7a43bd;
+  --boh-cha: #7d5c08;
   /* Spell schools and item rarities: mid tones that read on light and dark surfaces alike. */
   --boh-school-abjuration: #3a7bd5;
   --boh-school-conjuration: #c99212;
@@ -79,9 +81,10 @@
     --boh-border-strong: #424653;
     --boh-text: #ecebe8;
     --boh-text-muted: #a6a39c;
-    --boh-text-faint: #77746e;
-    --boh-accent: #e5484d;
+    --boh-text-faint: #8a8780;
+    --boh-accent: #d13a40;
     --boh-accent-hover: #f06367;
+    --boh-accent-ink: #f06367;
     --boh-accent-fg: #ffffff;
     --boh-accent-soft: rgb(229 72 77 / 0.14);
     --boh-chrome: #1d2027;
@@ -89,7 +92,7 @@
     --boh-chrome-fg: #ecebe8;
     --boh-header: #2a2e38;
     --boh-header-fg: #ecebe8;
-    --boh-chrome-muted: #8d909a;
+    --boh-chrome-muted: #9da0aa;
     --boh-link: #7aa7ff;
     --boh-focus: #7aa7ff;
     --boh-readaloud: #2a2519;
@@ -103,6 +106,12 @@
     --boh-dice-bg: #3a2414;
     --boh-dice-fg: #f5a65f;
     --boh-dice-border: #8a5a30;
+    --boh-str: #f87171;
+    --boh-dex: #4ade80;
+    --boh-con: #fb923c;
+    --boh-int: #60a5fa;
+    --boh-wis: #c084fc;
+    --boh-cha: #facc15;
     --boh-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 2px 8px rgb(0 0 0 / 0.3);
   }
 }
@@ -117,9 +126,10 @@
   --boh-border-strong: #424653;
   --boh-text: #ecebe8;
   --boh-text-muted: #a6a39c;
-  --boh-text-faint: #77746e;
-  --boh-accent: #e5484d;
+  --boh-text-faint: #8a8780;
+  --boh-accent: #d13a40;
   --boh-accent-hover: #f06367;
+  --boh-accent-ink: #f06367;
   --boh-accent-fg: #ffffff;
   --boh-accent-soft: rgb(229 72 77 / 0.14);
   --boh-chrome: #1d2027;
@@ -127,7 +137,7 @@
   --boh-chrome-fg: #ecebe8;
   --boh-header: #2a2e38;
   --boh-header-fg: #ecebe8;
-  --boh-chrome-muted: #8d909a;
+  --boh-chrome-muted: #9da0aa;
   --boh-link: #7aa7ff;
   --boh-focus: #7aa7ff;
   --boh-readaloud: #2a2519;
@@ -141,6 +151,12 @@
   --boh-dice-bg: #3a2414;
   --boh-dice-fg: #f5a65f;
   --boh-dice-border: #8a5a30;
+  --boh-str: #f87171;
+  --boh-dex: #4ade80;
+  --boh-con: #fb923c;
+  --boh-int: #60a5fa;
+  --boh-wis: #c084fc;
+  --boh-cha: #facc15;
   --boh-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 2px 8px rgb(0 0 0 / 0.3);
 }
 
@@ -159,6 +175,7 @@
   --color-faint: var(--boh-text-faint);
   --color-accent: var(--boh-accent);
   --color-accent-hover: var(--boh-accent-hover);
+  --color-accent-ink: var(--boh-accent-ink);
   --color-accent-fg: var(--boh-accent-fg);
   --color-accent-soft: var(--boh-accent-soft);
   --color-chrome: var(--boh-chrome);

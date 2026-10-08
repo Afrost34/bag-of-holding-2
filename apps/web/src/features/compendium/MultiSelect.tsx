@@ -55,7 +55,7 @@ export function MultiSelect({
         >
           <span
             id={`${id}-value`}
-            className={cn('min-w-0 flex-1 truncate', selected.length === 0 && 'text-faint')}
+            className={cn('min-w-0 flex-1 truncate', selected.length === 0 && 'text-muted')}
           >
             {summary}
           </span>
@@ -107,7 +107,7 @@ export function MultiSelect({
               <button
                 type="button"
                 onClick={onClear}
-                className="border-t border-border px-3 py-2 text-left text-xs font-semibold text-accent hover:bg-surface-2"
+                className="border-t border-border px-3 py-2 text-left text-xs font-semibold text-accent-ink hover:bg-surface-2"
               >
                 Clear {label.toLowerCase()}
               </button>

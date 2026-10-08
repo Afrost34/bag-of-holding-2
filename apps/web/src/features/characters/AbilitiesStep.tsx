@@ -130,14 +130,14 @@ export function AbilitiesStep({
       )}
       {method === 'pointBuy' && (
         <p
-          className={cn('text-sm font-semibold', spent > POINT_BUY_BUDGET && 'text-accent')}
+          className={cn('text-sm font-semibold', spent > POINT_BUY_BUDGET && 'text-accent-ink')}
           role="status"
         >
           Points remaining: {POINT_BUY_BUDGET - spent} / {POINT_BUY_BUDGET}
         </p>
       )}
       {pool.length === 6 && !poolOk && (
-        <p className="text-sm font-semibold text-accent" role="status">
+        <p className="text-sm font-semibold text-accent-ink" role="status">
           Use each of {pool.join(', ')} once.
         </p>
       )}

@@ -122,7 +122,7 @@ function CompendiumMenu({ pathname, onNavigate }: { pathname: string; onNavigate
               : 'text-chrome-muted hover:bg-chrome-2/60 hover:text-chrome-fg',
           )}
         >
-          <Icon className={cn('h-4 w-4 shrink-0', on && 'text-accent')} aria-hidden />
+          <Icon className={cn('h-4 w-4 shrink-0', on && 'text-accent-ink')} aria-hidden />
           <span className="truncate">{link.label}</span>
         </AppLink>
       </li>

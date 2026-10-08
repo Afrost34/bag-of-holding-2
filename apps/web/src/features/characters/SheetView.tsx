@@ -237,7 +237,7 @@ export function SheetView({
                   >
                     <AppLink
                       to={entityPath(atk.key)}
-                      className="flex-1 font-medium hover:text-accent"
+                      className="flex-1 font-medium hover:text-accent-ink"
                     >
                       {atk.name}
                     </AppLink>
@@ -412,7 +412,7 @@ function InfoButton({ label, onClick }: { label: string; onClick: () => void }) 
       type="button"
       aria-label={`Details: ${label}`}
       onClick={onClick}
-      className="rounded p-0.5 text-faint hover:text-accent"
+      className="rounded p-0.5 text-faint hover:text-accent-ink"
     >
       <Info className="h-3.5 w-3.5" aria-hidden />
     </button>
@@ -436,7 +436,7 @@ function Stat({
   return (
     <div className="rounded-lg border border-border bg-surface p-2 text-center">
       <p className="text-xs font-semibold tracking-wide text-muted uppercase">{label}</p>
-      <p className={cn('text-2xl font-bold', value.computed !== undefined && 'text-accent')}>
+      <p className={cn('text-2xl font-bold', value.computed !== undefined && 'text-accent-ink')}>
         {roll ? (
           <RollChip plain roll={roll}>
             {text}

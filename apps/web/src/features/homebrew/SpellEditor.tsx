@@ -246,7 +246,7 @@ export function SpellEditor({
                   className={cn(
                     'rounded-full border px-2.5 py-1 text-sm',
                     on
-                      ? 'border-accent bg-accent-soft text-accent'
+                      ? 'border-accent bg-accent-soft text-accent-ink'
                       : 'border-border text-muted hover:border-accent',
                   )}
                 >

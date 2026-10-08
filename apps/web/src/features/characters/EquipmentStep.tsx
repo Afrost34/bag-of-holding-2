@@ -259,7 +259,7 @@ function InventoryRow({
               'rounded border px-2 py-0.5 text-xs font-bold uppercase',
               item.equipped
                 ? 'border-accent bg-accent text-accent-fg'
-                : 'border-accent text-accent',
+                : 'border-accent text-accent-ink',
             )}
           >
             {item.equipped ? DONE[wearLabel] : wearLabel}
@@ -305,7 +305,7 @@ function InventoryRow({
           <button
             type="button"
             onClick={onRemove}
-            className="inline-flex items-center gap-1 text-sm text-accent hover:underline"
+            className="inline-flex items-center gap-1 text-sm text-accent-ink hover:underline"
           >
             <X className="h-4 w-4" aria-hidden /> Remove item
           </button>

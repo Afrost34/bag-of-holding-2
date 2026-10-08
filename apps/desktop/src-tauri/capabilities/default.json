@@ -1,14 +1,21 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Permissions for the main window. File access is limited to the app data folder until the data-repo folder picker lands (M4).",
-  "windows": ["main"],
+  "description": "Permissions for the app windows (the main one and the player window it opens). File access is limited to the app data folder.",
+  "windows": ["*"],
   "permissions": [
     "core:default",
     "fs:default",
     {
       "identifier": "fs:scope",
-      "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**" }]
+      "allow": [
+        {
+          "path": "$APPDATA"
+        },
+        {
+          "path": "$APPDATA/**"
+        }
+      ]
     },
     "fs:allow-read-file",
     "fs:allow-write-file",
@@ -16,6 +23,9 @@
     "fs:allow-mkdir",
     "fs:allow-remove",
     "fs:allow-exists",
-    "fs:allow-stat"
+    "fs:allow-stat",
+    "updater:default",
+    "dialog:default",
+    "opener:default"
   ]
 }

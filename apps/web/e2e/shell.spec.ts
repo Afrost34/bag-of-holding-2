@@ -85,3 +85,26 @@ test('phone drawer navigates and closes', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Main' })).toBeHidden();
 });
+
+test('keyboard shortcuts open modules, tabs, search and their own list', async ({ page }) => {
+  test.skip(isPhone(page), 'Keyboards are for the desktop.');
+  await page.goto('./#/');
+  await expect(page.getByRole('heading', { level: 1, name: 'Bag of Holding' })).toBeVisible();
+  await page.keyboard.press('Alt+2');
+  await expect(page).toHaveURL(/#\/compendium$/);
+  const tabs = page.getByRole('tab');
+  await expect(tabs).toHaveCount(1);
+  await page.keyboard.press('Alt+T');
+  await expect(tabs).toHaveCount(2);
+  await page.keyboard.press('Alt+PageUp');
+  await expect(page).toHaveURL(/#\/compendium$/);
+  await page.keyboard.press('Alt+W');
+  await expect(tabs).toHaveCount(1);
+  await page.keyboard.press('?');
+  const help = page.getByRole('dialog', { name: 'Keyboard shortcuts' });
+  await expect(help).toBeVisible();
+  await expect(help.getByRole('region', { name: 'Maps' })).toContainText('Spell template');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('/');
+  await expect(page.getByRole('dialog').getByRole('combobox')).toBeVisible();
+});

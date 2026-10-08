@@ -18,6 +18,7 @@ import {
   type Pool,
 } from './pool';
 import { Breakdown, ModeBadge, OutcomeBadge } from './RollBreakdown';
+import { DICE_TRAY_EVENT } from '../shell/shortcuts';
 import { useDice, useDiceSettings } from './store';
 
 /** Dice nearest the button are the most used. */
@@ -34,6 +35,17 @@ export function DiceTray() {
   const roll = useDice((s) => s.roll);
   const empty = isEmpty(pool);
   const hasDice = pool.dice.length > 0;
+
+  // Alt+D (see shell/shortcuts.ts).
+  useEffect(() => {
+    const toggle = () => {
+      setOpen((o) => !o);
+    };
+    window.addEventListener(DICE_TRAY_EVENT, toggle);
+    return () => {
+      window.removeEventListener(DICE_TRAY_EVENT, toggle);
+    };
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -230,8 +242,8 @@ function DieButton({
             className={cn(
               'relative flex h-12 w-12 animate-[fade-in_120ms_ease-out] flex-col items-center justify-center rounded-full border bg-surface shadow-card transition-colors',
               count > 0
-                ? 'border-accent text-accent'
-                : 'border-border text-text hover:border-accent hover:text-accent',
+                ? 'border-accent text-accent-ink'
+                : 'border-border text-text hover:border-accent hover:text-accent-ink',
             )}
           >
             <DieIcon faces={faces} className="h-7 w-7" />

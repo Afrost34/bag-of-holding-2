@@ -17,7 +17,7 @@ export function EntityMeta({ entity, className }: { entity: EntityDetail; classN
       {entity.page !== null && <span>p. {entity.page}</span>}
       <span className="rounded bg-sunken px-1 text-[10px] font-semibold">{entity.edition}</span>
       {entity.layer === 'homebrew' && (
-        <span className="rounded bg-accent-soft px-1 text-[10px] font-semibold text-accent">
+        <span className="rounded bg-accent-soft px-1 text-[10px] font-semibold text-accent-ink">
           Homebrew
         </span>
       )}

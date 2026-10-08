@@ -159,7 +159,10 @@ export function ClassChooser({
                             {r.legacy && ' · Legacy'}
                             {taken && ' · Already taken'}
                             {unmet && (
-                              <span className="text-accent"> · Prerequisites not met: {unmet}</span>
+                              <span className="text-accent-ink">
+                                {' '}
+                                · Prerequisites not met: {unmet}
+                              </span>
                             )}
                           </span>
                         </span>

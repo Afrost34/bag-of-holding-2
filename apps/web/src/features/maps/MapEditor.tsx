@@ -542,7 +542,8 @@ function Editor({ doc }: { doc: MapDoc }) {
         redo();
         return;
       }
-      if (mod) return;
+      // Alt combinations are the app's (tabs, modules).
+      if (mod || e.altKey) return;
       if (e.key === 'Escape') {
         if (wall) finishWall();
         setSelected(null);

@@ -100,9 +100,9 @@ function WebUpdatePrompt() {
       className="fixed inset-x-4 bottom-4 z-50 flex items-center gap-3 rounded-lg border-2 border-accent bg-surface p-3 text-sm shadow-card sm:inset-x-auto sm:right-4 sm:max-w-sm"
     >
       {phase === 'updating' ? (
-        <Loader2 className="h-5 w-5 shrink-0 animate-spin text-accent" aria-hidden />
+        <Loader2 className="h-5 w-5 shrink-0 animate-spin text-accent-ink" aria-hidden />
       ) : (
-        needRefresh && <Sparkles className="h-5 w-5 shrink-0 text-accent" aria-hidden />
+        needRefresh && <Sparkles className="h-5 w-5 shrink-0 text-accent-ink" aria-hidden />
       )}
       <span className="flex-1">{message}</span>
       {needRefresh && phase === 'idle' && (

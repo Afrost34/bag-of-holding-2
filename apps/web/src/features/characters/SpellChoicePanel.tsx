@@ -76,7 +76,7 @@ export function SpellChoicePanel({
     <section aria-label={choice.label} className="space-y-2">
       <div className="flex items-center gap-3 rounded-md bg-sunken px-3 py-2">
         <h4 className="flex-1 font-semibold">{title}</h4>
-        <span className={cn('text-sm font-bold', full ? 'text-text' : 'text-accent')}>
+        <span className={cn('text-sm font-bold', full ? 'text-text' : 'text-accent-ink')}>
           {picks.length}/{choice.count}
         </span>
         <button
@@ -93,7 +93,7 @@ export function SpellChoicePanel({
 
       {twice.length > 0 && (
         <p role="alert" className="flex gap-2 rounded-md bg-sunken px-3 py-2 text-sm">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden />
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-accent-ink" aria-hidden />
           {twice
             .map(
               (id) =>
@@ -244,7 +244,7 @@ function SpellRowCard({
             </span>
             <span className="block truncate text-xs text-muted">
               {alsoFrom.length > 0 ? (
-                <span className="font-semibold text-accent">
+                <span className="font-semibold text-accent-ink">
                   Already yours: {alsoFrom.join(', ')}
                 </span>
               ) : (
@@ -266,7 +266,7 @@ function SpellRowCard({
           className={cn(
             'shrink-0 rounded border px-2.5 py-1 text-xs font-bold uppercase disabled:opacity-40',
             action === 'Learn'
-              ? 'border-accent text-accent hover:bg-accent hover:text-accent-fg'
+              ? 'border-accent text-accent-ink hover:bg-accent hover:text-accent-fg'
               : 'border-border text-muted hover:border-accent',
           )}
         >

@@ -94,10 +94,10 @@ export function ListRows({
       onClick={() => {
         onSort(id);
       }}
-      aria-label={`Sort by ${label}`}
-      aria-sort={sort === id ? (dir === 'asc' ? 'ascending' : 'descending') : undefined}
+      // (aria-sort belongs to table headers; this list is a grid of rows, so the name says it.)
+      aria-label={`Sort by ${label}${sort === id ? (dir === 'asc' ? ', ascending' : ', descending') : ''}`}
       className={cn(
-        'flex min-w-0 items-center gap-1 text-left text-[11px] font-semibold tracking-wider uppercase hover:text-accent',
+        'flex min-w-0 items-center gap-1 text-left text-[11px] font-semibold tracking-wider uppercase hover:text-accent-ink',
         sort === id ? 'text-text' : 'text-muted',
         className,
       )}
@@ -203,7 +203,7 @@ export function ListRows({
                       <Cell row={row} field={c} />
                     </span>
                   ))}
-                  <span className="flex justify-end text-accent">
+                  <span className="flex justify-end text-accent-ink">
                     {open ? (
                       <Minus className="h-5 w-5" aria-hidden />
                     ) : (

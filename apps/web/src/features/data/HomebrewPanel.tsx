@@ -44,7 +44,7 @@ export function HomebrewPanel() {
         }}
       />
       {[...messages, ...(error ? [error] : [])].map((m) => (
-        <p key={m} role="alert" className="mt-2 text-sm text-accent">
+        <p key={m} role="alert" className="mt-2 text-sm text-accent-ink">
           {m}
         </p>
       ))}

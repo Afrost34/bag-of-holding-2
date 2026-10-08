@@ -13,7 +13,7 @@ export function ModulePlaceholder({ path }: ModulePlaceholderProps) {
   return (
     <div className="flex min-h-full items-center justify-center px-4 py-16">
       <div className="max-w-md text-center">
-        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent-soft text-accent">
+        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent-soft text-accent-ink">
           <Icon className="h-8 w-8" aria-hidden />
         </span>
         <h1 className="mt-4 font-serif text-2xl font-bold">{module.label}</h1>

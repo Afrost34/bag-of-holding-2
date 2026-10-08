@@ -112,7 +112,9 @@ function ClassArticle({ page, selected }: { page: ClassPageData; selected: strin
               }}
               className={cn(
                 'hover:underline',
-                f.anchor && fromSubclass.has(f.anchor) ? 'font-semibold text-accent' : 'text-link',
+                f.anchor && fromSubclass.has(f.anchor)
+                  ? 'font-semibold text-accent-ink'
+                  : 'text-link',
               )}
             >
               {f.name}

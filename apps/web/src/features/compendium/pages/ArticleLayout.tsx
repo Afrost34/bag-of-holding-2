@@ -154,7 +154,7 @@ export function FeatureSection({
           <RichText text={name} />
         </span>
         {badge && (
-          <span className="rounded bg-accent-soft px-1.5 py-0.5 font-sans text-[11px] font-semibold text-accent">
+          <span className="rounded bg-accent-soft px-1.5 py-0.5 font-sans text-[11px] font-semibold text-accent-ink">
             {badge}
           </span>
         )}

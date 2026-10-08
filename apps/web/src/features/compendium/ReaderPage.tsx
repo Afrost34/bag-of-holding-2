@@ -167,7 +167,7 @@ function Reader({ book, search }: { book: BookContent; search: ReaderSearch }) {
             aria-current={i === chapterIndex ? 'true' : undefined}
             className={cn(
               'block w-full rounded px-2 py-1 text-left hover:bg-sunken',
-              i === chapterIndex && 'bg-accent-soft font-semibold text-accent',
+              i === chapterIndex && 'bg-accent-soft font-semibold text-accent-ink',
             )}
           >
             {c.ordinal && <span className="text-xs text-muted">{c.ordinal} · </span>}

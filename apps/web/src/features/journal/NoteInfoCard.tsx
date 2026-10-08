@@ -74,7 +74,7 @@ export function NoteInfoCard({
       className="mb-4 rounded-lg border border-border bg-surface text-sm"
     >
       <header className="flex items-center gap-2 border-b border-border px-3 py-2">
-        {kind && <NoteTypeIcon type={kind} className="h-4 w-4 text-accent" />}
+        {kind && <NoteTypeIcon type={kind} className="h-4 w-4 text-accent-ink" />}
         <span className="flex-1 text-xs font-semibold tracking-wide text-muted uppercase">
           {kind?.label ?? (typeof data.type === 'string' ? data.type : 'Details')}
         </span>
@@ -110,7 +110,7 @@ export function NoteInfoCard({
               onClick={() => {
                 openTag(t);
               }}
-              className="rounded-full bg-accent-soft px-2 py-0.5 text-xs text-accent hover:underline"
+              className="rounded-full bg-accent-soft px-2 py-0.5 text-xs text-accent-ink hover:underline"
             >
               #{t}
             </button>

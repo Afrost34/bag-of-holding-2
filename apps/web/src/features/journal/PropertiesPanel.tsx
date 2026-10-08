@@ -70,7 +70,7 @@ export function PropertiesPanel({
       title={showSource ? 'Hide the properties text' : 'Edit the properties as text'}
       className={cn(
         'rounded p-1 text-faint hover:bg-sunken hover:text-text',
-        showSource && 'text-accent',
+        showSource && 'text-accent-ink',
       )}
     >
       <Code2 className="h-3.5 w-3.5" aria-hidden />
@@ -380,7 +380,7 @@ function ListValue({
       {items.map((item, i) => (
         <span
           key={`${String(i)}:${item}`}
-          className="inline-flex items-center rounded-full bg-accent-soft text-xs text-accent"
+          className="inline-flex items-center rounded-full bg-accent-soft text-xs text-accent-ink"
         >
           <button
             type="button"

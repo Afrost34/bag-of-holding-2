@@ -28,7 +28,7 @@ export function SyncButton() {
     status === 'syncing' ? (
       <RefreshCw className="h-4 w-4 animate-spin" />
     ) : status === 'error' ? (
-      <CloudAlert className="h-4 w-4 text-accent" />
+      <CloudAlert className="h-4 w-4 text-accent-ink" />
     ) : status === 'offline' || status === 'off' ? (
       <CloudOff className="h-4 w-4" />
     ) : lastSync ? (

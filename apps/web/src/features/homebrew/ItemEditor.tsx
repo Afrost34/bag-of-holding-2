@@ -179,7 +179,7 @@ export function ItemEditor({
                       className={cn(
                         'rounded-full border px-2.5 py-1 text-sm',
                         on
-                          ? 'border-accent bg-accent-soft text-accent'
+                          ? 'border-accent bg-accent-soft text-accent-ink'
                           : 'border-border hover:border-accent',
                       )}
                     >

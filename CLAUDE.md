@@ -58,6 +58,17 @@ The 5etools index lives in a Web Worker (`apps/web/src/app/data/data.worker.ts`)
 it through `DataWorkerApi` (`protocol.ts`) via Comlink. Never query SQLite from the main thread.
 See ADR 0003 for how the index is built.
 
+User data (characters, card sheets, boards, encounters, maps, the stamp library) lives in stores
+under `apps/web/src/app/<kind>/`: a pure `model.ts` with its tests (paths, parse/serialize, every
+change as a function) and a zustand `store.ts` that writes each file on change, in `<kind>/` or
+`campaigns/<c>/<kind>/`, and is reloaded after a sync (`app/sync/store.ts`). Code two features
+share (the journal's note views, the compendium search box, print cards) moves to `app/`, since
+features never import each other. The map canvas (`features/maps/scene.ts`) is PixiJS outside
+React and draws only on change. Desktop windows, outside links and updates are in
+`apps/desktop/src-tauri/src/lib.rs` (ADR 0007). `e2e/a11y.spec.ts` runs axe over the main pages
+in light and dark: keep it green (text needs 4.5:1; use `text-accent-ink`, not `text-accent`, for
+accent-coloured text).
+
 ## Hard rules
 
 1. **No 5etools data in git, ever.** It is downloaded at runtime. Tests that need it download a
