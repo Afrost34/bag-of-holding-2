@@ -322,3 +322,43 @@ test('a character card is the first page of its sheet, with sections on its side
   await expect(story).toHaveAttribute('aria-pressed', 'true');
   await expect(sheet.getByRole('region', { name: 'Story' })).toBeVisible();
 });
+
+test('a card fills the whole screen, and a map in it still pans and zooms', async ({ page }) => {
+  await page.goto('./#/maps');
+  await page.getByRole('button', { name: 'New map' }).click();
+  await page.getByRole('form', { name: 'New map' }).getByLabel('Name').fill('Sunash Sea');
+  await page.getByRole('button', { name: 'Create' }).click();
+  await expect(page.getByRole('textbox', { name: 'Map name' })).toHaveValue('Sunash Sea');
+  await page.goto('./#/boards');
+  await page.getByRole('button', { name: 'New board' }).click();
+  await page.getByLabel('Name').fill('Session 1');
+  await page.getByRole('button', { name: 'Create' }).click();
+  await addCard(page, 'Map…');
+  await page
+    .getByRole('list', { name: 'Maps' })
+    .getByRole('button', { name: 'Sunash Sea' })
+    .click();
+  const map = card(page, 'Sunash Sea');
+  await expect(map.getByRole('img', { name: 'Map: Sunash Sea' })).toBeVisible();
+
+  await map.getByRole('button', { name: 'Full screen Sunash Sea' }).click();
+  await expect
+    .poll(() => page.evaluate(() => document.fullscreenElement?.getAttribute('aria-label')))
+    .toBe('Sunash Sea');
+  const view = page.viewportSize();
+  const shown = await page.getByRole('img', { name: 'Map: Sunash Sea' }).boundingBox();
+  expect(shown?.width).toBeGreaterThan((view?.width ?? 0) - 20);
+  expect(shown?.height).toBeGreaterThan((view?.height ?? 0) - 100);
+  // Zooming the map keeps it filling the screen.
+  await page.mouse.move((view?.width ?? 0) / 2, (view?.height ?? 0) / 2);
+  await page.mouse.wheel(0, -400);
+  await expect
+    .poll(() => page.evaluate(() => document.fullscreenElement?.getAttribute('aria-label')))
+    .toBe('Sunash Sea');
+  expect((await page.getByRole('img', { name: 'Map: Sunash Sea' }).boundingBox())?.width).toBe(
+    shown?.width,
+  );
+  await page.getByRole('button', { name: 'Leave full screen' }).click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+  await expect(map.getByRole('button', { name: 'Full screen Sunash Sea' })).toBeVisible();
+});
