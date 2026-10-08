@@ -1,4 +1,5 @@
 import type { EntityDetail } from '@boh/data5e';
+import type { BoardCard } from './model';
 import { useEffect, useState } from 'react';
 
 /**
@@ -17,7 +18,17 @@ export type PlayerShow =
    */
   | { kind: 'entity'; entity: EntityDetail }
   | { kind: 'note'; campaignId: string; path: string }
-  | { kind: 'text'; title?: string; text: string };
+  | { kind: 'text'; title?: string; text: string }
+  /**
+   * The cards the DM marked as shown, laid out for the players. Entries go whole (see above);
+   * `campaignId` is where notes, pictures and maps are read from.
+   */
+  | {
+      kind: 'board';
+      name: string;
+      campaignId?: string;
+      cards: { card: BoardCard; title: string; entity?: EntityDetail }[];
+    };
 
 type Message = { type: 'show'; item: PlayerShow | null } | { type: 'hello' };
 
@@ -39,11 +50,15 @@ function dmChannel(): BroadcastChannel {
   return channel;
 }
 
-/** Shows something in the player window, opening it if it is not open. */
-export function showToPlayers(item: PlayerShow | null): void {
+/** Shows something in the player window (opening it first unless `open` is false). */
+export function showToPlayers(item: PlayerShow | null, open = true): void {
   current = item;
-  if (!win || win.closed) openPlayerWindow();
+  if (open) openPlayerWindowIfClosed();
   dmChannel().postMessage({ type: 'show', item } satisfies Message);
+}
+
+export function openPlayerWindowIfClosed(): void {
+  if (!win || win.closed) openPlayerWindow();
 }
 
 export function openPlayerWindow(): void {

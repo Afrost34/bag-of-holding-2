@@ -1,4 +1,4 @@
-import { EntityView } from '@boh/renderer';
+import { Entries, EntityView } from '@boh/renderer';
 import { Button, cn } from '@boh/ui';
 import { ChevronLeft, ChevronRight, Crown, Plus, Swords, X } from 'lucide-react';
 import { useState } from 'react';
@@ -16,6 +16,8 @@ import {
   type Combatant,
   type CombatState,
 } from '../../app/boards/combat';
+import { CharacterCard } from '../../app/characters/CharacterCard';
+import { ConditionBadge } from '../../app/conditions/ConditionBadge';
 import { useEntity } from '../../app/data/entities';
 import { useEncounters } from '../../app/encounters/store';
 import { combatFor } from '../../app/encounters/run';
@@ -37,95 +39,175 @@ function useCombatantName(c: Combatant): string {
 export function CombatBody({ card }: { card: CombatCard }) {
   const { update } = useBoardActions();
   const [adding, setAdding] = useState(false);
+  // The opened combatant shows beside the order, which stays as it is.
+  const [openId, setOpenId] = useState<string | null>(null);
   const change = (fn: (s: CombatState) => CombatState) => {
     update(card.id, (c) => (c.kind === 'combat' ? { ...c, ...fn(c) } : c));
   };
   const order = turnOrder(card.combatants);
   const byId = new Map(card.combatants.map((c) => [c.id, c]));
+  const opened = openId ? byId.get(openId) : undefined;
+  const open = (id: string) => {
+    if (openId === id) {
+      setOpenId(null);
+      return;
+    }
+    setOpenId(id);
+    // Room for the panel beside the order.
+    update(card.id, (c) => (c.w < 900 ? { ...c, w: 900 } : c));
+  };
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-1">
-        <span className="text-xs font-semibold text-muted uppercase">
-          {card.turn === null ? 'Not started' : `Round ${String(card.round)}`}
-        </span>
-        <span className="flex-1" />
-        <Button
-          variant="ghost"
-          aria-label="Previous turn"
-          disabled={card.turn === null}
-          onClick={() => {
-            change(previousTurn);
-          }}
-        >
-          <ChevronLeft className="h-4 w-4" aria-hidden />
-        </Button>
-        <Button
-          variant="primary"
-          disabled={order.length === 0}
-          onClick={() => {
-            change(advanceTurn);
-          }}
-        >
-          {card.turn === null ? 'Start' : 'Next turn'}
-          <ChevronRight className="h-4 w-4" aria-hidden />
-        </Button>
+    <div className={cn('h-full', opened && 'grid grid-cols-[minmax(0,27rem)_minmax(0,1fr)] gap-3')}>
+      <div className="min-h-0 space-y-2 overflow-auto">
+        <div className="flex flex-wrap items-center gap-1">
+          <span className="text-xs font-semibold text-muted uppercase">
+            {card.turn === null ? 'Not started' : `Round ${String(card.round)}`}
+          </span>
+          <span className="flex-1" />
+          <Button
+            variant="ghost"
+            aria-label="Previous turn"
+            disabled={card.turn === null}
+            onClick={() => {
+              change(previousTurn);
+            }}
+          >
+            <ChevronLeft className="h-4 w-4" aria-hidden />
+          </Button>
+          <Button
+            variant="primary"
+            disabled={order.length === 0}
+            onClick={() => {
+              change(advanceTurn);
+            }}
+          >
+            {card.turn === null ? 'Start' : 'Next turn'}
+            <ChevronRight className="h-4 w-4" aria-hidden />
+          </Button>
+        </div>
+        <ol aria-label="Combat order" className="divide-y divide-border">
+          {order.map((id) => {
+            const c = byId.get(id);
+            return !c ? (
+              <li
+                key={LAIR}
+                aria-current={card.turn === LAIR ? 'true' : undefined}
+                className={cn(
+                  'flex items-center gap-2 px-1 py-1.5 text-sm italic',
+                  card.turn === LAIR && 'bg-accent-soft font-semibold',
+                )}
+              >
+                <span className="w-12 text-center text-muted">20</span>
+                <Crown className="h-4 w-4 text-muted" aria-hidden /> Lair actions
+              </li>
+            ) : (
+              <Row
+                key={id}
+                c={c}
+                current={card.turn === id}
+                opened={openId === id}
+                onOpen={() => {
+                  open(id);
+                }}
+                onChange={(next) => {
+                  change((s) => ({
+                    ...s,
+                    combatants: s.combatants.map((x) => (x.id === id ? next(x) : x)),
+                  }));
+                }}
+                onSorted={() => {
+                  change((s) => ({ ...s, combatants: sortCombatants(s.combatants) }));
+                }}
+                onRemove={() => {
+                  change((s) => removeCombatant(s, id));
+                }}
+              />
+            );
+          })}
+        </ol>
+        {adding ? (
+          <AddCombatant
+            onAdd={(c) => {
+              change((s) => addCombatant(s, c));
+              setAdding(false);
+            }}
+            onCancel={() => {
+              setAdding(false);
+            }}
+          />
+        ) : (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setAdding(true);
+            }}
+          >
+            <Plus className="h-4 w-4" aria-hidden /> Add a combatant
+          </Button>
+        )}
       </div>
-      <ol aria-label="Combat order" className="divide-y divide-border">
-        {order.map((id) => {
-          const c = byId.get(id);
-          return !c ? (
-            <li
-              key={LAIR}
-              aria-current={card.turn === LAIR ? 'true' : undefined}
-              className={cn(
-                'flex items-center gap-2 px-1 py-1.5 text-sm italic',
-                card.turn === LAIR && 'bg-accent-soft font-semibold',
-              )}
-            >
-              <span className="w-12 text-center text-muted">20</span>
-              <Crown className="h-4 w-4 text-muted" aria-hidden /> Lair actions
-            </li>
-          ) : (
-            <Row
-              key={id}
-              c={c}
-              current={card.turn === id}
-              onChange={(next) => {
-                change((s) => ({
-                  ...s,
-                  combatants: s.combatants.map((x) => (x.id === id ? next(x) : x)),
-                }));
-              }}
-              onSorted={() => {
-                change((s) => ({ ...s, combatants: sortCombatants(s.combatants) }));
-              }}
-              onRemove={() => {
-                change((s) => removeCombatant(s, id));
-              }}
-            />
-          );
-        })}
-      </ol>
-      {adding ? (
-        <AddCombatant
-          onAdd={(c) => {
-            change((s) => addCombatant(s, c));
-            setAdding(false);
-          }}
-          onCancel={() => {
-            setAdding(false);
+      {opened && (
+        <CombatantPanel
+          c={opened}
+          onClose={() => {
+            setOpenId(null);
           }}
         />
-      ) : (
-        <Button
-          variant="ghost"
-          onClick={() => {
-            setAdding(true);
-          }}
-        >
-          <Plus className="h-4 w-4" aria-hidden /> Add a combatant
-        </Button>
       )}
+    </div>
+  );
+}
+
+/** The opened combatant: its stat block or character card, and the rules of its conditions. */
+function CombatantPanel({ c, onClose }: { c: Combatant; onClose: () => void }) {
+  const name = useCombatantName(c);
+  return (
+    <aside
+      aria-label={`${name} details`}
+      className="min-h-0 overflow-auto rounded-md border border-border bg-bg p-3"
+    >
+      <div className="mb-2 flex items-center gap-2">
+        <h4 className="min-w-0 flex-1 truncate font-serif text-base font-bold">{name}</h4>
+        <button
+          type="button"
+          aria-label={`Close ${name}`}
+          onClick={onClose}
+          className="rounded p-1 text-muted hover:bg-sunken"
+        >
+          <X className="h-4 w-4" aria-hidden />
+        </button>
+      </div>
+      {c.conditions.length > 0 && (
+        <ul aria-label="Conditions" className="mb-3 space-y-2">
+          {c.conditions.map((cond) => (
+            <li key={cond}>
+              <ConditionBadge condition={cond} />
+              <ConditionRules condition={cond} />
+            </li>
+          ))}
+        </ul>
+      )}
+      {c.key ? (
+        <StatBlock entityKey={c.key} />
+      ) : c.character ? (
+        <CharacterCard characterId={c.character} show={{ spells: true, features: true }} />
+      ) : (
+        <p className="text-sm text-muted">Added by hand: no stat block.</p>
+      )}
+    </aside>
+  );
+}
+
+/** A condition's rules, as the compendium has them (the 2024 text first). */
+function ConditionRules({ condition }: { condition: string }) {
+  const name = condition.toLowerCase();
+  const now = useEntity(`condition:${name}@xphb`);
+  const old = useEntity(now.status === 'missing' ? `condition:${name}@phb` : null);
+  const found = now.status === 'found' ? now.entity : old.status === 'found' ? old.entity : null;
+  if (!found) return null;
+  return (
+    <div className="mt-1 text-xs [&_p]:my-0.5">
+      <Entries entries={found.data.entries} />
     </div>
   );
 }
@@ -133,19 +215,22 @@ export function CombatBody({ card }: { card: CombatCard }) {
 function Row({
   c,
   current,
+  opened,
+  onOpen,
   onChange,
   onSorted,
   onRemove,
 }: {
   c: Combatant;
   current: boolean;
+  opened: boolean;
+  onOpen: () => void;
   onChange: (fn: (c: Combatant) => Combatant) => void;
   onSorted: () => void;
   onRemove: () => void;
 }) {
   const name = useCombatantName(c);
   const [amount, setAmount] = useState('');
-  const [open, setOpen] = useState(false);
   const down = c.hp <= 0;
   const hit = (sign: 1 | -1) => {
     const n = Math.abs(Number(amount));
@@ -173,20 +258,30 @@ function Row({
         />
         <button
           type="button"
-          aria-expanded={c.key ? open : undefined}
-          disabled={!c.key}
-          onClick={() => {
-            setOpen(!open);
-          }}
+          aria-expanded={opened}
+          onClick={onOpen}
           className={cn(
-            'min-w-0 flex-1 truncate text-left',
+            'min-w-0 flex-1 truncate text-left hover:text-accent-ink',
             current && 'font-semibold',
-            c.key && 'hover:text-accent-ink',
+            opened && 'text-accent-ink underline',
             down && 'line-through',
           )}
         >
           {name}
         </button>
+        {c.conditions.map((cond) => (
+          <button
+            key={cond}
+            type="button"
+            aria-label={`Remove ${cond} from ${name}`}
+            title={`${cond} (click to remove)`}
+            onClick={() => {
+              onChange((x) => ({ ...x, conditions: x.conditions.filter((k) => k !== cond) }));
+            }}
+          >
+            <ConditionBadge condition={cond} compact />
+          </button>
+        ))}
         <span className="rounded bg-sunken px-1.5 text-xs font-semibold" title="Armor Class">
           AC {c.ac}
         </span>
@@ -291,21 +386,6 @@ function Row({
             })}
           </span>
         )}
-        {c.conditions.map((cond) => (
-          <span key={cond} className="flex items-center gap-0.5 rounded bg-sunken px-1.5">
-            {cond}
-            <button
-              type="button"
-              aria-label={`Remove ${cond} from ${name}`}
-              onClick={() => {
-                onChange((x) => ({ ...x, conditions: x.conditions.filter((k) => k !== cond) }));
-              }}
-              className="text-muted hover:text-text"
-            >
-              <X className="h-3 w-3" aria-hidden />
-            </button>
-          </span>
-        ))}
         <select
           value=""
           aria-label={`Add a condition to ${name}`}
@@ -323,7 +403,6 @@ function Row({
           ))}
         </select>
       </div>
-      {open && c.key && <StatBlock entityKey={c.key} />}
     </li>
   );
 }
@@ -333,7 +412,7 @@ function StatBlock({ entityKey }: { entityKey: string }) {
   if (state.status !== 'found') return null;
   const e = state.entity;
   return (
-    <div className="mt-2 rounded border border-border bg-bg p-2 text-sm">
+    <div className="text-sm">
       <EntityView type={e.type} data={e.data} edition={e.edition} />
     </div>
   );

@@ -8,6 +8,8 @@ import type { Encounter } from './model';
 export interface PartyMember {
   name: string;
   level: number;
+  /** The character's id (absent for levels typed in by hand). */
+  id?: string;
 }
 
 export interface EncounterInfo {
@@ -57,6 +59,7 @@ export function useEncounterInfo(encounter: Encounter | undefined): EncounterInf
       : characters
           .filter((c) => encounter?.campaign && c.campaign === encounter.campaign)
           .map((c) => ({
+            id: c.id,
             name: c.name,
             level: Math.max(
               1,

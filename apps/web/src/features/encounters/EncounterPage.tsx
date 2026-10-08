@@ -1,10 +1,20 @@
 import { xpForCr } from '@boh/rules';
 import { Button, cn } from '@boh/ui';
-import { ArrowLeft, LayoutDashboard, Minus, Plus, Swords, Trash2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  ChevronRight,
+  LayoutDashboard,
+  Minus,
+  Plus,
+  Swords,
+  Trash2,
+} from 'lucide-react';
+import { Entries, EntityView } from '@boh/renderer';
+import { CharacterCard } from '../../app/characters/CharacterCard';
 import { useEffect, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
 import { useCampaigns } from '../../app/campaigns/store';
-import { entityPath, useEntity } from '../../app/data/entities';
+import { entityPath, fluffImages, useEntity, useFluff } from '../../app/data/entities';
 import { addMonsters, setCount, type Encounter } from '../../app/encounters/model';
 import { putOnBoard, runOnBoard } from '../../app/encounters/run';
 import { useEncounter, useEncounters } from '../../app/encounters/store';
@@ -151,6 +161,16 @@ export function EncounterPage({ id }: { id: string }) {
               ))}
             </ul>
           )}
+          {info.party.some((p) => p.id) && (
+            <section aria-label="Party">
+              <h2 className="mb-2 font-serif text-lg font-bold">Party</h2>
+              <ul className="divide-y divide-border rounded-lg border border-border bg-surface">
+                {info.party.flatMap((p) =>
+                  p.id ? [<PartyCard key={p.id} id={p.id} name={p.name} level={p.level} />] : [],
+                )}
+              </ul>
+            </section>
+          )}
           <label className="block">
             <span className="mb-1 block text-sm font-medium">Notes</span>
             <textarea
@@ -203,6 +223,9 @@ function MonsterRow({
 }) {
   const entity = useEntity(entityKey);
   const name = entity.status === 'found' ? entity.entity.name : entityKey;
+  const found = entity.status === 'found' ? entity.entity : null;
+  const images = fluffImages(useFluff(found?.type ?? '', found?.name ?? '', found?.source ?? ''));
+  const [open, setOpen] = useState(false);
   const crText =
     typeof cr === 'string'
       ? cr
@@ -210,42 +233,97 @@ function MonsterRow({
         ? String(cr.cr)
         : '—';
   return (
-    <li aria-label={name} className="flex items-center gap-2 px-3 py-2">
-      <AppLink
-        to={entityPath(entityKey)}
-        className="min-w-0 flex-1 truncate font-medium hover:underline"
-      >
-        {name}
-      </AppLink>
-      <span className="hidden text-xs text-muted sm:inline">
-        CR {crText}
-        {showXp && ` · ${xpForCr(cr).toLocaleString('en')} XP`}
-      </span>
-      <div className="flex items-center gap-1">
+    <li aria-label={name}>
+      <div className="flex items-center gap-2 px-3 py-2">
         <button
           type="button"
-          aria-label={`One fewer ${name}`}
+          aria-expanded={open}
+          aria-label={open ? `Fold ${name}` : `Show ${name}`}
           onClick={() => {
-            onCount(count - 1);
+            setOpen(!open);
           }}
-          className="rounded border border-border p-1 hover:border-accent"
+          className="rounded p-0.5 text-muted hover:bg-sunken"
         >
-          <Minus className="h-3.5 w-3.5" aria-hidden />
+          <ChevronRight
+            className={cn('h-4 w-4 transition-transform', open && 'rotate-90')}
+            aria-hidden
+          />
         </button>
-        <span className="w-6 text-center font-semibold tabular-nums" aria-label={`${name} count`}>
-          {count}
+        <AppLink
+          to={entityPath(entityKey)}
+          className="min-w-0 flex-1 truncate font-medium hover:underline"
+        >
+          {name}
+        </AppLink>
+        <span className="hidden text-xs text-muted sm:inline">
+          CR {crText}
+          {showXp && ` · ${xpForCr(cr).toLocaleString('en')} XP`}
         </span>
-        <button
-          type="button"
-          aria-label={`One more ${name}`}
-          onClick={() => {
-            onCount(count + 1);
-          }}
-          className="rounded border border-border p-1 hover:border-accent"
-        >
-          <Plus className="h-3.5 w-3.5" aria-hidden />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            aria-label={`One fewer ${name}`}
+            onClick={() => {
+              onCount(count - 1);
+            }}
+            className="rounded border border-border p-1 hover:border-accent"
+          >
+            <Minus className="h-3.5 w-3.5" aria-hidden />
+          </button>
+          <span className="w-6 text-center font-semibold tabular-nums" aria-label={`${name} count`}>
+            {count}
+          </span>
+          <button
+            type="button"
+            aria-label={`One more ${name}`}
+            onClick={() => {
+              onCount(count + 1);
+            }}
+            className="rounded border border-border p-1 hover:border-accent"
+          >
+            <Plus className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        </div>
       </div>
+      {open && found && (
+        <div className="border-t border-border px-4 py-3 text-[15px] leading-relaxed">
+          {images.length > 0 && (
+            <div className="float-right mb-3 ml-4 w-32 sm:w-44">
+              <Entries entries={images.slice(0, 1)} />
+            </div>
+          )}
+          <EntityView type={found.type} data={found.data} edition={found.edition} />
+        </div>
+      )}
+    </li>
+  );
+}
+
+/** A party member: expands to the character at a glance. */
+function PartyCard({ id, name, level }: { id: string; name: string; level: number }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <li aria-label={name}>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => {
+          setOpen(!open);
+        }}
+        className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-surface-2"
+      >
+        <ChevronRight
+          className={cn('h-4 w-4 text-muted transition-transform', open && 'rotate-90')}
+          aria-hidden
+        />
+        <span className="flex-1 font-medium">{name}</span>
+        <span className="text-xs text-muted">Level {level}</span>
+      </button>
+      {open && (
+        <div className="border-t border-border px-4 py-3">
+          <CharacterCard characterId={id} show={{ spells: true, features: true }} />
+        </div>
+      )}
     </li>
   );
 }

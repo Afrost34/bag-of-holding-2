@@ -53,6 +53,22 @@
   --boh-int: #1f5fb3;
   --boh-wis: #7a43bd;
   --boh-cha: #7d5c08;
+  /* Conditions: one colour each (icons and chips). */
+  --boh-cond-blinded: #475569;
+  --boh-cond-charmed: #be185d;
+  --boh-cond-deafened: #6b6560;
+  --boh-cond-exhaustion: #a16207;
+  --boh-cond-frightened: #6d28d9;
+  --boh-cond-grappled: #9a3412;
+  --boh-cond-incapacitated: #b91c1c;
+  --boh-cond-invisible: #0e7490;
+  --boh-cond-paralyzed: #854d0e;
+  --boh-cond-petrified: #57534e;
+  --boh-cond-poisoned: #15803d;
+  --boh-cond-prone: #1d4ed8;
+  --boh-cond-restrained: #7e22ce;
+  --boh-cond-stunned: #c2410c;
+  --boh-cond-unconscious: #3730a3;
   /* Spell schools and item rarities: mid tones that read on light and dark surfaces alike. */
   --boh-school-abjuration: #3a7bd5;
   --boh-school-conjuration: #c99212;
@@ -112,6 +128,21 @@
     --boh-int: #60a5fa;
     --boh-wis: #c084fc;
     --boh-cha: #facc15;
+    --boh-cond-blinded: #94a3b8;
+    --boh-cond-charmed: #f472b6;
+    --boh-cond-deafened: #a8a29e;
+    --boh-cond-exhaustion: #fbbf24;
+    --boh-cond-frightened: #a78bfa;
+    --boh-cond-grappled: #fdba74;
+    --boh-cond-incapacitated: #f87171;
+    --boh-cond-invisible: #67e8f9;
+    --boh-cond-paralyzed: #fde047;
+    --boh-cond-petrified: #d6d3d1;
+    --boh-cond-poisoned: #4ade80;
+    --boh-cond-prone: #93c5fd;
+    --boh-cond-restrained: #d8b4fe;
+    --boh-cond-stunned: #fb923c;
+    --boh-cond-unconscious: #a5b4fc;
     --boh-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 2px 8px rgb(0 0 0 / 0.3);
   }
 }
@@ -157,6 +188,21 @@
   --boh-int: #60a5fa;
   --boh-wis: #c084fc;
   --boh-cha: #facc15;
+  --boh-cond-blinded: #94a3b8;
+  --boh-cond-charmed: #f472b6;
+  --boh-cond-deafened: #a8a29e;
+  --boh-cond-exhaustion: #fbbf24;
+  --boh-cond-frightened: #a78bfa;
+  --boh-cond-grappled: #fdba74;
+  --boh-cond-incapacitated: #f87171;
+  --boh-cond-invisible: #67e8f9;
+  --boh-cond-paralyzed: #fde047;
+  --boh-cond-petrified: #d6d3d1;
+  --boh-cond-poisoned: #4ade80;
+  --boh-cond-prone: #93c5fd;
+  --boh-cond-restrained: #d8b4fe;
+  --boh-cond-stunned: #fb923c;
+  --boh-cond-unconscious: #a5b4fc;
   --boh-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 2px 8px rgb(0 0 0 / 0.3);
 }
 
@@ -197,6 +243,21 @@
   --color-int: var(--boh-int);
   --color-wis: var(--boh-wis);
   --color-cha: var(--boh-cha);
+  --color-cond-blinded: var(--boh-cond-blinded);
+  --color-cond-charmed: var(--boh-cond-charmed);
+  --color-cond-deafened: var(--boh-cond-deafened);
+  --color-cond-exhaustion: var(--boh-cond-exhaustion);
+  --color-cond-frightened: var(--boh-cond-frightened);
+  --color-cond-grappled: var(--boh-cond-grappled);
+  --color-cond-incapacitated: var(--boh-cond-incapacitated);
+  --color-cond-invisible: var(--boh-cond-invisible);
+  --color-cond-paralyzed: var(--boh-cond-paralyzed);
+  --color-cond-petrified: var(--boh-cond-petrified);
+  --color-cond-poisoned: var(--boh-cond-poisoned);
+  --color-cond-prone: var(--boh-cond-prone);
+  --color-cond-restrained: var(--boh-cond-restrained);
+  --color-cond-stunned: var(--boh-cond-stunned);
+  --color-cond-unconscious: var(--boh-cond-unconscious);
   --color-school-abjuration: var(--boh-school-abjuration);
   --color-school-conjuration: var(--boh-school-conjuration);
   --color-school-divination: var(--boh-school-divination);

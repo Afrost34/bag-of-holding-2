@@ -3,7 +3,6 @@ import * as Menu from '@radix-ui/react-dropdown-menu';
 import {
   Background,
   Controls,
-  MiniMap,
   ReactFlow,
   ReactFlowProvider,
   applyNodeChanges,
@@ -17,6 +16,8 @@ import { AppLink } from '../../app/AppLink';
 import {
   absolutePosition,
   addBoardCards,
+  SHOWABLE_KINDS,
+  toggleShown,
   COLLAPSED_H,
   dropCard,
   moveBoardCards,
@@ -29,13 +30,16 @@ import {
   type BoardCard,
   type CardContent,
 } from '../../app/boards/model';
-import { openPlayerWindow, showToPlayers } from '../../app/boards/player';
+import { openPlayerWindow, openPlayerWindowIfClosed, showToPlayers } from '../../app/boards/player';
 import { useBoard, useBoards } from '../../app/boards/store';
 import { useCampaigns } from '../../app/campaigns/store';
 import { entityPath, loadEntity } from '../../app/data/entities';
 import { useEncounters } from '../../app/encounters/store';
 import { journalPath } from '../../app/journal/paths';
+import { generateNpc } from '../../app/boards/npc';
+import { useCharacters } from '../../app/characters/store';
 import { useJournal } from '../../app/journal/store';
+import { useMaps } from '../../app/maps/store';
 import { useAppNavigate } from '../../app/navigation';
 import { EntitySearch } from '../../app/search/EntitySearch';
 import { shrinkImage } from '../../app/shrinkImage';
@@ -153,32 +157,15 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
         });
       },
       show: (card) => {
-        if (card.kind === 'entity')
-          void loadEntity(card.key).then((entity) => {
-            if (entity) showToPlayers({ kind: 'entity', entity });
-          });
-        else if (card.kind === 'image')
-          showToPlayers({
-            kind: 'image',
-            src: card.src,
-            ...(card.caption ? { caption: card.caption } : {}),
-            ...(campaignId ? { campaignId } : {}),
-          });
-        else if (card.kind === 'text')
-          showToPlayers({
-            kind: 'text',
-            text: card.text,
-            ...(card.title ? { title: card.title } : {}),
-          });
-        else if (card.kind === 'note' && campaignId)
-          showToPlayers({ kind: 'note', campaignId, path: card.path });
+        commit((b) => toggleShown(b, card.id));
+        if (!card.shown) openPlayerWindowIfClosed();
       },
       open: (card, newTab) => {
         if (card.kind === 'entity') navigate(entityPath(card.key), { newTab });
         if (card.kind === 'note') navigate(journalPath(card.path), { newTab });
       },
     }),
-    [commit, navigate, campaignId],
+    [commit, navigate],
   );
 
   // React Flow moves nodes while dragging; the board is saved when a drag ends.
@@ -202,8 +189,11 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
       ? flow.screenToFlowPosition({ x: r.left + r.width / 2, y: r.top + r.height / 2 })
       : { x: 0, y: 0 };
   };
-  /** Adds cards in the free place nearest the middle of the screen, and brings them into view. */
-  const add = (contents: CardContent[]) => {
+  /**
+   * Adds cards in the free place nearest `at` (where the board was right-clicked) or the middle
+   * of the screen, and brings them into view.
+   */
+  const add = (contents: CardContent[], at?: { x: number; y: number }) => {
     const first = contents[0];
     const s = useBoards.getState();
     const current = s.boards.find((b) => b.id === boardId);
@@ -211,10 +201,11 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
     if (!first || !current || !r) return;
     const c = centre();
     const size = SIZES[first.kind];
-    const { board: next, ids } = addBoardCards(current, contents, {
-      x: c.x - size.w / 2,
-      y: c.y - size.h / 2,
-    });
+    const { board: next, ids } = addBoardCards(
+      current,
+      contents,
+      at ?? { x: c.x - size.w / 2, y: c.y - size.h / 2 },
+    );
     s.save(next);
     const card = next.cards.find((x) => x.id === ids[0]);
     if (!card) return;
@@ -235,6 +226,55 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
         },
       );
   };
+
+  // The player window shows the cards marked as shown, and follows them as they change.
+  const shownKey = board.cards
+    .filter((c) => c.shown)
+    .map((c) => JSON.stringify(c))
+    .join('|');
+  useEffect(() => {
+    const cards = board.cards.filter((c) => c.shown && SHOWABLE_KINDS.has(c.kind));
+    let live = true;
+    const t = setTimeout(() => {
+      void Promise.all(
+        cards.map(async (card) => {
+          const entity = card.kind === 'entity' ? await loadEntity(card.key) : undefined;
+          return {
+            card,
+            title:
+              card.title ??
+              (card.kind === 'entity'
+                ? (entity?.name ?? '')
+                : card.kind === 'note'
+                  ? (card.path.split('/').pop()?.replace(/\.md$/i, '') ?? '')
+                  : card.kind === 'npc'
+                    ? card.npc.name
+                    : KIND_LABELS[card.kind]),
+            ...(entity ? { entity } : {}),
+          };
+        }),
+      ).then((shown) => {
+        if (!live) return;
+        showToPlayers(
+          shown.length
+            ? {
+                kind: 'board',
+                name: board.name,
+                cards: shown,
+                ...(campaignId ? { campaignId } : {}),
+              }
+            : null,
+          false,
+        );
+      });
+    }, 250);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+    // `shownKey` stands for the shown cards (the board object changes on every save).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shownKey, board.name, campaignId]);
 
   // A card asked for in the URL is brought into view once the canvas is ready.
   const [focused, setFocused] = useState<string | null>(null);
@@ -261,7 +301,22 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
     };
   }, [focus, focused, boardId, board, flow]);
 
-  const [panel, setPanel] = useState<'entity' | 'note' | null>(null);
+  const [panel, setPanel] = useState<{ kind: PanelKind; at?: { x: number; y: number } } | null>(
+    null,
+  );
+  // Right-click on the board: the Add menu, there.
+  const [menu, setMenu] = useState<{ x: number; y: number; at: { x: number; y: number } } | null>(
+    null,
+  );
+  const options = useAddOptions(
+    board,
+    (contents, at) => {
+      add(contents, at);
+    },
+    (kind, at) => {
+      setPanel({ kind, ...(at ? { at } : {}) });
+    },
+  );
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   return (
@@ -271,8 +326,7 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
         onRename={(name) => {
           commit((b) => ({ ...b, name }));
         }}
-        onAdd={add}
-        onPanel={setPanel}
+        options={options}
         onDelete={() => {
           setConfirmDelete(true);
         }}
@@ -310,34 +364,63 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
       <div ref={wrapper} className="relative min-h-0 flex-1">
         {panel && (
           <Panel
-            title={panel === 'entity' ? 'Add from the compendium' : 'Add a journal note'}
+            title={PANEL_TITLES[panel.kind]}
             onClose={() => {
               setPanel(null);
             }}
           >
-            {panel === 'entity' ? (
+            {panel.kind === 'entity' ? (
               <EntitySearch
                 label="Find a compendium entry"
                 placeholder="Spell, item, creature…"
                 onAdd={(key) => {
-                  add([{ kind: 'entity', key }]);
+                  add([{ kind: 'entity', key }], panel.at);
+                }}
+              />
+            ) : panel.kind === 'note' ? (
+              <NotePicker
+                onPick={(path) => {
+                  add([{ kind: 'note', path }], panel.at);
+                }}
+              />
+            ) : panel.kind === 'map' ? (
+              <MapPicker
+                campaign={board.campaign}
+                onPick={(map) => {
+                  add([{ kind: 'map', map }], panel.at);
+                  setPanel(null);
                 }}
               />
             ) : (
-              <NotePicker
-                onPick={(path) => {
-                  add([{ kind: 'note', path }]);
+              <CharacterPicker
+                campaign={board.campaign}
+                onPick={(character) => {
+                  add(
+                    [
+                      {
+                        kind: 'character',
+                        character,
+                        show: { spells: false, features: false, inventory: false },
+                      },
+                    ],
+                    panel.at,
+                  );
+                  setPanel(null);
                 }}
               />
             )}
           </Panel>
         )}
-        {board.cards.length === 0 && (
-          <p className="pointer-events-none absolute inset-x-0 top-1/3 z-10 mx-auto max-w-md px-4 text-center text-muted">
-            An empty board. Add cards with <strong>Add</strong>, or with “Send to → Board” on any
-            compendium page. Drop a card’s title bar on another card’s to stack them; drop it in a
-            frame to group it.
-          </p>
+        {menu && (
+          <ContextAddMenu
+            x={menu.x}
+            y={menu.y}
+            options={options}
+            at={menu.at}
+            onClose={() => {
+              setMenu(null);
+            }}
+          />
         )}
         <ReactFlow
           nodes={nodes}
@@ -365,49 +448,60 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
           deleteKeyCode={null}
           nodesConnectable={false}
           zoomOnDoubleClick={false}
+          onPaneContextMenu={(e) => {
+            e.preventDefault();
+            const r = wrapper.current?.getBoundingClientRect();
+            if (!r) return;
+            setMenu({
+              x: e.clientX - r.left,
+              y: e.clientY - r.top,
+              at: flow.screenToFlowPosition({ x: e.clientX, y: e.clientY }),
+            });
+          }}
+          onPaneClick={() => {
+            setMenu(null);
+          }}
           colorMode={theme}
           aria-label="Board canvas"
         >
           <Background gap={24} />
           <Controls showInteractive={false} />
-          <MiniMap pannable zoomable className="!hidden md:!block" />
         </ReactFlow>
       </div>
     </BoardActionsContext.Provider>
   );
 }
 
-const SIMPLE: { label: string; content: () => CardContent }[] = [
-  { label: KIND_LABELS.text, content: () => ({ kind: 'text', text: '' }) },
-  { label: KIND_LABELS.dice, content: () => ({ kind: 'dice', formulas: [] }) },
-  { label: KIND_LABELS.timer, content: () => ({ kind: 'timer', seconds: 600, elapsed: 0 }) },
-  {
-    label: KIND_LABELS.initiative,
-    content: () => ({ kind: 'initiative', rows: [], turn: 0, round: 1 }),
-  },
-  { label: KIND_LABELS.frame, content: () => ({ kind: 'frame', title: 'Frame' }) },
-];
+type PanelKind = 'entity' | 'note' | 'map' | 'character';
 
-const itemClass =
-  'flex items-center gap-2 rounded px-2 py-1.5 text-sm outline-none data-[highlighted]:bg-sunken data-[disabled]:text-faint';
+const PANEL_TITLES: Record<PanelKind, string> = {
+  entity: 'Add from the compendium',
+  note: 'Add a journal note',
+  map: 'Add a map',
+  character: 'Add a character',
+};
 
-function Toolbar({
-  board,
-  onRename,
-  onAdd,
-  onPanel,
-  onDelete,
-}: {
-  board: Board;
-  onRename: (name: string) => void;
-  onAdd: (contents: CardContent[]) => void;
-  onPanel: (panel: 'entity' | 'note') => void;
-  onDelete: () => void;
-}) {
+/** One thing the Add menus offer. */
+interface AddOption {
+  id: string;
+  label: string;
+  kind: keyof typeof KIND_ICONS;
+  disabled?: boolean;
+  /** Picks, then adds (`at`: where the board was right-clicked). */
+  run: (at?: { x: number; y: number }) => void;
+  /** Starts a new group in the menu. */
+  separator?: boolean;
+}
+
+/** What can be added to a board: the toolbar's Add menu and the right-click menu share it. */
+function useAddOptions(
+  board: Board,
+  add: (contents: CardContent[], at?: { x: number; y: number }) => void,
+  openPanel: (kind: PanelKind, at?: { x: number; y: number }) => void,
+): AddOption[] {
   const addAttachment = useJournal((s) => s.addAttachment);
   const journalFor = useJournal((s) => s.campaignId);
-  const [name, setName] = useState(board.name);
-  const pickPicture = () => {
+  const pickPicture = (at?: { x: number; y: number }) => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -420,15 +514,146 @@ function Toolbar({
           board.campaign && journalFor === board.campaign
             ? `journal:${await addAttachment(file.name, new Uint8Array(await file.arrayBuffer()))}`
             : await shrinkImage(file, 1600);
-        onAdd([{ kind: 'image', src }]);
+        add([{ kind: 'image', src }], at);
       })();
     };
     input.click();
   };
-  const AddIcon = (kind: keyof typeof KIND_ICONS) => {
-    const I = KIND_ICONS[kind];
-    return <I className="h-4 w-4" aria-hidden />;
-  };
+  const simple = (id: string, kind: AddOption['kind'], content: () => CardContent): AddOption => ({
+    id,
+    label: KIND_LABELS[kind],
+    kind,
+    run: (at) => {
+      add([content()], at);
+    },
+  });
+  return [
+    {
+      id: 'entity',
+      label: 'Compendium entry…',
+      kind: 'entity',
+      run: (at) => {
+        openPanel('entity', at);
+      },
+    },
+    {
+      id: 'note',
+      label: 'Journal note…',
+      kind: 'note',
+      disabled: !board.campaign,
+      run: (at) => {
+        openPanel('note', at);
+      },
+    },
+    { id: 'image', label: 'Picture…', kind: 'image', run: pickPicture },
+    {
+      id: 'map',
+      label: 'Map…',
+      kind: 'map',
+      run: (at) => {
+        openPanel('map', at);
+      },
+    },
+    {
+      id: 'character',
+      label: 'Character…',
+      kind: 'character',
+      run: (at) => {
+        openPanel('character', at);
+      },
+    },
+    {
+      ...simple('npc', 'npc', () => ({ kind: 'npc', npc: generateNpc() })),
+      label: 'NPC generator',
+      separator: true,
+    },
+    simple('text', 'text', () => ({ kind: 'text', text: '' })),
+    simple('dice', 'dice', () => ({ kind: 'dice', formulas: [] })),
+    simple('timer', 'timer', () => ({ kind: 'timer', seconds: 600, elapsed: 0 })),
+    simple('initiative', 'initiative', () => ({ kind: 'initiative', rows: [], turn: 0, round: 1 })),
+    simple('frame', 'frame', () => ({ kind: 'frame', title: 'Frame' })),
+  ];
+}
+
+const itemClass =
+  'flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm outline-none data-[highlighted]:bg-sunken data-[disabled]:text-faint hover:bg-sunken disabled:text-faint';
+
+function OptionIcon({ kind }: { kind: AddOption['kind'] }) {
+  const I = KIND_ICONS[kind];
+  return <I className="h-4 w-4" aria-hidden />;
+}
+
+/** The Add menu where the board was right-clicked; cards land there. */
+function ContextAddMenu({
+  x,
+  y,
+  at,
+  options,
+  onClose,
+}: {
+  x: number;
+  y: number;
+  at: { x: number; y: number };
+  options: AddOption[];
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    ref.current?.querySelector('button')?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    const onDown = (e: PointerEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('pointerdown', onDown);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('pointerdown', onDown);
+    };
+  }, [onClose]);
+  return (
+    <div
+      ref={ref}
+      role="menu"
+      aria-label="Add here"
+      className="absolute z-30 min-w-52 rounded-md border border-border bg-surface p-1 text-text shadow-card"
+      style={{ left: x, top: y }}
+    >
+      {options.map((o) => (
+        <div key={o.id}>
+          {o.separator && <div className="my-1 h-px bg-border" />}
+          <button
+            type="button"
+            role="menuitem"
+            disabled={o.disabled}
+            className={itemClass}
+            onClick={() => {
+              o.run(at);
+              onClose();
+            }}
+          >
+            <OptionIcon kind={o.kind} /> {o.label}
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Toolbar({
+  board,
+  onRename,
+  options,
+  onDelete,
+}: {
+  board: Board;
+  onRename: (name: string) => void;
+  options: AddOption[];
+  onDelete: () => void;
+}) {
+  const [name, setName] = useState(board.name);
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-border bg-surface px-3 py-2">
       <AppLink
@@ -464,41 +689,20 @@ function Toolbar({
             sideOffset={4}
             className="z-50 min-w-52 rounded-md border border-border bg-surface p-1 text-text shadow-card"
           >
-            <Menu.Item
-              className={itemClass}
-              onSelect={() => {
-                onPanel('entity');
-              }}
-            >
-              {AddIcon('entity')} Compendium entry…
-            </Menu.Item>
-            <Menu.Item
-              className={itemClass}
-              disabled={!board.campaign}
-              onSelect={() => {
-                onPanel('note');
-              }}
-            >
-              {AddIcon('note')} Journal note…
-            </Menu.Item>
-            <Menu.Item className={itemClass} onSelect={pickPicture}>
-              {AddIcon('image')} Picture…
-            </Menu.Item>
-            <Menu.Separator className="my-1 h-px bg-border" />
-            {SIMPLE.map((s) => {
-              const content = s.content();
-              return (
+            {options.map((o) => (
+              <div key={o.id}>
+                {o.separator && <Menu.Separator className="my-1 h-px bg-border" />}
                 <Menu.Item
-                  key={s.label}
                   className={itemClass}
+                  disabled={o.disabled === true}
                   onSelect={() => {
-                    onAdd([s.content()]);
+                    o.run();
                   }}
                 >
-                  {AddIcon(content.kind)} {s.label}
+                  <OptionIcon kind={o.kind} /> {o.label}
                 </Menu.Item>
-              );
-            })}
+              </div>
+            ))}
           </Menu.Content>
         </Menu.Portal>
       </Menu.Root>
@@ -511,6 +715,83 @@ function Toolbar({
         <Trash2 className="h-4 w-4" aria-hidden />
       </Button>
     </div>
+  );
+}
+
+function MapPicker({
+  campaign,
+  onPick,
+}: {
+  campaign?: string | undefined;
+  onPick: (id: string) => void;
+}) {
+  const { maps, loaded, load } = useMaps();
+  useEffect(() => {
+    if (!loaded) void load();
+  }, [loaded, load]);
+  const mine = maps.filter((m) => (m.campaign ?? null) === (campaign ?? null));
+  if (mine.length === 0)
+    return (
+      <p className="text-sm text-muted">
+        No maps here yet:{' '}
+        <AppLink to="/maps" className="text-link hover:underline">
+          make one
+        </AppLink>
+        .
+      </p>
+    );
+  return (
+    <ul aria-label="Maps" className="max-h-72 overflow-y-auto">
+      {mine.map((m) => (
+        <li key={m.id}>
+          <button
+            type="button"
+            onClick={() => {
+              onPick(m.id);
+            }}
+            className="w-full truncate px-2 py-1.5 text-left text-sm hover:bg-sunken"
+          >
+            {m.name}
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function CharacterPicker({
+  campaign,
+  onPick,
+}: {
+  campaign?: string | undefined;
+  onPick: (id: string) => void;
+}) {
+  const { characters, loaded, load } = useCharacters();
+  useEffect(() => {
+    if (!loaded) void load();
+  }, [loaded, load]);
+  // The campaign's characters first, then the library's.
+  const list = [...characters].sort(
+    (a, b) => Number(b.campaign === campaign) - Number(a.campaign === campaign),
+  );
+  if (list.length === 0) return <p className="text-sm text-muted">No characters yet.</p>;
+  return (
+    <ul aria-label="Characters" className="max-h-72 overflow-y-auto">
+      {list.map((c) => (
+        <li key={c.id}>
+          <button
+            type="button"
+            onClick={() => {
+              onPick(c.id);
+            }}
+            className="flex w-full items-baseline gap-2 px-2 py-1.5 text-left text-sm hover:bg-sunken"
+          >
+            <span className="font-medium">{c.name}</span>
+            <span className="ml-auto truncate text-xs text-muted">{c.summary}</span>
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }
 
