@@ -13,7 +13,7 @@ import { entityPath } from '../../data/entities';
 import { resolveCompendiumRef } from '../../journal/compendium';
 import { JournalViewContext, type JournalView } from './context';
 import { EmbedContent } from './JournalEmbed';
-import { journalPath } from '../../journal/paths';
+import { journalPath, notePagePath } from '../../journal/paths';
 import { useJournal } from '../../journal/store';
 import { useAppNavigate } from '../../navigation';
 
@@ -59,7 +59,7 @@ export function NotesProvider({
       }
       if (isAttachment(link.target)) return;
       const path = resolveLinkPath(link.target, paths, undefined);
-      if (path) navigate(journalPath(path), { newTab });
+      if (path) navigate(notePagePath(path, journal.notes.get(path)), { newTab });
     };
     return {
       campaignId: campaign.id,

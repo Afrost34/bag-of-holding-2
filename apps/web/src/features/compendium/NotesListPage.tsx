@@ -23,7 +23,7 @@ const NO_SOURCES = new Set<string>();
  * and items: a name search, filters from the kind's properties, sortable columns, and rows that
  * open on the note.
  */
-export function NotesListPage({ typeId }: { typeId: string }) {
+export function NotesListPage({ typeId, note }: { typeId: string; note?: string | undefined }) {
   useAllNoteTypes();
   const type = noteType(typeId);
   const campaign = useActiveCampaign();
@@ -32,13 +32,14 @@ export function NotesListPage({ typeId }: { typeId: string }) {
   useEffect(() => {
     if (campaign && journal.campaignId !== campaign.id) void journal.load(campaign.id);
   }, [campaign, journal]);
-  const [state, setState] = useState<ListState>({
-    q: '',
+  // A link to a note opens the list on it: found by name, opened.
+  const [state, setState] = useState<ListState>(() => ({
+    q: note ? (note.split('/').pop()?.replace(/.md$/i, '') ?? '') : '',
     filters: {},
     sort: 'name',
     dir: 'asc',
-    sel: null,
-  });
+    sel: note ?? null,
+  }));
   const [advanced, setAdvanced] = useState(false);
   const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null);
   const update = (patch: Partial<ListState>) => {
