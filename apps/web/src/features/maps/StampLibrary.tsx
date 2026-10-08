@@ -1,10 +1,12 @@
 import { Button, cn } from '@boh/ui';
-import { FolderOpen, ImagePlus, Search } from 'lucide-react';
+import { FolderOpen, Globe, ImagePlus, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { fileUrl, findStamps, stampFile, useStamps, type Stamp } from '../../app/maps/assets';
+import { OnlineStamps } from './OnlineStamps';
 
 /**
- * The stamp library: pictures imported from folders (sub-folders become categories), searched by
+ * The stamp library: pictures imported from folders (sub-folders become categories) or added from
+ * packs online, searched by
  * name, folder or tag. Picking one starts the stamp tool with it.
  */
 export function StampLibrary({
@@ -19,6 +21,7 @@ export function StampLibrary({
   const [category, setCategory] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [online, setOnline] = useState(false);
   const categories = [...new Set(stamps.flatMap((s) => prefixes(s.category)))].sort();
   const shown = findStamps(stamps, tags, query, category).slice(0, 300);
   const picked = stamps.find((s) => s.path === selected);
@@ -65,7 +68,17 @@ export function StampLibrary({
         >
           <ImagePlus className="h-4 w-4" aria-hidden /> Pictures
         </Button>
+        <Button
+          variant="ghost"
+          aria-expanded={online}
+          onClick={() => {
+            setOnline(!online);
+          }}
+        >
+          <Globe className="h-4 w-4" aria-hidden /> Find online
+        </Button>
       </div>
+      {online && <OnlineStamps onPick={onPick} />}
       {message && (
         <p role="status" className="text-xs text-muted">
           {message}

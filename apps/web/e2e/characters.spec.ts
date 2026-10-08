@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { createCampaign, installData } from './helpers/journal';
+import { waitForSaved } from './helpers/saved';
 
 /** Characters: build one step by step; every choice the rules ask for is tracked and kept. */
 
@@ -189,20 +190,7 @@ test('the character sheet prints on A4 pages', async ({ page }, testInfo) => {
   await page.getByRole('checkbox', { name: 'Personality and backstory' }).uncheck();
   await expect(preview.getByText('Backstory', { exact: true })).toHaveCount(0);
   // Reload once the choice is on disk (the write is quick, but a reload at once can beat it).
-  await expect
-    .poll(() =>
-      page.evaluate(async () => {
-        const root = await navigator.storage.getDirectory();
-        const dir = await (
-          await root.getDirectoryHandle('user-data')
-        ).getDirectoryHandle('characters');
-        let text = '';
-        for await (const handle of dir.values())
-          if (handle.kind === 'file') text += await (await handle.getFile()).text();
-        return text.includes('"story"');
-      }),
-    )
-    .toBe(true);
+  await waitForSaved(page, 'characters', '"story"');
   await page.reload();
   await page.getByRole('button', { name: 'Pages' }).click();
   await expect(page.getByRole('checkbox', { name: 'Personality and backstory' })).not.toBeChecked();

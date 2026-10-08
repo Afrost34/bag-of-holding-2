@@ -32,17 +32,18 @@ import {
 } from '../../app/maps/model';
 import { useMaps } from '../../app/maps/store';
 import { useAppNavigate } from '../../app/navigation';
+import { TERRAINS, terrainTile } from '../../app/maps/terrain';
+import { PinCategories, PinLook } from './PinPanels';
 import { StampLibrary } from './StampLibrary';
 import {
   CALIBRATE_ICON,
   PEN_COLORS,
-  TERRAIN_COLORS,
   type BrushSettings,
   type TemplateSettings,
   type Tool,
 } from './tools';
 
-type Tab = 'stamps' | 'layers' | 'grid' | 'item';
+type Tab = 'stamps' | 'layers' | 'pins' | 'grid' | 'item';
 
 export interface MapPanelsProps {
   doc: MapDoc;
@@ -61,6 +62,9 @@ export interface MapPanelsProps {
   setBrush: (b: BrushSettings) => void;
   terrain: BrushSettings;
   setTerrain: (b: BrushSettings) => void;
+  /** The eraser's width, in map pixels. */
+  eraser: number;
+  setEraser: (w: number) => void;
   template: TemplateSettings;
   setTemplate: (t: TemplateSettings) => void;
   snap: boolean;
@@ -84,6 +88,7 @@ export function MapPanels(props: MapPanelsProps) {
   const tabs: { id: Tab; label: string }[] = [
     { id: 'stamps', label: 'Stamps' },
     { id: 'layers', label: 'Layers' },
+    { id: 'pins', label: 'Pins' },
     { id: 'grid', label: 'Map' },
     ...(selected ? [{ id: 'item' as const, label: 'Item' }] : []),
   ];
@@ -126,11 +131,12 @@ export function MapPanels(props: MapPanelsProps) {
         </button>
       </div>
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
-        {(tool === 'pen' || tool === 'terrain' || tool === 'template') && (
+        {(tool === 'pen' || tool === 'terrain' || tool === 'eraser' || tool === 'template') && (
           <ToolSettings {...props} />
         )}
         {tab === 'stamps' && <StampLibrary selected={props.stamp} onPick={props.setStamp} />}
         {tab === 'layers' && <Layers {...props} />}
+        {tab === 'pins' && <PinCategories doc={props.doc} commit={props.commit} />}
         {tab === 'grid' && <MapSettings {...props} />}
         {tab === 'item' && selected && <ItemSettings {...props} item={selected} />}
       </div>
@@ -153,9 +159,33 @@ function ToolSettings({
   setBrush,
   terrain,
   setTerrain,
+  eraser,
+  setEraser,
   template,
   setTemplate,
 }: MapPanelsProps) {
+  if (tool === 'eraser')
+    return (
+      <Section title="Eraser">
+        <label className="block text-sm">
+          Width: {eraser}
+          <input
+            type="range"
+            min={10}
+            max={400}
+            value={eraser}
+            onChange={(e) => {
+              setEraser(Number(e.target.value));
+            }}
+            className="w-full"
+          />
+        </label>
+        <p className="text-xs text-muted">
+          Rubs out brush and terrain strokes where it goes, on layers that are shown and not locked.
+          Undo brings them back.
+        </p>
+      </Section>
+    );
   if (tool === 'template')
     return (
       <Section title="Template to draw">
@@ -197,28 +227,58 @@ function ToolSettings({
   const set = terrainTool ? setTerrain : setBrush;
   return (
     <Section title={terrainTool ? 'Terrain brush' : 'Brush'}>
-      <div className="flex flex-wrap gap-1" role="radiogroup" aria-label="Colour">
-        {(terrainTool ? TERRAIN_COLORS : PEN_COLORS.map((c) => ({ name: c, color: c }))).map(
-          (c) => (
+      {terrainTool ? (
+        <div className="grid grid-cols-3 gap-1" role="radiogroup" aria-label="Terrain">
+          {TERRAINS.map((t) => (
             <button
-              key={c.color}
+              key={t.id}
               type="button"
               role="radio"
-              aria-checked={s.color === c.color}
-              aria-label={c.name}
-              title={c.name}
+              aria-checked={s.texture === t.id}
               onClick={() => {
-                set({ ...s, color: c.color });
+                set({ ...s, texture: t.id, color: t.base });
+              }}
+              className={cn(
+                'overflow-hidden rounded-md border-2 text-left text-xs',
+                s.texture === t.id ? 'border-accent' : 'border-border',
+              )}
+            >
+              <TerrainSwatch id={t.id} />
+              <span className="block truncate px-1 py-0.5">{t.name}</span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-1" role="radiogroup" aria-label="Colour">
+          {PEN_COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              role="radio"
+              aria-checked={s.color === c}
+              aria-label={c}
+              title={c}
+              onClick={() => {
+                set({ ...s, color: c });
               }}
               className={cn(
                 'h-7 w-7 rounded-full border-2',
-                s.color === c.color ? 'border-accent' : 'border-border',
+                s.color === c ? 'border-accent' : 'border-border',
               )}
-              style={{ background: c.color }}
+              style={{ background: c }}
             />
-          ),
-        )}
-      </div>
+          ))}
+          <input
+            type="color"
+            aria-label="Another colour"
+            value={s.color}
+            onChange={(e) => {
+              set({ ...s, color: e.target.value });
+            }}
+            className="h-7 w-9 cursor-pointer rounded border border-border bg-surface"
+          />
+        </div>
+      )}
       <label className="block text-sm">
         Width: {s.width}
         <input
@@ -232,7 +292,32 @@ function ToolSettings({
           className="w-full"
         />
       </label>
+      <label className="block text-sm">
+        Opacity: {Math.round(s.opacity * 100)}%
+        <input
+          type="range"
+          min={10}
+          max={100}
+          value={Math.round(s.opacity * 100)}
+          onChange={(e) => {
+            set({ ...s, opacity: Number(e.target.value) / 100 });
+          }}
+          className="w-full"
+        />
+      </label>
     </Section>
+  );
+}
+
+/** A terrain texture's look, for its button. */
+function TerrainSwatch({ id }: { id: (typeof TERRAINS)[number]['id'] }) {
+  const url = useMemo(() => terrainTile(id).toDataURL('image/png'), [id]);
+  return (
+    <span
+      aria-hidden
+      className="block h-8 w-full bg-cover"
+      style={{ backgroundImage: `url(${url})` }}
+    />
   );
 }
 
@@ -754,6 +839,7 @@ function ItemSettings({ doc, commit, item, onDeselect }: MapPanelsProps & { item
               className={field}
             />
           </label>
+          <PinLook doc={doc} pin={item} set={set} />
           <label className="block text-sm">
             Journal note
             <select
