@@ -1,13 +1,15 @@
 import { Entries, RendererProvider, RichText, type RendererServices } from '@boh/renderer';
 import * as HoverCard from '@radix-ui/react-hover-card';
 import * as Popover from '@radix-ui/react-popover';
-import { useRef, useState, type ComponentProps, type ReactNode } from 'react';
+import { useContext, useRef, useState, type ComponentProps, type ReactNode } from 'react';
 import { AppLink } from '../AppLink';
 import { originalImageUrl, resizedImageUrl } from '../images';
 import { entityPath, useEntity, useResolvedLink } from '../data/entities';
 import { RollChip } from '../dice/RollChip';
 import { useDice } from '../dice/store';
 import { EntityCard } from './EntityCard';
+import { wantsNewTab } from '../navigation';
+import { EntityLinkClickContext } from './linkClick';
 import { referencePath } from './referenceTarget';
 
 function EntityLink({
@@ -50,6 +52,7 @@ const PREVIEW_CLASS =
 function ResolvedEntityLink({ entityKey, children }: { entityKey: string; children: ReactNode }) {
   const [tapOpen, setTapOpen] = useState(false);
   const lastPointer = useRef<string>('mouse');
+  const pick = useContext(EntityLinkClickContext);
   const path = entityPath(entityKey);
   return (
     <Popover.Root open={tapOpen} onOpenChange={setTapOpen}>
@@ -65,6 +68,9 @@ function ResolvedEntityLink({ entityKey, children }: { entityKey: string; childr
                 if (lastPointer.current === 'touch' && !tapOpen) {
                   e.preventDefault();
                   setTapOpen(true);
+                } else if (pick && !wantsNewTab(e)) {
+                  e.preventDefault();
+                  pick(entityKey);
                 }
               }}
               className="font-medium text-link hover:underline"
@@ -105,6 +111,18 @@ function ResolvedEntityLink({ entityKey, children }: { entityKey: string; childr
             >
               Close
             </button>
+            {pick && (
+              <button
+                type="button"
+                onClick={() => {
+                  setTapOpen(false);
+                  pick(entityKey);
+                }}
+                className="rounded-md border border-border px-3 py-1.5 text-sm font-semibold hover:bg-sunken"
+              >
+                Add to the board
+              </button>
+            )}
             <AppLink
               to={path}
               onNavigate={() => {
