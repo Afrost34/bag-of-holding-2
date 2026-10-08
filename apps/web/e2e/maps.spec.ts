@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
-import { createCampaign, installData, isPhone } from './helpers/journal';
+import { createCampaign, installData, isPhone, newNote } from './helpers/journal';
 import { waitForSaved } from './helpers/saved';
 
 /** Maps: a canvas with a grid, stamps from the library, brushes, walls, text, templates, pins. */
@@ -553,4 +553,41 @@ test('a world map measures distances, and a route moves the calendar on', async 
   await expect(page.getByRole('region', { name: 'Today' })).not.toContainText(
     '1 Deepwinter, Year 1',
   );
+});
+
+test('a pin leads to a note: clicked on a board, the note opens beside the map', async ({
+  page,
+}) => {
+  await installData(page);
+  await createCampaign(page, 'Rust and Sunfire');
+  await page.goto('./#/journal');
+  await newNote(page, 'Gull’s Rest');
+
+  await newMap(page, 'Coast');
+  const box = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
+  if (!box) throw new Error('no canvas');
+  await tool(page, 'Pin').click();
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await page.getByLabel('Pin label').fill('Gull’s Rest');
+  await page.getByLabel('Pin leads to').selectOption({ label: 'A journal note' });
+  await page.getByLabel('Pin note').selectOption({ label: 'Gull’s Rest' });
+  await page.getByLabel('Hidden from players').check();
+  await waitForSaved(page, 'campaigns/rust-and-sunfire/maps', '"secret":true');
+  await waitForSaved(page, 'campaigns/rust-and-sunfire/maps', '"note":"Gull’s Rest.md"');
+
+  await page.goto('./#/boards');
+  await page.getByRole('button', { name: 'New board' }).click();
+  await page.getByLabel('Name').fill('Session 1');
+  await page.getByRole('button', { name: 'Create' }).click();
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Map…' }).click();
+  await page.getByRole('list', { name: 'Maps' }).getByRole('button', { name: 'Coast' }).click();
+  const map = page.getByRole('img', { name: 'Map: Coast' });
+  await expect(map).toBeVisible();
+  await expect(map.locator('canvas')).toHaveCount(1);
+  const card = await map.boundingBox();
+  if (!card) throw new Error('no map card');
+  await page.mouse.click(card.x + card.width / 2, card.y + card.height / 2);
+  // The note card is added beside the map (off screen on a phone: the board file says so).
+  await waitForSaved(page, 'campaigns/rust-and-sunfire/boards', '"path": "Gull’s Rest.md"');
 });

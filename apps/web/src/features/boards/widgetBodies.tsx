@@ -19,7 +19,9 @@ import { useJournal } from '../../app/journal/store';
 import { MapScene } from '../../app/maps/scene';
 import { useMaps } from '../../app/maps/store';
 import { useAppNavigate } from '../../app/navigation';
-import { useBoardActions } from './context';
+import { useBoardActions, useIsPlayersBoard } from './context';
+import { pinLink } from '../../app/maps/pinLink';
+import type { CardContent } from '../../app/boards/model';
 
 /**
  * Board widgets beyond notes and entries: a map to look at, a character at a glance, and an NPC
@@ -27,12 +29,26 @@ import { useBoardActions } from './context';
  */
 
 /** A map of the Maps module, to pan and zoom (edited in the map maker). */
+/**
+ * A point of the page in the map's own pixels: the board may be zoomed, so the card is drawn
+ * smaller or larger on screen than its canvas is.
+ */
+function localPoint(el: HTMLElement, clientX: number, clientY: number) {
+  const r = el.getBoundingClientRect();
+  const kx = r.width ? el.clientWidth / r.width : 1;
+  const ky = r.height ? el.clientHeight / r.height : 1;
+  return { x: (clientX - r.left) * kx, y: (clientY - r.top) * ky };
+}
+
 export function MapBody({ card }: { card: Extract<BoardCard, { kind: 'map' }> }) {
   const doc = useMaps((s) => s.maps.find((m) => m.id === card.map));
   const { loaded, load } = useMaps();
   const host = useRef<HTMLDivElement>(null);
   const [scene, setScene] = useState<MapScene | null>(null);
   const drag = useRef<{ x: number; y: number } | null>(null);
+  const downAt = useRef<{ x: number; y: number } | null>(null);
+  const actions = useBoardActions();
+  const forPlayers = useIsPlayersBoard();
   useEffect(() => {
     if (!loaded) void load();
   }, [loaded, load]);
@@ -41,6 +57,7 @@ export function MapBody({ card }: { card: Extract<BoardCard, { kind: 'map' }> })
     if (!el || !doc) return;
     const s = new MapScene();
     s.followResize = true;
+    s.forPlayers = forPlayers;
     let live = true;
     void s.init(el).then(() => {
       if (!live) return;
@@ -63,8 +80,8 @@ export function MapBody({ card }: { card: Extract<BoardCard, { kind: 'map' }> })
     if (!el || !scene) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const r = el.getBoundingClientRect();
-      scene.zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015));
+      const at = localPoint(el, e.clientX, e.clientY);
+      scene.zoomAt(at.x, at.y, Math.exp(-e.deltaY * 0.0015));
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => {
@@ -82,14 +99,34 @@ export function MapBody({ card }: { card: Extract<BoardCard, { kind: 'map' }> })
         onPointerDown={(e) => {
           e.currentTarget.setPointerCapture(e.pointerId);
           drag.current = { x: e.clientX, y: e.clientY };
+          downAt.current = { x: e.clientX, y: e.clientY };
         }}
         onPointerMove={(e) => {
           if (!drag.current || !scene) return;
-          scene.panBy(e.clientX - drag.current.x, e.clientY - drag.current.y);
+          // The map follows the pointer however far the board is zoomed.
+          const r = e.currentTarget.getBoundingClientRect();
+          const k = r.width ? e.currentTarget.clientWidth / r.width : 1;
+          scene.panBy((e.clientX - drag.current.x) * k, (e.clientY - drag.current.y) * k);
           drag.current = { x: e.clientX, y: e.clientY };
         }}
-        onPointerUp={() => {
+        onPointerUp={(e) => {
           drag.current = null;
+          // A click (not a drag) on a pin opens where it leads, beside the map.
+          const from = downAt.current;
+          const el = host.current;
+          if (!scene || !el || !from || Math.hypot(e.clientX - from.x, e.clientY - from.y) > 5)
+            return;
+          const at = localPoint(el, e.clientX, e.clientY);
+          const hit = scene.hit(scene.toMap(at.x, at.y));
+          const link = hit?.kind === 'pin' ? pinLink(hit) : null;
+          if (!link) return;
+          const content: CardContent =
+            link.kind === 'note'
+              ? { kind: 'note', path: link.path }
+              : link.kind === 'map'
+                ? { kind: 'map', map: link.id }
+                : { kind: 'entity', key: link.key };
+          actions.addBeside(card.id, [content]);
         }}
       />
       <div className="flex justify-end border-t border-border px-2 py-1">

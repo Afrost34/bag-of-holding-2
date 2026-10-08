@@ -98,6 +98,8 @@ export type MapItem =
       icon?: string;
       /** A pin category's id. */
       category?: string;
+      /** Left off the map in the player window (a secret door, a hidden lair). */
+      secret?: true;
     };
 
 /** A kind of pin on a world or city map (Cities, Dungeons, Taverns…): its icon and colour. */

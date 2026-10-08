@@ -14,7 +14,6 @@ import {
   X,
 } from 'lucide-react';
 import { useMemo, useState, type ReactNode } from 'react';
-import { entityPath } from '../../app/data/entities';
 import { useEncounters } from '../../app/encounters/store';
 import { useJournal } from '../../app/journal/store';
 import { importBackground, saveThumbnail } from '../../app/maps/assets';
@@ -37,11 +36,11 @@ import {
 } from '../../app/maps/model';
 import { useMaps } from '../../app/maps/store';
 import { DEFAULT_SPEEDS, scaleForWidth, type DistanceUnit } from '../../app/maps/travel';
-import { useAppNavigate } from '../../app/navigation';
 import { TERRAINS, terrainTile } from '../../app/maps/terrain';
 import { PinCategories, PinLook } from './PinPanels';
 import { StampLibrary } from './StampLibrary';
 import { RouteSettings } from './RouteSettings';
+import { PinLinkField } from './PinLinkField';
 import {
   CALIBRATE_ICON,
   PEN_COLORS,
@@ -860,7 +859,6 @@ function MapSettings({ doc, commit, setTool, snap, setSnap }: MapPanelsProps) {
 }
 
 function ItemSettings({ doc, commit, item, onDeselect }: MapPanelsProps & { item: MapItem }) {
-  const navigate = useAppNavigate();
   // Selectors return what the stores hold; lists are made from it here (a new array from a
   // selector would re-render forever).
   const journalNotes = useJournal((s) => s.notes);
@@ -1057,85 +1055,7 @@ function ItemSettings({ doc, commit, item, onDeselect }: MapPanelsProps & { item
             />
           </label>
           <PinLook doc={doc} pin={item} set={set} />
-          <label className="block text-sm">
-            Journal note
-            <select
-              value={item.note ?? ''}
-              aria-label="Pin note"
-              disabled={!doc.campaign}
-              onChange={(e) => {
-                const note = e.target.value;
-                set((i) => {
-                  if (i.kind !== 'pin') return i;
-                  const { note: _n, ...rest } = i;
-                  return note ? { ...rest, note } : rest;
-                });
-              }}
-              className={field}
-            >
-              <option value="">None</option>
-              {notes.map((n) => (
-                <option key={n} value={n}>
-                  {n.replace(/\.md$/i, '')}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block text-sm">
-            Map inside
-            <select
-              value={item.map ?? ''}
-              aria-label="Pin map"
-              onChange={(e) => {
-                const map = e.target.value;
-                set((i) => {
-                  if (i.kind !== 'pin') return i;
-                  const { map: _m, ...rest } = i;
-                  return map ? { ...rest, map } : rest;
-                });
-              }}
-              className={field}
-            >
-              <option value="">None</option>
-              {maps.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="flex gap-1">
-            {item.note && (
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  navigate(`/journal?note=${encodeURIComponent(item.note ?? '')}`);
-                }}
-              >
-                Open the note
-              </Button>
-            )}
-            {item.entity && (
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  navigate(entityPath(item.entity ?? ''));
-                }}
-              >
-                Open in the compendium
-              </Button>
-            )}
-            {item.map && (
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  navigate(`/maps/${item.map ?? ''}`);
-                }}
-              >
-                Open the map
-              </Button>
-            )}
-          </div>
+          <PinLinkField pin={item} doc={doc} notes={notes} maps={maps} set={set} />
         </>
       )}
       {layer && doc.layers.length > 1 && (
