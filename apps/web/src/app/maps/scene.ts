@@ -138,7 +138,10 @@ export class MapScene {
   private nodes = new Map<string, Node>();
   private layerViews = new Map<string, Container>();
   private doc: MapDoc | null = null;
-  private backgroundPath: string | null = null;
+  private backgroundKey = '';
+  private paper: Graphics | null = null;
+  /** Pictures loaded (background and picture layers), by asset path. */
+  private readonly pictureViews = new Map<string, Container>();
   private gridKey = '';
   private ready = false;
   /** Told when the background picture starts and finishes loading. */
@@ -206,6 +209,10 @@ export class MapScene {
     this.destroyed = true;
     cancelAnimationFrame(this.frame);
     this.resizing?.disconnect();
+    // Pictures not on screen now are not children of the stage: destroy them too.
+    for (const view of this.pictureViews.values())
+      if (!view.parent) view.destroy({ children: true });
+    this.pictureViews.clear();
     if (this.ready) this.app.destroy(true, { children: true });
   }
 
@@ -304,18 +311,44 @@ export class MapScene {
     this.requestRender();
   }
 
+  /**
+   * The paper, the background picture, and the picture layers shown, bottom first. Each picture
+   * is loaded once and kept, so showing and hiding one (day and night) is instant.
+   */
   private drawBackground(doc: MapDoc): void {
-    const path = doc.background?.path ?? null;
-    if (path === this.backgroundPath) return;
-    this.backgroundPath = path;
-    for (const c of this.background.removeChildren()) c.destroy();
-    const paper = new Graphics().rect(0, 0, doc.width, doc.height).fill({ color: 0xf3efe6 });
-    this.background.addChild(paper);
-    if (!path) return;
+    const paths = [
+      doc.background?.path,
+      ...(doc.pictures ?? []).filter((p) => p.visible).map((p) => p.path),
+    ].filter((p): p is string => typeof p === 'string');
+    const key = String(doc.width) + 'x' + String(doc.height) + '|' + paths.join('|');
+    if (key === this.backgroundKey) return;
+    this.backgroundKey = key;
+    this.background.removeChildren();
+    this.paper?.destroy();
+    this.paper = new Graphics().rect(0, 0, doc.width, doc.height).fill({ color: 0xf3efe6 });
+    this.background.addChild(this.paper);
+    for (const path of paths) {
+      let view = this.pictureViews.get(path);
+      if (!view) {
+        view = new Container();
+        this.pictureViews.set(path, view);
+        this.loadPicture(path, view);
+      }
+      this.background.addChild(view);
+    }
+    this.requestRender();
+  }
+
+  /** The scene was destroyed while a picture loaded, or the picture was let go. */
+  private dropped(path: string, view: Container): boolean {
+    return this.destroyed || this.pictureViews.get(path) !== view;
+  }
+
+  private loadPicture(path: string, view: Container): void {
     this.onLoading(true);
     void fileUrl(path)
       .then(async (url) => {
-        if (!url || this.backgroundPath !== path) return;
+        if (!url || this.dropped(path, view)) return;
         const blob = await (await fetch(url)).blob();
         const bitmap = await createImageBitmap(blob);
         for (let y = 0; y < bitmap.height; y += TILE)
@@ -323,17 +356,17 @@ export class MapScene {
             const w = Math.min(TILE, bitmap.width - x);
             const h = Math.min(TILE, bitmap.height - y);
             const tile = await createImageBitmap(bitmap, x, y, w, h);
-            if (this.backgroundPath !== path || this.destroyed) return;
+            if (this.dropped(path, view)) return;
             const sprite = new Sprite(Texture.from(tile));
             sprite.position.set(x, y);
             sprite.cullable = true;
-            this.background.addChild(sprite);
+            view.addChild(sprite);
             this.requestRender();
           }
         bitmap.close();
       })
       .finally(() => {
-        if (this.backgroundPath === path) this.onLoading(false);
+        this.onLoading(false);
       });
   }
 

@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { distanceFeet, hexCentre, snapToCell, snapToCorner, templateOutline } from './geometry';
 import {
   addItem,
+  addPicture,
+  removePicture,
+  updatePicture,
   addPinCategory,
   PIN_COLOR,
   pinStyle,
@@ -97,6 +100,19 @@ describe('maps', () => {
     const bare = parseMap('{"name":"Old"}', 'x');
     expect(bare?.layers).toHaveLength(3);
     expect(bare?.grid.type).toBe('square');
+  });
+});
+
+describe('picture layers', () => {
+  it('are shown or hidden over the background, kept, and let go when removed', () => {
+    let doc = newMap('Mine', [], 'now');
+    doc = addPicture(doc, { name: 'Night', path: 'maps/assets/night.webp', visible: false });
+    doc = addPicture(doc, { name: 'Fog', path: 'maps/assets/fog.webp', visible: true });
+    doc = updatePicture(doc, 0, { visible: true });
+    expect(doc.pictures?.map((p) => p.visible)).toEqual([true, true]);
+    expect(parseMap(serializeMap(doc), doc.id)?.pictures).toEqual(doc.pictures);
+    doc = removePicture(removePicture(doc, 1), 0);
+    expect(doc.pictures).toBeUndefined();
   });
 });
 

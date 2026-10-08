@@ -421,3 +421,42 @@ test('Send to → Map pins a compendium entry on a new map', async ({ page }) =>
   await page.keyboard.up('Control');
   await expect(page.getByRole('tab', { selected: true })).toHaveText(/Goblin/);
 });
+
+/** A 1×1 PNG every browser decodes. */
+const PIXEL = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+);
+
+test('picture layers (a night version) are shown and hidden over the picture', async ({ page }) => {
+  await installData(page);
+  await newMap(page, 'Abandoned Mine');
+  if (isPhone(page)) await page.getByRole('button', { name: 'Panels' }).click();
+  await page.getByRole('tab', { name: 'Map' }).click();
+  const pick = async (label: string, name: string) => {
+    await page.getByLabel(label).setInputFiles({ name, mimeType: 'image/png', buffer: PIXEL });
+  };
+  await pick('Choose a picture', 'Mine_Day.png');
+  await expect(page.getByLabel('Replace the picture')).toBeAttached();
+  await pick('Add a picture layer', 'Mine_Night.png');
+  const layers = page.getByRole('list', { name: 'Picture layers' });
+  await expect(layers.getByLabel('Picture layer name')).toHaveValue('Mine Night');
+  await layers.getByRole('button', { name: 'Hide Mine Night' }).click();
+  await expect(layers.getByRole('button', { name: 'Show Mine Night' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+  await waitForSaved(page, 'maps', '"visible":false');
+  await page.reload();
+  await expect(page.getByRole('application', { name: 'Map canvas' }).locator('canvas')).toHaveCount(
+    1,
+  );
+  if (isPhone(page)) await page.getByRole('button', { name: 'Panels' }).click();
+  await page.getByRole('tab', { name: 'Map' }).click();
+  await expect(page.getByRole('tab', { name: 'Map' })).toHaveAttribute('aria-selected', 'true');
+  await expect(
+    page
+      .getByRole('list', { name: 'Picture layers' })
+      .getByRole('button', { name: 'Show Mine Night' }),
+  ).toBeVisible();
+});

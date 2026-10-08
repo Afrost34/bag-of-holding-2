@@ -20,6 +20,9 @@ import { useJournal } from '../../app/journal/store';
 import { importBackground } from '../../app/maps/assets';
 import {
   addLayer,
+  addPicture,
+  removePicture,
+  updatePicture,
   moveItemToLayer,
   moveLayer,
   removeItem,
@@ -473,31 +476,24 @@ function MapSettings({ doc, commit, setTool, snap, setSnap }: MapPanelsProps) {
   const setGrid = (change: Partial<MapDoc['grid']>) => {
     commit((d) => ({ ...d, grid: { ...d.grid, ...change } }));
   };
-  const pickBackground = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      setImporting(true);
-      void importBackground(file, doc.campaign)
-        .then((bg) => {
-          commit((d) => ({ ...d, background: bg, width: bg.width, height: bg.height }));
-        })
-        .finally(() => {
-          setImporting(false);
-        });
-    };
-    input.click();
+  const pickBackground = (file: File) => {
+    setImporting(true);
+    void importBackground(file, doc.campaign)
+      .then((bg) => {
+        commit((d) => ({ ...d, background: bg, width: bg.width, height: bg.height }));
+      })
+      .finally(() => {
+        setImporting(false);
+      });
   };
   return (
     <>
       <Section title="Picture">
-        <Button variant="ghost" disabled={importing} onClick={pickBackground}>
-          <ImagePlus className="h-4 w-4" aria-hidden />
-          {importing ? 'Reading…' : doc.background ? 'Replace the picture' : 'Choose a picture'}
-        </Button>
+        <PictureFile
+          label={doc.background ? 'Replace the picture' : 'Choose a picture'}
+          busy={importing}
+          onFile={pickBackground}
+        />
         {doc.background ? (
           <p className="text-xs text-muted">
             {doc.background.width} × {doc.background.height} px.
@@ -535,6 +531,7 @@ function MapSettings({ doc, commit, setTool, snap, setSnap }: MapPanelsProps) {
           </div>
         )}
       </Section>
+      {doc.background && <PictureLayers doc={doc} commit={commit} />}
       <Section title="Grid">
         <label className="block text-sm">
           Type
@@ -950,5 +947,107 @@ function ItemSettings({ doc, commit, item, onDeselect }: MapPanelsProps & { item
         <Trash2 className="h-4 w-4" aria-hidden /> Remove
       </Button>
     </Section>
+  );
+}
+
+/**
+ * Pictures of the same place over the background (night, snow, an overlay), each shown or
+ * hidden with a click: what the players see changes with it.
+ */
+function PictureLayers({ doc, commit }: Pick<MapPanelsProps, 'doc' | 'commit'>) {
+  const [importing, setImporting] = useState(false);
+  const pictures = doc.pictures ?? [];
+  const add = (file: File) => {
+    setImporting(true);
+    void importBackground(file, doc.campaign)
+      .then((pic) => {
+        const name = file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ');
+        commit((d) => addPicture(d, { name, path: pic.path, visible: true }));
+      })
+      .finally(() => {
+        setImporting(false);
+      });
+  };
+  return (
+    <Section title="Picture layers">
+      <p className="text-xs text-muted">
+        Other versions of the picture (night, snow) or overlays, shown over it or hidden.
+      </p>
+      <ul aria-label="Picture layers" className="space-y-1">
+        {pictures.map((p, i) => (
+          <li key={p.path} className="flex items-center gap-1.5 text-sm">
+            <button
+              type="button"
+              aria-pressed={p.visible}
+              aria-label={(p.visible ? 'Hide ' : 'Show ') + p.name}
+              onClick={() => {
+                commit((d) => updatePicture(d, i, { visible: !p.visible }));
+              }}
+              className="rounded p-1 text-muted hover:bg-sunken"
+            >
+              {p.visible ? (
+                <Eye className="h-4 w-4" aria-hidden />
+              ) : (
+                <EyeOff className="h-4 w-4" aria-hidden />
+              )}
+            </button>
+            <input
+              value={p.name}
+              aria-label="Picture layer name"
+              onChange={(e) => {
+                commit((d) => updatePicture(d, i, { name: e.target.value }));
+              }}
+              className="min-w-0 flex-1 rounded border border-border bg-surface px-1.5 py-0.5"
+            />
+            <button
+              type="button"
+              aria-label={'Remove ' + p.name}
+              onClick={() => {
+                commit((d) => removePicture(d, i));
+              }}
+              className="rounded p-1 text-muted hover:bg-sunken"
+            >
+              <Trash2 className="h-4 w-4" aria-hidden />
+            </button>
+          </li>
+        ))}
+      </ul>
+      <PictureFile label="Add a picture layer" busy={importing} onFile={add} />
+    </Section>
+  );
+}
+
+/** A button that opens the file picker for a picture (a real input, so it works everywhere). */
+function PictureFile({
+  label,
+  busy,
+  onFile,
+}: {
+  label: string;
+  busy: boolean;
+  onFile: (file: File) => void;
+}) {
+  return (
+    <label
+      className={cn(
+        'inline-flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-sunken',
+        busy && 'pointer-events-none opacity-60',
+      )}
+    >
+      <ImagePlus className="h-4 w-4" aria-hidden />
+      {busy ? 'Reading…' : label}
+      <input
+        type="file"
+        accept="image/*"
+        aria-label={label}
+        disabled={busy}
+        className="sr-only"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = '';
+          if (file) onFile(file);
+        }}
+      />
+    </label>
   );
 }
