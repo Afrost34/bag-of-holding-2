@@ -1,5 +1,6 @@
 import { newId } from '../cards/model';
 import type { TerrainId } from './terrain';
+import type { MapScale, TravelSpeed } from './travel';
 
 /**
  * Maps: battle, city and world maps made in the app (prep only: no live play).
@@ -151,6 +152,10 @@ export interface MapDoc {
   folder?: string;
   /** Words to find it by ('tavern', 'night'). */
   tags?: string[];
+  /** Its real size (a world or region map): measures say how far and how long. */
+  scale?: MapScale;
+  /** How fast a party goes on this map, for the measure; on foot when absent. */
+  travel?: TravelSpeed[];
   /** The campaign it belongs to; absent outside campaigns. Not stored: it is where the file is. */
   campaign?: string;
 }
@@ -336,6 +341,20 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
       : {}),
     ...(Array.isArray(json.tags)
       ? { tags: json.tags.filter((t): t is string => typeof t === 'string' && t.trim() !== '') }
+      : {}),
+    ...(isObj(json.scale) &&
+    (json.scale.unit === 'km' || json.scale.unit === 'mi') &&
+    num(json.scale.perPixel, 0) > 0
+      ? { scale: { unit: json.scale.unit, perPixel: num(json.scale.perPixel, 1) } }
+      : {}),
+    ...(Array.isArray(json.travel)
+      ? {
+          travel: json.travel.flatMap((t) =>
+            isObj(t) && typeof t.name === 'string' && num(t.perDay, 0) > 0
+              ? [{ name: t.name, perDay: num(t.perDay, 1) }]
+              : [],
+          ),
+        }
       : {}),
     width: num(json.width, 2800),
     height: num(json.height, 2100),

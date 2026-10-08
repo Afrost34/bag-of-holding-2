@@ -1,4 +1,5 @@
 import { Button, cn } from '@boh/ui';
+import { measureLine } from '../../app/maps/travel';
 import {
   ArrowLeft,
   Download,
@@ -317,7 +318,8 @@ function Editor({ doc }: { doc: MapDoc }) {
         setPanelOpen(true);
         return;
       case 'measure':
-        drag.current = { mode: 'measure', ...base, start: snapCell(p) };
+        // A map with a real scale (a world map) measures from point to point, not cell to cell.
+        drag.current = { mode: 'measure', ...base, start: doc.scale ? p : snapCell(p) };
         return;
       case 'template':
         drag.current = { mode: 'template', ...base, start: snap ? snapPoint(p) : p };
@@ -389,9 +391,11 @@ function Editor({ doc }: { doc: MapDoc }) {
         return;
       }
       case 'measure': {
-        const end = snapCell(p);
-        const feet = distanceFeet(d.start, end, grid);
-        setMeasure(`${String(feet)} ft`);
+        const end = doc.scale ? p : snapCell(p);
+        const line = doc.scale
+          ? measureLine(d.start, end, doc.scale, doc.travel)
+          : `${String(distanceFeet(d.start, end, grid))} ft`;
+        setMeasure(line);
         scene.drawPreview(
           (g) => {
             g.moveTo(d.start.x, d.start.y)
@@ -399,7 +403,8 @@ function Editor({ doc }: { doc: MapDoc }) {
               .stroke({ color: 0xfacc15, width: 4 / scene.zoom });
             g.circle(d.start.x, d.start.y, 6 / scene.zoom).fill({ color: 0xfacc15 });
           },
-          { text: `${String(feet)} ft`, at: end },
+          // On the map, the distance; the times are in the bar above.
+          { text: line.split(' · ')[0] ?? line, at: end },
         );
         return;
       }
