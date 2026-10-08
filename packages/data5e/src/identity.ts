@@ -97,6 +97,16 @@ const rules: Record<string, IdentityRule> = {
     if (!abbreviation || !source) return null;
     return { name: str(e.name) ?? abbreviation, parts: [abbreviation], source };
   },
+  // Book and adventure text inside a homebrew file: `{ id, source, data }`, no name. (The
+  // official text comes one book per file and is keyed in `extractFile`, the same way.)
+  bookData: (e) => {
+    const [id, source] = [str(e.id), str(e.source)];
+    return id && source ? { name: id, parts: [id], source } : null;
+  },
+  adventureData: (e) => {
+    const [id, source] = [str(e.id), str(e.source)];
+    return id && source ? { name: id, parts: [id], source } : null;
+  },
   itemType: (e) => {
     const [abbreviation, source] = [str(e.abbreviation), str(e.source)];
     if (!abbreviation || !source) return null;

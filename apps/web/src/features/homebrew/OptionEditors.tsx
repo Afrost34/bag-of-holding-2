@@ -23,6 +23,8 @@ import { Entries, EntityView } from '@boh/renderer';
 import { Button, cn } from '@boh/ui';
 import { Plus, X } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
+import { ABILITY_NAMES } from './abilityNames';
+import { FeatureList } from './FeatureList';
 import { Grid, NumberField, Section, Select, Text, TextArea } from './fields';
 
 /**
@@ -30,14 +32,6 @@ import { Grid, NumberField, Section, Select, Text, TextArea } from './fields';
  * the compendium will show it on the right.
  */
 
-const ABILITY_NAMES: Record<AbilityId, string> = {
-  str: 'Strength',
-  dex: 'Dexterity',
-  con: 'Constitution',
-  int: 'Intelligence',
-  wis: 'Wisdom',
-  cha: 'Charisma',
-};
 const capital = (s: string) => s.replace(/(^|\s)(\p{L})/gu, (m) => m.toUpperCase());
 
 interface EditorProps {
@@ -48,7 +42,7 @@ interface EditorProps {
 }
 
 /** Form and preview side by side, with Save and Cancel. */
-function Layout({
+export function Layout({
   label,
   preview,
   onSave,
@@ -625,76 +619,12 @@ export function ClassEditor({
           )}
         </Grid>
       </Section>
-      <Section title="Features">
-        {form.features.map((f, i) => (
-          <div key={i} className="space-y-1 rounded-md border border-border p-2">
-            <div className="flex gap-2">
-              <div className="w-24">
-                <NumberField
-                  label="Level"
-                  value={f.level}
-                  onChange={(v) => {
-                    set(
-                      'features',
-                      form.features.map((x, j) =>
-                        j === i ? { ...x, level: Math.min(20, Math.max(1, v ?? 1)) } : x,
-                      ),
-                    );
-                  }}
-                />
-              </div>
-              <div className="flex-1">
-                <Text
-                  label={`Feature ${String(i + 1)}`}
-                  value={f.name}
-                  onChange={(v) => {
-                    set(
-                      'features',
-                      form.features.map((x, j) => (j === i ? { ...x, name: v } : x)),
-                    );
-                  }}
-                />
-              </div>
-              <button
-                type="button"
-                aria-label={`Remove feature ${String(i + 1)}`}
-                onClick={() => {
-                  set(
-                    'features',
-                    form.features.filter((_, j) => j !== i),
-                  );
-                }}
-                className="self-end rounded p-1.5 text-muted hover:bg-sunken"
-              >
-                <X className="h-4 w-4" aria-hidden />
-              </button>
-            </div>
-            <TextArea
-              label={`What feature ${String(i + 1)} does`}
-              value={f.text}
-              onChange={(v) => {
-                set(
-                  'features',
-                  form.features.map((x, j) => (j === i ? { ...x, text: v } : x)),
-                );
-              }}
-            />
-          </div>
-        ))}
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={() => {
-            const last = form.features.at(-1)?.level ?? 0;
-            set('features', [
-              ...form.features,
-              { level: Math.min(20, last + 1 || 1), name: '', text: '' },
-            ]);
-          }}
-        >
-          <Plus className="h-4 w-4" aria-hidden /> Add a feature
-        </Button>
-      </Section>
+      <FeatureList
+        features={form.features}
+        onChange={(f) => {
+          set('features', f);
+        }}
+      />
     </Layout>
   );
 }

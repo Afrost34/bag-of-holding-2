@@ -213,3 +213,58 @@ test('a pack is a source with a cover, and holds feats, species and classes', as
     page.getByRole('list', { name: 'Packs' }).locator('img[src^="data:image/"]'),
   ).toBeVisible();
 });
+
+test('subclasses for a class, and a book read in the Library', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto('./#/homebrew');
+  await page.getByRole('button', { name: 'New pack' }).click();
+  await page.getByRole('form', { name: 'New pack' }).getByLabel('Name').fill('Corsairs');
+  await page.getByRole('button', { name: 'Create pack' }).click();
+  await page.getByLabel('Cover file').setInputFiles({
+    name: 'cover.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(PNG, 'base64'),
+  });
+
+  // A class, then a subclass of it.
+  await page.getByRole('button', { name: 'New class' }).click();
+  const cls = page.getByRole('form', { name: 'Class' });
+  await cls.getByLabel('Name', { exact: true }).fill('Corsair');
+  await cls.getByRole('button', { name: 'Save class' }).click();
+  await page.getByRole('button', { name: 'New subclass' }).click();
+  const sub = page.getByRole('form', { name: 'Subclass' });
+  await sub.getByLabel('Name', { exact: true }).fill('Gun Crew');
+  await sub.getByLabel('Class', { exact: true }).selectOption({ label: 'Corsair (this pack)' });
+  await sub.getByRole('button', { name: 'Add a feature' }).click();
+  await expect(sub.getByLabel('Level').first()).toHaveValue('3');
+  await sub.getByLabel('Feature 1', { exact: true }).fill('Broadside');
+  await sub.getByLabel('What feature 1 does').fill('Fire every cannon.');
+  await expect(page.getByRole('complementary', { name: 'Preview' })).toContainText(
+    'Corsair subclass',
+  );
+  await sub.getByRole('button', { name: 'Save subclass' }).click();
+  await expect(page.getByRole('region', { name: 'Subclasses' })).toBeVisible();
+  await page.getByRole('button', { name: 'Show Gun Crew' }).click();
+  await expect(page.getByRole('main')).toContainText('Fire every cannon.');
+
+  // A book: a chapter with a section.
+  await page.getByRole('button', { name: 'New book' }).click();
+  const book = page.getByRole('form', { name: 'Book' });
+  await book.getByLabel('Title', { exact: true }).fill('Blackpowder');
+  await book.getByLabel('Title of chapter 1', { exact: true }).fill('Firearms');
+  await book.getByLabel('Opening text of chapter 1').fill('All firearms use blackpowder.');
+  await book.getByRole('button', { name: 'Add a section' }).click();
+  await book.getByLabel('Section 1 of chapter 1', { exact: true }).fill('Reloading');
+  await book.getByLabel('Text of section 1 of chapter 1').fill('Reloading takes 1d4 minutes.');
+  await expect(page.getByRole('navigation', { name: 'Contents' })).toContainText('Reloading');
+  await book.getByRole('button', { name: 'Save book' }).click();
+  await expect(page.getByRole('status')).toContainText('Saved “Blackpowder”');
+
+  // In the Library with the pack's cover, and read like the official books.
+  await page.goto('./#/compendium/library/books');
+  const shelf = page.getByRole('region', { name: 'Homebrew' });
+  await expect(shelf.locator('img[src^="data:image/"]')).toBeVisible();
+  await shelf.getByRole('link', { name: /Blackpowder/ }).click();
+  await expect(page.getByRole('main')).toContainText('All firearms use blackpowder.');
+  await expect(page.getByRole('main')).toContainText('Reloading');
+});

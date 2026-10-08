@@ -1,6 +1,6 @@
 import type { Edition } from '../editions';
 import type { RawEntity } from '../identity';
-import { entriesToText, textToEntries } from './text';
+import { entriesToText, richEntries, richText, textToEntries, type RichText } from './text';
 
 /**
  * Homebrew feats, backgrounds, species and classes, made with forms and written as 5etools data
@@ -286,6 +286,12 @@ export function speciesToForm(race: RawEntity): SpeciesForm {
 
 export type Caster = 'none' | 'full' | 'half' | 'pact';
 
+/** A class or subclass feature in a form: its text may carry tables and lists (see `RichText`). */
+export interface FeatureForm extends RichText {
+  level: number;
+  name: string;
+}
+
 export interface ClassForm {
   name: string;
   hitDie: 6 | 8 | 10 | 12;
@@ -300,7 +306,7 @@ export interface ClassForm {
   /** Whose spell list it uses ("Wizard"). */
   spellList: string;
   subclassTitle: string;
-  features: { level: number; name: string; text: string }[];
+  features: FeatureForm[];
 }
 
 export const emptyClass = (): ClassForm => ({
@@ -350,6 +356,35 @@ export function formToClass(
     ...rest
   } = base;
   const prog = form.caster === 'none' ? null : PROGRESSIONS[form.caster];
+  // What the form does not show (tools, fixed skills, structured lists) is kept while the
+  // matching fields are left alone.
+  const baseSp = isObj(base.startingProficiencies) ? base.startingProficiencies : {};
+  const was = classToForm(base, []);
+  const same = (a: readonly string[], b: readonly string[]) => a.join('|') === b.join('|');
+  const {
+    armor: _a,
+    weapons: _w,
+    skills: _s,
+    armorProficiencies: _ap,
+    weaponProficiencies: _wp,
+    ...keptSp
+  } = baseSp;
+  const startingProficiencies: RawEntity = {
+    ...keptSp,
+    ...(form.armor.length ? { armor: form.armor } : {}),
+    ...(same(form.armor, was.armor) && baseSp.armorProficiencies
+      ? { armorProficiencies: baseSp.armorProficiencies }
+      : {}),
+    ...(form.weapons.length ? { weapons: form.weapons } : {}),
+    ...(same(form.weapons, was.weapons) && baseSp.weaponProficiencies
+      ? { weaponProficiencies: baseSp.weaponProficiencies }
+      : {}),
+    ...(same(form.skillsFrom, was.skillsFrom) && form.skillCount === was.skillCount && baseSp.skills
+      ? { skills: baseSp.skills }
+      : form.skillsFrom.length
+        ? { skills: [{ choose: { from: form.skillsFrom, count: form.skillCount } }] }
+        : {}),
+  };
   const cls: RawEntity = {
     ...rest,
     name,
@@ -357,13 +392,7 @@ export function formToClass(
     hd: { number: 1, faces: form.hitDie },
     proficiency: form.saves,
     primaryAbility: [{ [form.primary]: true }],
-    startingProficiencies: {
-      ...(form.armor.length ? { armor: form.armor } : {}),
-      ...(form.weapons.length ? { weapons: form.weapons } : {}),
-      ...(form.skillsFrom.length
-        ? { skills: [{ choose: { from: form.skillsFrom, count: form.skillCount } }] }
-        : {}),
-    },
+    startingProficiencies,
     ...(prog
       ? {
           casterProgression:
@@ -385,7 +414,7 @@ export function formToClass(
       className: name,
       classSource: source,
       level: f.level,
-      entries: textToEntries(f.text),
+      entries: richEntries(f),
     })),
   };
 }
@@ -426,7 +455,94 @@ export function classToForm(cls: RawEntity, features: readonly RawEntity[]): Cla
       .map((f) => ({
         level: typeof f.level === 'number' ? f.level : 1,
         name: text(f.name),
-        text: plainEntries(f.entries),
+        ...richText(f.entries),
+      })),
+  };
+}
+
+// Subclasses ---------------------------------------------------------------------------------
+
+export interface SubclassForm {
+  name: string;
+  /** Used in keys and links; usually the name without "Path of the"/"Circle of the". */
+  shortName: string;
+  /** The class it belongs to, official or homebrew: name and source (`Rogue`, `XPHB`). */
+  className: string;
+  classSource: string;
+  /** A subclass that casts spells (a third caster, like the Eldritch Knight). */
+  caster: boolean;
+  spellAbility: AbilityId;
+  features: FeatureForm[];
+}
+
+export const emptySubclass = (className = '', classSource = ''): SubclassForm => ({
+  name: '',
+  shortName: '',
+  className,
+  classSource,
+  caster: false,
+  spellAbility: 'int',
+  features: [],
+});
+
+/** The subclass and its features, as 5etools keeps them (two lists, joined by short name). */
+export function formToSubclass(
+  form: SubclassForm,
+  edition: Edition,
+  source: string,
+  base: RawEntity = {},
+): { subclass: RawEntity; features: RawEntity[] } {
+  const name = form.name.trim();
+  const shortName = form.shortName.trim() || name;
+  const features = form.features.filter((f) => f.name.trim()).sort((a, b) => a.level - b.level);
+  const { casterProgression: _cp, spellcastingAbility: _sa, ...rest } = base;
+  const caster = form.caster
+    ? { casterProgression: base.casterProgression ?? '1/3', spellcastingAbility: form.spellAbility }
+    : {};
+  const ref = (f: FeatureForm) =>
+    `${f.name.trim()}|${form.className}|${form.classSource}|${shortName}|${source}|${String(f.level)}`;
+  return {
+    subclass: {
+      ...rest,
+      name,
+      shortName,
+      source,
+      className: form.className,
+      classSource: form.classSource,
+      ...editionMark(edition),
+      ...caster,
+      subclassFeatures: features.map(ref),
+    },
+    features: features.map((f) => ({
+      name: f.name.trim(),
+      source,
+      className: form.className,
+      classSource: form.classSource,
+      subclassShortName: shortName,
+      subclassSource: source,
+      level: f.level,
+      entries: richEntries(f),
+    })),
+  };
+}
+
+export function subclassToForm(sc: RawEntity, features: readonly RawEntity[]): SubclassForm {
+  const shortName = text(sc.shortName) || text(sc.name);
+  return {
+    name: text(sc.name),
+    shortName,
+    className: text(sc.className),
+    classSource: text(sc.classSource),
+    caster: typeof sc.casterProgression === 'string',
+    spellAbility: (ABILITY_IDS as readonly string[]).includes(text(sc.spellcastingAbility))
+      ? (sc.spellcastingAbility as AbilityId)
+      : 'int',
+    features: features
+      .filter((f) => f.subclassShortName === shortName && f.className === sc.className)
+      .map((f) => ({
+        level: typeof f.level === 'number' ? f.level : 3,
+        name: text(f.name),
+        ...richText(f.entries),
       })),
   };
 }

@@ -68,6 +68,24 @@ export function foundryEntryData(
 /** Foundry fields that are not about the character's choices (resource trackers, senses). */
 const FOUNDRY_IGNORED = new Set(['resources', 'senses']);
 
+/** A feature's own 5etools fields that give the character something (homebrew features). */
+const FEATURE_FIELDS = [
+  'skillProficiencies',
+  'toolProficiencies',
+  'languageProficiencies',
+  'skillToolLanguageProficiencies',
+  'weaponProficiencies',
+  'armorProficiencies',
+  'savingThrowProficiencies',
+  'expertise',
+  'additionalSpells',
+  'feats',
+  'ability',
+  'resist',
+  'immune',
+  'conditionImmune',
+] as const;
+
 /** The option an `options` entry offers, as an id: a feature key, or the inline entry's name. */
 function optionOf(entry: unknown): string | undefined {
   if (!isObj(entry)) return undefined;
@@ -144,6 +162,12 @@ export function readFeature(
     const kept: RawEntity = {};
     for (const [k, v] of Object.entries(entryData)) if (!FOUNDRY_IGNORED.has(k)) kept[k] = v;
     merge(out, readEntity(kept, key, issues));
+  } else {
+    // Homebrew features carry what they give in their own 5etools fields (official ones have
+    // it in Foundry's entryData, above).
+    const own: RawEntity = {};
+    for (const k of FEATURE_FIELDS) if (feature[k] !== undefined) own[k] = feature[k];
+    if (Object.keys(own).length > 0) merge(out, readEntity(own, key, issues));
   }
   const patch = patchFor(feature);
   if (patch) merge(out, patch(key, edition));

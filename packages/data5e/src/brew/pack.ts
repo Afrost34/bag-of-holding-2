@@ -24,6 +24,8 @@ export const BREW_TYPES = [
   'background',
   'race',
   'class',
+  'subclass',
+  'book',
 ] as const;
 export type BrewType = (typeof BREW_TYPES)[number];
 
@@ -79,11 +81,13 @@ export function packEntries(pack: RawEntity): { type: string; name: string; enti
   const out: { type: string; name: string; entity: RawEntity }[] = [];
   for (const [type, list] of Object.entries(pack)) {
     // Pictures and lore (`itemFluff`…) belong to their entries, not listed apart.
-    // Class features are listed with their class.
+    // Class and subclass features are listed with them, a book's text with the book.
     if (
       type.startsWith('_') ||
       type.endsWith('Fluff') ||
       type === 'classFeature' ||
+      type === 'subclassFeature' ||
+      type === 'bookData' ||
       !Array.isArray(list)
     )
       continue;
@@ -255,4 +259,124 @@ export function setPackCover(pack: RawEntity, cover: string | null, now = new Da
       dateLastModified: Math.floor(now.getTime() / 1000),
     },
   };
+}
+
+const listOf = (pack: RawEntity, type: string) =>
+  Array.isArray(pack[type]) ? (pack[type] as unknown[]).filter(isObj) : [];
+const lower = (v: unknown) => String(v).toLowerCase();
+
+/** A list put back in the pack, or taken out when empty. */
+function withList(pack: RawEntity, type: string, list: RawEntity[]): RawEntity {
+  const next: RawEntity = { ...pack, [type]: list };
+  if (list.length === 0) Reflect.deleteProperty(next, type);
+  return next;
+}
+
+/**
+ * Adds or replaces a subclass with its features (`previousName` follows a rename). Features are
+ * tied to it by class and short name, and swapped as a set.
+ */
+export function putSubclass(
+  pack: RawEntity,
+  subclass: RawEntity,
+  features: readonly RawEntity[],
+  previousName?: string,
+  now = new Date(),
+): RawEntity {
+  const before = listOf(pack, 'subclass').find(
+    (e) => lower(e.name) === lower(previousName ?? subclass.name),
+  );
+  const withSubclass = putEntry(pack, 'subclass', subclass, previousName, now);
+  const gone = (f: RawEntity, sc: RawEntity | undefined) =>
+    sc !== undefined &&
+    lower(f.className) === lower(sc.className) &&
+    lower(f.subclassShortName) === lower(sc.shortName);
+  const kept = listOf(withSubclass, 'subclassFeature').filter(
+    (f) => !gone(f, before) && !gone(f, subclass),
+  );
+  const meta = packMeta(pack);
+  return withList(withSubclass, 'subclassFeature', [
+    ...kept,
+    ...features.map((f) => ({
+      ...f,
+      source: meta?.id ?? f.source,
+      subclassSource: meta?.id ?? f.subclassSource,
+    })),
+  ]);
+}
+
+/** Removes a subclass and its features. */
+export function removeSubclass(pack: RawEntity, name: string, now = new Date()): RawEntity {
+  const sc = listOf(pack, 'subclass').find((e) => lower(e.name) === lower(name));
+  const next = removeEntry(pack, 'subclass', name, now);
+  if (!sc) return next;
+  return withList(
+    next,
+    'subclassFeature',
+    listOf(next, 'subclassFeature').filter(
+      (f) =>
+        !(
+          lower(f.className) === lower(sc.className) &&
+          lower(f.subclassShortName) === lower(sc.shortName)
+        ),
+    ),
+  );
+}
+
+/** A subclass's features in the pack. */
+export function subclassFeatures(pack: RawEntity, subclass: RawEntity): RawEntity[] {
+  return listOf(pack, 'subclassFeature').filter(
+    (f) =>
+      lower(f.className) === lower(subclass.className) &&
+      lower(f.subclassShortName) === lower(subclass.shortName),
+  );
+}
+
+/** Adds or replaces a book (its contents and its text), found by id (`previousId` follows a change). */
+export function putBook(
+  pack: RawEntity,
+  book: RawEntity,
+  bookData: RawEntity,
+  previousId?: string,
+  now = new Date(),
+): RawEntity {
+  const meta = packMeta(pack);
+  if (!meta) throw new Error('This pack has no source');
+  const name = typeof book.name === 'string' ? book.name.trim() : '';
+  if (!name) throw new Error('A name is needed');
+  const id = String(book.id);
+  const old = lower(previousId ?? id);
+  const books = listOf(pack, 'book');
+  if (lower(id) !== old && books.some((b) => lower(b.id) === lower(id)))
+    throw new Error(`There is already a book “${id}” in this pack`);
+  const put = (list: RawEntity[], entry: RawEntity) => {
+    const i = list.findIndex((e) => lower(e.id) === old);
+    return i === -1 ? [...list, entry] : list.map((e, j) => (j === i ? entry : e));
+  };
+  const withBook = withList(pack, 'book', put(books, { ...book, name, source: meta.id }));
+  return touched(
+    withList(
+      withBook,
+      'bookData',
+      put(listOf(pack, 'bookData'), { ...bookData, id, source: meta.id }),
+    ),
+    now,
+  );
+}
+
+export function removeBook(pack: RawEntity, id: string, now = new Date()): RawEntity {
+  const keep = (list: RawEntity[]) => list.filter((e) => lower(e.id) !== lower(id));
+  return touched(
+    withList(
+      withList(pack, 'book', keep(listOf(pack, 'book'))),
+      'bookData',
+      keep(listOf(pack, 'bookData')),
+    ),
+    now,
+  );
+}
+
+/** A book's text in the pack. */
+export function bookDataOf(pack: RawEntity, id: string): RawEntity | undefined {
+  return listOf(pack, 'bookData').find((e) => lower(e.id) === lower(id));
 }

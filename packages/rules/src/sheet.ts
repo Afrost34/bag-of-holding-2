@@ -499,6 +499,8 @@ export function computeSheet(
         : entity.key;
     const proficient =
       (typeof d.weaponCategory === 'string' && weaponProf.has(d.weaponCategory)) ||
+      // "Firearms" (homebrew classes, 2014 DMG option): every weapon 5etools flags as one.
+      (d.firearm === true && weaponProf.has('firearms')) ||
       [...weaponProf].some(
         (w) => w === entity.key || w === baseKey || w.replace(/^item:/, 'baseitem:') === entity.key,
       );
