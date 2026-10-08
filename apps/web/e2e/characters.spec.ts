@@ -188,11 +188,32 @@ test('the character sheet prints on A4 pages', async ({ page }, testInfo) => {
   await page.getByRole('button', { name: 'Pages' }).click();
   await page.getByRole('checkbox', { name: 'Personality and backstory' }).uncheck();
   await expect(preview.getByText('Backstory', { exact: true })).toHaveCount(0);
+  // Reload once the choice is on disk (the write is quick, but a reload at once can beat it).
+  await expect
+    .poll(() =>
+      page.evaluate(async () => {
+        const root = await navigator.storage.getDirectory();
+        const dir = await (
+          await root.getDirectoryHandle('user-data')
+        ).getDirectoryHandle('characters');
+        let text = '';
+        for await (const handle of dir.values())
+          if (handle.kind === 'file') text += await (await handle.getFile()).text();
+        return text.includes('"story"');
+      }),
+    )
+    .toBe(true);
   await page.reload();
   await page.getByRole('button', { name: 'Pages' }).click();
   await expect(page.getByRole('checkbox', { name: 'Personality and backstory' })).not.toBeChecked();
   await page.getByRole('checkbox', { name: 'Personality and backstory' }).check();
   await expect(preview.getByText('Backstory', { exact: true })).toBeVisible();
+  // Every page, cards included, is exactly A4 (297 mm = 1122.5 CSS px), however much is on it.
+  const heights = await preview
+    .locator('.sheet-page')
+    .evaluateAll((pages) => pages.map((p) => p.getBoundingClientRect().height));
+  expect(heights.length).toBeGreaterThan(4);
+  for (const h of heights) expect(Math.abs(h - (297 * 96) / 25.4)).toBeLessThan(1);
   // Printing shows only the sheet: one copy, page by page.
   await page.emulateMedia({ media: 'print' });
   await expect(page.locator('.print-root .sheet-page').first()).toBeVisible();

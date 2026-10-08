@@ -33,7 +33,13 @@ import {
   type OptionCatalog,
   type RulesData,
 } from '@boh/rules';
-import type { DataStatus, DataWorkerApi, InstallSummary, LocalFile } from './protocol';
+import {
+  GUEST_WORKER,
+  type DataStatus,
+  type DataWorkerApi,
+  type InstallSummary,
+  type LocalFile,
+} from './protocol';
 
 let storage: DataStatus['storage'] = 'persistent';
 let controller: AbortController | null = null;
@@ -67,6 +73,11 @@ const lockChecked = new Promise<void>((resolve) => {
 
 async function openIndex(): Promise<EntityIndex> {
   let db: SqlDatabase;
+  if (self.name === GUEST_WORKER) {
+    markLockChecked();
+    storage = 'memory';
+    return EntityIndex.open(await openMemoryDatabase());
+  }
   try {
     const owned = !('locks' in navigator) || (await holdLock(true));
     if (!owned) storage = 'busy';

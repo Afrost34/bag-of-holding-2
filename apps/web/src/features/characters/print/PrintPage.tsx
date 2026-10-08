@@ -8,6 +8,7 @@ import { usePageTitle } from '../../../app/tabs/usePageTitle';
 import { useCharacterView } from '../useCharacterView';
 import { PrintSheet } from './PrintSheet';
 import { PRINT_SECTIONS, type PrintSection } from './sections';
+import { usePrintData } from './usePrintData';
 
 /**
  * The character sheet to print or save as PDF: a preview in the app, and a second copy outside
@@ -26,12 +27,17 @@ export function PrintPage({ id }: { id: string }) {
     [character?.preferences.feats],
   );
   const view = useCharacterView(character?.decisions, rules);
+  const hidden = useMemo(
+    () =>
+      (character?.preferences.printHidden ?? []).filter((h): h is PrintSection =>
+        PRINT_SECTIONS.some((s) => s.id === h),
+      ),
+    [character?.preferences.printHidden],
+  );
+  const data = usePrintData(character, view ?? undefined, hidden);
 
   if (!loaded) return <p className="p-8 text-muted">Loading…</p>;
   if (!character) return <p className="p-8">This character is not in your library.</p>;
-  const hidden = (character.preferences.printHidden ?? []).filter((h): h is PrintSection =>
-    PRINT_SECTIONS.some((s) => s.id === h),
-  );
   const toggle = (id: PrintSection) => {
     save({
       ...character,
@@ -90,15 +96,16 @@ export function PrintPage({ id }: { id: string }) {
       )}
       <div className="overflow-x-auto py-6">
         {view ? (
-          <PrintSheet character={character} view={view} hidden={hidden} />
+          <PrintSheet character={character} view={view} data={data} hidden={hidden} />
         ) : (
           <p className="p-8 text-muted">Preparing the sheet…</p>
         )}
       </div>
+      {data.measurer}
       {view &&
         createPortal(
           <div className="print-root">
-            <PrintSheet character={character} view={view} hidden={hidden} />
+            <PrintSheet character={character} view={view} data={data} hidden={hidden} />
           </div>,
           document.body,
         )}

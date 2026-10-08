@@ -96,3 +96,14 @@
   --boh-dice-fg: var(--boh-text);
   --boh-dice-border: transparent;
 }
+
+/* Ruled lines on paper, for what is written in by hand. */
+.ruled {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 19px,
+    var(--boh-border) 19px,
+    var(--boh-border) 20px
+  );
+}

@@ -137,6 +137,8 @@ export interface PackInput {
   /** Height across the whole page width, for cards too tall for a column. */
   wideHeight?: number;
   breakBefore?: boolean;
+  /** Stays in the same column as the card after it (a heading). */
+  keepWithNext?: boolean;
 }
 
 /**
@@ -144,7 +146,7 @@ export interface PackInput {
  * the right, then the next page. A card that does not fit in what is left of a column goes to
  * the next column (or page). A card taller than a whole column gets a page of its own across
  * both columns; if it is too tall even then, it is clipped on paper (the editor points it out).
- * `breakBefore` starts a new page.
+ * `breakBefore` starts a new page; a `keepWithNext` card (a heading) moves on with the card after it.
  */
 export function packCards(
   cards: readonly PackInput[],
@@ -165,7 +167,7 @@ export function packCards(
     }
     used = 0;
   };
-  for (const card of cards) {
+  for (const [i, card] of cards.entries()) {
     if (card.height > pageHeight) {
       if (!empty()) pages.push(page);
       pages.push({ columns: [[], []], wide: card.id });
@@ -180,7 +182,9 @@ export function packCards(
       column = 0;
       used = 0;
     }
-    const needed = (used > 0 ? gap : 0) + card.height;
+    const next = card.keepWithNext ? cards[i + 1] : undefined;
+    const withNext = next && next.height <= pageHeight ? gap + next.height : 0;
+    const needed = (used > 0 ? gap : 0) + card.height + withNext;
     if (used > 0 && used + needed > pageHeight) nextColumn();
     page.columns[column as 0 | 1].push(card.id);
     used += (used > 0 ? gap : 0) + card.height;

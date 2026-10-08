@@ -117,3 +117,6 @@ export interface DataWorkerApi {
     rules?: CampaignRules,
   ): Promise<OptionSummary[]>;
 }
+
+/** Worker name of a window that never opens the database (the player window): it stays empty. */
+export const GUEST_WORKER = 'boh-data-guest';
