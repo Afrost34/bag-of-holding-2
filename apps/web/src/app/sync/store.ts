@@ -11,6 +11,7 @@ import { useCardSheets } from '../cards/store';
 import { useCharacters } from '../characters/store';
 import { useHomebrew } from '../data/homebrew';
 import { forgetAllAttachments } from '../journal/attachments';
+import { useNoteTypes } from '../journal/noteTypes';
 import { useJournal } from '../journal/store';
 import { userStore } from '../userStore';
 
@@ -132,6 +133,8 @@ async function refreshAfterSync(paths: string[]): Promise<void> {
   const touched = (prefix: RegExp) => paths.some((p) => prefix.test(p));
   if (touched(/^(campaigns\/[^/]+\/campaign\.json|templates\/)/)) await reloadCampaigns();
   if (touched(/annotations\.json$/)) await reloadAnnotations();
+  if (touched(/^campaigns\/[^/]+\/note-types\.json$/))
+    await useNoteTypes.getState().load(useNoteTypes.getState().campaignId);
   if (touched(/^campaigns\/[^/]+\/journal\//)) {
     forgetAllAttachments();
     await useJournal.getState().refresh();

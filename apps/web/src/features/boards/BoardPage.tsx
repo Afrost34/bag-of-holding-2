@@ -48,7 +48,7 @@ import { useTheme } from '../../app/theme';
 import { BoardActionsContext, type BoardActions } from './context';
 import { KIND_ICONS, KIND_LABELS, type CardNodeType } from './kinds';
 import { CardNode, FrameNode, StackNode } from './nodes';
-import { NotesProvider } from './noteView';
+import { NotesProvider } from '../../app/journal/notes/NotesProvider';
 
 const NODE_TYPES = { card: CardNode, stack: StackNode, frame: FrameNode };
 

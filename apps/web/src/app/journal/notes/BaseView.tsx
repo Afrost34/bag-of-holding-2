@@ -168,7 +168,7 @@ export function BaseView({
         (view.type === 'table' ? (
           <div className="max-h-[32rem] overflow-auto">
             <table className="w-full border-collapse text-left">
-              <thead className="sticky top-0 z-[1] bg-surface">
+              <thead className="sticky top-0 z-[1] bg-bg">
                 <tr>
                   {result.columns.map((c) => {
                     const active = sort?.property === c.key;
@@ -178,14 +178,14 @@ export function BaseView({
                         aria-sort={
                           active ? (sort.direction === 'ASC' ? 'ascending' : 'descending') : 'none'
                         }
-                        className="border-b border-border px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-muted"
+                        className="border-b border-border px-4 py-2.5 text-[11px] font-semibold tracking-wider whitespace-nowrap text-muted uppercase"
                       >
                         <button
                           type="button"
                           onClick={() => {
                             toggleSort(c.key);
                           }}
-                          className="flex items-center gap-1 hover:text-text"
+                          className="flex items-center gap-1 hover:text-accent-ink"
                         >
                           {c.name}
                           {active &&
@@ -206,7 +206,7 @@ export function BaseView({
                     <tr>
                       <th
                         colSpan={result.columns.length}
-                        className="bg-sunken/60 px-3 py-1 text-xs font-semibold text-muted"
+                        className="bg-sunken px-4 py-1.5 text-[11px] font-semibold tracking-wider text-muted uppercase"
                       >
                         {g.label || 'None'} <span className="text-faint">{g.rows.length}</span>
                       </th>
@@ -215,10 +215,13 @@ export function BaseView({
                   {g.rows.map((r) => (
                     <tr
                       key={r.path}
-                      className="border-b border-border/60 last:border-0 hover:bg-sunken/40"
+                      className="border-b border-border last:border-0 odd:bg-surface-2 hover:bg-sunken"
                     >
                       {r.values.map((v, i) => (
-                        <td key={result.columns[i]?.key ?? i} className="px-3 py-1.5 align-top">
+                        <td
+                          key={result.columns[i]?.key ?? i}
+                          className={cn('px-4 py-2.5 align-top', i === 0 && 'font-semibold')}
+                        >
                           <Cell
                             value={v}
                             path={r.path}

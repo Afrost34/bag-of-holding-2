@@ -1,7 +1,6 @@
 import {
   fieldLabel,
   isLongField,
-  NOTE_TYPES,
   type FieldDef,
   type NoteType,
   type PropertyValue,
@@ -10,7 +9,8 @@ import { Button, cn } from '@boh/ui';
 import { ImagePlus, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { NoteTypeIcon } from './NoteTypeIcon';
+import { NoteTypeIcon } from '../../app/journal/NoteTypeIcon';
+import { useAllNoteTypes } from '../../app/journal/noteTypes';
 import { useAttachmentUrl } from '../../app/journal/notes/useAttachmentUrl';
 
 /** What the wizard hands back: the note's name and its properties. */
@@ -536,11 +536,12 @@ function PictureField({
 }
 
 function KindPicker({ onPick }: { onPick: (type: NoteType) => void }) {
+  const types = useAllNoteTypes();
   return (
     <div>
       <p className="mb-1 text-sm font-medium">Make it a…</p>
       <div className="flex flex-wrap gap-1.5">
-        {NOTE_TYPES.map((t) => (
+        {types.map((t) => (
           <button
             key={t.id}
             type="button"

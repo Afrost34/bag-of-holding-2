@@ -11,12 +11,13 @@ import {
   LayoutTemplate,
   MoreHorizontal,
   Paperclip,
+  Plus,
   Table2,
 } from 'lucide-react';
 import { useState, type DragEvent } from 'react';
 import { buildTree, moveTarget, type TreeNode } from './tree';
 import { DRAG_TYPE } from '../../app/journal/notes/dnd';
-import { NoteTypeIcon } from './NoteTypeIcon';
+import { NoteTypeIcon } from '../../app/journal/NoteTypeIcon';
 
 export interface FileTreeProps {
   notes: readonly string[];
@@ -37,6 +38,8 @@ export interface FileTreeProps {
   /** Built-in kinds of notes (NPC, location…). */
   noteTypes?: readonly NoteType[];
   onNewOfType?: (type: NoteType) => void;
+  /** Opens the editor of the campaign's own kinds of notes. */
+  onEditKinds?: () => void;
   /** Opens the Obsidian import. */
   onImport?: () => void;
 }
@@ -125,6 +128,16 @@ export function FileTree(treeProps: FileTreeProps) {
                         {t.label}
                       </Menu.Item>
                     ))}
+                    {props.onEditKinds && (
+                      <Menu.Item
+                        onSelect={() => {
+                          props.onEditKinds?.();
+                        }}
+                        className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-muted outline-none data-[highlighted]:bg-sunken"
+                      >
+                        <Plus className="h-4 w-4" aria-hidden /> New kind of note…
+                      </Menu.Item>
+                    )}
                   </>
                 )}
                 {props.templates && props.templates.length > 0 && (

@@ -1,7 +1,7 @@
 import { fieldLabel, noteType, type FieldDef } from '@boh/journal';
 import { Button } from '@boh/ui';
 import { Pencil } from 'lucide-react';
-import { NoteTypeIcon } from './NoteTypeIcon';
+import { NoteTypeIcon } from '../../app/journal/NoteTypeIcon';
 
 const LINK = /^\[\[([^\]|]+)(?:\|([^\]]*))?\]\]$/;
 /** Shown elsewhere (banner, page title) or as chips (tags). */
