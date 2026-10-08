@@ -81,7 +81,7 @@ export function CreatureEditor({
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
       <form
-        aria-label="Creature"
+        aria-label="Monster"
         className="space-y-5"
         onSubmit={(e) => {
           e.preventDefault();
@@ -458,7 +458,7 @@ export function CreatureEditor({
         )}
         <div className="flex gap-2">
           <Button type="submit" variant="primary" disabled={saving}>
-            {saving ? 'Saving…' : 'Save creature'}
+            {saving ? 'Saving…' : 'Save monster'}
           </Button>
           <Button type="button" variant="ghost" onClick={onCancel}>
             Cancel

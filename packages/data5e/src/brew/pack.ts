@@ -16,7 +16,15 @@ export interface PackMeta {
 }
 
 /** The kinds of entries the editors make, and the arrays they live in. */
-export const BREW_TYPES = ['item', 'monster', 'spell'] as const;
+export const BREW_TYPES = [
+  'item',
+  'monster',
+  'spell',
+  'feat',
+  'background',
+  'race',
+  'class',
+] as const;
 export type BrewType = (typeof BREW_TYPES)[number];
 
 const isObj = (v: unknown): v is RawEntity =>
@@ -71,7 +79,14 @@ export function packEntries(pack: RawEntity): { type: string; name: string; enti
   const out: { type: string; name: string; entity: RawEntity }[] = [];
   for (const [type, list] of Object.entries(pack)) {
     // Pictures and lore (`itemFluff`…) belong to their entries, not listed apart.
-    if (type.startsWith('_') || type.endsWith('Fluff') || !Array.isArray(list)) continue;
+    // Class features are listed with their class.
+    if (
+      type.startsWith('_') ||
+      type.endsWith('Fluff') ||
+      type === 'classFeature' ||
+      !Array.isArray(list)
+    )
+      continue;
     for (const entity of list) {
       if (isObj(entity) && typeof entity.name === 'string')
         out.push({ type, name: entity.name, entity });
@@ -164,4 +179,80 @@ export function putFluffImage(
     undefined,
     now,
   );
+}
+
+/**
+ * Adds or replaces a class with its features (`previousName` follows a rename): 5etools keeps
+ * features in `classFeature`, tied to the class by name and source, and names can repeat
+ * (Ability Score Improvement at several levels), so they are swapped as a set.
+ */
+export function putClass(
+  pack: RawEntity,
+  cls: RawEntity,
+  features: readonly RawEntity[],
+  previousName?: string,
+  now = new Date(),
+): RawEntity {
+  const name = typeof cls.name === 'string' ? cls.name.trim() : '';
+  const withClass = putEntry(pack, 'class', cls, previousName, now);
+  const old = (previousName ?? name).toLowerCase();
+  const kept = (Array.isArray(withClass.classFeature) ? (withClass.classFeature as unknown[]) : [])
+    .filter(isObj)
+    .filter(
+      (f) =>
+        String(f.className).toLowerCase() !== old &&
+        String(f.className).toLowerCase() !== name.toLowerCase(),
+    );
+  const meta = packMeta(pack);
+  const next: RawEntity = {
+    ...withClass,
+    classFeature: [...kept, ...features.map((f) => ({ ...f, source: meta?.id ?? f.source }))],
+  };
+  if ((next.classFeature as unknown[]).length === 0) Reflect.deleteProperty(next, 'classFeature');
+  return next;
+}
+
+/** Removes a class and its features. */
+export function removeClass(pack: RawEntity, name: string, now = new Date()): RawEntity {
+  const next = removeEntry(pack, 'class', name, now);
+  const features = (Array.isArray(next.classFeature) ? (next.classFeature as unknown[]) : [])
+    .filter(isObj)
+    .filter((f) => String(f.className).toLowerCase() !== name.toLowerCase());
+  const out: RawEntity = { ...next };
+  if (features.length) out.classFeature = features;
+  else Reflect.deleteProperty(out, 'classFeature');
+  return out;
+}
+
+/** A class's features in the pack. */
+export function classFeatures(pack: RawEntity, className: string): RawEntity[] {
+  return (Array.isArray(pack.classFeature) ? (pack.classFeature as unknown[]) : [])
+    .filter(isObj)
+    .filter((f) => String(f.className).toLowerCase() === className.toLowerCase());
+}
+
+/** The pack's cover picture (a data URL kept on its source), shown with the books. */
+export function packCover(pack: RawEntity): string | null {
+  const meta = isObj(pack._meta) ? pack._meta : null;
+  const source = Array.isArray(meta?.sources) ? meta.sources.find(isObj) : undefined;
+  return typeof source?.cover === 'string' ? source.cover : null;
+}
+
+/** Sets or clears the pack's cover. */
+export function setPackCover(pack: RawEntity, cover: string | null, now = new Date()): RawEntity {
+  const meta = isObj(pack._meta) ? pack._meta : {};
+  const sources = Array.isArray(meta.sources) ? meta.sources : [];
+  const first = sources.findIndex(isObj);
+  if (first < 0) return pack;
+  const source: RawEntity = { ...(sources[first] as RawEntity) };
+  if (cover) source.cover = cover;
+  else Reflect.deleteProperty(source, 'cover');
+  return {
+    ...pack,
+    _meta: {
+      ...meta,
+      sources: sources.map((s, i) => (i === first ? source : s)),
+      dateLastModified: Math.floor(now.getTime() / 1000),
+    },
+  };
 }

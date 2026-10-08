@@ -105,6 +105,11 @@ export {
   sourceIdFor,
   type BrewType,
   type PackMeta,
+  putClass,
+  packCover,
+  setPackCover,
+  removeClass,
+  classFeatures,
 } from './brew/pack';
 export {
   DAMAGE_TYPES,
@@ -155,3 +160,26 @@ export {
   spellToForm,
   type SpellForm,
 } from './brew/spells';
+export {
+  ABILITY_IDS,
+  SKILL_NAMES,
+  FEAT_CATEGORIES,
+  emptyFeat,
+  formToFeat,
+  featToForm,
+  emptyBackground,
+  formToBackground,
+  backgroundToForm,
+  emptySpecies,
+  formToSpecies,
+  speciesToForm,
+  emptyClass,
+  formToClass,
+  classToForm,
+  type AbilityId,
+  type FeatForm,
+  type BackgroundForm,
+  type SpeciesForm,
+  type ClassForm,
+  type Caster,
+} from './brew/characterOptions';

@@ -1,26 +1,33 @@
-import type { SourceSummary } from '@boh/data5e';
+import { packCover, packMeta, type SourceSummary } from '@boh/data5e';
 import { Button, cn, Panel } from '@boh/ui';
 import { Check, ChevronRight, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { ArtImage } from '../ArtImage';
 import { useLibrary } from './books';
+import { useHomebrew } from './homebrew';
 import { SOURCE_GROUPS, sourceGroup, useSourceList, type SourceGroupId } from './sourceList';
 import { isSourceEnabled } from './sourcePrefs';
 
 /** Groups open by default; adventures and "other" are long lists. */
 const OPEN_BY_DEFAULT = new Set<SourceGroupId>(['core2024', 'core2014', 'homebrew']);
 
-/** Cover art of each book and adventure, by lowercased source id. */
+/** Cover art of each book, adventure and homebrew pack (a data URL), by lowercased source id. */
 function useSourceCovers(): Map<string, string> {
   const books = useLibrary('book');
   const adventures = useLibrary('adventure');
+  const packs = useHomebrew((s) => s.packs);
   return useMemo(() => {
     const covers = new Map<string, string>();
     for (const b of [...(books ?? []), ...(adventures ?? [])]) {
       if (b.coverPath) covers.set(b.source.toLowerCase(), b.coverPath);
     }
+    for (const p of packs) {
+      const id = packMeta(p.json)?.id;
+      const cover = packCover(p.json);
+      if (id && cover) covers.set(id.toLowerCase(), cover);
+    }
     return covers;
-  }, [books, adventures]);
+  }, [books, adventures, packs]);
 }
 
 export interface SourceLibraryProps {
@@ -205,7 +212,9 @@ function CoverGroup({ label, sources, overrides, covers, defaultOpen, onToggle }
                       'group-hover:opacity-100',
                     )}
                   >
-                    {cover ? (
+                    {cover?.startsWith('data:') ? (
+                      <img src={cover} alt="" className="h-full w-full object-cover" />
+                    ) : cover ? (
                       <ArtImage
                         path={cover}
                         widths={[160, 260]}
