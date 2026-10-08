@@ -126,9 +126,50 @@ test('a card shown to players opens in the player window', async ({ page, contex
     context.waitForEvent('page'),
     page.getByRole('menuitem', { name: 'Show to players' }).click(),
   ]);
-  await expect(player.getByRole('heading', { level: 1, name: 'Fireball' })).toBeVisible();
-  // Only the shown card: no app sidebar there.
+  // The players see a board of the shown cards (here one), not the app.
+  await expect(player.getByRole('region', { name: 'Fireball' })).toBeVisible();
   await expect(player.getByRole('navigation')).toHaveCount(0);
+  await expect(page.getByLabel('Shown to players')).toBeVisible();
+  // Hidden again: gone from their window.
+  await page.getByRole('button', { name: 'Fireball menu', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Hide from players' }).click();
+  await expect(player.getByRole('region', { name: 'Fireball' })).toHaveCount(0);
+});
+
+test('right-click adds where clicked; the NPC generator; frames rename', async ({ page }) => {
+  test.skip(isPhone(page), 'Right-click is a desktop gesture.');
+  await page.goto('./#/boards');
+  await page.getByRole('button', { name: 'New board' }).click();
+  await page.getByLabel('Name').fill('Session 1');
+  await page.getByRole('button', { name: 'Create' }).click();
+  const canvas = page
+    .getByRole('application', { name: 'Board canvas' })
+    .or(page.locator('.react-flow'))
+    .first();
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  // Right-click: the Add menu where the pointer is.
+  await page.mouse.click(box.x + 200, box.y + 200, { button: 'right' });
+  const menu = page.getByRole('menu', { name: 'Add here' });
+  await menu.getByRole('menuitem', { name: 'NPC generator' }).click();
+  await expect(menu).toHaveCount(0);
+  const npc = page.locator('.react-flow__node').filter({ hasText: 'Secret' });
+  await expect(npc).toBeVisible();
+  const before = await npc.getByRole('heading').first().textContent();
+  await npc.getByRole('button', { name: 'Another' }).click();
+  await expect(npc.getByRole('heading').first()).not.toHaveText(before ?? '');
+  // A frame, renamed without dragging its title around.
+  await page.mouse.click(box.x + box.width - 80, box.y + 40, { button: 'right' });
+  await page
+    .getByRole('menu', { name: 'Add here' })
+    .getByRole('menuitem', { name: 'Frame' })
+    .click();
+  await page.getByRole('button', { name: 'Rename frame Frame' }).click();
+  await page.getByRole('textbox', { name: 'Frame title' }).fill('Town');
+  await page.getByRole('textbox', { name: 'Frame title' }).press('Enter');
+  await expect(page.getByRole('region', { name: 'Frame Town' })).toBeVisible();
+  // The empty-board hint and the minimap are gone.
+  await expect(page.locator('.react-flow__minimap')).toHaveCount(0);
 });
 
 test('a board of 300 cards pans and zooms smoothly', async ({ page }, testInfo) => {

@@ -6,6 +6,9 @@ import {
   Image,
   Layers,
   ListOrdered,
+  Map as MapIcon,
+  UserRound,
+  Wand2,
   Swords,
   Skull,
   NotebookPen,
@@ -15,7 +18,9 @@ import {
 } from 'lucide-react';
 import type { BoardCard, CardKind } from '../../app/boards/model';
 import { useEntity } from '../../app/data/entities';
+import { useCharacters } from '../../app/characters/store';
 import { useEncounters } from '../../app/encounters/store';
+import { useMaps } from '../../app/maps/store';
 
 /** Below this zoom cards show their title only, large: cheap to draw and readable from afar. */
 export const FAR_ZOOM = 0.45;
@@ -37,6 +42,9 @@ export const KIND_ICONS: Record<CardKind, LucideIcon> = {
   initiative: ListOrdered,
   combat: Swords,
   encounter: Skull,
+  map: MapIcon,
+  character: UserRound,
+  npc: Wand2,
   frame: Frame,
   stack: Layers,
 };
@@ -51,6 +59,9 @@ export const KIND_LABELS: Record<CardKind, string> = {
   initiative: 'Initiative',
   combat: 'Combat',
   encounter: 'Encounter',
+  map: 'Map',
+  character: 'Character',
+  npc: 'NPC',
   frame: 'Frame',
   stack: 'Stack',
 };
@@ -61,6 +72,12 @@ export function useCardTitle(card: BoardCard): string {
   const encounter = useEncounters((s) =>
     card.kind === 'encounter' ? s.encounters.find((e) => e.id === card.encounter)?.name : undefined,
   );
+  const map = useMaps((s) =>
+    card.kind === 'map' ? s.maps.find((m) => m.id === card.map)?.name : undefined,
+  );
+  const character = useCharacters((s) =>
+    card.kind === 'character' ? s.characters.find((c) => c.id === card.character)?.name : undefined,
+  );
   if (card.title) return card.title;
   if (card.kind === 'entity')
     return entity.status === 'found'
@@ -69,5 +86,8 @@ export function useCardTitle(card: BoardCard): string {
   if (card.kind === 'note') return card.path.split('/').pop()?.replace(/\.md$/i, '') ?? card.path;
   if (card.kind === 'frame') return card.title;
   if (card.kind === 'encounter') return encounter ?? KIND_LABELS.encounter;
+  if (card.kind === 'map') return map ?? KIND_LABELS.map;
+  if (card.kind === 'character') return character ?? KIND_LABELS.character;
+  if (card.kind === 'npc') return card.npc.name;
   return KIND_LABELS[card.kind];
 }

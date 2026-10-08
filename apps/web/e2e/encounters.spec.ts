@@ -49,6 +49,12 @@ test('an encounter opens as a filled combat tracker on a board in one click', as
   await expect(page.getByRole('listitem', { name: 'Goblin Boss' })).toBeVisible();
   const difficulty = page.getByRole('complementary', { name: 'Difficulty' });
   await expect(difficulty).toContainText('Brakka · level 3');
+  // Each monster and character opens to what it is.
+  await goblins.getByRole('button', { name: 'Show Goblin' }).click();
+  await expect(goblins).toContainText('Scimitar');
+  const party = page.getByRole('region', { name: 'Party' });
+  await party.getByRole('button', { name: /Brakka/ }).click();
+  await expect(party.getByRole('listitem', { name: 'Brakka' })).toContainText('AC');
   // 4 × 50 + 200 = 400 XP for one 3rd-level character.
   await expect(difficulty).toContainText('400 XP');
 

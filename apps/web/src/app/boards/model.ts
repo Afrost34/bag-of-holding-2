@@ -1,5 +1,6 @@
 import { newId } from '../cards/model';
 import type { CombatState } from './combat';
+import type { Npc } from './npc';
 
 /**
  * DM boards: infinite canvases of cards (compendium entries, journal notes, images, dice,
@@ -44,6 +45,16 @@ export type CardContent =
   | ({ kind: 'combat'; encounter?: string } & CombatState)
   /** An encounter of the campaign, with its difficulty and a button to start the fight. */
   | { kind: 'encounter'; encounter: string }
+  /** A map from the Maps module, viewed (not edited) on the board. */
+  | { kind: 'map'; map: string }
+  /** A character of the campaign at a glance; the sections shown are the DM's choice. */
+  | {
+      kind: 'character';
+      character: string;
+      show: { spells: boolean; features: boolean; inventory: boolean };
+    }
+  /** A generated NPC (the DM's own text from then on). */
+  | { kind: 'npc'; npc: Npc }
   | { kind: 'frame'; title: string }
   | { kind: 'stack'; items: string[]; active: number };
 
@@ -63,6 +74,8 @@ export type BoardCard = CardContent & {
   parent?: string;
   /** The stack it is a tab of; not drawn on its own. */
   inStack?: string;
+  /** Shown in the player window. */
+  shown?: boolean;
 };
 
 export interface Board {
@@ -89,6 +102,9 @@ export const SIZES: Record<CardKind, { w: number; h: number }> = {
   initiative: { w: 320, h: 300 },
   combat: { w: 480, h: 560 },
   encounter: { w: 340, h: 320 },
+  map: { w: 520, h: 400 },
+  character: { w: 380, h: 460 },
+  npc: { w: 340, h: 380 },
   frame: { w: 760, h: 480 },
   stack: { w: 340, h: 380 },
 };
@@ -415,4 +431,24 @@ export function dropCard(board: Board, id: string): Board {
     .reverse()
     .find((c) => inside(grip, c));
   return setFrame(board, id, frame?.id ?? null);
+}
+
+/** Cards the players may see (not trackers or character sheets, which are the DM's). */
+export const SHOWABLE_KINDS: ReadonlySet<CardKind> = new Set([
+  'entity',
+  'image',
+  'text',
+  'note',
+  'initiative',
+  'timer',
+  'map',
+  'npc',
+]);
+
+/** Marks a card as shown to the players, or not. */
+export function toggleShown(board: Board, id: string): Board {
+  return updateBoardCard(board, id, (c) => {
+    const { shown: _s, ...rest } = c;
+    return c.shown ? rest : { ...c, shown: true };
+  });
 }

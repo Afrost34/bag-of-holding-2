@@ -9,10 +9,11 @@ import {
   Layers,
   MonitorUp,
   MoreVertical,
+  Pencil,
   Trash2,
 } from 'lucide-react';
-import { memo, type ReactNode } from 'react';
-import type { BoardCard } from '../../app/boards/model';
+import { memo, useState, type ReactNode } from 'react';
+import { SHOWABLE_KINDS, type BoardCard } from '../../app/boards/model';
 import { CardBody } from './bodies';
 import { useBoardActions } from './context';
 import { FAR_ZOOM, KIND_ICONS, useCardTitle, type CardNodeType } from './kinds';
@@ -25,7 +26,7 @@ const itemClass =
 /** The ⋮ menu of a card (or of a tab in a stack). */
 function CardMenu({ card, title, inStack }: { card: BoardCard; title: string; inStack?: boolean }) {
   const actions = useBoardActions();
-  const showable = ['entity', 'note', 'image', 'text'].includes(card.kind);
+  const showable = SHOWABLE_KINDS.has(card.kind);
   const openable = card.kind === 'entity' || card.kind === 'note';
   return (
     <Menu.Root>
@@ -55,7 +56,8 @@ function CardMenu({ card, title, inStack }: { card: BoardCard; title: string; in
                 actions.show(card);
               }}
             >
-              <MonitorUp className="h-4 w-4" aria-hidden /> Show to players
+              <MonitorUp className="h-4 w-4" aria-hidden />{' '}
+              {card.shown ? 'Hide from players' : 'Show to players'}
             </Menu.Item>
           )}
           {inStack && (
@@ -159,6 +161,9 @@ function Shell({
             <h3 className="min-w-0 flex-1 truncate font-serif text-sm font-bold">{title}</h3>
           </>
         )}
+        {card.shown && (
+          <MonitorUp className="h-4 w-4 shrink-0 text-accent-ink" aria-label="Shown to players" />
+        )}
         <CardMenu card={card} title={title} />
       </header>
       {!card.collapsed &&
@@ -255,6 +260,7 @@ export const FrameNode = memo(function FrameNode({ data, selected }: NodeProps<C
   const { card } = data;
   const actions = useBoardActions();
   const far = useFar();
+  const [renaming, setRenaming] = useState(false);
   const title = card.kind === 'frame' ? card.title : '';
   return (
     <section
@@ -282,18 +288,50 @@ export const FrameNode = memo(function FrameNode({ data, selected }: NodeProps<C
       />
       <header className="card-drag flex cursor-grab items-center gap-1 px-2 py-1">
         <Frame className="h-4 w-4 text-muted" aria-hidden />
-        <input
-          value={title}
-          aria-label="Frame title"
-          onChange={(e) => {
-            const t = e.target.value;
-            actions.update(card.id, (c) => (c.kind === 'frame' ? { ...c, title: t } : c));
-          }}
-          className={cn(
-            'nodrag min-w-0 flex-1 bg-transparent font-serif font-bold focus:outline-none',
-            far ? 'text-5xl' : 'text-base',
-          )}
-        />
+        {/* The title drags the frame; a double-click (or the pencil) renames it. */}
+        {renaming ? (
+          <input
+            defaultValue={title}
+            aria-label="Frame title"
+            autoFocus
+            onBlur={(e) => {
+              const t = e.target.value.trim() || title;
+              actions.update(card.id, (c) => (c.kind === 'frame' ? { ...c, title: t } : c));
+              setRenaming(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === 'Escape') e.currentTarget.blur();
+            }}
+            className={cn(
+              'nodrag min-w-0 flex-1 rounded bg-surface px-1 font-serif font-bold focus:outline-none',
+              far ? 'text-5xl' : 'text-base',
+            )}
+          />
+        ) : (
+          <span
+            onDoubleClick={() => {
+              setRenaming(true);
+            }}
+            className={cn(
+              'min-w-0 flex-1 truncate font-serif font-bold select-none',
+              far ? 'text-5xl' : 'text-base',
+            )}
+          >
+            {title}
+          </span>
+        )}
+        {!renaming && (
+          <button
+            type="button"
+            aria-label={`Rename frame ${title}`}
+            onClick={() => {
+              setRenaming(true);
+            }}
+            className="nodrag rounded p-1 text-muted hover:bg-sunken"
+          >
+            <Pencil className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        )}
         <CardMenu card={card} title={`Frame ${title}`} />
       </header>
     </section>

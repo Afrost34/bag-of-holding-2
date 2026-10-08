@@ -40,7 +40,7 @@ import { useMapDoc, useMaps } from '../../app/maps/store';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 import { MapPanels } from './MapPanels';
-import { MapScene, WALL_COLOR } from './scene';
+import { MapScene, WALL_COLOR } from '../../app/maps/scene';
 import { TOOLS, type BrushSettings, type TemplateSettings, type Tool } from './tools';
 
 /** One map, edited: the canvas, the tool bar and the side panels. */

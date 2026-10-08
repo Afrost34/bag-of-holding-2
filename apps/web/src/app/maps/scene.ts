@@ -10,9 +10,9 @@ import {
   TilingSprite,
   type ColorSource,
 } from 'pixi.js';
-import { fileUrl, stampFile } from '../../app/maps/assets';
-import { hexCorners, templateOutline, type Point } from '../../app/maps/geometry';
-import type { Grid, MapDoc, MapItem } from '../../app/maps/model';
+import { fileUrl, stampFile } from './assets';
+import { hexCorners, templateOutline, type Point } from './geometry';
+import type { Grid, MapDoc, MapItem } from './model';
 
 /**
  * The map canvas (PixiJS, WebGL): background, grid, layers of items, and an overlay for what is

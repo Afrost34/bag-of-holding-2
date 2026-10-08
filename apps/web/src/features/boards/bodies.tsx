@@ -20,6 +20,7 @@ import { NoteViewer } from '../../app/journal/notes/NoteViewer';
 import { useJournal } from '../../app/journal/store';
 import { CombatBody, EncounterBody } from './combatBodies';
 import { useBoardActions } from './context';
+import { CharacterBody, MapBody, NpcBody } from './widgetBodies';
 
 /** What a card shows under its title bar. */
 export function CardBody({ card }: { card: BoardCard }) {
@@ -42,6 +43,12 @@ export function CardBody({ card }: { card: BoardCard }) {
       return <CombatBody card={card} />;
     case 'encounter':
       return <EncounterBody card={card} />;
+    case 'map':
+      return <MapBody card={card} />;
+    case 'character':
+      return <CharacterBody card={card} />;
+    case 'npc':
+      return <NpcBody card={card} />;
     case 'frame':
     case 'stack':
       return null;
