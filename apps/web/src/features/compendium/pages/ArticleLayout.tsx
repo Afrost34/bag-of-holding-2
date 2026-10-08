@@ -1,7 +1,8 @@
 import type { EntityDetail } from '@boh/data5e';
 import { Entries, RichText } from '@boh/renderer';
 import { cn } from '@boh/ui';
-import type { ReactNode } from 'react';
+import { ChevronRight } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
 import { PageTools } from '../../../app/annotations/PageTools';
 import { EntityMeta } from '../../../app/renderer/EntityCard';
 import { ArtImage } from '../../../app/ArtImage';
@@ -120,8 +121,8 @@ export function EntityHero({
           <ArtImage
             path={image.path}
             widths={[320, 480, 720]}
-            sizes="(min-width: 640px) 224px, 100vw"
-            className="max-h-72 w-full rounded-lg border border-border object-cover object-top sm:w-56"
+            sizes="(min-width: 1024px) 320px, (min-width: 640px) 288px, 100vw"
+            className="max-h-[28rem] w-full rounded-lg border border-border object-cover object-top sm:w-72 lg:w-80"
           />
         )}
       </div>
@@ -136,9 +137,12 @@ export function FeatureSection({
   name,
   entity,
   badge,
+  defaultOpen = false,
   children,
 }: {
   id: string;
+  /** Starts unfolded. */
+  defaultOpen?: boolean;
   level: number;
   name: string;
   entity?: EntityDetail | undefined;
@@ -146,25 +150,61 @@ export function FeatureSection({
   badge?: string;
   children?: ReactNode;
 }) {
+  // Folded by default so the page reads as a list of features. The contents and the class table
+  // open one when they jump to it.
   return (
-    <section id={id} className={cn('mt-6 scroll-mt-4', badge && 'border-l-2 border-accent pl-4')}>
-      <h3 className="flex flex-wrap items-baseline gap-x-2 font-serif text-lg font-bold">
-        <span>
+    <details
+      id={id}
+      data-feature=""
+      open={defaultOpen || undefined}
+      className={cn(
+        'group mt-3 scroll-mt-4 rounded-lg border bg-surface',
+        badge ? 'border-accent/60' : 'border-border',
+      )}
+    >
+      <summary className="flex cursor-pointer list-none items-baseline gap-x-2 px-4 py-2.5 font-serif text-lg font-bold select-none hover:bg-surface-2 [&::-webkit-details-marker]:hidden">
+        <ChevronRight
+          className="h-4 w-4 shrink-0 self-center text-muted transition-transform group-open:rotate-90"
+          aria-hidden
+        />
+        <h3 className="min-w-0 flex-1">
           <span className="text-muted">Level {level}: </span>
           <RichText text={name} />
-        </span>
+        </h3>
         {badge && (
           <span className="rounded bg-accent-soft px-1.5 py-0.5 font-sans text-[11px] font-semibold text-accent-ink">
             {badge}
           </span>
         )}
-      </h3>
-      {entity ? (
-        <Entries entries={entity.data.entries} depth={2} />
-      ) : (
-        <p className="text-muted italic">Not in your data.</p>
-      )}
-      {children}
-    </section>
+      </summary>
+      <div className="border-t border-border px-4 pt-1 pb-3">
+        {entity ? (
+          <Entries entries={entity.data.entries} depth={2} />
+        ) : (
+          <p className="text-muted italic">Not in your data.</p>
+        )}
+        {children}
+      </div>
+    </details>
+  );
+}
+
+/** Opens or folds every feature on the page. */
+export function ExpandAllFeatures() {
+  const [open, setOpen] = useState(false);
+  return (
+    <button
+      type="button"
+      aria-pressed={open}
+      onClick={() => {
+        const next = !open;
+        for (const d of document.querySelectorAll<HTMLDetailsElement>('details[data-feature]'))
+          d.open = next;
+        setOpen(next);
+      }}
+      className="rounded-md border border-border px-2.5 py-1 font-sans text-sm font-medium hover:border-accent"
+    >
+      {open ? 'Fold all' : 'Expand all'}
+    </button>
   );
 }

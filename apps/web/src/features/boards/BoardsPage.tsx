@@ -1,4 +1,4 @@
-import { Button } from '@boh/ui';
+import { Button, ConfirmDelete } from '@boh/ui';
 import { LayoutDashboard, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
@@ -14,7 +14,7 @@ const LIBRARY = '@library';
 /** Boards: DM canvases of cards, the open campaign's first. */
 export function BoardsPage() {
   usePageTitle('Boards');
-  const { boards: sheets, loaded, load, create } = useBoards();
+  const { boards: sheets, loaded, load, create, remove } = useBoards();
   const { campaigns, loaded: campaignsLoaded, load: loadCampaigns } = useCampaigns();
   const active = useActiveCampaign();
   const navigate = useAppNavigate();
@@ -133,7 +133,7 @@ export function BoardsPage() {
           <h2 className="mb-2 font-serif text-lg font-bold">{g.title}</h2>
           <ul className="grid gap-3 sm:grid-cols-2">
             {g.list.map((s) => (
-              <li key={s.id}>
+              <li key={s.id} className="relative">
                 <AppLink
                   to={`/boards/${s.id}`}
                   className="block rounded-lg border border-border bg-surface p-4 hover:border-accent"
@@ -143,6 +143,11 @@ export function BoardsPage() {
                     {s.cards.filter((c) => c.kind !== 'stack' && c.kind !== 'frame').length} cards
                   </span>
                 </AppLink>
+                <ConfirmDelete
+                  name={s.name}
+                  onDelete={() => void remove(s.id)}
+                  className="absolute top-2 right-2"
+                />
               </li>
             ))}
           </ul>

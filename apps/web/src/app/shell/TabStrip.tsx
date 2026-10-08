@@ -1,10 +1,11 @@
 import { cn, IconButton } from '@boh/ui';
 import { useRouter } from '@tanstack/react-router';
-import { Menu, Plus, Search, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Menu, Plus, Search, X } from 'lucide-react';
 import { useEffect, useRef, type DragEvent, type Ref } from 'react';
 import { moduleForPath, titleForPath } from '../nav';
 import { useSearchPalette } from '../search/store';
 import { SyncButton } from '../sync/SyncButton';
+import { DataIndicator } from './DataIndicator';
 import { HOME_PATH, type Tab } from '../tabs/model';
 import { useTabs } from '../tabs/store';
 
@@ -41,6 +42,28 @@ export function TabStrip({ onOpenMenu }: TabStripProps) {
         label="Open menu"
         icon={<Menu className="h-5 w-5" />}
         onClick={onOpenMenu}
+      />
+      <IconButton
+        className="mb-1"
+        variant="chrome"
+        size="icon-sm"
+        label="Back"
+        tooltipSide="bottom"
+        icon={<ArrowLeft className="h-4 w-4" />}
+        onClick={() => {
+          router.history.back();
+        }}
+      />
+      <IconButton
+        className="mb-1 hidden sm:inline-flex"
+        variant="chrome"
+        size="icon-sm"
+        label="Forward"
+        tooltipSide="bottom"
+        icon={<ArrowRight className="h-4 w-4" />}
+        onClick={() => {
+          router.history.forward();
+        }}
       />
       {/* The tabs belong to this list (aria-owns); their close buttons sit beside them, outside it. */}
       <div
@@ -81,6 +104,7 @@ export function TabStrip({ onOpenMenu }: TabStripProps) {
         }}
       />
       <span className="flex-1" />
+      <DataIndicator />
       <SyncButton />
       <IconButton
         className="mb-1"

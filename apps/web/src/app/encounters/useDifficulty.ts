@@ -12,6 +12,8 @@ export interface PartyMember {
 
 export interface EncounterInfo {
   rules: EncounterRules;
+  /** Milestone campaigns show no XP (difficulty only); outside campaigns XP shows. */
+  showXp: boolean;
   /** Who the difficulty is worked out for. */
   party: PartyMember[];
   /** Typed in by hand (not the campaign's characters). */
@@ -66,6 +68,7 @@ export function useEncounterInfo(encounter: Encounter | undefined): EncounterInf
     );
     return {
       rules,
+      showXp: campaign?.rules.advancement !== 'milestone',
       party,
       partyByHand: byHand !== undefined,
       crs,
@@ -78,5 +81,5 @@ export function useEncounterInfo(encounter: Encounter | undefined): EncounterInf
             )
           : null,
     };
-  }, [campaign?.edition, encounter, characters, crs]);
+  }, [campaign?.edition, campaign?.rules.advancement, encounter, characters, crs]);
 }

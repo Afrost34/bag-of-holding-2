@@ -15,6 +15,14 @@
     overscroll-behavior: none;
     -webkit-font-smoothing: antialiased;
   }
+
+  /* The app scrolls inside its panes; the page itself never moves (no band under the menu). */
+  @media screen {
+    html,
+    body {
+      overflow: hidden;
+    }
+  }
 }
 
 @keyframes fade-in {
@@ -80,8 +88,10 @@
   }
 }
 
-/* On paper, rolls read as plain text: no dice colours. */
+/* On paper, rolls read as plain text: no dice colours. Text takes the paper's own colour (not
+   the dark theme's, inherited from the page). */
 .paper {
+  color: var(--boh-text);
   --boh-dice-bg: transparent;
   --boh-dice-fg: var(--boh-text);
   --boh-dice-border: transparent;

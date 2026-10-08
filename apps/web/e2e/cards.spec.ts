@@ -54,3 +54,18 @@ test('a spell sent from the compendium lands on a card sheet that prints', async
     page.getByRole('list', { name: 'Cards in order' }).getByRole('listitem'),
   ).toHaveCount(3);
 });
+
+test('a card sheet can be deleted from the list', async ({ page }) => {
+  await page.goto('./#/cards');
+  await page.getByRole('button', { name: 'New card sheet' }).click();
+  await page.getByLabel('Name').fill('Old spells');
+  await page.getByRole('button', { name: 'Create' }).click();
+  await expect(page).toHaveURL(/#\/cards\/[a-z0-9]+$/);
+  await page.goto('./#/cards');
+  await page.getByRole('button', { name: 'Delete Old spells' }).click();
+  await page
+    .getByRole('group', { name: 'Delete Old spells?' })
+    .getByRole('button', { name: 'Yes' })
+    .click();
+  await expect(page.getByText('No card sheets yet.')).toBeVisible();
+});

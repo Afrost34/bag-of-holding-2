@@ -21,9 +21,10 @@ test('open an adventure from the library and navigate its chapters', async ({ pa
   await page.goto('./#/compendium');
   await page
     .getByRole('navigation', { name: 'Library' })
-    .getByRole('link', { name: 'Adventures' })
+    .getByRole('link', { name: 'Books' })
     .click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Adventures' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Books' })).toBeVisible();
+  await page.getByRole('radio', { name: 'Adventures' }).click();
   await expect(page.getByRole('heading', { name: 'Starter Set' })).toBeVisible();
   await page.getByRole('link', { name: /Lost Mine of Phandelver/ }).click();
 

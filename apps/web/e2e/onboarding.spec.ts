@@ -30,7 +30,8 @@ test('a first device: the data and a campaign, from the home page', async ({ pag
   await page.waitForURL(/#\/compendium$/);
   await page.goto('./#/');
   await expect(page.getByRole('region', { name: 'Get started' })).toHaveCount(0);
-  await expect(page.getByText(/entries ready/)).toBeVisible();
+  // Data in: no sign about it in the top bar.
+  await expect(page.getByRole('button', { name: /^5etools data/ })).toHaveCount(0);
 });
 
 test('a second device: sync brings the first device’s campaign, then the data', async ({

@@ -368,6 +368,7 @@ function StepBody({
       return (
         <ClassStep
           character={character}
+          save={save}
           view={view}
           update={update}
           setPicks={setPicks}

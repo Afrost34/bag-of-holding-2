@@ -1,5 +1,6 @@
 import { useMatch, useRouterState } from '@tanstack/react-router';
 import { useEffect } from 'react';
+import { useRecent } from './recent';
 import { useTabs } from './store';
 
 /** Names the current page: its tab and the browser/window title. */
@@ -15,6 +16,7 @@ export function usePageTitle(title: string | undefined): void {
   useEffect(() => {
     if (!title || !current) return;
     setTitle(href, title);
+    useRecent.getState().record(href, title);
     document.title = `${title} · Bag of Holding`;
     return () => {
       document.title = 'Bag of Holding';

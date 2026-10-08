@@ -143,6 +143,7 @@ export function EncounterPage({ id }: { id: string }) {
                   entityKey={m.key}
                   count={m.count}
                   cr={info.crs.get(m.key)}
+                  showXp={info.showXp}
                   onCount={(n) => {
                     change((e) => setCount(e, m.key, n));
                   }}
@@ -191,11 +192,13 @@ function MonsterRow({
   entityKey,
   count,
   cr,
+  showXp,
   onCount,
 }: {
   entityKey: string;
   count: number;
   cr: unknown;
+  showXp: boolean;
   onCount: (n: number) => void;
 }) {
   const entity = useEntity(entityKey);
@@ -215,7 +218,8 @@ function MonsterRow({
         {name}
       </AppLink>
       <span className="hidden text-xs text-muted sm:inline">
-        CR {crText} · {xpForCr(cr).toLocaleString('en')} XP
+        CR {crText}
+        {showXp && ` · ${xpForCr(cr).toLocaleString('en')} XP`}
       </span>
       <div className="flex items-center gap-1">
         <button
@@ -277,25 +281,31 @@ function Difficulty({
       {d ? (
         <>
           <p className={cn('font-serif text-3xl font-bold', RATING_COLORS[d.rating])}>{d.rating}</p>
-          <p className="text-sm text-muted">
-            {d.rules === '2014'
-              ? `${d.baseXp.toLocaleString('en')} XP × ${String(d.multiplier)} = ${d.xp.toLocaleString('en')} adjusted XP (2014 rules)`
-              : `${d.xp.toLocaleString('en')} XP against the 2024 budget`}
-          </p>
-          <ul className="space-y-0.5 text-sm">
-            {d.bands.map((b) => (
-              <li
-                key={b.label}
-                className={cn('flex justify-between', d.rating === b.label && 'font-bold')}
-              >
-                <span>{b.label}</span>
-                <span className="tabular-nums">{b.xp.toLocaleString('en')}</span>
-              </li>
-            ))}
-          </ul>
-          <p className="text-xs text-muted">
-            {d.xpPerCharacter.toLocaleString('en')} XP for each character.
-          </p>
+          {info.showXp ? (
+            <>
+              <p className="text-sm text-muted">
+                {d.rules === '2014'
+                  ? `${d.baseXp.toLocaleString('en')} XP × ${String(d.multiplier)} = ${d.xp.toLocaleString('en')} adjusted XP (2014 rules)`
+                  : `${d.xp.toLocaleString('en')} XP against the 2024 budget`}
+              </p>
+              <ul className="space-y-0.5 text-sm">
+                {d.bands.map((b) => (
+                  <li
+                    key={b.label}
+                    className={cn('flex justify-between', d.rating === b.label && 'font-bold')}
+                  >
+                    <span>{b.label}</span>
+                    <span className="tabular-nums">{b.xp.toLocaleString('en')}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-muted">
+                {d.xpPerCharacter.toLocaleString('en')} XP for each character.
+              </p>
+            </>
+          ) : (
+            <DifficultyMeter difficulty={d} />
+          )}
         </>
       ) : (
         <p className="text-sm text-muted">Add the party to see how hard this is.</p>
@@ -341,5 +351,34 @@ function Difficulty({
         </label>
       </div>
     </aside>
+  );
+}
+
+/** Where the fight sits among the bands, without numbers (milestone campaigns). */
+function DifficultyMeter({
+  difficulty: d,
+}: {
+  difficulty: NonNullable<EncounterInfo['difficulty']>;
+}) {
+  const top = d.bands.at(-1)?.xp ?? 1;
+  const at = Math.min(100, Math.round((d.xp / (top * 1.25)) * 100));
+  return (
+    <div aria-label={`Difficulty: ${d.rating}`}>
+      <div className="relative h-3 overflow-hidden rounded-full bg-sunken">
+        <div className="absolute inset-y-0 left-0 bg-accent" style={{ width: `${String(at)}%` }} />
+        {d.bands.map((b) => (
+          <span
+            key={b.label}
+            className="absolute inset-y-0 w-px bg-border-strong"
+            style={{ left: `${String(Math.round((b.xp / (top * 1.25)) * 100))}%` }}
+          />
+        ))}
+      </div>
+      <div className="mt-1 flex justify-between text-xs text-muted">
+        {d.bands.map((b) => (
+          <span key={b.label}>{b.label}</span>
+        ))}
+      </div>
+    </div>
   );
 }

@@ -34,7 +34,8 @@ test('downloads, searches, filters by source and survives a reload', async ({ pa
   await page.reload();
   await expect(page.getByText(`Version ${TAG}`)).toBeVisible();
   await page.goto('./#/');
-  await expect(page.getByText(/entries ready/)).toBeVisible();
+  // Data in: no sign about it in the top bar.
+  await expect(page.getByRole('button', { name: /^5etools data/ })).toHaveCount(0);
 });
 
 test('imports homebrew and deletes downloaded data', async ({ page }) => {

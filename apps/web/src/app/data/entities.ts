@@ -1,3 +1,4 @@
+import { makeKey } from '@boh/data5e';
 import type { EntityDetail } from '@boh/data5e';
 import { useEffect, useState } from 'react';
 import { dataWorker } from './client';
@@ -126,3 +127,18 @@ export function useEntity(key: string | null): EntityState {
 }
 
 // endregion
+
+/** Fluff (lore and art) lives in a parallel `<type>Fluff` entity with the same name and source. */
+export function useFluff(type: string, name: string, source: string): EntityState {
+  const key = type.endsWith('Fluff') || !name ? null : makeKey(`${type}Fluff`, [name], source);
+  return useEntity(key);
+}
+
+/** The pictures in a fluff entity (5etools image entries). */
+export function fluffImages(fluff: EntityState): unknown[] {
+  const data = fluff.status === 'found' ? fluff.entity.data : null;
+  return Array.isArray(data?.images) ? data.images : [];
+}
+
+/** Types whose first picture sits beside their text (creatures, items). */
+export const SIDE_IMAGE_TYPES = new Set(['monster', 'item', 'baseitem', 'magicvariant']);

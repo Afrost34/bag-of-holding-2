@@ -5,7 +5,7 @@ import { Dices, Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import { ArtImage } from '../../app/ArtImage';
 import { useDice } from '../../app/dice/store';
-import type { CharacterFile } from '../../app/characters/model';
+import { levelForXp, XP_FOR_LEVEL, type CharacterFile } from '../../app/characters/model';
 import { useEntity } from '../../app/data/entities';
 import { useListRows } from '../../app/data/lists';
 import { useClassPage } from '../../app/data/pages';
@@ -14,6 +14,7 @@ import { ChoiceControl } from './ChoiceControl';
 import { ClassChooser } from './ClassChooser';
 import { SpellChoicePanel } from './SpellChoicePanel';
 import { featureOf, forget, hitPointLevels, pickName } from './steps';
+import { useTableRules } from './tableRules';
 import { Accordion } from './ui';
 
 const MAX_LEVEL = 20;
@@ -22,6 +23,7 @@ const ORDINAL = (n: number) =>
 
 export interface ClassStepProps {
   character: CharacterFile;
+  save: (c: CharacterFile) => void;
   view: CharacterView | null;
   update: (next: CharacterDecisions) => void;
   setPicks: (choiceId: string, picks: string[]) => void;
@@ -41,6 +43,7 @@ export function ClassStep(props: ClassStepProps) {
   const decisions = character.decisions;
   const classes = decisions.classes;
   const [adding, setAdding] = useState(false);
+  const table = useTableRules(character);
   const [managingHp, setManagingHp] = useState(false);
 
   const setClasses = (next: ClassLevels[], forgetKeys: (string | undefined)[] = []) => {
@@ -71,7 +74,11 @@ export function ClassStep(props: ClassStepProps) {
       <div className="flex flex-wrap items-center gap-3 border-b border-border pb-3">
         <div className="flex-1">
           <p className="text-lg font-bold">Character Level: {total}</p>
-          <p className="text-sm text-muted">Milestone advancement</p>
+          {table.advancement === 'milestone' ? (
+            <p className="text-sm text-muted">Milestone advancement</p>
+          ) : (
+            <ExperiencePoints character={character} level={total} save={props.save} />
+          )}
         </div>
         {view && (
           <div className="flex items-center gap-3 rounded-md border border-border px-3 py-2 text-sm">
@@ -518,4 +525,48 @@ function HitPoints({
 function choiceCount(list: readonly AnsweredChoice[]): string {
   const n = list.reduce((sum, c) => sum + c.count, 0);
   return n ? `${String(n)} Choice${n === 1 ? '' : 's'}` : '';
+}
+
+/** Experience points (XP advancement): the total, and what it is worth in levels. */
+function ExperiencePoints({
+  character,
+  level,
+  save,
+}: {
+  character: CharacterFile;
+  level: number;
+  save: (c: CharacterFile) => void;
+}) {
+  const xp = character.xp ?? 0;
+  const reached = levelForXp(xp);
+  const next = XP_FOR_LEVEL[level];
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-2 text-sm">
+      <label className="flex items-center gap-1.5">
+        <span className="text-muted">XP</span>
+        <input
+          type="number"
+          min={0}
+          value={xp}
+          aria-label="Experience points"
+          onChange={(e) => {
+            const v = Math.max(0, Math.floor(Number(e.target.value) || 0));
+            save({ ...character, xp: v });
+          }}
+          className="w-24 rounded-md border border-border bg-surface px-2 py-1"
+        />
+      </label>
+      {next !== undefined && (
+        <span className="text-muted">Next level at {next.toLocaleString('en')}</span>
+      )}
+      {reached > level && (
+        <span
+          role="status"
+          className="rounded bg-accent-soft px-1.5 py-0.5 font-semibold text-accent-ink"
+        >
+          Enough XP for level {reached}
+        </span>
+      )}
+    </div>
+  );
 }

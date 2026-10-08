@@ -2,6 +2,7 @@ import { Button, cn } from '@boh/ui';
 import { useId, useState } from 'react';
 import {
   BUILT_IN_TEMPLATES,
+  DEFAULT_RULES,
   type CampaignSettings,
   type CampaignTemplate,
 } from '../../app/campaigns/model';
@@ -26,7 +27,7 @@ export function NewCampaign({ first, onDone }: { first: boolean; onDone: () => v
 
   const fromTemplate = (t: CampaignTemplate | undefined): CampaignSettings => ({
     edition: t?.edition ?? '2024',
-    rules: { ...(t?.rules ?? { encumbrance: 'off', optionalClassFeatures: true }) },
+    rules: { ...DEFAULT_RULES, ...(t?.rules ?? {}) },
     // The first campaign keeps the source choices made before campaigns existed.
     sources: {
       ...(first ? useSourcePrefs.getState().overrides : {}),

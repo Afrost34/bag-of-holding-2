@@ -437,8 +437,8 @@ export function EncounterBody({ card }: { card: Extract<BoardCard, { kind: 'enco
       </ul>
       {info.difficulty && (
         <p className="text-sm">
-          <strong>{info.difficulty.rating}</strong> for {info.party.length} characters ·{' '}
-          {info.difficulty.xp.toLocaleString('en')} XP
+          <strong>{info.difficulty.rating}</strong> for {info.party.length} characters
+          {info.showXp && ` · ${info.difficulty.xp.toLocaleString('en')} XP`}
         </p>
       )}
       <Button

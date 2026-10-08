@@ -48,3 +48,16 @@ export function typeLabel(type: string): string {
   const words = type.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
+
+/** How long ago, in words: "just now", "5 min ago", "yesterday", "3 days ago". */
+export function ago(at: number, now = Date.now()): string {
+  const minutes = Math.floor((now - at) / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${String(minutes)} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${String(hours)} h ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return 'yesterday';
+  if (days < 30) return `${String(days)} days ago`;
+  return new Date(at).toLocaleDateString();
+}

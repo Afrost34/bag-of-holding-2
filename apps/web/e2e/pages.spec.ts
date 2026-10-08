@@ -36,6 +36,8 @@ test('a class page shows traits, the class table, features and subclasses', asyn
   await page.getByRole('button', { name: /College of Lore/ }).click();
   await expect(page).toHaveURL(/sc=subclass/);
   await expect(page.getByRole('heading', { name: /Level 3: College of Lore/ })).toBeVisible();
+  // Features start folded; opening one shows its text.
+  await page.getByRole('heading', { name: /Level 3: College of Lore/ }).click();
   await expect(page.getByText('Lore bards know something about most things.')).toBeVisible();
   await expect(table.getByRole('row', { name: /^3rd/ })).toContainText('College of Lore');
 

@@ -1,4 +1,4 @@
-import { Button } from '@boh/ui';
+import { Button, ConfirmDelete } from '@boh/ui';
 import { Plus, SquareStack } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
@@ -14,7 +14,7 @@ const LIBRARY = '@library';
 /** Card sheets: pages of cards to print, the open campaign's first. */
 export function CardsPage() {
   usePageTitle('Cards');
-  const { sheets, loaded, load, create } = useCardSheets();
+  const { sheets, loaded, load, create, remove } = useCardSheets();
   const { campaigns, loaded: campaignsLoaded, load: loadCampaigns } = useCampaigns();
   const active = useActiveCampaign();
   const navigate = useAppNavigate();
@@ -132,7 +132,7 @@ export function CardsPage() {
           <h2 className="mb-2 font-serif text-lg font-bold">{g.title}</h2>
           <ul className="grid gap-3 sm:grid-cols-2">
             {g.list.map((s) => (
-              <li key={s.id}>
+              <li key={s.id} className="relative">
                 <AppLink
                   to={`/cards/${s.id}`}
                   className="block rounded-lg border border-border bg-surface p-4 hover:border-accent"
@@ -142,6 +142,11 @@ export function CardsPage() {
                     {s.cards.length} card{s.cards.length === 1 ? '' : 's'}
                   </span>
                 </AppLink>
+                <ConfirmDelete
+                  name={s.name}
+                  onDelete={() => void remove(s.id)}
+                  className="absolute top-2 right-2"
+                />
               </li>
             ))}
           </ul>
