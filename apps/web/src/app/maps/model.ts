@@ -1,4 +1,5 @@
 import { newId } from '../cards/model';
+import type { TerrainId } from './terrain';
 
 /**
  * Maps: battle, city and world maps made in the app (prep only: no live play).
@@ -57,9 +58,11 @@ export type MapItem =
       points: number[];
       color: string;
       width: number;
-      /** Terrain strokes are wide and soft, for grass, water, rubble… */
+      /** Terrain strokes are wide, for grass, water, rubble… */
       brush: 'pen' | 'terrain';
       opacity: number;
+      /** A terrain stroke painted with a texture (see `terrain.ts`) rather than a colour. */
+      texture?: TerrainId;
     }
   | { kind: 'wall'; id: string; points: number[] }
   | { kind: 'text'; id: string; x: number; y: number; text: string; size: number; color: string }
@@ -88,7 +91,22 @@ export type MapItem =
       map?: string;
       /** A compendium entry ("Send to → Map"): its key. */
       entity?: string;
+      /** Its own icon (see `pinIcons.ts`); otherwise its category's, otherwise a plain pin. */
+      icon?: string;
+      /** A pin category's id. */
+      category?: string;
     };
+
+/** A kind of pin on a world or city map (Cities, Dungeons, Taverns…): its icon and colour. */
+export interface PinCategory {
+  id: string;
+  name: string;
+  icon: string;
+  /** A hex colour. */
+  color: string;
+  /** Its pins are left off the map. */
+  hidden?: boolean;
+}
 
 export type MapItemKind = MapItem['kind'];
 
@@ -115,6 +133,8 @@ export interface MapDoc {
   layers: Layer[];
   /** The encounter fought here. */
   encounter?: string;
+  /** Kinds of pins, with the icon and colour their pins take. */
+  pinCategories?: PinCategory[];
   /** The campaign it belongs to; absent outside campaigns. Not stored: it is where the file is. */
   campaign?: string;
 }
@@ -302,6 +322,23 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
     },
     layers: layers.length ? layers : newMap('', [], '').layers,
     ...(typeof json.encounter === 'string' ? { encounter: json.encounter } : {}),
+    ...(Array.isArray(json.pinCategories)
+      ? {
+          pinCategories: json.pinCategories.flatMap((c): PinCategory[] =>
+            isObj(c) && typeof c.id === 'string' && typeof c.name === 'string'
+              ? [
+                  {
+                    id: c.id,
+                    name: c.name,
+                    icon: typeof c.icon === 'string' ? c.icon : 'map-pin',
+                    color: typeof c.color === 'string' ? c.color : PIN_COLOR,
+                    ...(c.hidden === true ? { hidden: true } : {}),
+                  },
+                ]
+              : [],
+          ),
+        }
+      : {}),
     ...(campaign ? { campaign } : {}),
   };
 }
@@ -324,3 +361,73 @@ export function addEntityPin(doc: MapDoc, entity: string, label: string): MapDoc
     entity,
   });
 }
+
+// region Pin categories
+
+/** A plain pin's colour; a pin to a map inside is violet. */
+export const PIN_COLOR = '#c2410c';
+export const MAP_PIN_COLOR = '#7c3aed';
+/** Colours offered for pin categories (any colour can be picked too). */
+export const PIN_CATEGORY_COLORS = [
+  '#c2410c',
+  '#b91c1c',
+  '#7c3aed',
+  '#1d4ed8',
+  '#0f766e',
+  '#15803d',
+  '#a16207',
+  '#374151',
+];
+
+export function addPinCategory(
+  doc: MapDoc,
+  category: Omit<PinCategory, 'id'>,
+): { doc: MapDoc; id: string } {
+  const id = newId([...allIds(doc), ...(doc.pinCategories ?? []).map((c) => c.id)]);
+  return {
+    doc: { ...doc, pinCategories: [...(doc.pinCategories ?? []), { ...category, id }] },
+    id,
+  };
+}
+
+export function updatePinCategory(
+  doc: MapDoc,
+  id: string,
+  change: Partial<Omit<PinCategory, 'id'>>,
+): MapDoc {
+  return {
+    ...doc,
+    pinCategories: (doc.pinCategories ?? []).map((c) => (c.id === id ? { ...c, ...change } : c)),
+  };
+}
+
+/** Removes a category; its pins stay, as plain pins. */
+export function removePinCategory(doc: MapDoc, id: string): MapDoc {
+  return {
+    ...doc,
+    pinCategories: (doc.pinCategories ?? []).filter((c) => c.id !== id),
+    layers: doc.layers.map((l) => ({
+      ...l,
+      items: l.items.map((i) => {
+        if (i.kind !== 'pin' || i.category !== id) return i;
+        const { category: _c, ...rest } = i;
+        return rest;
+      }),
+    })),
+  };
+}
+
+/** How a pin looks: its own icon, else its category's; its category's colour; whether it shows. */
+export function pinStyle(
+  doc: MapDoc,
+  pin: Extract<MapItem, { kind: 'pin' }>,
+): { icon: string | null; color: string; hidden: boolean } {
+  const category = pin.category ? doc.pinCategories?.find((c) => c.id === pin.category) : undefined;
+  return {
+    icon: pin.icon ?? category?.icon ?? null,
+    color: category?.color ?? (pin.map ? MAP_PIN_COLOR : PIN_COLOR),
+    hidden: category?.hidden === true,
+  };
+}
+
+// endregion

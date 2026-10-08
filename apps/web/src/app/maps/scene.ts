@@ -1,18 +1,21 @@
 import {
+  AlphaFilter,
   Application,
   Container,
   Culler,
+  FillPattern,
   Graphics,
   Rectangle,
   Sprite,
   Text,
   Texture,
-  TilingSprite,
   type ColorSource,
 } from 'pixi.js';
 import { fileUrl, stampFile } from './assets';
 import { hexCorners, templateOutline, type Point } from './geometry';
-import type { Grid, MapDoc, MapItem } from './model';
+import { pinStyle, type Grid, type MapDoc, type MapItem } from './model';
+import { pinIconSvg } from './pinIcons';
+import { terrainTile, type TerrainId } from './terrain';
 
 /**
  * The map canvas (PixiJS, WebGL): background, grid, layers of items, and an overlay for what is
@@ -47,6 +50,76 @@ const colorOf = (c: string): ColorSource => c;
 interface Node {
   item: MapItem;
   view: Container;
+  /** What else its look depends on (a pin's category). */
+  look: string;
+}
+
+/** Pins keep this size on screen, whatever the zoom, so they can be found on a whole world map. */
+const PIN_RADIUS = 15;
+
+const iconTextures = new Map<string, Promise<Texture | null>>();
+
+/** A pin icon, drawn white, as a texture (made once). */
+function iconTexture(id: string): Promise<Texture | null> {
+  let t = iconTextures.get(id);
+  if (!t) {
+    const svg = pinIconSvg(id, '#ffffff', 64);
+    t = svg
+      ? new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            resolve(Texture.from(img));
+          };
+          img.onerror = () => {
+            resolve(null);
+          };
+          img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+        })
+      : Promise.resolve(null);
+    iconTextures.set(id, t);
+  }
+  return t;
+}
+
+const terrainPatterns = new Map<TerrainId, FillPattern>();
+/** A terrain's texture, repeating across the map (so strokes side by side join up). */
+function terrainPattern(id: TerrainId): FillPattern {
+  let t = terrainPatterns.get(id);
+  if (!t) {
+    t = new FillPattern(Texture.from(terrainTile(id)), 'repeat');
+    terrainPatterns.set(id, t);
+  }
+  return t;
+}
+
+/** What a brush stroke looks like. */
+export interface StrokeStyle {
+  color: string;
+  width: number;
+  opacity: number;
+  texture?: TerrainId | undefined;
+}
+
+/**
+ * A brush stroke: a line in a colour or a terrain texture. Opacity is applied to
+ * the whole stroke at once, so where it crosses itself it does not get darker.
+ */
+function strokeView(points: readonly number[], style: StrokeStyle): Container {
+  const line = new Graphics();
+  if (points.length >= 2) {
+    line.moveTo(points[0] ?? 0, points[1] ?? 0);
+    for (let i = 2; i + 1 < points.length; i += 2) line.lineTo(points[i] ?? 0, points[i + 1] ?? 0);
+    if (points.length === 2) line.lineTo((points[0] ?? 0) + 0.1, points[1] ?? 0);
+  }
+  line.stroke({
+    ...(style.texture ? { fill: terrainPattern(style.texture) } : { color: colorOf(style.color) }),
+    width: style.width,
+    cap: 'round',
+    join: 'round',
+  });
+  const view: Container = line;
+  if (style.opacity < 1) view.filters = [new AlphaFilter({ alpha: style.opacity })];
+  return view;
 }
 
 export class MapScene {
@@ -54,12 +127,13 @@ export class MapScene {
   /** Pans and zooms. */
   readonly world = new Container();
   private readonly background = new Container();
-  /** The grid: one repeating tile, however big the map. */
+  /** The grid: one-pixel lines, however big the map. */
   private readonly gridLines = new Container();
   private readonly layers = new Container();
   private readonly overlay = new Container();
   private readonly selection = new Graphics();
   private readonly preview = new Graphics();
+  private readonly strokePreview = new Container();
   private readonly previewText = new Text({ text: '', style: { fontSize: 22, fill: 0xffffff } });
   private nodes = new Map<string, Node>();
   private layerViews = new Map<string, Container>();
@@ -91,7 +165,7 @@ export class MapScene {
     host.appendChild(this.app.canvas);
     this.app.canvas.setAttribute('aria-hidden', 'true');
     this.previewText.style.stroke = { color: 0x000000, width: 4 };
-    this.overlay.addChild(this.preview, this.selection, this.previewText);
+    this.overlay.addChild(this.strokePreview, this.preview, this.selection, this.previewText);
     this.world.addChild(this.background, this.layers, this.gridLines, this.overlay);
     this.app.stage.addChild(this.world);
     this.ready = true;
@@ -134,7 +208,14 @@ export class MapScene {
   setView(x: number, y: number, zoom: number): void {
     this.world.position.set(x, y);
     this.world.scale.set(zoom);
+    this.scalePins();
     this.requestRender();
+  }
+
+  /** Pins are drawn at screen size: scaled against the zoom. */
+  private scalePins(): void {
+    const k = 1 / this.world.scale.x;
+    for (const { item, view } of this.nodes.values()) if (item.kind === 'pin') view.scale.set(k);
   }
 
   /** Zooms by `factor` keeping the map point under (x, y) where it is. */
@@ -143,6 +224,7 @@ export class MapScene {
     const zoom = Math.min(8, Math.max(0.02, this.world.scale.x * factor));
     this.world.scale.set(zoom);
     this.world.position.set(x - before.x * zoom, y - before.y * zoom);
+    this.scalePins();
     this.requestRender();
   }
 
@@ -179,11 +261,12 @@ export class MapScene {
       layer.items.forEach((item, i) => {
         seen.add(item.id);
         const node = this.nodes.get(item.id);
-        if (node?.item === item && node.view.parent === view) return;
+        const look = item.kind === 'pin' ? JSON.stringify(pinStyle(doc, item)) : '';
+        if (node?.item === item && node.look === look && node.view.parent === view) return;
         if (node) node.view.destroy({ children: true });
-        const fresh = this.drawItem(item, doc.grid);
+        const fresh = this.drawItem(item, doc);
         fresh.cullable = true;
-        this.nodes.set(item.id, { item, view: fresh });
+        this.nodes.set(item.id, { item, view: fresh, look });
         view.addChildAt(fresh, Math.min(i, view.children.length));
       });
       // Keep the items in their order within the layer.
@@ -193,6 +276,7 @@ export class MapScene {
           view.setChildIndex(n.view, Math.min(i, view.children.length - 1));
       });
     });
+    this.scalePins();
     for (const [id, node] of this.nodes)
       if (!seen.has(id)) {
         node.view.destroy({ children: true });
@@ -247,19 +331,13 @@ export class MapScene {
     for (const c of this.gridLines.removeChildren())
       c.destroy({ texture: true, textureSource: true });
     if (g.type === 'none' || g.opacity <= 0) return;
-    const tile = gridTile(g);
-    const sprite = new TilingSprite({
-      texture: Texture.from(tile.canvas),
-      width: doc.width,
-      height: doc.height,
-    });
-    sprite.tileScale.set(tile.scaleX, tile.scaleY);
-    sprite.tilePosition.set(g.offsetX, g.offsetY);
-    sprite.alpha = g.opacity;
-    this.gridLines.addChild(sprite);
+    const lines = gridGraphics(g, doc.width, doc.height);
+    lines.alpha = g.opacity;
+    this.gridLines.addChild(lines);
   }
 
-  private drawItem(item: MapItem, grid: Grid): Container {
+  private drawItem(item: MapItem, doc: MapDoc): Container {
+    const grid = doc.grid;
     switch (item.kind) {
       case 'stamp': {
         const holder = new Container();
@@ -287,6 +365,12 @@ export class MapScene {
         return holder;
       }
       case 'stroke':
+        return strokeView(item.points, {
+          color: item.color,
+          width: item.width,
+          opacity: item.opacity,
+          texture: item.texture,
+        });
       case 'wall': {
         const g = new Graphics();
         const p = item.points;
@@ -295,21 +379,12 @@ export class MapScene {
           for (let i = 2; i + 1 < p.length; i += 2) g.lineTo(p[i] ?? 0, p[i + 1] ?? 0);
           if (p.length === 2) g.lineTo((p[0] ?? 0) + 0.1, p[1] ?? 0);
         }
-        if (item.kind === 'wall')
-          g.stroke({
-            color: WALL_COLOR,
-            width: Math.max(6, grid.size * 0.14),
-            cap: 'round',
-            join: 'round',
-          });
-        else
-          g.stroke({
-            color: colorOf(item.color),
-            width: item.width,
-            alpha: item.opacity,
-            cap: 'round',
-            join: 'round',
-          });
+        g.stroke({
+          color: WALL_COLOR,
+          width: Math.max(6, grid.size * 0.14),
+          cap: 'round',
+          join: 'round',
+        });
         return g;
       }
       case 'text': {
@@ -341,30 +416,51 @@ export class MapScene {
         return g;
       }
       case 'pin': {
+        // A round badge with the icon, on a short stem pointing at the place, then the label.
+        const style = pinStyle(doc, item);
         const holder = new Container();
         holder.position.set(item.x, item.y);
-        const r = Math.max(14, grid.size * 0.28);
+        holder.visible = !style.hidden;
+        const r = PIN_RADIUS;
+        const color = colorOf(style.color);
         const marker = new Graphics()
           .moveTo(0, 0)
-          .lineTo(-r * 0.7, -r * 1.4)
-          .arc(0, -r * 1.6, r * 0.75, Math.PI * 0.8, Math.PI * 0.2)
-          .lineTo(0, 0)
-          .fill({ color: item.map ? 0x7c3aed : 0xc2410c })
-          .stroke({ color: 0xffffff, width: 3 });
+          .lineTo(-r * 0.45, -r * 1.2)
+          .lineTo(r * 0.45, -r * 1.2)
+          .closePath()
+          .fill({ color })
+          .circle(0, -r * 1.75, r)
+          .fill({ color })
+          .stroke({ color: 0xffffff, width: 2.5 });
         holder.addChild(marker);
+        if (style.icon) {
+          void iconTexture(style.icon).then((texture) => {
+            if (!texture || holder.destroyed) return;
+            const icon = new Sprite(texture);
+            icon.anchor.set(0.5);
+            icon.width = r * 1.15;
+            icon.height = r * 1.15;
+            icon.position.set(0, -r * 1.75);
+            holder.addChild(icon);
+            this.requestRender();
+          });
+        } else {
+          holder.addChild(new Graphics().circle(0, -r * 1.75, r * 0.38).fill({ color: 0xffffff }));
+        }
         if (item.label) {
           const t = new Text({
             text: item.label,
             style: {
               fontFamily: 'Inter, sans-serif',
-              fontSize: Math.max(16, r),
+              fontSize: 13,
               fontWeight: '600',
               fill: 0x111111,
               stroke: { color: 0xffffff, width: 4 },
             },
+            resolution: 2,
           });
           t.anchor.set(0.5, 0);
-          t.position.set(0, 4);
+          t.position.set(0, 3);
           holder.addChild(t);
         }
         return holder;
@@ -458,7 +554,15 @@ export class MapScene {
     }
   }
 
+  /** A brush stroke being drawn, as it will look once kept. */
+  previewStroke(points: readonly number[], style: StrokeStyle): void {
+    for (const c of this.strokePreview.removeChildren()) c.destroy({ children: true });
+    this.strokePreview.addChild(strokeView(points, style));
+    this.requestRender();
+  }
+
   clearPreview(): void {
+    for (const c of this.strokePreview.removeChildren()) c.destroy({ children: true });
     this.preview.clear();
     this.previewText.visible = false;
     this.requestRender();
@@ -530,45 +634,36 @@ function uncull(c: Container): void {
 }
 
 /**
- * One period of the grid, drawn at twice its size for sharp lines: a square cell, or for hexes a
- * tile one hex wide and two rows high.
+ * The grid's lines over the whole map, one screen pixel wide whatever the zoom (so they neither
+ * vanish when zoomed out nor thicken when zoomed in).
  */
-function gridTile(grid: Grid): { canvas: HTMLCanvasElement; scaleX: number; scaleY: number } {
-  const k = 2;
-  const w = grid.size;
-  const h = grid.type === 'hex' ? Math.sqrt(3) * grid.size : grid.size;
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.max(2, Math.round(w * k));
-  canvas.height = Math.max(2, Math.round(h * k));
-  const ctx = canvas.getContext('2d');
-  if (ctx) {
-    ctx.scale(canvas.width / w, canvas.height / h);
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 1.5;
-    if (grid.type === 'square') {
-      ctx.beginPath();
-      ctx.moveTo(0, 0.75);
-      ctx.lineTo(w, 0.75);
-      ctx.moveTo(0.75, 0);
-      ctx.lineTo(0.75, h);
-      ctx.stroke();
-    } else {
-      // Centres in and around the tile; what falls outside is cut off and drawn by the next tile.
-      const radius = grid.size / Math.sqrt(3);
-      const local: Grid = { ...grid, offsetX: 0, offsetY: 0 };
-      for (let r = -1; r <= 2; r++)
-        for (let q = -2; q <= 2; q++) {
-          const centre = { x: grid.size * (q + r / 2), y: radius * 1.5 * r };
-          const corners = hexCorners(centre, local);
-          ctx.beginPath();
-          corners.forEach((p, i) => {
-            if (i === 0) ctx.moveTo(p.x, p.y);
-            else ctx.lineTo(p.x, p.y);
-          });
-          ctx.closePath();
-          ctx.stroke();
-        }
+function gridGraphics(grid: Grid, width: number, height: number): Graphics {
+  const g = new Graphics();
+  const size = grid.size;
+  if (grid.type === 'square') {
+    const x0 = ((grid.offsetX % size) + size) % size;
+    const y0 = ((grid.offsetY % size) + size) % size;
+    for (let x = x0; x <= width; x += size) g.moveTo(x, 0).lineTo(x, height);
+    for (let y = y0; y <= height; y += size) g.moveTo(0, y).lineTo(width, y);
+  } else {
+    const radius = size / Math.sqrt(3);
+    const row = radius * 1.5;
+    const local: Grid = { ...grid, offsetX: 0, offsetY: 0 };
+    const rows = Math.ceil(height / row) + 2;
+    const cols = Math.ceil(width / size) + 2;
+    const r0 = Math.floor(-grid.offsetY / row) - 1;
+    for (let r = r0; r < r0 + rows; r++) {
+      const q0 = Math.floor((-grid.offsetX - (size * r) / 2) / size) - 1;
+      for (let q = q0; q < q0 + cols; q++) {
+        const centre = { x: grid.offsetX + size * (q + r / 2), y: grid.offsetY + row * r };
+        const corners = hexCorners(centre, local);
+        corners.forEach((c, i) => {
+          if (i === 0) g.moveTo(c.x, c.y);
+          else g.lineTo(c.x, c.y);
+        });
+        g.closePath();
+      }
     }
   }
-  return { canvas, scaleX: w / canvas.width, scaleY: h / canvas.height };
+  return g.stroke({ color: 0x000000, width: 1, pixelLine: true });
 }

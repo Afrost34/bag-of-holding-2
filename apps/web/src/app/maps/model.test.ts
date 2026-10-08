@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { distanceFeet, hexCentre, snapToCell, snapToCorner, templateOutline } from './geometry';
 import {
   addItem,
+  addPinCategory,
+  PIN_COLOR,
+  pinStyle,
+  removePinCategory,
+  updatePinCategory,
   addLayer,
   DEFAULT_GRID,
   findItem,
@@ -92,5 +97,46 @@ describe('maps', () => {
     const bare = parseMap('{"name":"Old"}', 'x');
     expect(bare?.layers).toHaveLength(3);
     expect(bare?.grid.type).toBe('square');
+  });
+});
+
+describe('pin categories', () => {
+  it('give their pins an icon and colour, hide them, and let them go when removed', () => {
+    let doc = newMap('World', [], '2026-01-01');
+    const added = addPinCategory(doc, { name: 'Cities', icon: 'castle', color: '#1d4ed8' });
+    doc = added.doc;
+    const layer = doc.layers[0]?.id ?? '';
+    doc = addItem(doc, layer, {
+      kind: 'pin',
+      id: 'p1',
+      x: 0,
+      y: 0,
+      label: 'Waterdeep',
+      category: added.id,
+    });
+    doc = addItem(doc, layer, {
+      kind: 'pin',
+      id: 'p2',
+      x: 0,
+      y: 0,
+      label: 'Inn',
+      icon: 'beer',
+      category: added.id,
+    });
+    const pin = (id: string) => {
+      const found = findItem(doc, id)?.item;
+      if (found?.kind !== 'pin') throw new Error('no pin');
+      return found;
+    };
+    expect(pinStyle(doc, pin('p1'))).toEqual({ icon: 'castle', color: '#1d4ed8', hidden: false });
+    expect(pinStyle(doc, pin('p2')).icon).toBe('beer');
+    doc = updatePinCategory(doc, added.id, { hidden: true });
+    expect(pinStyle(doc, pin('p1')).hidden).toBe(true);
+    // Kept through a save.
+    const back = parseMap(serializeMap(doc), doc.id);
+    expect(back?.pinCategories).toEqual(doc.pinCategories);
+    doc = removePinCategory(doc, added.id);
+    expect(pin('p1').category).toBeUndefined();
+    expect(pinStyle(doc, pin('p1'))).toEqual({ icon: null, color: PIN_COLOR, hidden: false });
   });
 });

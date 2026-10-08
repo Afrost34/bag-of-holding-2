@@ -102,6 +102,8 @@ interface StampsStore {
    * many were added.
    */
   importFiles: (files: readonly File[]) => Promise<number>;
+  /** Adds pictures made in the app (from an online pack) at paths in the library. */
+  addPictures: (pictures: readonly { path: string; bytes: Uint8Array }[]) => Promise<void>;
   setTags: (path: string, tags: string[]) => Promise<void>;
   remove: (path: string) => Promise<void>;
 }
@@ -137,6 +139,16 @@ export const useStamps = create<StampsStore>()((set, get) => ({
     }
     await get().load();
     return added;
+  },
+
+  addPictures: async (pictures) => {
+    const store = await userStore();
+    for (const p of pictures) {
+      const rel = p.path.split('/').map(safeName).join('/');
+      await store.writeFile(stampFile(rel), p.bytes);
+      urls.delete(stampFile(rel));
+    }
+    await get().load();
   },
 
   setTags: async (path, tags) => {

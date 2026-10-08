@@ -138,3 +138,57 @@ export function templateOutline(
     }
   }
 }
+
+/** A polyline (x0, y0, x1, y1…) with extra points so no two are further apart than `step`. */
+export function densify(points: readonly number[], step: number): number[] {
+  const out: number[] = [];
+  for (let i = 0; i + 1 < points.length; i += 2) {
+    const x = points[i] ?? 0;
+    const y = points[i + 1] ?? 0;
+    if (i >= 2) {
+      const px = points[i - 2] ?? 0;
+      const py = points[i - 1] ?? 0;
+      const n = Math.floor(Math.hypot(x - px, y - py) / step);
+      for (let k = 1; k <= n; k++) {
+        const t = k / (n + 1);
+        out.push(px + (x - px) * t, py + (y - py) * t);
+      }
+    }
+    out.push(x, y);
+  }
+  return out;
+}
+
+/**
+ * What is left of a brush stroke after the eraser went over it: the stroke's points within
+ * `radius` of the eraser's path are taken out, and the stroke falls apart into the runs left
+ * between them. A stroke the eraser does not touch comes back as it was (one run, same points).
+ */
+export function eraseStroke(
+  points: readonly number[],
+  eraser: readonly number[],
+  radius: number,
+): number[][] {
+  const path = densify(eraser, Math.max(1, radius / 2));
+  const hit = (x: number, y: number) => {
+    for (let j = 0; j + 1 < path.length; j += 2)
+      if (Math.hypot(x - (path[j] ?? 0), y - (path[j + 1] ?? 0)) <= radius) return true;
+    return false;
+  };
+  const dense = densify(points, Math.max(1, radius / 3));
+  let touched = false;
+  const runs: number[][] = [];
+  let run: number[] = [];
+  for (let i = 0; i + 1 < dense.length; i += 2) {
+    const x = dense[i] ?? 0;
+    const y = dense[i + 1] ?? 0;
+    if (hit(x, y)) {
+      touched = true;
+      if (run.length >= 4) runs.push(run);
+      run = [];
+    } else run.push(x, y);
+  }
+  if (!touched) return [[...points]];
+  if (run.length >= 4) runs.push(run);
+  return runs;
+}

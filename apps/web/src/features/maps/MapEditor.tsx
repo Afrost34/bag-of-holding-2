@@ -22,6 +22,7 @@ import { useJournal } from '../../app/journal/store';
 import { useStamps } from '../../app/maps/assets';
 import {
   distanceFeet,
+  eraseStroke,
   snapToCell,
   snapToCorner,
   templateOutline,
@@ -40,8 +41,14 @@ import { useMapDoc, useMaps } from '../../app/maps/store';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 import { MapPanels } from './MapPanels';
-import { MapScene, WALL_COLOR } from '../../app/maps/scene';
-import { TOOLS, type BrushSettings, type TemplateSettings, type Tool } from './tools';
+import { MapScene, WALL_COLOR, type StrokeStyle } from '../../app/maps/scene';
+import {
+  TOOLS,
+  TOOLS_WITH_SETTINGS,
+  type BrushSettings,
+  type TemplateSettings,
+  type Tool,
+} from './tools';
 
 /** One map, edited: the canvas, the tool bar and the side panels. */
 export function MapEditor({ id }: { id: string }) {
@@ -78,7 +85,7 @@ export function MapEditor({ id }: { id: string }) {
 }
 
 interface Drag {
-  mode: 'pan' | 'move' | 'stroke' | 'measure' | 'template' | 'calibrate';
+  mode: 'pan' | 'move' | 'stroke' | 'erase' | 'measure' | 'template' | 'calibrate';
   start: Point;
   screen: Point;
   last: Point;
@@ -96,8 +103,14 @@ function Editor({ doc }: { doc: MapDoc }) {
   const [layerId, setLayerId] = useState(doc.layers.at(-2)?.id ?? doc.layers[0]?.id ?? '');
   const [stamp, setStamp] = useState<string | null>(null);
   const [stampAspect, setStampAspect] = useState(1);
-  const [brush, setBrush] = useState<BrushSettings>({ color: '#111111', width: 6 });
-  const [terrain, setTerrain] = useState<BrushSettings>({ color: '#4d7c0f', width: 120 });
+  const [brush, setBrush] = useState<BrushSettings>({ color: '#111111', width: 6, opacity: 1 });
+  const [terrain, setTerrain] = useState<BrushSettings>({
+    color: '#5b8a2b',
+    width: 120,
+    opacity: 1,
+    texture: 'grass',
+  });
+  const [eraser, setEraser] = useState(60);
   const [template, setTemplate] = useState<TemplateSettings>({
     shape: 'cone',
     feet: 15,
@@ -269,6 +282,12 @@ function Editor({ doc }: { doc: MapDoc }) {
       case 'terrain':
         if (!canDraw) return;
         drag.current = { mode: 'stroke', ...base, points: [p.x, p.y] };
+        scene.previewStroke([p.x, p.y], strokeStyle());
+        return;
+      case 'eraser':
+        if (!canDraw) return;
+        drag.current = { mode: 'erase', ...base, points: [p.x, p.y] };
+        previewEraser([p.x, p.y]);
         return;
       case 'wall': {
         if (!canDraw) return;
@@ -350,21 +369,20 @@ function Editor({ doc }: { doc: MapDoc }) {
         return;
       }
       case 'stroke':
-        d.points?.push(p.x, p.y);
-        scene.drawPreview((g) => {
-          const pts = d.points ?? [];
-          g.moveTo(pts[0] ?? 0, pts[1] ?? 0);
-          for (let i = 2; i + 1 < pts.length; i += 2) g.lineTo(pts[i] ?? 0, pts[i + 1] ?? 0);
-          const s = tool === 'terrain' ? terrain : brush;
-          g.stroke({
-            color: s.color,
-            width: s.width,
-            alpha: tool === 'terrain' ? 0.45 : 1,
-            cap: 'round',
-            join: 'round',
-          });
-        });
+      case 'erase': {
+        // Every point the pointer went through since the last event, for smooth fast strokes
+        // (where the browser gives them).
+        const native = e.nativeEvent;
+        const events = 'getCoalescedEvents' in native ? native.getCoalescedEvents() : [];
+        const r = host.current?.getBoundingClientRect();
+        for (const ev of events.length ? events : [e.nativeEvent]) {
+          const q = scene.toMap(ev.clientX - (r?.left ?? 0), ev.clientY - (r?.top ?? 0));
+          d.points?.push(q.x, q.y);
+        }
+        if (d.mode === 'stroke') scene.previewStroke(d.points ?? [], strokeStyle());
+        else previewEraser(d.points ?? []);
         return;
+      }
       case 'measure': {
         const end = snapCell(p);
         const feet = distanceFeet(d.start, end, grid);
@@ -411,6 +429,27 @@ function Editor({ doc }: { doc: MapDoc }) {
     }
   };
 
+  /** How the brush in hand paints. */
+  const strokeStyle = (): StrokeStyle => {
+    const s = tool === 'terrain' ? terrain : brush;
+    return {
+      color: s.color,
+      width: s.width,
+      opacity: s.opacity,
+      texture: tool === 'terrain' ? s.texture : undefined,
+    };
+  };
+
+  /** The eraser's path, as a see-through band its width. */
+  const previewEraser = (points: readonly number[]) => {
+    scene?.drawPreview((g) => {
+      g.moveTo(points[0] ?? 0, points[1] ?? 0);
+      for (let i = 2; i + 1 < points.length; i += 2) g.lineTo(points[i] ?? 0, points[i + 1] ?? 0);
+      if (points.length === 2) g.lineTo((points[0] ?? 0) + 0.1, points[1] ?? 0);
+      g.stroke({ color: 0xffffff, width: eraser, alpha: 0.45, cap: 'round', join: 'round' });
+    });
+  };
+
   /** Where a dragged item lands: its centre snapped to a cell for stamps and pins. */
   const snapMoved = (item: MapItem, dx: number, dy: number): Point => {
     if (!('x' in item)) return { x: dx, y: dy };
@@ -445,7 +484,7 @@ function Editor({ doc }: { doc: MapDoc }) {
       }
       case 'stroke': {
         scene.clearPreview();
-        const s = tool === 'terrain' ? terrain : brush;
+        const s = strokeStyle();
         const points = simplify(d.points ?? []);
         if (!layer) return;
         commit((doc2) =>
@@ -456,9 +495,16 @@ function Editor({ doc }: { doc: MapDoc }) {
             color: s.color,
             width: s.width,
             brush: tool === 'terrain' ? 'terrain' : 'pen',
-            opacity: tool === 'terrain' ? 0.45 : 1,
+            opacity: s.opacity,
+            ...(s.texture ? { texture: s.texture } : {}),
           }),
         );
+        return;
+      }
+      case 'erase': {
+        scene.clearPreview();
+        const path = d.points ?? [];
+        commit((doc2) => eraseStrokes(doc2, path, eraser / 2));
         return;
       }
       case 'measure':
@@ -723,13 +769,7 @@ function Editor({ doc }: { doc: MapDoc }) {
                   setTool(t.id);
                   setMeasure(null);
                   scene?.clearPreview();
-                  if (
-                    t.id === 'stamp' ||
-                    t.id === 'pen' ||
-                    t.id === 'terrain' ||
-                    t.id === 'template'
-                  )
-                    setPanelOpen(true);
+                  if (TOOLS_WITH_SETTINGS.has(t.id)) setPanelOpen(true);
                 }}
                 className={cn(
                   'rounded-md p-2',
@@ -814,6 +854,8 @@ function Editor({ doc }: { doc: MapDoc }) {
             setBrush={setBrush}
             terrain={terrain}
             setTerrain={setTerrain}
+            eraser={eraser}
+            setEraser={setEraser}
             template={template}
             setTemplate={setTemplate}
             snap={snap}
@@ -823,6 +865,27 @@ function Editor({ doc }: { doc: MapDoc }) {
       </div>
     </div>
   );
+}
+
+/**
+ * The map after the eraser went along `path`: brush strokes it touched, on layers shown and
+ * not locked, lose what it went over (and may fall apart into pieces).
+ */
+function eraseStrokes(doc: MapDoc, path: readonly number[], radius: number): MapDoc {
+  let next = doc;
+  for (const layer of doc.layers) {
+    if (!layer.visible || layer.locked) continue;
+    for (const item of layer.items) {
+      if (item.kind !== 'stroke') continue;
+      const pieces = eraseStroke(item.points, path, radius + item.width / 2);
+      if (pieces.length === 1 && pieces[0] === item.points) continue;
+      if (pieces.length === 1 && pieces[0]?.length === item.points.length) continue;
+      next = removeItem(next, item.id);
+      for (const piece of pieces)
+        next = addItem(next, layer.id, { ...item, id: itemId(next), points: simplify(piece) });
+    }
+  }
+  return next;
 }
 
 /** Drops points closer than 2 px to the last kept one: brush strokes stay small on disk. */
