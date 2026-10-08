@@ -10,7 +10,7 @@ import {
   type NodeChange,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { ArrowLeft, MonitorUp, Plus, Trash2, X } from 'lucide-react';
+import { ArrowLeft, MonitorUp, Plus, Redo2, Trash2, Undo2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppLink } from '../../app/AppLink';
 import {
@@ -31,6 +31,7 @@ import {
 } from '../../app/boards/model';
 import { openPlayerWindow, sendToPlayers } from '../../app/boards/player';
 import { useBoard, useBoards } from '../../app/boards/store';
+import { emptyHistory, record, redo, typingIn, undo } from '../../app/history';
 import { useCampaigns } from '../../app/campaigns/store';
 import { entityPath } from '../../app/data/entities';
 import { useEncounters } from '../../app/encounters/store';
@@ -123,20 +124,69 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
   const boardId = board.id;
   const campaignId = board.campaign;
 
+  /** Versions to undo and redo, and whether there are any (for the buttons). */
+  const history = useRef(emptyHistory<Board>());
+  const [can, setCan] = useState({ undo: false, redo: false });
+  const showSteps = useCallback(() => {
+    setCan({ undo: history.current.past.length > 0, redo: history.current.future.length > 0 });
+  }, []);
+  // Another board: its own history.
+  useEffect(() => {
+    history.current = emptyHistory<Board>();
+    showSteps();
+  }, [boardId, showSteps]);
+  /** Saves a new version of the board, keeping the one it replaces for undo. */
+  const saveChange = useCallback(
+    (before: Board, next: Board, fold = false) => {
+      if (next === before) return;
+      // Typing in a card folds into one step; cards added, moved or removed are a step each.
+      history.current = record(history.current, before, Date.now(), fold ? 600 : 0);
+      showSteps();
+      useBoards.getState().save(next);
+    },
+    [showSteps],
+  );
   /** Changes the board as it is now (not as it was at the last render). */
   const commit = useCallback(
-    (change: (b: Board) => Board) => {
+    (change: (b: Board) => Board, fold = false) => {
+      const current = useBoards.getState().boards.find((b) => b.id === boardId);
+      if (current) saveChange(current, change(current), fold);
+    },
+    [boardId, saveChange],
+  );
+  const step = useCallback(
+    (which: typeof undo) => {
       const s = useBoards.getState();
       const current = s.boards.find((b) => b.id === boardId);
-      if (current) s.save(change(current));
+      const done = current && which(history.current, current);
+      if (!done) return;
+      history.current = done.history;
+      showSteps();
+      // The view stays where it is.
+      const { viewport: _v, ...value } = done.value;
+      s.save(current.viewport ? { ...value, viewport: current.viewport } : value);
     },
-    [boardId],
+    [boardId, showSteps],
   );
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || typingIn(e.target)) return;
+      const key = e.key.toLowerCase();
+      if (key === 'z' && !e.shiftKey) step(undo);
+      else if (key === 'y' || (key === 'z' && e.shiftKey)) step(redo);
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [step]);
 
   const actions = useMemo<BoardActions>(
     () => ({
       update: (id, change) => {
-        commit((b) => updateBoardCard(b, id, change));
+        commit((b) => updateBoardCard(b, id, change), true);
       },
       remove: (id) => {
         commit((b) => removeBoardCard(b, id));
@@ -210,7 +260,7 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
       contents,
       at ?? { x: c.x - size.w / 2, y: c.y - size.h / 2 },
     );
-    s.save(next);
+    saveChange(current, next);
     const card = next.cards.find((x) => x.id === ids[0]);
     if (!card) return;
     const topLeft = flow.screenToFlowPosition({ x: r.left, y: r.top });
@@ -299,6 +349,20 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
           onDelete={() => {
             setConfirmDelete(true);
           }}
+          onUndo={
+            can.undo
+              ? () => {
+                  step(undo);
+                }
+              : undefined
+          }
+          onRedo={
+            can.redo
+              ? () => {
+                  step(redo);
+                }
+              : undefined
+          }
         />
         {confirmDelete && (
           <div
@@ -404,10 +468,14 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
               });
             }}
             onMoveEnd={(_, vp) => {
-              commit((b) => ({
-                ...b,
-                viewport: { x: Math.round(vp.x), y: Math.round(vp.y), zoom: vp.zoom },
-              }));
+              // Where the board is looked at is kept, but is not a change to undo.
+              const s = useBoards.getState();
+              const current = s.boards.find((b) => b.id === boardId);
+              if (current)
+                s.save({
+                  ...current,
+                  viewport: { x: Math.round(vp.x), y: Math.round(vp.y), zoom: vp.zoom },
+                });
             }}
             {...(board.viewport
               ? { defaultViewport: board.viewport }
@@ -626,11 +694,16 @@ function Toolbar({
   onRename,
   options,
   onDelete,
+  onUndo,
+  onRedo,
 }: {
   board: Board;
   onRename: (name: string) => void;
   options: AddOption[];
   onDelete: () => void;
+  /** Absent when there is nothing to undo (or redo). */
+  onUndo: (() => void) | undefined;
+  onRedo: (() => void) | undefined;
 }) {
   const [name, setName] = useState(board.name);
   // The players' board (the player window) has no other board to go back to, and stays.
@@ -660,6 +733,24 @@ function Toolbar({
       <span className="hidden text-sm text-muted sm:inline">
         {board.cards.filter((c) => c.kind !== 'stack' && c.kind !== 'frame').length} cards
       </span>
+      <Button
+        variant="ghost"
+        aria-label="Undo"
+        title="Undo (Ctrl+Z)"
+        disabled={!onUndo}
+        onClick={onUndo}
+      >
+        <Undo2 className="h-4 w-4" aria-hidden />
+      </Button>
+      <Button
+        variant="ghost"
+        aria-label="Redo"
+        title="Redo (Ctrl+Y)"
+        disabled={!onRedo}
+        onClick={onRedo}
+      >
+        <Redo2 className="h-4 w-4" aria-hidden />
+      </Button>
       <Menu.Root>
         <Menu.Trigger asChild>
           <Button variant="primary">

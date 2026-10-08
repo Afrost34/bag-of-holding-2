@@ -362,3 +362,27 @@ test('a card fills the whole screen, and a map in it still pans and zooms', asyn
   await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
   await expect(map.getByRole('button', { name: 'Full screen Sunash Sea' })).toBeVisible();
 });
+
+test('board changes are undone and redone, with the buttons or the keyboard', async ({ page }) => {
+  await page.goto('./#/boards');
+  await page.getByRole('button', { name: 'New board' }).click();
+  await page.getByLabel('Name').fill('Session 1');
+  await page.getByRole('button', { name: 'Create' }).click();
+  const nodes = page.locator('.react-flow__node');
+  await expect(page.getByRole('button', { name: 'Undo' })).toBeDisabled();
+  await addCard(page, 'NPC generator');
+  await addCard(page, 'Timer');
+  await expect(nodes).toHaveCount(2);
+
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(nodes).toHaveCount(1);
+  await page.getByRole('button', { name: 'Redo' }).click();
+  await expect(nodes).toHaveCount(2);
+  await page.locator('.react-flow__pane').click({ position: { x: 10, y: 10 } });
+  await page.keyboard.press('ControlOrMeta+z');
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(nodes).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Undo' })).toBeDisabled();
+  await page.keyboard.press('ControlOrMeta+y');
+  await expect(nodes).toHaveCount(1);
+});
