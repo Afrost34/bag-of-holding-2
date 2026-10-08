@@ -1,5 +1,11 @@
 import { Button, cn } from '@boh/ui';
-import { measureLine } from '../../app/maps/travel';
+import {
+  formatDistance,
+  measureLine,
+  routeLength,
+  speedsOf,
+  travelTimes,
+} from '../../app/maps/travel';
 import {
   ArrowLeft,
   Download,
@@ -33,6 +39,7 @@ import {
   addItem,
   findItem,
   itemId,
+  mapKind,
   removeItem,
   updateItem,
   type MapDoc,
@@ -42,14 +49,35 @@ import { useMapDoc, useMaps } from '../../app/maps/store';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 import { MapPanels } from './MapPanels';
-import { MapScene, WALL_COLOR, type StrokeStyle } from '../../app/maps/scene';
 import {
-  TOOLS,
+  MapScene,
+  drawRoute,
+  routeWidth,
+  WALL_COLOR,
+  type StrokeStyle,
+} from '../../app/maps/scene';
+import {
+  toolsFor,
   TOOLS_WITH_SETTINGS,
   type BrushSettings,
   type TemplateSettings,
   type Tool,
 } from './tools';
+
+/** New routes' colour (the item keeps it, so it can be changed later). */
+const ROUTE_COLOR = '#b91c1c';
+
+/** What the status line says while a route is drawn: how far so far, and how long. */
+function routeStatus(points: readonly number[], doc: MapDoc): string {
+  const hint = 'Click each stop; double-click or Enter to finish the route.';
+  if (!doc.scale || points.length < 4) return hint;
+  const distance = routeLength(points, doc.scale);
+  const times = travelTimes(distance, speedsOf(doc.scale, doc.travel));
+  return [
+    formatDistance(distance, doc.scale.unit),
+    ...times.map((t) => `${t.name}: ${t.time}`),
+  ].join(' · ');
+}
 
 /** One map, edited: the canvas, the tool bar and the side panels. */
 export function MapEditor({ id }: { id: string }) {
@@ -100,6 +128,10 @@ function Editor({ doc }: { doc: MapDoc }) {
   const shell = useRef<HTMLDivElement>(null);
   const [scene, setScene] = useState<MapScene | null>(null);
   const [tool, setTool] = useState<Tool>('select');
+  const tools = toolsFor(mapKind(doc));
+  // A tool the map's kind does not have (its kind was just changed) gives way to Select.
+  if (tool !== 'select' && tool !== 'calibrate' && !tools.some((t) => t.id === tool))
+    setTool('select');
   const [selected, setSelected] = useState<string | null>(null);
   const [layerId, setLayerId] = useState(doc.layers.at(-2)?.id ?? doc.layers[0]?.id ?? '');
   const [stamp, setStamp] = useState<string | null>(null);
@@ -217,7 +249,10 @@ function Editor({ doc }: { doc: MapDoc }) {
 
   const finishWall = () => {
     if (wall && wall.length >= 4 && layer) {
-      const item: MapItem = { kind: 'wall', id: itemId(doc), points: wall };
+      const item: MapItem =
+        tool === 'route'
+          ? { kind: 'route', id: itemId(doc), points: wall, label: 'Route', color: ROUTE_COLOR }
+          : { kind: 'wall', id: itemId(doc), points: wall };
       commit((d) => addItem(d, layer.id, item));
     }
     setWall(null);
@@ -301,6 +336,11 @@ function Editor({ doc }: { doc: MapDoc }) {
         setWall((w) => [...(w ?? []), at.x, at.y]);
         return;
       }
+      case 'route':
+        // Stops are where they are clicked: a route follows roads and coasts, not the grid.
+        if (!canDraw) return;
+        setWall((w) => [...(w ?? []), p.x, p.y]);
+        return;
       case 'text':
         place({
           kind: 'text',
@@ -345,6 +385,10 @@ function Editor({ doc }: { doc: MapDoc }) {
       return;
     }
     const p = scene.toMap(screen.x, screen.y);
+    if (wall && tool === 'route')
+      scene.drawPreview((g) => {
+        drawRoute(g, [...wall, p.x, p.y], ROUTE_COLOR, routeWidth(doc));
+      });
     if (wall && tool === 'wall') {
       const at = snapPoint(p);
       scene.drawPreview((g) => {
@@ -636,7 +680,7 @@ function Editor({ doc }: { doc: MapDoc }) {
           return;
         }
       }
-      const t = TOOLS.find((x) => x.key === e.key.toLowerCase());
+      const t = tools.find((x) => x.key === e.key.toLowerCase());
       if (t && !e.shiftKey) setTool(t.id);
     };
     window.addEventListener('keydown', onKey);
@@ -767,7 +811,7 @@ function Editor({ doc }: { doc: MapDoc }) {
             aria-orientation="vertical"
             className="flex flex-col gap-1 overflow-y-auto border-r border-border bg-surface p-1"
           >
-            {TOOLS.map((t) => (
+            {tools.map((t) => (
               <button
                 key={t.id}
                 type="button"
@@ -823,9 +867,11 @@ function Editor({ doc }: { doc: MapDoc }) {
             >
               {tool === 'calibrate'
                 ? 'Drag over one grid cell of the picture.'
-                : wall
-                  ? 'Click to add corners; double-click or Enter to finish the wall.'
-                  : `Distance: ${measure ?? ''}`}
+                : wall && tool === 'route'
+                  ? routeStatus(wall, doc)
+                  : wall
+                    ? 'Click to add corners; double-click or Enter to finish the wall.'
+                    : `Distance: ${measure ?? ''}`}
             </p>
           )}
           {viewing && (

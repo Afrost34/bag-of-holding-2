@@ -66,6 +66,22 @@ export function travelTimes(
     .map((s) => ({ name: s.name, time: formatDuration(distance / s.perDay) }));
 }
 
+/** The length of a route (`x0, y0, x1, y1…`), stop to stop. */
+export function routeLength(points: readonly number[], scale: MapScale): number {
+  let total = 0;
+  for (let i = 2; i + 1 < points.length; i += 2)
+    total += scaledDistance(
+      { x: points[i - 2] ?? 0, y: points[i - 1] ?? 0 },
+      { x: points[i] ?? 0, y: points[i + 1] ?? 0 },
+      scale,
+    );
+  return total;
+}
+
+/** The speeds of a map, or on foot when it names none. */
+export const speedsOf = (scale: MapScale, speeds: readonly TravelSpeed[] | undefined) =>
+  speeds?.length ? speeds : DEFAULT_SPEEDS[scale.unit];
+
 /** One line for a measure: the distance, then the time at each speed. */
 export function measureLine(
   a: Point,

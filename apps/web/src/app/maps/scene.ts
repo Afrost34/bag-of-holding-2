@@ -44,6 +44,38 @@ async function textureFor(path: string): Promise<Texture | null> {
 }
 
 export const WALL_COLOR = 0x2b2420;
+
+/** How thick a route is drawn: readable on a large world map, not heavy on a small one. */
+export const routeWidth = (doc: Pick<MapDoc, 'width' | 'height'>) =>
+  Math.max(4, Math.round(Math.max(doc.width, doc.height) / 200));
+
+/** A route: a line with a white edge and a dot at each stop. */
+export function routeView(points: readonly number[], color: string, width: number): Graphics {
+  return drawRoute(new Graphics(), points, color, width);
+}
+
+/** Draws a route onto a graphics (a route item, or the one being drawn). */
+export function drawRoute(
+  g: Graphics,
+  points: readonly number[],
+  color: string,
+  width: number,
+): Graphics {
+  if (points.length < 2) return g;
+  const line = () => {
+    g.moveTo(points[0] ?? 0, points[1] ?? 0);
+    for (let i = 2; i + 1 < points.length; i += 2) g.lineTo(points[i] ?? 0, points[i + 1] ?? 0);
+  };
+  line();
+  g.stroke({ color: 0xffffff, width: width + 4, cap: 'round', join: 'round', alpha: 0.9 });
+  line();
+  g.stroke({ color: colorOf(color), width, cap: 'round', join: 'round' });
+  for (let i = 0; i + 1 < points.length; i += 2)
+    g.circle(points[i] ?? 0, points[i + 1] ?? 0, width * 1.3)
+      .fill({ color: 0xffffff })
+      .stroke({ color: colorOf(color), width: Math.max(2, width / 2) });
+  return g;
+}
 const SELECT_COLOR = 0x3b82f6;
 
 const colorOf = (c: string): ColorSource => c;
@@ -454,6 +486,8 @@ export class MapScene {
         });
         return g;
       }
+      case 'route':
+        return routeView(item.points, item.color, routeWidth(doc));
       case 'text': {
         const t = new Text({
           text: item.text,
@@ -541,8 +575,14 @@ export class MapScene {
     for (const layer of [...this.doc.layers].reverse()) {
       if (!layer.visible || layer.locked) continue;
       for (const item of [...layer.items].reverse()) {
-        if (item.kind === 'stroke' || item.kind === 'wall') {
-          const tolerance = (item.kind === 'wall' ? 10 : item.width / 2) + 6 / this.zoom;
+        if (item.kind === 'stroke' || item.kind === 'wall' || item.kind === 'route') {
+          const width =
+            item.kind === 'wall'
+              ? 10
+              : item.kind === 'route'
+                ? routeWidth(this.doc)
+                : item.width / 2;
+          const tolerance = width + 6 / this.zoom;
           if (nearPolyline(p, item.points, tolerance)) return item;
           continue;
         }

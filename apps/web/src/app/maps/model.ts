@@ -66,6 +66,8 @@ export type MapItem =
       texture?: TerrainId;
     }
   | { kind: 'wall'; id: string; points: number[] }
+  /** A way across a world or city map, stop by stop: its length says how long the journey is. */
+  | { kind: 'route'; id: string; points: number[]; label: string; color: string }
   | { kind: 'text'; id: string; x: number; y: number; text: string; size: number; color: string }
   | {
       kind: 'template';
@@ -126,10 +128,18 @@ export interface MapPicture {
   visible: boolean;
 }
 
+/**
+ * A battle map (a grid, walls, spell templates) or a world or city map (a real scale, travel
+ * times, routes). Each kind shows only its own tools.
+ */
+export type MapKind = 'battle' | 'world';
+
 export interface MapDoc {
   version: 1;
   id: string;
   name: string;
+  /** Absent in older maps: see `mapKind`. */
+  kind?: MapKind;
   createdAt: string;
   updatedAt: string;
   /** A picture in the map assets; its size is the map's size. */
@@ -186,7 +196,16 @@ export const DEFAULT_GRID: Grid = {
   opacity: 0.35,
 };
 
-export function newMap(name: string, existingIds: readonly string[], now: string): MapDoc {
+/** A map's kind; older maps without one are world maps when they have a real scale. */
+export const mapKind = (doc: Pick<MapDoc, 'kind' | 'scale'>): MapKind =>
+  doc.kind ?? (doc.scale ? 'world' : 'battle');
+
+export function newMap(
+  name: string,
+  existingIds: readonly string[],
+  now: string,
+  kind: MapKind = 'battle',
+): MapDoc {
   const ids: string[] = [];
   const layer = (n: string): Layer => {
     const id = newId(ids);
@@ -201,8 +220,12 @@ export function newMap(name: string, existingIds: readonly string[], now: string
     updatedAt: now,
     width: 2800,
     height: 2100,
-    grid: { ...DEFAULT_GRID },
-    layers: [layer('Ground'), layer('Objects'), layer('Walls and notes')],
+    kind,
+    grid: kind === 'world' ? { ...DEFAULT_GRID, type: 'none' } : { ...DEFAULT_GRID },
+    layers:
+      kind === 'world'
+        ? [layer('Land'), layer('Routes'), layer('Places and labels')]
+        : [layer('Ground'), layer('Objects'), layer('Walls and notes')],
   };
 }
 
@@ -287,7 +310,7 @@ export function moveItemToLayer(doc: MapDoc, id: string, layerId: string): MapDo
 const isObj = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
-const KINDS = new Set(['stamp', 'stroke', 'wall', 'text', 'template', 'pin']);
+const KINDS = new Set(['stamp', 'stroke', 'wall', 'route', 'text', 'template', 'pin']);
 
 export function parseMap(text: string | null, id: string, campaign?: string): MapDoc | null {
   if (!text) return null;
@@ -325,6 +348,7 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
     version: 1,
     id,
     name: typeof json.name === 'string' ? json.name : 'Map',
+    ...(json.kind === 'battle' || json.kind === 'world' ? { kind: json.kind } : {}),
     createdAt: typeof json.createdAt === 'string' ? json.createdAt : '',
     updatedAt: typeof json.updatedAt === 'string' ? json.updatedAt : '',
     ...(bg
@@ -521,11 +545,13 @@ export interface MapFilter {
   folder: string;
   /** Tags a map must all have. */
   tags: readonly string[];
+  /** Only battle maps or only world and city maps. */
+  kind?: MapKind;
 }
 
 const words = (s: string) => s.toLowerCase().split(/\s+/).filter(Boolean);
 
-export function filterMaps<M extends Pick<MapDoc, 'name' | 'folder' | 'tags'>>(
+export function filterMaps<M extends Pick<MapDoc, 'name' | 'folder' | 'tags' | 'kind' | 'scale'>>(
   maps: readonly M[],
   filter: MapFilter,
 ): M[] {
@@ -534,6 +560,7 @@ export function filterMaps<M extends Pick<MapDoc, 'name' | 'folder' | 'tags'>>(
     const inFolder = m.folder === filter.folder || m.folder?.startsWith(`${filter.folder}/`);
     if (filter.folder && !inFolder) return false;
     if (filter.tags.some((t) => !(m.tags ?? []).includes(t))) return false;
+    if (filter.kind && mapKind(m) !== filter.kind) return false;
     const text = [m.name, m.folder ?? '', ...(m.tags ?? [])].join(' ').toLowerCase();
     return wanted.every((w) => text.includes(w));
   });

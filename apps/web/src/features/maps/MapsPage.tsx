@@ -4,7 +4,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
 import { useActiveCampaign, useCampaigns } from '../../app/campaigns/store';
 import { thumbnailUrl } from '../../app/maps/assets';
-import { filterMaps, mapFolders, mapTags, type MapDoc, type MapFilter } from '../../app/maps/model';
+import {
+  filterMaps,
+  mapFolders,
+  mapTags,
+  type MapDoc,
+  type MapFilter,
+  type MapKind,
+} from '../../app/maps/model';
 import { useMaps } from '../../app/maps/store';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
@@ -22,6 +29,7 @@ export function MapsPage() {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [where, setWhere] = useState(active?.id ?? LIBRARY);
+  const [kind, setKind] = useState<MapKind>('battle');
 
   useEffect(() => {
     if (!loaded) void load();
@@ -72,13 +80,34 @@ export function MapsPage() {
           className="space-y-3 rounded-lg border border-border bg-surface p-4"
           onSubmit={(e) => {
             e.preventDefault();
-            void create(name, where === LIBRARY ? undefined : where).then((s) => {
+            void create(name, where === LIBRARY ? undefined : where, kind).then((s) => {
               setCreating(false);
               setName('');
               navigate(`/maps/${s.id}`);
             });
           }}
         >
+          <fieldset className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+            <legend className="mb-1 font-medium">Kind of map</legend>
+            {(
+              [
+                ['battle', 'Battle map', 'grid, walls, spell templates'],
+                ['world', 'World or city map', 'real size, travel times, routes'],
+              ] as const
+            ).map(([id, label, hint]) => (
+              <label key={id} className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="new-map-kind"
+                  checked={kind === id}
+                  onChange={() => {
+                    setKind(id);
+                  }}
+                />
+                {label} <span className="text-muted">({hint})</span>
+              </label>
+            ))}
+          </fieldset>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label htmlFor="new-map-name" className="mb-1 block text-sm font-medium">
@@ -159,6 +188,20 @@ export function MapsPage() {
                 className="h-10 w-full rounded-md border border-border bg-surface pr-3 pl-9 text-sm"
               />
             </label>
+            <select
+              value={filter.kind ?? ''}
+              aria-label="Kind of map"
+              onChange={(e) => {
+                const { kind: _k, ...rest } = filter;
+                const v = e.target.value;
+                setFilter(v === 'battle' || v === 'world' ? { ...rest, kind: v } : rest);
+              }}
+              className="h-10 rounded-md border border-border bg-surface px-2 text-sm"
+            >
+              <option value="">All maps</option>
+              <option value="battle">Battle maps</option>
+              <option value="world">World and city maps</option>
+            </select>
             {folders.length > 0 && (
               <select
                 value={filter.folder}

@@ -6,6 +6,9 @@ import {
   scaleForWidth,
   scaledDistance,
   travelTimes,
+  DEFAULT_SPEEDS,
+  routeLength,
+  speedsOf,
 } from './travel';
 
 describe('map scale and travel', () => {
@@ -36,5 +39,15 @@ describe('map scale and travel', () => {
     expect(measureLine({ x: 0, y: 0 }, { x: 3, y: 4 }, { unit: 'mi', perPixel: 4.8 }, [])).toBe(
       '24 mi · On foot: 1 day',
     );
+  });
+});
+
+describe('routes', () => {
+  it('add up their legs, and fall back to walking speed', () => {
+    const scale = { unit: 'km' as const, perPixel: 2 };
+    expect(routeLength([0, 0, 30, 40, 30, 140], scale)).toBe(300);
+    expect(routeLength([5, 5], scale)).toBe(0);
+    expect(speedsOf(scale, undefined)).toEqual(DEFAULT_SPEEDS.km);
+    expect(speedsOf(scale, [{ name: 'Skyship', perDay: 900 }])[0]?.name).toBe('Skyship');
   });
 });
