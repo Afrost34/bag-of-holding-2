@@ -511,7 +511,7 @@ export function EncounterBody({ card }: { card: Extract<BoardCard, { kind: 'enco
     <div className="space-y-2">
       <ul className="text-sm">
         {encounter.monsters.map((m) => (
-          <MonsterLine key={m.key} entityKey={m.key} count={m.count} />
+          <MonsterLine key={m.npc ?? m.key} entityKey={m.key} name={m.name} count={m.count} />
         ))}
       </ul>
       {info.difficulty && (
@@ -540,11 +540,21 @@ export function EncounterBody({ card }: { card: Extract<BoardCard, { kind: 'enco
   );
 }
 
-function MonsterLine({ entityKey, count }: { entityKey: string; count: number }) {
+function MonsterLine({
+  entityKey,
+  name,
+  count,
+}: {
+  entityKey: string;
+  /** A campaign NPC's name. */
+  name?: string | undefined;
+  count: number;
+}) {
   const entity = useEntity(entityKey);
+  const block = entity.status === 'found' ? entity.entity.name : entityKey;
   return (
     <li>
-      {count} × {entity.status === 'found' ? entity.entity.name : entityKey}
+      {count} × {name ? `${name} (${block})` : block}
     </li>
   );
 }

@@ -77,7 +77,7 @@ test('a picture chosen in the wizard is kept only when saved', async ({ page }) 
   const choose = async () => {
     await card.getByRole('button', { name: 'Edit details' }).click();
     const wizard = page.getByRole('dialog', { name: /Edit NPC/ });
-    await wizard.getByRole('button', { name: '4. Picture' }).click();
+    await wizard.getByRole('button', { name: '5. Picture' }).click();
     await wizard
       .getByLabel('Picture file')
       .setInputFiles({ name: 'volo.png', mimeType: 'image/png', buffer: png });

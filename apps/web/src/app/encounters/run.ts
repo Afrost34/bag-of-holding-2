@@ -42,7 +42,12 @@ export async function combatFor(encounter: Encounter): Promise<CombatState> {
   const monsters = await Promise.all(
     encounter.monsters.map(async (m) => {
       const e = await loadEntity(m.key);
-      return { key: m.key, count: m.count, data: e?.data ?? {} };
+      return {
+        key: m.key,
+        count: m.count,
+        data: e?.data ?? {},
+        ...(m.name ? { name: m.name } : {}),
+      };
     }),
   );
   const party = await Promise.all((await partyOf(encounter)).map(characterInput));

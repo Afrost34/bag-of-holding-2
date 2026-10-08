@@ -15,7 +15,9 @@ import { useEffect, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
 import { useCampaigns } from '../../app/campaigns/store';
 import { entityPath, fluffImages, useEntity, useFluff } from '../../app/data/entities';
-import { addMonsters, setCount, type Encounter } from '../../app/encounters/model';
+import { addMonsters, addNpc, lineId, setCount, type Encounter } from '../../app/encounters/model';
+import { useCampaignNpcs } from '../../app/encounters/npcs';
+import { journalPath } from '../../app/journal/paths';
 import { putOnBoard, runOnBoard } from '../../app/encounters/run';
 import { useEncounter, useEncounters } from '../../app/encounters/store';
 import { useEncounterInfo, type EncounterInfo } from '../../app/encounters/useDifficulty';
@@ -35,6 +37,7 @@ export function EncounterPage({ id }: { id: string }) {
     if (!campaignsLoaded) void loadCampaigns();
   }, [loaded, load, campaignsLoaded, loadCampaigns]);
   const info = useEncounterInfo(encounter);
+  const npcs = useCampaignNpcs(encounter?.campaign);
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -141,6 +144,27 @@ export function EncounterPage({ id }: { id: string }) {
               change((e) => addMonsters(e, [key]));
             }}
           />
+          {npcs.length > 0 && (
+            <label className="flex items-center gap-2 text-sm">
+              <span className="font-medium">Add an NPC</span>
+              <select
+                value=""
+                aria-label="Add an NPC"
+                onChange={(ev) => {
+                  const npc = npcs.find((n) => n.note === ev.target.value);
+                  if (npc) change((e) => addNpc(e, npc));
+                }}
+                className="min-w-0 flex-1 rounded-md border border-border bg-surface px-2 py-1.5"
+              >
+                <option value="">Choose one of the campaign’s NPCs…</option>
+                {npcs.map((n) => (
+                  <option key={n.note} value={n.note}>
+                    {n.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {encounter.monsters.length === 0 ? (
             <p className="rounded-lg border border-dashed border-border p-6 text-center text-muted">
               No monsters yet: search for some above.
@@ -149,13 +173,14 @@ export function EncounterPage({ id }: { id: string }) {
             <ul className="divide-y divide-border rounded-lg border border-border bg-surface">
               {encounter.monsters.map((m) => (
                 <MonsterRow
-                  key={m.key}
+                  key={lineId(m)}
                   entityKey={m.key}
+                  {...(m.npc ? { npc: { note: m.npc, name: m.name ?? m.npc } } : {})}
                   count={m.count}
                   cr={info.crs.get(m.key)}
                   showXp={info.showXp}
                   onCount={(n) => {
-                    change((e) => setCount(e, m.key, n));
+                    change((e) => setCount(e, lineId(m), n));
                   }}
                 />
               ))}
@@ -210,19 +235,23 @@ function NameInput({ name, onRename }: { name: string; onRename: (name: string) 
 
 function MonsterRow({
   entityKey,
+  npc,
   count,
   cr,
   showXp,
   onCount,
 }: {
   entityKey: string;
+  /** A campaign NPC fighting with this stat block. */
+  npc?: { note: string; name: string };
   count: number;
   cr: unknown;
   showXp: boolean;
   onCount: (n: number) => void;
 }) {
   const entity = useEntity(entityKey);
-  const name = entity.status === 'found' ? entity.entity.name : entityKey;
+  const blockName = entity.status === 'found' ? entity.entity.name : entityKey;
+  const name = npc?.name ?? blockName;
   const found = entity.status === 'found' ? entity.entity : null;
   const images = fluffImages(useFluff(found?.type ?? '', found?.name ?? '', found?.source ?? ''));
   const [open, setOpen] = useState(false);
@@ -249,12 +278,23 @@ function MonsterRow({
             aria-hidden
           />
         </button>
-        <AppLink
-          to={entityPath(entityKey)}
-          className="min-w-0 flex-1 truncate font-medium hover:underline"
-        >
-          {name}
-        </AppLink>
+        {npc ? (
+          <span className="min-w-0 flex-1 truncate">
+            <AppLink to={journalPath(npc.note)} className="font-medium hover:underline">
+              {name}
+            </AppLink>{' '}
+            <AppLink to={entityPath(entityKey)} className="text-sm text-muted hover:underline">
+              ({blockName})
+            </AppLink>
+          </span>
+        ) : (
+          <AppLink
+            to={entityPath(entityKey)}
+            className="min-w-0 flex-1 truncate font-medium hover:underline"
+          >
+            {name}
+          </AppLink>
+        )}
         <span className="hidden text-xs text-muted sm:inline">
           CR {crText}
           {showXp && ` · ${xpForCr(cr).toLocaleString('en')} XP`}

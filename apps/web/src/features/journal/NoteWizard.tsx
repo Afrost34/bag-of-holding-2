@@ -12,6 +12,8 @@ import { createPortal } from 'react-dom';
 import { NoteTypeIcon } from '../../app/journal/NoteTypeIcon';
 import { useAllNoteTypes } from '../../app/journal/noteTypes';
 import { useAttachmentUrl } from '../../app/journal/notes/useAttachmentUrl';
+import { loadEntity } from '../../app/data/entities';
+import { EntitySearch } from '../../app/search/EntitySearch';
 
 /** What the wizard hands back: the note's name and its properties. */
 export interface WizardResult {
@@ -340,6 +342,9 @@ function Field({
       </label>
     );
   }
+  if (field.kind === 'creature') {
+    return <CreatureField label={label} value={value} onChange={onChange} />;
+  }
   if (field.kind === 'links' || field.kind === 'list') {
     const items = Array.isArray(value) ? value : value ? [String(value)] : [];
     return (
@@ -593,6 +598,52 @@ function AddField({ taken, onAdd }: { taken: string[]; onAdd: (key: string) => v
       >
         <Plus className="h-4 w-4" aria-hidden /> Add
       </Button>
+    </div>
+  );
+}
+
+/** A compendium creature (an NPC's stat block): searched, stored as a compendium link. */
+function CreatureField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: PropertyValue;
+  onChange: (v: PropertyValue) => void;
+}) {
+  const current = typeof value === 'string' && value ? linkText(value) : null;
+  return (
+    <div className="space-y-1">
+      <span className="block text-sm font-medium">{label}</span>
+      {current ? (
+        <p className="flex items-center gap-2 text-sm">
+          <span className="flex-1 font-medium">{current}</span>
+          <button
+            type="button"
+            onClick={() => {
+              onChange(null);
+            }}
+            className="text-xs text-link hover:underline"
+          >
+            Remove
+          </button>
+        </p>
+      ) : (
+        <p className="text-xs text-muted">
+          The creature it fights as: the encounter builder can then add it by name.
+        </p>
+      )}
+      <EntitySearch
+        label={label}
+        placeholder="Spy, guard, bandit captain…"
+        types={['monster']}
+        onAdd={(key) => {
+          void loadEntity(key).then((e) => {
+            if (e) onChange(`[[creature:${e.name}@${e.source}|${e.name}]]`);
+          });
+        }}
+      />
     </div>
   );
 }
