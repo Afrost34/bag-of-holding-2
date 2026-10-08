@@ -1,13 +1,31 @@
+import { cn } from '@boh/ui';
 import type { SVGProps } from 'react';
+import { LOGO_PATH, LOGO_VIEWBOX } from './logoShape';
 
-/** The bag mark. Uses fixed brand colours so it reads on the dark sidebar in both themes. */
+/** The BH mark, in the brand gold (the same in both themes: it sits on the dark chrome). */
 export function LogoMark(props: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 64 64" aria-hidden="true" {...props}>
-      <path d="M21 11c4 4.5 18 4.5 22 0l-4.5 10h-13z" fill="#e5484d" />
-      <path d="M24 25c-9 6-13.5 17-9 25 3.5 6 30.5 6 34 0 4.5-8 0-19-9-25z" fill="#c53131" />
-      <rect x="22" y="20.5" width="20" height="5" rx="2.5" fill="#e0b04a" />
-      <path d="M32 33l2.2 5.8L40 41l-5.8 2.2L32 49l-2.2-5.8L24 41l5.8-2.2z" fill="#fde9c4" />
+    <svg viewBox={LOGO_VIEWBOX} aria-hidden="true" {...props}>
+      <path d={LOGO_PATH} fill="var(--boh-brand)" fillRule="evenodd" />
     </svg>
+  );
+}
+
+/** The title as on a rulebook cover: BAG, a small gold "— OF —", HOLDING. */
+export function Wordmark({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        'flex flex-col items-center font-serif leading-none font-bold tracking-wider uppercase',
+        className,
+      )}
+    >
+      <span>Bag</span>
+      <span className="my-0.5 text-[0.5em] tracking-[0.25em] text-brand" aria-hidden>
+        — of —
+      </span>
+      <span className="sr-only">of</span>
+      <span>Holding</span>
+    </span>
   );
 }

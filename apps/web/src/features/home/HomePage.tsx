@@ -37,7 +37,7 @@ export function HomePage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 md:px-8 md:py-10">
       <header className="flex items-center gap-4">
-        <LogoMark className="h-14 w-14 shrink-0" />
+        <LogoMark className="w-24 shrink-0" />
         <div className="min-w-0 flex-1">
           <h1 className="font-serif text-2xl font-bold md:text-3xl">Bag of Holding</h1>
           <p className="text-muted">
