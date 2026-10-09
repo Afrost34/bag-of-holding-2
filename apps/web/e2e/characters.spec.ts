@@ -12,12 +12,14 @@ test.beforeEach(async ({ page }) => {
   await installData(page);
 });
 
+/** A new character; its rules come from where it is kept (a 2014 campaign, or the library). */
 async function newCharacter(page: Page, name: string, edition: '2014 rules' | '2024 rules') {
+  if (edition === '2014 rules') await createCampaign(page, 'Old Rules', '2014 rules');
   await page.goto('./#/characters');
   await page.getByRole('button', { name: 'New character' }).click();
   const form = page.getByRole('form', { name: 'New character' });
   await form.getByLabel('Name').fill(name);
-  await form.getByRole('radio', { name: edition }).check();
+  await expect(form).toContainText(edition);
   await form.getByRole('button', { name: 'Start building' }).click();
 }
 
@@ -103,13 +105,14 @@ test('a character is built from its choices and kept', async ({ page }) => {
 test('a multiclass character in a campaign, with rolled hit points, copied to the library', async ({
   page,
 }) => {
-  await createCampaign(page, 'Rust and Sunfire');
+  // A 2014 campaign: its characters follow its rules.
+  await createCampaign(page, 'Rust and Sunfire', '2014 rules');
   await page.goto('./#/characters');
   await page.getByRole('button', { name: 'New character' }).click();
   const form = page.getByRole('form', { name: 'New character' });
   await form.getByLabel('Name').fill('Brakka');
   await expect(form.getByLabel('Keep in')).toHaveValue('rust-and-sunfire');
-  await form.getByRole('radio', { name: '2014 rules' }).check();
+  await expect(form).toContainText('2014 rules');
   await form.getByRole('button', { name: 'Start building' }).click();
   await expect(page.getByRole('main').getByText('· Rust and Sunfire')).toBeVisible();
 
@@ -192,9 +195,12 @@ test('the character sheet prints on A4 pages', async ({ page }, testInfo) => {
   // Pages can be left out, and stay left out.
   await page.getByRole('button', { name: 'Pages' }).click();
   await page.getByRole('checkbox', { name: 'Personality and backstory' }).uncheck();
+  // Single cards too: each feature, spell and item has its own box.
+  const featureCards = page.getByRole('group', { name: 'Features and traits' });
+  await expect(featureCards.getByRole('checkbox').first()).toBeChecked();
   await expect(preview.getByText('Backstory', { exact: true })).toHaveCount(0);
   // Reload once the choice is on disk (the write is quick, but a reload at once can beat it).
-  await waitForSaved(page, 'characters', '"story"');
+  await waitForSaved(page, 'campaigns/old-rules/characters', '"story"');
   await page.reload();
   await page.getByRole('button', { name: 'Pages' }).click();
   await expect(page.getByRole('checkbox', { name: 'Personality and backstory' })).not.toBeChecked();

@@ -9,12 +9,18 @@ export async function installData(page: Page) {
   await page.getByRole('button', { name: 'Download 5etools data' }).click();
   await expect(page.getByText(/entries$/)).toBeVisible({ timeout: 30_000 });
 }
-export async function createCampaign(page: Page, name: string) {
+/** A new campaign; `template` picks its rules ("2014 rules"), the 2024 ones otherwise. */
+export async function createCampaign(page: Page, name: string, template?: string) {
   await page.goto('./#/campaigns');
   await expect(page.getByRole('heading', { level: 1, name: 'Campaigns' })).toBeVisible();
   const first = await page.getByRole('heading', { name: 'Create your first campaign' }).isVisible();
   if (!first) await page.getByRole('button', { name: 'New campaign' }).click();
   await page.getByLabel('Campaign name').fill(name);
+  if (template)
+    await page
+      .getByRole('group', { name: 'Start from a template' })
+      .getByRole('radio', { name: template })
+      .check();
   await page.getByRole('button', { name: 'Create campaign' }).click();
   if (first) await page.waitForURL(/#\/compendium$/);
   else await expect(page.getByRole('region', { name: 'New campaign' })).toHaveCount(0);

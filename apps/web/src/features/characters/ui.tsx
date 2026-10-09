@@ -23,9 +23,12 @@ export function Accordion({
   right?: ReactNode;
   children?: ReactNode;
 }) {
-  // Until it is clicked, it follows `pending`, which often arrives after the first render.
+  // Until it is clicked, it opens with `pending` (which often arrives after the first render)
+  // and then stays open: making the pick must not fold away what was just chosen.
   const [toggled, setToggled] = useState<boolean | null>(null);
-  const open = toggled ?? defaultOpen ?? pending;
+  const [wasPending, setWasPending] = useState(pending);
+  if (pending && !wasPending) setWasPending(true);
+  const open = toggled ?? defaultOpen ?? (pending || wasPending);
   const setOpen = (v: boolean) => {
     setToggled(v);
   };

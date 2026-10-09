@@ -12,7 +12,7 @@ import { SOURCE_GROUPS, sourceGroup, useSourceList } from '../../app/data/source
 import { AbilityIncrease } from './AbilityIncrease';
 import { ChoiceControl } from './ChoiceControl';
 import { isAbilityIncrease } from './increaseModel';
-import { forget } from './steps';
+import { forget, inBookOrder } from './steps';
 import { Accordion, StepTitle } from './ui';
 
 /** Species traits that are only facts already shown elsewhere. */
@@ -64,7 +64,7 @@ export function SpeciesStep({
 
   // The +2/+1 increase is one control: its inner picks are not listed on their own.
   const increases = choices.filter(isAbilityIncrease).map((c) => `${c.id}/`);
-  const shown = choices.filter((c) => !increases.some((p) => c.id.startsWith(p)));
+  const shown = inBookOrder(choices.filter((c) => !increases.some((p) => c.id.startsWith(p))));
   const traits = (view?.features ?? []).filter(
     (f) => f.from === key || f.from.startsWith('subrace:'),
   );

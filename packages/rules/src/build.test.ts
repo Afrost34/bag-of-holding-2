@@ -112,6 +112,14 @@ describe('buildCharacter', () => {
     expect(decisions.choices[asi]).toEqual(['plus2']);
   });
 
+  it('remembers, without reporting, the choices of a feat that is no longer picked', () => {
+    const old = 'feat:ability score improvement@xphb/ability';
+    const decisions = fighter(3, { [old]: ['1'], [`${old}/1`]: ['str', 'dex'] });
+    const built = buildCharacter(data, decisions);
+    expect(built.warnings.filter((w) => w.kind === 'orphan')).toEqual([]);
+    expect(decisions.choices[old]).toEqual(['1']);
+  });
+
   it('offers a feat for an Ability Score Improvement only where feats are allowed', () => {
     const asi = 'classfeature:ability score improvement|fighter|phb|4@phb/asi';
     const decisions = fighter(4, { [asi]: ['feat'] });

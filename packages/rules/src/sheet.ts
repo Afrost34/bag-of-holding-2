@@ -1,5 +1,11 @@
 import type { EntityDetail, RawEntity } from '@boh/data5e';
-import type { BuiltCharacter, CharacterDecisions, InventoryItem, RulesData } from './build';
+import type {
+  BuiltCharacter,
+  CharacterDecisions,
+  HeldGrant,
+  InventoryItem,
+  RulesData,
+} from './build';
 import { isCasterProgression, maxSpellLevel, type CasterProgression } from './extract/classes';
 import { ABILITIES, isAbility, isObj, SKILLS, type Ability } from './model';
 
@@ -648,3 +654,24 @@ const DAMAGE: Record<string, string> = {
   A: 'acid', B: 'bludgeoning', C: 'cold', F: 'fire', O: 'force', L: 'lightning', N: 'necrotic',
   P: 'piercing', I: 'poison', Y: 'psychic', R: 'radiant', S: 'slashing', T: 'thunder',
 }; // prettier-ignore
+
+/** The highest spell level the character has slots for (Pact Magic included), 0 for none. */
+export function highestSlotLevel(sheet: Pick<Sheet, 'slots' | 'pact'>): number {
+  let top = 0;
+  sheet.slots.forEach((n, level) => {
+    if (n > 0) top = Math.max(top, level);
+  });
+  return Math.max(top, sheet.pact?.level ?? 0);
+}
+
+/**
+ * Grants without the spells the character cannot have yet: those had "once you have spell slots
+ * of that level" (Illusion Adept's table) before the character has them.
+ */
+export function castableGrants<G extends HeldGrant>(
+  grants: readonly G[],
+  sheet: Pick<Sheet, 'slots' | 'pact'>,
+): G[] {
+  const top = highestSlotLevel(sheet);
+  return grants.filter((g) => g.kind !== 'spell' || (g.slotLevel ?? 0) <= top);
+}

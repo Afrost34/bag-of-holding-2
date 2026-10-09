@@ -1,7 +1,8 @@
 import type { EntityDetail, RawEntity } from '@boh/data5e';
 import { describe, expect, it } from 'vitest';
 import { buildCharacter, newCharacter, type RulesData } from './build';
-import { computeSheet } from './sheet';
+import { readEntity } from './extract/entity';
+import { castableGrants, computeSheet } from './sheet';
 
 function fakeData(entities: [string, string, RawEntity][]): RulesData {
   const map = new Map<string, EntityDetail>(
@@ -84,5 +85,24 @@ describe('weapon proficiency', () => {
         ?.toHit?.parts.some((p) => p.label === 'Proficiency');
     expect(proficient('Pistol')).toBe(true);
     expect(proficient('Longbow')).toBe(false);
+  });
+});
+
+describe('spells had once a slot level is reached', () => {
+  it('reads Illusion Adept-style tables and keeps only what can be cast', () => {
+    const ex = readEntity(
+      { additionalSpells: [{ prepared: { s1: ['silent image'], s3: ['major image'] } }] },
+      'feat:illusion adept@au',
+      { add: () => undefined },
+    );
+    expect(ex.grants.map((g) => (g.kind === 'spell' ? g.slotLevel : null))).toEqual([1, 3]);
+    const held = ex.grants.map((g) => ({ ...g, from: 'feat:illusion adept@au' }));
+    const names = (slots: number[], pact?: { slots: number; level: number }) =>
+      castableGrants(held, { slots, ...(pact ? { pact } : {}) }).map((g) =>
+        g.kind === 'spell' ? g.key : '',
+      );
+    expect(names([0, 4, 2])).toEqual(['spell:silent image@phb']);
+    expect(names([0], { slots: 2, level: 3 })).toHaveLength(2);
+    expect(names([0])).toEqual([]);
   });
 });

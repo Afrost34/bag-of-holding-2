@@ -26,15 +26,19 @@ export function SpellChoicePanel({
   decisions,
   isEnabled,
   onChange,
+  from,
 }: {
   choice: AnsweredChoice;
+  /** The feature that gives the pick, named in the heading ("Cantrips · Thaumaturge"). */
+  from?: string | undefined;
   decisions: CharacterDecisions;
   isEnabled: (source: string | undefined) => boolean;
   onChange: (picks: string[]) => void;
 }) {
   // What is stored now: the engine's answer can lag behind quick picks.
   const picks = decisions.choices[choice.id] ?? choice.picks;
-  const [adding, setAdding] = useState(picks.length < choice.count);
+  // Folded until asked: the picks stay listed, the long list of options opens with "Add".
+  const [adding, setAdding] = useState(false);
   const [query, setQuery] = useState('');
   const [level, setLevel] = useState<number | null>(null);
   const options = useChoiceOptions(decisions, choice.id, true);
@@ -75,7 +79,10 @@ export function SpellChoicePanel({
   return (
     <section aria-label={choice.label} className="space-y-2">
       <div className="flex items-center gap-3 rounded-md bg-sunken px-3 py-2">
-        <h4 className="flex-1 font-semibold">{title}</h4>
+        <h4 className="flex-1 font-semibold">
+          {title}
+          {from && <span className="font-normal text-muted"> · {from}</span>}
+        </h4>
         <span className={cn('text-sm font-bold', full ? 'text-text' : 'text-accent-ink')}>
           {picks.length}/{choice.count}
         </span>

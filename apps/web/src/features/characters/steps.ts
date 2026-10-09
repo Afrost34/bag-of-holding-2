@@ -122,3 +122,18 @@ export function featureOf(
   if (parent) return featureOf(parent, choices, grants, depth + 1);
   return /^(classfeature|subclassfeature):/.test(grant.from) ? grant.from : undefined;
 }
+
+/** The lowest spell level a spell choice offers (0 for cantrips), from its filter. */
+export function spellLevelOf(choice: AnsweredChoice): number {
+  if (choice.filter?.type !== 'spell') return choice.kind === 'spell' ? 10 : -1;
+  const levels = /(?:^|\|)level=([\d;]+)/.exec(choice.filter.filter)?.[1];
+  return levels ? Math.min(...levels.split(';').map(Number)) : 10;
+}
+
+/** Choices as a book lists them: other picks first, then spells from cantrips upward. */
+export function inBookOrder(list: readonly AnsweredChoice[]): AnsweredChoice[] {
+  return list
+    .map((c, i) => ({ c, i }))
+    .sort((a, b) => spellLevelOf(a.c) - spellLevelOf(b.c) || a.i - b.i)
+    .map(({ c }) => c);
+}

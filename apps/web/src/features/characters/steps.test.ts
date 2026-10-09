@@ -1,6 +1,6 @@
 import type { AnsweredChoice, HeldGrant } from '@boh/rules';
 import { describe, expect, it } from 'vitest';
-import { choicesByStep, featureOf, hitPointLevels, pickName, rootOf } from './steps';
+import { choicesByStep, featureOf, hitPointLevels, inBookOrder, pickName, rootOf } from './steps';
 
 describe('pick names', () => {
   it('reads plain values, entity keys and groups', () => {
@@ -98,5 +98,33 @@ describe('feature of a choice', () => {
     ];
     expect(featureOf(inFeat, [pickFeat, inFeat], held)).toBe(asi);
     expect(featureOf(choice('x', 'class:fighter@xphb'), [], held)).toBeUndefined();
+  });
+});
+
+describe('book order', () => {
+  it('puts other picks first, then spells from cantrips upward', () => {
+    const spell = (id: string, filter: string): AnsweredChoice => ({
+      id,
+      from: 'feat:magic initiate@xphb',
+      kind: 'spell',
+      count: 1,
+      label: '',
+      picks: [],
+      filter: { type: 'spell', filter },
+    });
+    const ability: AnsweredChoice = {
+      id: 'ability',
+      from: 'feat:magic initiate@xphb',
+      kind: 'spellAbility',
+      count: 1,
+      label: '',
+      picks: [],
+    };
+    const list = [
+      spell('level1', 'level=1|class=Cleric'),
+      ability,
+      spell('cantrips', 'level=0|class=Cleric'),
+    ];
+    expect(inBookOrder(list).map((c) => c.id)).toEqual(['ability', 'cantrips', 'level1']);
   });
 });

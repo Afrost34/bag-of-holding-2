@@ -207,7 +207,7 @@ function ClassArt({ row, size = 40 }: { row: ListRow; size?: number }) {
           path={image}
           widths={[96, 192]}
           sizes={`${String(size)}px`}
-          className="h-full w-full object-cover object-top"
+          className="h-full w-full origin-top scale-150 object-cover object-top"
         />
       )}
     </span>

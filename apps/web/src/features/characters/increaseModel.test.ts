@@ -1,6 +1,13 @@
 import type { AnsweredChoice } from '@boh/rules';
 import { describe, expect, it } from 'vitest';
-import { choicesFor, isAbilityIncrease, slotsFrom } from './increaseModel';
+import {
+  choicesFor,
+  increaseOf,
+  isAbilityIncrease,
+  otherFor,
+  slotsFrom,
+  withoutIncreaseParts,
+} from './increaseModel';
 
 const id = 'background:charlatan@xphb/ability';
 const ability = (n: string, amounts: number[]) => ({
@@ -45,5 +52,47 @@ describe('three +1 picks', () => {
       other: ['x'],
     });
     expect(choicesFor(choice, {}, ['dex', 'dex', 'dex'])).toEqual({});
+  });
+});
+
+describe('two +1 picks (Ability Score Improvement)', () => {
+  const asi = 'classfeature:asi/asi';
+  const inner = (n: string, amounts: number[]) => ({
+    id: `classfeature:asi/ability/${n}`,
+    kind: 'ability' as const,
+    count: amounts.length,
+    label: '',
+    options: ['str', 'dex', 'con'],
+    amounts,
+  });
+  const improvement: AnsweredChoice = {
+    id: asi,
+    from: 'class:fighter@phb',
+    kind: 'alternative',
+    count: 1,
+    label: '',
+    picks: [],
+    options: ['plus2', 'plus1', 'feat'],
+    branches: [
+      { id: 'plus2', label: '+2', grants: [], choices: [inner('0', [2])] },
+      { id: 'plus1', label: '+1/+1', grants: [], choices: [inner('1', [1, 1])] },
+      { id: 'feat', label: 'A feat', grants: [], choices: [] },
+    ],
+  };
+
+  it('is two dropdowns, with the feat as another way', () => {
+    expect(increaseOf(improvement)).toMatchObject({ slots: 2, others: [{ id: 'feat' }] });
+    expect(withoutIncreaseParts([improvement, { ...improvement, ...inner('0', [2]) }])).toEqual([
+      improvement,
+    ]);
+  });
+
+  it('gives +2 for the same ability twice and +1/+1 for two', () => {
+    const twice = choicesFor(improvement, {}, ['str', 'str']);
+    expect(twice).toEqual({ [asi]: ['plus2'], 'classfeature:asi/ability/0': ['str'] });
+    expect(slotsFrom(improvement, twice)).toEqual(['str', 'str']);
+    const two = choicesFor(improvement, twice, ['str', 'dex']);
+    expect(two).toEqual({ [asi]: ['plus1'], 'classfeature:asi/ability/1': ['str', 'dex'] });
+    expect(otherFor(improvement, two, 'feat')).toEqual({ [asi]: ['feat'] });
   });
 });

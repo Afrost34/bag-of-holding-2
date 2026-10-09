@@ -42,7 +42,9 @@ export {
   type Warning,
 } from './build';
 export {
+  castableGrants,
   computeSheet,
+  highestSlotLevel,
   pactWeaponFeature,
   modifier,
   proficiencyBonus,

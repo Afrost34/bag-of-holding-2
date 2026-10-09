@@ -4,7 +4,10 @@ import { stripTagsPlain } from './strip';
 
 /** What an art card shows for a class or species (see the `cards` list layout). */
 export interface CardInfo {
-  /** Repo-relative 5etools image path, e.g. `classes/XPHB/Fighter.webp`. */
+  /**
+   * Repo-relative 5etools image path, e.g. `classes/XPHB/Fighter.webp`, or a homebrew picture's
+   * address (a `data:` URL or `https://`).
+   */
   image?: string;
   /** Short heading such as "A Master of All Arms and Armor". */
   tagline?: string;
@@ -82,7 +85,8 @@ function speciesTraits(race: Obj): string[] {
 export function buildCard(type: string, data: Obj, fluff: Obj | undefined): CardInfo {
   const images = arr(fluff?.images).filter(isObj);
   const href = isObj(images[0]?.href) ? images[0].href : undefined;
-  const image = href?.type === 'internal' ? text(href.path) : '';
+  const image =
+    href?.type === 'internal' ? text(href.path) : href?.type === 'external' ? text(href.url) : '';
   const paragraph = firstParagraph(fluff?.entries);
   const card: CardInfo = { facts: [] };
   if (image) card.image = image;
