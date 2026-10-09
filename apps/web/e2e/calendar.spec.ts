@@ -103,19 +103,38 @@ test('the calendar goes on a board and to the players', async ({ page, context }
   await card.getByRole('button', { name: 'Next day' }).click();
   await expect(card).toContainText(', 2 Deepwinter, Year 1');
 
+  // A day opened on the card: an event added there, the day made today, the event removed.
+  await card.getByRole('button', { name: /, 5 Deepwinter, Year 1$/ }).click();
+  const day = card.getByRole('region', { name: 'Day' });
+  await expect(day).toContainText('Nothing on this day.');
+  await day.getByLabel('Event name').fill('Market fair');
+  await day.getByRole('button', { name: 'Add' }).click();
+  await expect(day).toContainText('Market fair');
+  await expect(card.getByRole('region', { name: 'Coming up' })).toContainText('Market fair');
+  await day.getByRole('button', { name: 'Make today' }).click();
+  await expect(card).toContainText(', 5 Deepwinter, Year 1');
+  await day.getByRole('button', { name: 'Remove Market fair' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Remove' }).click();
+  await expect(day).toContainText('Nothing on this day.');
+  // Other months can be looked at.
+  await card.getByRole('button', { name: 'Next month' }).click();
+  await expect(card.locator('caption')).not.toContainText('Deepwinter');
+  await card.getByRole('button', { name: 'This month' }).click();
+  await expect(card.locator('caption')).toContainText('Deepwinter');
+
   if (isPhone(page)) return;
   await page.goto('./#/calendar');
   const [player] = await Promise.all([
     context.waitForEvent('page'),
     page.getByRole('button', { name: 'Send to players' }).click(),
   ]);
-  await expect(player.getByText(/, 2 Deepwinter, Year 1/)).toBeVisible();
+  await expect(player.getByText(/, 5 Deepwinter, Year 1/).first()).toBeVisible();
   await page
     .getByRole('region', { name: 'Today' })
     .getByRole('button', { name: 'Next day' })
     .click();
   // The players' calendar card reads the calendar again every few seconds.
-  await expect(player.getByText(/, 3 Deepwinter, Year 1/)).toBeVisible({ timeout: 12_000 });
+  await expect(player.getByText(/, 6 Deepwinter, Year 1/)).toBeVisible({ timeout: 12_000 });
   // Without the DM's buttons.
   await expect(player.getByRole('button', { name: 'Next day' })).toHaveCount(0);
 });
