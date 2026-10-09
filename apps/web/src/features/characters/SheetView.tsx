@@ -5,8 +5,11 @@ import { Info, Pencil, X } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { AppLink } from '../../app/AppLink';
 import { entityPath } from '../../app/data/entities';
+import { useListRows } from '../../app/data/lists';
 import type { CharacterView } from '../../app/data/protocol';
 import { RollChip } from '../../app/dice/RollChip';
+import { SchoolIcon } from '../../app/lists/cells';
+import { sheetSpells, type SheetSpell } from './sheetSpells';
 import { pickName } from './steps';
 
 const signed = (n: number) => (n >= 0 ? `+${String(n)}` : String(n));
@@ -17,6 +20,8 @@ const d20 = (bonus: number, label: string): RollSpec => ({
 });
 const title = (s: string) =>
   s.replace(/(^|\s)(\p{L})/gu, (_, a: string, b: string) => a + b.toUpperCase());
+const ORDINAL = (n: number) =>
+  `${String(n)}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'}`;
 
 const PROFICIENCY_LABELS: Record<0 | 0.5 | 1 | 2, string> = {
   0: 'Not proficient',
@@ -64,8 +69,10 @@ function valueAt(sheet: CharacterView['sheet'], path: string): SheetValue | unde
 }
 
 /**
- * The character sheet: every number from the rules engine. Rolls are a click away; the ⓘ next to
- * a number shows where it comes from and lets you set it by hand (the rules value stays visible).
+ * The character sheet, laid out like the printed one: combat numbers across the top, abilities
+ * and skills on the left, senses, attacks and proficiencies on the right, then spells and
+ * features. Rolls are a click away; the ⓘ next to a number shows where it comes from and lets
+ * you set it by hand (the rules value stays visible).
  */
 export function SheetView({
   view,
@@ -91,11 +98,13 @@ export function SheetView({
     update({ ...decisions, overrides });
     setSelected(null);
   };
-  const spells = view.grants.flatMap((g) => (g.kind === 'spell' ? [g.key] : []));
+  const nameOf = (key: string) => view.entities.find((e) => e.key === key)?.name ?? pickName(key);
+  const spells = sheetSpells(view.grants, nameOf);
   const slots = sheet.slots.slice(1);
 
+  // Two columns only where the sheet itself is wide (a container query: the sidebar takes room).
   return (
-    <div className="space-y-5">
+    <div className="@container space-y-3">
       {selected && (
         <ValueDetails
           selected={{ ...selected, value: valueAt(sheet, selected.path) ?? selected.value }}
@@ -106,7 +115,7 @@ export function SheetView({
         />
       )}
 
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+      <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-6">
         <Stat
           label="Armor Class"
           value={sheet.ac}
@@ -149,82 +158,114 @@ export function SheetView({
         />
       </div>
 
-      <Block title="Abilities">
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-          {ABILITIES.map((a) => {
-            const line = sheet.abilities[a];
-            const name = abilityName(a);
-            return (
-              <div key={a} className="rounded-lg border border-border p-2 text-center">
-                <p className="text-xs font-semibold tracking-wide text-muted uppercase">{name}</p>
-                <RollChip plain roll={d20(line.check.value, `${name} check`)}>
-                  <span className="text-2xl font-bold">
-                    {abilityDisplay === 'scores' ? line.score.value : signed(line.modifier)}
-                  </span>
-                </RollChip>
-                <p className="flex items-center justify-center gap-1 text-sm">
-                  {abilityDisplay === 'scores' ? signed(line.modifier) : line.score.value}
-                  <InfoButton
-                    label={`${name} score`}
-                    onClick={() => {
-                      open(`score.${a}`, `${name} score`, line.score);
-                    }}
-                  />
-                </p>
-                <p className="mt-1 flex items-center justify-center gap-1 border-t border-border pt-1 text-xs text-muted">
-                  Save{' '}
-                  <RollChip plain roll={d20(line.save.value, `${name} save`)}>
-                    <span className={cn(line.save.proficient && 'font-bold text-text')}>
-                      {signed(line.save.value)}
+      <div className="grid gap-3 @4xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <div className="grid grid-cols-[6rem_minmax(0,1fr)] gap-2">
+          <section aria-label="Abilities" className="flex flex-col gap-1.5">
+            {ABILITIES.map((a) => {
+              const line = sheet.abilities[a];
+              const name = abilityName(a);
+              return (
+                <div
+                  key={a}
+                  className="overflow-hidden rounded-md border-2 bg-surface text-center"
+                  style={{ borderColor: `var(--boh-${a})` }}
+                >
+                  <p
+                    className="pt-0.5 text-[10px] font-bold tracking-wide uppercase"
+                    style={{ color: `var(--boh-${a})` }}
+                  >
+                    {name}
+                  </p>
+                  <RollChip plain roll={d20(line.check.value, `${name} check`)}>
+                    <span className="text-xl leading-tight font-bold">
+                      {abilityDisplay === 'scores' ? line.score.value : signed(line.modifier)}
                     </span>
                   </RollChip>
+                  <p className="flex items-center justify-center gap-0.5 text-xs text-muted">
+                    {abilityDisplay === 'scores' ? signed(line.modifier) : line.score.value}
+                    <InfoButton
+                      label={`${name} score`}
+                      onClick={() => {
+                        open(`score.${a}`, `${name} score`, line.score);
+                      }}
+                    />
+                  </p>
+                  <p className="flex items-center justify-center gap-0.5 border-t border-border py-0.5 text-[11px] text-muted">
+                    Save{' '}
+                    <RollChip plain roll={d20(line.save.value, `${name} save`)}>
+                      <span className={cn(line.save.proficient && 'font-bold text-text')}>
+                        {signed(line.save.value)}
+                      </span>
+                    </RollChip>
+                    <InfoButton
+                      label={`${name} save`}
+                      onClick={() => {
+                        open(`save.${a}`, `${name} save`, line.save);
+                      }}
+                    />
+                  </p>
+                </div>
+              );
+            })}
+          </section>
+          <Block title="Skills">
+            <ul className="divide-y divide-border">
+              {Object.entries(sheet.skills).map(([skill, line]) => (
+                <li key={skill} className="flex items-center gap-1.5 py-0.5 text-sm">
+                  <span
+                    className={cn(
+                      'h-2.5 w-2.5 shrink-0 rounded-full border border-text',
+                      line.proficiency >= 1 && 'bg-text',
+                      line.proficiency === 2 && 'ring-2 ring-accent',
+                      line.proficiency === 0.5 && 'bg-gradient-to-r from-text to-transparent',
+                    )}
+                    title={PROFICIENCY_LABELS[line.proficiency]}
+                    aria-hidden
+                  />
+                  <RollChip plain roll={d20(line.value, title(skill))}>
+                    <span className="inline-block w-7 text-right font-semibold">
+                      {signed(line.value)}
+                    </span>
+                  </RollChip>
+                  <span className="min-w-0 flex-1 truncate">{title(skill)}</span>
+                  <span
+                    className="text-[10px] font-bold uppercase"
+                    style={{ color: `var(--boh-${line.ability})` }}
+                  >
+                    {line.ability}
+                  </span>
                   <InfoButton
-                    label={`${name} save`}
+                    label={title(skill)}
                     onClick={() => {
-                      open(`save.${a}`, `${name} save`, line.save);
+                      open(`skill.${skill}`, title(skill), line);
                     }}
                   />
-                </p>
-              </div>
-            );
-          })}
+                </li>
+              ))}
+            </ul>
+          </Block>
         </div>
-      </Block>
 
-      <div className="grid gap-5 md:grid-cols-2">
-        <Block title="Skills">
-          <ul className="divide-y divide-border">
-            {Object.entries(sheet.skills).map(([skill, line]) => (
-              <li key={skill} className="flex items-center gap-2 py-1 text-sm">
-                <span
-                  className={cn(
-                    'h-2.5 w-2.5 shrink-0 rounded-full border border-text',
-                    line.proficiency >= 1 && 'bg-text',
-                    line.proficiency === 2 && 'ring-2 ring-accent',
-                    line.proficiency === 0.5 && 'bg-gradient-to-r from-text to-transparent',
-                  )}
-                  title={PROFICIENCY_LABELS[line.proficiency]}
-                  aria-hidden
-                />
-                <span className="flex-1">
-                  {title(skill)}{' '}
-                  <span className="text-xs text-muted uppercase">{line.ability}</span>
+        <div className="space-y-3">
+          <Block title="Senses">
+            <p className="flex flex-wrap gap-x-4 gap-y-0.5 text-sm">
+              <span>
+                Passive Perception <strong>{sheet.passive.perception.value}</strong>
+              </span>
+              <span>
+                Insight <strong>{sheet.passive.insight.value}</strong>
+              </span>
+              <span>
+                Investigation <strong>{sheet.passive.investigation.value}</strong>
+              </span>
+              {Object.entries(sheet.senses).map(([k, v]) => (
+                <span key={k}>
+                  {title(k)} <strong>{v} ft.</strong>
                 </span>
-                <RollChip plain roll={d20(line.value, title(skill))}>
-                  {signed(line.value)}
-                </RollChip>
-                <InfoButton
-                  label={title(skill)}
-                  onClick={() => {
-                    open(`skill.${skill}`, title(skill), line);
-                  }}
-                />
-              </li>
-            ))}
-          </ul>
-        </Block>
+              ))}
+            </p>
+          </Block>
 
-        <div className="space-y-5">
           <Block title="Attacks">
             {sheet.attacks.length === 0 ? (
               <p className="text-sm text-muted">Equip a weapon in Equipment to see its attack.</p>
@@ -268,61 +309,6 @@ export function SheetView({
             )}
           </Block>
 
-          {sheet.spellcasting.length > 0 && (
-            <Block title="Spellcasting">
-              {sheet.spellcasting.map((s) => (
-                <p key={s.from} className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                  <span className="font-medium">{s.name}</span>
-                  <span className="flex items-center gap-1">
-                    Save DC <strong>{s.dc.value}</strong>
-                    <InfoButton
-                      label={`${s.name} spell save DC`}
-                      onClick={() => {
-                        open(`spell.dc.${s.from}`, 'Spell save DC', s.dc);
-                      }}
-                    />
-                  </span>
-                  <span className="flex items-center gap-1">
-                    Attack{' '}
-                    <RollChip plain roll={d20(s.attack.value, 'Spell attack')}>
-                      {signed(s.attack.value)}
-                    </RollChip>
-                  </span>
-                  <span className="text-muted">{abilityName(s.ability)}</span>
-                </p>
-              ))}
-              {slots.length > 0 && (
-                <p className="mt-2 text-sm">
-                  Slots:{' '}
-                  {slots.map((n, i) => (
-                    <span key={i} className="mr-2 inline-block rounded border border-border px-1.5">
-                      {i + 1}: {n}
-                    </span>
-                  ))}
-                </p>
-              )}
-              {sheet.pact && (
-                <p className="text-sm">
-                  Pact slots: {sheet.pact.slots} of level {sheet.pact.level}
-                </p>
-              )}
-              {spells.length > 0 && (
-                <ul className="mt-2 flex flex-wrap gap-1.5">
-                  {spells.map((key) => (
-                    <li key={key}>
-                      <AppLink
-                        to={entityPath(key)}
-                        className="rounded-full border border-border px-2 py-0.5 text-sm hover:border-accent"
-                      >
-                        {pickName(key)}
-                      </AppLink>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Block>
-          )}
-
           <Block title="Proficiencies">
             <dl className="space-y-1 text-sm">
               <Row label="Armor" items={sheet.proficiencies.armor} />
@@ -332,10 +318,6 @@ export function SheetView({
               />
               <Row label="Tools" items={sheet.proficiencies.tools} />
               <Row label="Languages" items={sheet.proficiencies.languages} />
-              <Row
-                label="Senses"
-                items={Object.entries(sheet.senses).map(([k, v]) => `${k} ${String(v)} ft.`)}
-              />
               <Row label="Resistances" items={sheet.defences.resist} />
               <Row
                 label="Immunities"
@@ -363,6 +345,49 @@ export function SheetView({
         </div>
       </div>
 
+      {(sheet.spellcasting.length > 0 || spells.length > 0) && (
+        <Block title="Spellcasting">
+          {sheet.spellcasting.map((s) => (
+            <p key={s.from} className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+              <span className="font-medium">{s.name}</span>
+              <span className="flex items-center gap-1">
+                Save DC <strong>{s.dc.value}</strong>
+                <InfoButton
+                  label={`${s.name} spell save DC`}
+                  onClick={() => {
+                    open(`spell.dc.${s.from}`, 'Spell save DC', s.dc);
+                  }}
+                />
+              </span>
+              <span className="flex items-center gap-1">
+                Attack{' '}
+                <RollChip plain roll={d20(s.attack.value, 'Spell attack')}>
+                  {signed(s.attack.value)}
+                </RollChip>
+              </span>
+              <span className="text-muted">{abilityName(s.ability)}</span>
+            </p>
+          ))}
+          {(slots.some((n) => n > 0) || sheet.pact) && (
+            <p className="mt-1 flex flex-wrap gap-1.5 text-sm">
+              {slots.map((n, i) =>
+                n > 0 ? (
+                  <span key={i} className="rounded-full border border-border px-2">
+                    {ORDINAL(i + 1)}: <strong>{n}</strong>
+                  </span>
+                ) : null,
+              )}
+              {sheet.pact && (
+                <span className="rounded-full border border-border px-2">
+                  Pact ({ORDINAL(sheet.pact.level)}): <strong>{sheet.pact.slots}</strong>
+                </span>
+              )}
+            </p>
+          )}
+          {spells.length > 0 && <SpellTable spells={spells} />}
+        </Block>
+      )}
+
       <Block title="Features and traits">
         <ul className="flex flex-wrap gap-1.5">
           {view.features.map((f) => (
@@ -387,11 +412,70 @@ export function SheetView({
   );
 }
 
+/** The character's spells by level, as on the printed sheet, with how and whence each is had. */
+function SpellTable({ spells }: { spells: SheetSpell[] }) {
+  const rows = useListRows('spells');
+  const byKey = new Map((rows ?? []).map((r) => [r.key, r]));
+  const levelOf = (key: string) => Number(byKey.get(key)?.f.level ?? 0);
+  const text = (key: string, field: string) => {
+    const f = byKey.get(key)?.f;
+    const v = f?.[`${field}Text`] ?? f?.[field];
+    return typeof v === 'string' || typeof v === 'number' ? String(v) : '';
+  };
+  const sorted = [...spells].sort(
+    (a, b) =>
+      levelOf(a.key) - levelOf(b.key) || pickName(a.key).localeCompare(pickName(b.key), 'en'),
+  );
+  return (
+    <table className="mt-2 w-full text-sm">
+      <thead>
+        <tr className="text-left text-[11px] text-muted uppercase">
+          <th className="w-10 py-0.5 text-center">Lvl</th>
+          <th className="w-6">
+            <span className="sr-only">School</span>
+          </th>
+          <th>Name</th>
+          <th>Had as</th>
+          <th className="hidden sm:table-cell">From</th>
+          <th className="hidden md:table-cell">Cast</th>
+          <th className="hidden md:table-cell">Range</th>
+        </tr>
+      </thead>
+      <tbody>
+        {sorted.map((s) => {
+          const row = byKey.get(s.key);
+          const lvl = levelOf(s.key);
+          return (
+            <tr key={s.key} className="border-t border-border">
+              <td className="py-1 text-center font-bold">{lvl === 0 ? 'C' : lvl}</td>
+              <td>{row && <SchoolIcon small school={String(row.f.school ?? '')} />}</td>
+              <td>
+                <AppLink to={entityPath(s.key)} className="font-medium hover:text-accent-ink">
+                  {row?.name ?? pickName(s.key)}
+                </AppLink>
+              </td>
+              <td>{s.how}</td>
+              <td className="hidden text-muted sm:table-cell">{s.from}</td>
+              <td className="hidden md:table-cell">{text(s.key, 'time')}</td>
+              <td className="hidden md:table-cell">{text(s.key, 'range')}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
 function Block({ title: heading, children }: { title: string; children: ReactNode }) {
   return (
-    <section aria-label={heading} className="rounded-lg border border-border bg-surface p-4">
-      <h3 className="mb-2 font-serif text-lg font-bold">{heading}</h3>
-      {children}
+    <section
+      aria-label={heading}
+      className="overflow-hidden rounded-md border border-border-strong bg-surface"
+    >
+      <h3 className="bg-header px-3 py-1 font-serif text-xs font-bold tracking-wide text-header-fg uppercase">
+        {heading}
+      </h3>
+      <div className="p-3">{children}</div>
     </section>
   );
 }
@@ -419,6 +503,7 @@ function InfoButton({ label, onClick }: { label: string; onClick: () => void }) 
   );
 }
 
+/** A number in a box with its label below, as on the printed sheet. */
 function Stat({
   label,
   value,
@@ -434,8 +519,7 @@ function Stat({
 }) {
   const text = shown ?? String(value.value);
   return (
-    <div className="rounded-lg border border-border bg-surface p-2 text-center">
-      <p className="text-xs font-semibold tracking-wide text-muted uppercase">{label}</p>
+    <div className="flex flex-col items-center justify-center rounded-md border border-border-strong bg-surface p-1.5 text-center">
       <p className={cn('text-2xl font-bold', value.computed !== undefined && 'text-accent-ink')}>
         {roll ? (
           <RollChip plain roll={roll}>
@@ -445,7 +529,10 @@ function Stat({
           text
         )}
       </p>
-      {onInfo && <InfoButton label={label} onClick={onInfo} />}
+      <p className="flex items-center gap-0.5 text-[10px] font-semibold tracking-wide text-muted uppercase">
+        {label}
+        {onInfo && <InfoButton label={label} onClick={onInfo} />}
+      </p>
     </div>
   );
 }

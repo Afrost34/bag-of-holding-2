@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import { ArtImage } from '../../app/ArtImage';
 import type { CharacterFile } from '../../app/characters/model';
 import { loadEntity } from '../../app/data/entities';
+import { loadRows } from '../../app/data/lists';
 import type { CharacterView } from '../../app/data/protocol';
 import { shrinkImage } from '../../app/shrinkImage';
 
@@ -107,8 +108,15 @@ function useDataArt(view: CharacterView | null): string[] {
         const images = Array.isArray(fluff?.data.images) ? (fluff.data.images as unknown[]) : [];
         return images.flatMap((img) => {
           const href = typeof img === 'object' && img !== null && 'href' in img ? img.href : null;
+          // A 5etools image (its path) or a homebrew one (its address).
           const path =
-            typeof href === 'object' && href !== null && 'path' in href ? href.path : undefined;
+            typeof href === 'object' && href !== null
+              ? 'path' in href
+                ? href.path
+                : 'url' in href
+                  ? href.url
+                  : undefined
+              : undefined;
           return typeof path === 'string' ? [path] : [];
         });
       }),
@@ -120,6 +128,30 @@ function useDataArt(view: CharacterView | null): string[] {
     };
   }, [ids]);
   return paths;
+}
+
+/** The card art of every class, subclass and species (homebrew too), by name. */
+function useAllArt(): { name: string; path: string }[] {
+  const [art, setArt] = useState<{ name: string; path: string }[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all(['species', 'classes', 'subclasses'].map((c) => loadRows(c))).then((lists) => {
+      if (cancelled) return;
+      const seen = new Set<string>();
+      setArt(
+        lists.flat().flatMap((r) => {
+          const path = r.card?.image;
+          if (!path || seen.has(path) || r.legacy) return [];
+          seen.add(path);
+          return [{ name: r.name, path }];
+        }),
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return art;
 }
 
 function PortraitDialog({
@@ -134,6 +166,9 @@ function PortraitDialog({
   onClose: () => void;
 }) {
   const art = useDataArt(view);
+  const all = useAllArt();
+  const [filter, setFilter] = useState('');
+  const shown = all.filter((a) => a.name.toLowerCase().includes(filter.trim().toLowerCase()));
   const [problem, setProblem] = useState<string | null>(null);
   const set = (portrait: string | undefined) => {
     const { portrait: _old, ...rest } = character;
@@ -239,6 +274,48 @@ function PortraitDialog({
                 ))}
               </ul>
             )}
+          </div>
+          <div>
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <h3 className="flex-1 font-bold">All character art</h3>
+              <input
+                type="search"
+                value={filter}
+                aria-label="Find art"
+                placeholder="Elf, Wizard…"
+                onChange={(e) => {
+                  setFilter(e.target.value);
+                }}
+                className="w-48 rounded-md border border-border bg-surface px-2 py-1 text-sm"
+              />
+            </div>
+            <ul aria-label="All character art" className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+              {shown.map(({ name, path }) => (
+                <li key={path}>
+                  <button
+                    type="button"
+                    aria-label={`Use ${name}`}
+                    title={name}
+                    onClick={() => {
+                      set(`art:${path}`);
+                    }}
+                    className={cn(
+                      'block aspect-square w-full overflow-hidden rounded border-2',
+                      character.portrait === `art:${path}`
+                        ? 'border-accent'
+                        : 'border-transparent hover:border-accent',
+                    )}
+                  >
+                    <ArtImage
+                      path={path}
+                      widths={[192, 384]}
+                      sizes="160px"
+                      className="h-full w-full object-cover object-top"
+                    />
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </div>

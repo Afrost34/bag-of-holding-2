@@ -6,9 +6,9 @@ import { useEntity } from '../../app/data/entities';
 import { useListRows } from '../../app/data/lists';
 import type { CharacterView } from '../../app/data/protocol';
 import { AbilityIncrease } from './AbilityIncrease';
-import { isAbilityIncrease } from './increaseModel';
+import { isAbilityIncrease, withoutIncreaseParts } from './increaseModel';
 import { ChoiceControl } from './ChoiceControl';
-import { forget, pickName } from './steps';
+import { forget, inBookOrder, pickName } from './steps';
 import { selectClass } from './styles';
 import { Accordion, StepTitle } from './ui';
 
@@ -74,6 +74,7 @@ export function BackgroundStep({
       choice={c}
       decisions={decisions}
       isEnabled={isEnabled}
+      update={update}
       onChange={(picks) => {
         setPicks(c.id, picks);
       }}
@@ -133,7 +134,9 @@ export function BackgroundStep({
               pending={pending(list)}
             >
               <EntityText entityKey={f.key} />
-              <div className="mt-3 space-y-3">{list.map(control)}</div>
+              <div className="mt-3 space-y-3">
+                {inBookOrder(withoutIncreaseParts(list, choices)).map(control)}
+              </div>
             </Accordion>
           );
         })}

@@ -20,6 +20,9 @@ export interface ArtImageProps extends Omit<
 export function ArtImage({ path, widths, sizes, alt = '', ...rest }: ArtImageProps) {
   const [failed, setFailed] = useState(false);
   const largest = widths.at(-1) ?? 640;
+  // A homebrew picture: its own address, as it is.
+  if (/^(data:|https?:)/.test(path))
+    return <img src={path} alt={alt} loading="lazy" decoding="async" {...rest} />;
   return failed ? (
     <img src={originalImageUrl(path)} alt={alt} loading="lazy" decoding="async" {...rest} />
   ) : (

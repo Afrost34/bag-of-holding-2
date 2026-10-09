@@ -26,6 +26,14 @@ export interface PrintData {
   packing: Packing;
   /** Off-screen copy of the cards that measures them; render it once, on screen. */
   measurer: ReactNode;
+  /** Every card the sheet can print, by group, to choose which ones print. */
+  cardChoices: CardGroup[];
+}
+
+export interface CardGroup {
+  title: string;
+  /** `id` is what `printHidden` stores to leave the card out. */
+  cards: { id: string; label: string }[];
 }
 
 /** Entities the sheet shows in full (spells, features, items, species), loaded once. */
@@ -55,7 +63,8 @@ function useEntities(keys: readonly string[]): Map<string, EntityDetail> {
 export function usePrintData(
   character: CharacterFile | undefined,
   view: CharacterView | undefined,
-  hidden: readonly PrintSection[],
+  /** Sections left out, and single cards left out (by their `CardGroup` id). */
+  hidden: readonly string[],
 ): PrintData {
   const spellKeys = view
     ? [...new Set(view.grants.flatMap((g) => (g.kind === 'spell' ? [g.key] : [])))]
@@ -85,59 +94,84 @@ export function usePrintData(
   const hiddenId = hidden.join('|');
   const dc = view?.sheet.spellcasting[0]?.dc.value;
 
-  const cards = useMemo<PackItem[]>(() => {
-    if (!character || !view) return [];
-    const shown = (s: PrintSection) => !hiddenId.split('|').includes(s);
-    const groups: { title: string; cards: PackItem[] }[] = [];
-    if (shown('spellCards')) {
-      for (let lvl = 0; lvl <= 9; lvl++) {
-        const list = spells.filter((s) => (s.data.level ?? 0) === lvl);
-        groups.push({
-          title: lvl === 0 ? 'Cantrips' : `${ORDINAL(lvl)}-level spells`,
-          cards: list.map((s) => ({
-            id: s.key,
-            node: <PrintCard entity={s} extra={<SaveLine spell={s} dc={dc} />} />,
-          })),
-        });
-      }
-    }
-    if (shown('featureCards')) {
+  const { cards, cardChoices } = useMemo(() => {
+    if (!character || !view) return { cards: [], cardChoices: [] };
+    const off = new Set(hiddenId.split('|'));
+    const shown = (s: PrintSection) => !off.has(s);
+    const groups: {
+      title: string;
+      section: PrintSection;
+      cards: (PackItem & { label: string; hideId: string })[];
+    }[] = [];
+    for (let lvl = 0; lvl <= 9; lvl++) {
+      const list = spells.filter((s) => (s.data.level ?? 0) === lvl);
       groups.push({
-        title: 'Features and traits',
-        cards: printedFeatures(character, view, entities).flatMap(({ feature: f, text }) => {
-          return text.length === 0
-            ? []
-            : [
-                {
-                  id: `feature:${f.key}`,
-                  node: (
-                    <FeatureCard
-                      from={f.from}
-                      title={f.name}
-                      subtitle={`${sourceLabel(f.from, view)}${f.level ? ` — Level ${String(f.level)}` : ''}`}
-                    >
-                      <Entries entries={text} />
-                    </FeatureCard>
-                  ),
-                },
-              ];
-        }),
+        title: lvl === 0 ? 'Cantrips' : `${ORDINAL(lvl)}-level spells`,
+        section: 'spellCards',
+        cards: list.map((s) => ({
+          id: s.key,
+          hideId: s.key,
+          label: s.name,
+          node: <PrintCard entity={s} extra={<SaveLine spell={s} dc={dc} />} />,
+        })),
       });
     }
-    if (shown('itemCards')) {
-      groups.push({
-        title: 'Items',
-        cards: (character.decisions.inventory ?? []).flatMap((it, i) => {
-          const e = entities.get(it.key);
-          return e ? [{ id: `item:${String(i)}:${it.key}`, node: <PrintCard entity={e} /> }] : [];
-        }),
-      });
-    }
+    groups.push({
+      title: 'Features and traits',
+      section: 'featureCards',
+      cards: printedFeatures(character, view, entities).flatMap(({ feature: f, text }) => {
+        return text.length === 0
+          ? []
+          : [
+              {
+                id: `feature:${f.key}`,
+                hideId: `feature:${f.key}`,
+                label: f.name,
+                node: (
+                  <FeatureCard
+                    from={f.from}
+                    title={f.name}
+                    subtitle={`${sourceLabel(f.from, view)}${f.level ? ` — Level ${String(f.level)}` : ''}`}
+                  >
+                    <Entries entries={text} />
+                  </FeatureCard>
+                ),
+              },
+            ];
+      }),
+    });
+    groups.push({
+      title: 'Items',
+      section: 'itemCards',
+      cards: (character.decisions.inventory ?? []).flatMap((it, i) => {
+        const e = entities.get(it.key);
+        return e
+          ? [
+              {
+                id: `item:${String(i)}:${it.key}`,
+                hideId: `item:${it.key}`,
+                label: it.name ?? e.name,
+                node: <PrintCard entity={e} />,
+              },
+            ]
+          : [];
+      }),
+    });
+    const choices: CardGroup[] = groups
+      .filter((g) => g.cards.length > 0 && shown(g.section))
+      .map((g) => ({
+        title: g.title,
+        cards: [
+          ...new Map(g.cards.map((c) => [c.hideId, { id: c.hideId, label: c.label }])).values(),
+        ],
+      }));
     // Each group's heading travels with its first card; groups follow on without a page break,
     // so the pages stay full.
-    return groups
+    const packed = groups
+      .filter((g) => shown(g.section))
+      .map((g) => ({ ...g, cards: g.cards.filter((c) => !off.has(c.hideId)) }))
       .filter((g) => g.cards.length > 0)
-      .flatMap((g) => [
+      .flatMap((g): PackItem[] => [
         {
           id: `heading:${g.title}`,
           keepWithNext: true,
@@ -147,8 +181,9 @@ export function usePrintData(
             </h2>
           ),
         },
-        ...g.cards,
+        ...g.cards.map(({ id, node }) => ({ id, node })),
       ]);
+    return { cards: packed, cardChoices: choices };
   }, [character, view, spells, entities, hiddenId, dc]);
 
   const key = `${cards.map((c) => c.id).join('|')}#${String(entities.size)}`;
@@ -158,7 +193,7 @@ export function usePrintData(
       character && view ? printedFeatures(character, view, entities).map((p) => p.feature) : [],
     [character, view, entities],
   );
-  return { entities, spells, features, cards, packing, measurer };
+  return { entities, spells, features, cards, packing, measurer, cardChoices };
 }
 
 /**

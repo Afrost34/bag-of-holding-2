@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
 
 test('an encounter opens as a filled combat tracker on a board in one click', async ({ page }) => {
   // A campaign with a character in it.
-  await createCampaign(page, 'Rust and Sunfire');
+  await createCampaign(page, 'Rust and Sunfire', '2014 rules');
   // An XP campaign: encounters show what they are worth.
   await page.goto('./#/campaigns/rust-and-sunfire');
   await page.getByRole('radio', { name: /Experience points/ }).check();
@@ -17,7 +17,6 @@ test('an encounter opens as a filled combat tracker on a board in one click', as
   await page.getByRole('button', { name: 'New character' }).click();
   const form = page.getByRole('form', { name: 'New character' });
   await form.getByLabel('Name').fill('Brakka');
-  await form.getByRole('radio', { name: '2014 rules' }).check();
   await form.getByRole('button', { name: 'Start building' }).click();
   await page
     .getByRole('list', { name: 'classes' })

@@ -70,6 +70,8 @@ export type Grant =
       uses?: SpellUses;
       /** Character (or class) level from which the spell is had. */
       level: number;
+      /** Had only once spells of this level can be cast (Illusion Adept's table). */
+      slotLevel?: number;
     }
   /** Every spell matching a filter joins the spell list (Magical Secrets, 2024 Bard). */
   | { kind: 'spellList'; filter: string; level: number }

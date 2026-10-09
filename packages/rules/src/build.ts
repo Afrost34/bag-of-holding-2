@@ -642,10 +642,16 @@ export function buildCharacter(
     }
   }
 
-  // Decisions nobody asked for: kept, and reported.
+  // Decisions nobody asked for: kept, and reported. Choices made inside a feat or option the
+  // character no longer has (another feat was picked instead) are kept silently: picking that
+  // feat again brings them back.
   const asked = new Set(b.choices.map((c) => c.id));
   for (const id of Object.keys(decisions.choices))
-    if (!asked.has(id) && (decisions.choices[id]?.length ?? 0) > 0)
+    if (
+      !asked.has(id) &&
+      (decisions.choices[id]?.length ?? 0) > 0 &&
+      !rememberedFor(id, b.entities)
+    )
       b.warn('orphan', `A decision no longer matches anything in the character: ${id}`, id);
 
   return {
@@ -743,3 +749,13 @@ export function newCharacter(edition: Edition = '2024'): CharacterDecisions {
 /** The key of a choice made at a class level: `class:bard@xphb/level:3/subclass`. */
 export const classChoiceId = (classKey: string, level: number, what: string) =>
   `${classKey}/level:${String(level)}/${what}`;
+
+/** Kinds of entries whose own choices are kept, unreported, while another one is picked. */
+const SWAPPABLE = new Set(['feat', 'optionalfeature']);
+
+/** A decision inside a feat or option the character does not have now (see the orphans above). */
+function rememberedFor(id: string, entities: ReadonlyMap<string, unknown>): boolean {
+  const owner = id.split('/')[0] ?? '';
+  const type = owner.slice(0, owner.indexOf(':'));
+  return SWAPPABLE.has(type) && owner.includes('@') && !entities.has(owner);
+}

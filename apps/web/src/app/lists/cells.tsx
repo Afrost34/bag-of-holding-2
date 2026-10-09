@@ -26,18 +26,19 @@ const SCHOOLS: Record<string, { icon: LucideIcon; className: string }> = {
 };
 
 /** A spell school as a coloured round badge. */
-export function SchoolIcon({ school }: { school: string }) {
+export function SchoolIcon({ school, small = false }: { school: string; small?: boolean }) {
   const entry = SCHOOLS[school];
   const Icon = entry?.icon ?? Shield;
   return (
     <span
       title={school}
       className={cn(
-        'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white ring-2 ring-surface',
+        'flex shrink-0 items-center justify-center rounded-full text-white',
+        small ? 'h-4 w-4' : 'h-9 w-9 ring-2 ring-surface',
         entry?.className ?? 'bg-border-strong',
       )}
     >
-      <Icon className="h-[18px] w-[18px]" aria-hidden />
+      <Icon className={small ? 'h-2.5 w-2.5' : 'h-[18px] w-[18px]'} aria-hidden />
     </span>
   );
 }

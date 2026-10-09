@@ -46,6 +46,8 @@ interface Ctx {
   issues: Issues;
   out: Extraction;
   pick: number;
+  /** Set while reading an `s3`-style key: spells had once that level can be cast. */
+  slotLevel?: number | undefined;
 }
 
 function levelOf(key: string): number {
@@ -63,6 +65,7 @@ function readItems(
   level: number,
   uses: SpellUses | undefined,
 ) {
+  const slotLevel = ctx.slotLevel;
   if (!Array.isArray(items)) {
     ctx.issues.add(ctx.id, `spell list is not a list`);
     return;
@@ -75,6 +78,7 @@ function readItems(
         mode,
         level,
         ...(uses ? { uses } : {}),
+        ...(slotLevel ? { slotLevel } : {}),
       });
     } else if (isObj(item) && typeof item.choose === 'string') {
       const count = num(item.count) ?? 1;
@@ -145,7 +149,9 @@ function readAlternative(alt: Record<string, unknown>, id: string, issues: Issue
       }
       for (const [lvl, content] of Object.entries(value)) {
         if (!/^(_|s?\d+)$/.test(lvl)) issues.add(id, `level key ${lvl}`);
+        ctx.slotLevel = lvl.startsWith('s') ? Number(lvl.slice(1)) || undefined : undefined;
         readContent(ctx, content, key as SpellMode, levelOf(lvl));
+        ctx.slotLevel = undefined;
       }
     } else if (key === 'ability') {
       if (isObj(value) && Array.isArray(value.choose)) {

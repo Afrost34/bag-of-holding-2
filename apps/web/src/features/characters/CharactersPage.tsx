@@ -24,10 +24,10 @@ export function CharactersPage() {
   const navigate = useAppNavigate();
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
-  const [edition, setEdition] = useState<'2014' | '2024'>(
-    active?.edition === '2014' ? '2014' : '2024',
-  );
   const [where, setWhere] = useState<string>(active?.id ?? LIBRARY);
+  // A character follows its campaign's rules (2024 for mixed campaigns and the library).
+  const edition: '2014' | '2024' =
+    campaigns.find((c) => c.id === where)?.edition === '2014' ? '2014' : '2024';
 
   useEffect(() => {
     if (!loaded) void load();
@@ -115,24 +115,10 @@ export function CharactersPage() {
               </select>
             </div>
           </div>
-          <fieldset>
-            <legend className="mb-1 text-sm font-medium">Rules</legend>
-            <div className="flex gap-4 text-sm">
-              {(['2024', '2014'] as const).map((e) => (
-                <label key={e} className="flex items-center gap-1.5">
-                  <input
-                    type="radio"
-                    name="new-character-edition"
-                    checked={edition === e}
-                    onChange={() => {
-                      setEdition(e);
-                    }}
-                  />
-                  {e} rules
-                </label>
-              ))}
-            </div>
-          </fieldset>
+          <p className="text-sm text-muted">
+            {edition} rules, as{' '}
+            {where === LIBRARY ? 'characters outside campaigns' : 'the campaign'}.
+          </p>
           <div className="flex gap-2">
             <Button type="submit" variant="primary">
               Start building

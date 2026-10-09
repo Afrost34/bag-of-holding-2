@@ -34,16 +34,20 @@ export function PrintPage({ id }: { id: string }) {
       ),
     [character?.preferences.printHidden],
   );
-  const data = usePrintData(character, view ?? undefined, hidden);
+  const hiddenCards = character?.preferences.printHidden ?? [];
+  const data = usePrintData(character, view ?? undefined, hiddenCards);
 
   if (!loaded) return <p className="p-8 text-muted">Loading…</p>;
   if (!character) return <p className="p-8">This character is not in your library.</p>;
-  const toggle = (id: PrintSection) => {
+  /** Leaves a section or a single card out, or puts it back. */
+  const toggle = (id: string) => {
     save({
       ...character,
       preferences: {
         ...character.preferences,
-        printHidden: hidden.includes(id) ? hidden.filter((h) => h !== id) : [...hidden, id],
+        printHidden: hiddenCards.includes(id)
+          ? hiddenCards.filter((h) => h !== id)
+          : [...hiddenCards, id],
       },
     });
   };
@@ -93,6 +97,28 @@ export function PrintPage({ id }: { id: string }) {
             </label>
           ))}
         </fieldset>
+      )}
+      {choosing && data.cardChoices.length > 0 && (
+        <div className="space-y-2 border-b border-border bg-surface px-4 py-3 text-sm">
+          <p className="font-semibold">Cards to print</p>
+          {data.cardChoices.map((g) => (
+            <fieldset key={g.title} className="flex flex-wrap gap-x-4 gap-y-1">
+              <legend className="mb-1 text-xs font-bold text-muted uppercase">{g.title}</legend>
+              {g.cards.map((c) => (
+                <label key={c.id} className="inline-flex items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    checked={!hiddenCards.includes(c.id)}
+                    onChange={() => {
+                      toggle(c.id);
+                    }}
+                  />
+                  {c.label}
+                </label>
+              ))}
+            </fieldset>
+          ))}
+        </div>
       )}
       <div className="overflow-x-auto py-6">
         {view ? (

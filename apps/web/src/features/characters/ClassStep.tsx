@@ -11,9 +11,11 @@ import { useListRows } from '../../app/data/lists';
 import { useClassPage } from '../../app/data/pages';
 import type { CharacterView } from '../../app/data/protocol';
 import { ChoiceControl } from './ChoiceControl';
+import { withoutIncreaseParts } from './increaseModel';
+import { sheetSpells } from './sheetSpells';
 import { ClassChooser } from './ClassChooser';
 import { SpellChoicePanel } from './SpellChoicePanel';
-import { featureOf, forget, hitPointLevels, pickName } from './steps';
+import { featureOf, forget, hitPointLevels, inBookOrder, pickName } from './steps';
 import { useTableRules } from './tableRules';
 import { Accordion } from './ui';
 
@@ -162,6 +164,7 @@ export function ClassStep(props: ClassStepProps) {
 
 function ClassPanel({
   view,
+  update,
   character,
   setPicks,
   isEnabled,
@@ -193,7 +196,13 @@ function ClassPanel({
   const featureKeyOf = (c: AnsweredChoice) => featureOf(c, choices, grants);
   const mine = (c: AnsweredChoice) =>
     keys.includes(c.from) || keys.some((k) => c.id.startsWith(`${k}/`));
-  const spellLists = choices.filter((c) => mine(c) && isClassSpellList(c, keys));
+  // The class's own lists, then spell picks its features add (Thaumaturge's extra cantrip).
+  const spellLists = inBookOrder([
+    ...choices.filter((c) => mine(c) && isClassSpellList(c, keys)),
+    ...choices.filter((c) => mine(c) && c.kind === 'spell' && c.via && !isClassSpellList(c, keys)),
+  ]);
+  const featureName = (key: string | undefined) =>
+    key ? view?.features.find((f) => f.key === key)?.name : undefined;
   // Proficiency picks at level 1 belong to no feature: D&D Beyond's "Core <Class> Traits".
   const core = choices.filter(
     (c) =>
@@ -216,12 +225,13 @@ function ClassPanel({
       'value' in g ? (g.kind === 'save' ? `${g.value.toUpperCase()} save` : g.value) : '',
     );
   const controls = (list: AnsweredChoice[]) =>
-    list.map((c) => (
+    inBookOrder(withoutIncreaseParts(list, choices)).map((c) => (
       <ChoiceControl
         key={c.id}
         choice={c}
         decisions={decisions}
         isEnabled={isEnabled}
+        update={update}
         onChange={(picks) => {
           setPicks(c.id, picks);
         }}
@@ -236,6 +246,11 @@ function ClassPanel({
     ),
   ];
   const spellcasting = view?.sheet.spellcasting.filter((s) => keys.includes(s.from)) ?? [];
+  // Spells from the species, a feat or the background, shown here as known or prepared.
+  const elsewhere = sheetSpells(
+    grants.filter((g) => !view?.classes.some((c) => c.key === g.from || c.subclass === g.from)),
+    (k) => view?.entities.find((e) => e.key === k)?.name ?? pickName(k),
+  );
 
   return (
     <section aria-label={name} className="space-y-3">
@@ -391,10 +406,17 @@ function ClassPanel({
               {alwaysPrepared.map(pickName).join(', ')}
             </p>
           )}
+          {elsewhere.length > 0 && (
+            <p className="text-sm">
+              <span className="font-bold">Also yours: </span>
+              {elsewhere.map((s) => `${pickName(s.key)} (${s.from}, ${s.how})`).join(', ')}
+            </p>
+          )}
           {spellLists.map((c) => (
             <SpellChoicePanel
               key={c.id}
               choice={c}
+              from={featureName(c.via)}
               decisions={decisions}
               isEnabled={isEnabled}
               onChange={(picks) => {

@@ -3,6 +3,8 @@ import { Entries } from '@boh/renderer';
 import { cn } from '@boh/ui';
 import { useEntity } from '../../app/data/entities';
 import { useId } from 'react';
+import { AbilityIncrease } from './AbilityIncrease';
+import { isAbilityIncrease } from './increaseModel';
 import { pickName } from './steps';
 import { SpellChoicePanel } from './SpellChoicePanel';
 import { selectClass } from './styles';
@@ -16,6 +18,11 @@ import { useChoiceOptions } from './useCharacterView';
 export function ChoiceControl(props: ChoiceControlProps) {
   // Spells get the spell list's rows, whatever asks for them (a class, Magic Initiate…).
   if (props.choice.kind === 'spell') return <SpellChoicePanel {...props} />;
+  // Ability increases are one "+1" dropdown per point (+2 is the same ability twice).
+  if (props.update && isAbilityIncrease(props.choice))
+    return (
+      <AbilityIncrease choice={props.choice} decisions={props.decisions} update={props.update} />
+    );
   return <DropdownChoice {...props} />;
 }
 
@@ -24,6 +31,8 @@ interface ChoiceControlProps {
   decisions: CharacterDecisions;
   isEnabled: (source: string | undefined) => boolean;
   onChange: (picks: string[]) => void;
+  /** Sets every decision at once: needed for choices that span several (ability increases). */
+  update?: (next: CharacterDecisions) => void;
   /** The label is already the heading around it. */
   hideLabel?: boolean;
 }

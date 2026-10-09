@@ -66,10 +66,10 @@ export function PrintSheet({
     <div className="paper text-text">
       {/* Page 1: the main sheet, filling the A4 page top to bottom. */}
       {shown('main') && (
-        <Page>
+        <Page className="py-[14mm]">
           <div className="flex h-full flex-col gap-2.5">
             <div className="grid grid-cols-[34%_1fr] gap-2.5">
-              <div className="flex aspect-[3/4] items-center justify-center overflow-hidden rounded-md border-2 border-border-strong bg-surface-2">
+              <div className="flex aspect-[4/5] items-center justify-center overflow-hidden rounded-md border-2 border-border-strong bg-surface-2">
                 {character.portrait ? (
                   <PortraitImage character={character} size={260} className="h-full w-full" />
                 ) : (
@@ -331,8 +331,8 @@ export function PrintSheet({
                     return (
                       <tr key={s.key} className="border-t border-border">
                         <td className="py-1 text-center font-bold">{lvl === 0 ? 'C' : lvl}</td>
-                        <td className="w-6">
-                          <SchoolIcon school={SCHOOLS[String(d.school)] ?? ''} />
+                        <td className="w-5">
+                          <SchoolIcon small school={SCHOOLS[String(d.school)] ?? ''} />
                         </td>
                         <td className={cn(lvl === 0 && 'italic')}>{s.name}</td>
                         <td className="text-center">{comps}</td>
@@ -483,9 +483,14 @@ const PROPERTIES: Record<string, string> = {
 const propertyName = (p: string) => PROPERTIES[p] ?? p;
 
 /** One A4 page: exactly 210 × 297 mm on screen and on paper; what does not fit is cut. */
-function Page({ children }: { children: ReactNode }) {
+function Page({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <section className="sheet-page mx-auto mb-6 box-border h-[297mm] w-[210mm] overflow-hidden bg-surface p-[8mm] shadow-card">
+    <section
+      className={cn(
+        'sheet-page mx-auto mb-6 box-border h-[297mm] w-[210mm] overflow-hidden bg-surface p-[8mm] shadow-card',
+        className,
+      )}
+    >
       {children}
     </section>
   );
@@ -536,9 +541,15 @@ function Field({
 }
 
 function Stat({ label, value, big = false }: { label: string; value: string; big?: boolean }) {
+  // Boxes written in by hand keep their label at the foot, leaving the space above to write.
   return (
-    <div className="flex min-h-12 flex-col items-center justify-center rounded border border-border-strong px-1 py-1 text-center">
-      <p className={cn('font-bold', big ? 'text-2xl' : 'text-lg')}>{value}</p>
+    <div
+      className={cn(
+        'flex min-h-12 flex-col items-center rounded border border-border-strong px-1 py-1 text-center',
+        value ? 'justify-center' : 'justify-end',
+      )}
+    >
+      {value && <p className={cn('font-bold', big ? 'text-2xl' : 'text-lg')}>{value}</p>}
       <p className="text-[8px] font-semibold tracking-wide text-muted uppercase">{label}</p>
     </div>
   );

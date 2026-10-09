@@ -26,6 +26,7 @@ import * as Comlink from 'comlink';
 import { unzipSync } from 'fflate';
 import {
   buildCharacter,
+  castableGrants,
   computeSheet,
   FOUNDRY_FILE,
   makeRulesData,
@@ -335,6 +336,7 @@ const api: DataWorkerApi = {
     const { entities, ...rest } = built;
     return {
       ...rest,
+      grants: castableGrants(rest.grants, sheet),
       entities: [...entities.values()].map(({ data: _data, ...summary }) => summary),
       sheet,
     };

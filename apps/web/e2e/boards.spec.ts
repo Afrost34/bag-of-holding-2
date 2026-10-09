@@ -304,7 +304,6 @@ test('a character card is the first page of its sheet, with its sections as tabs
   await page.getByRole('button', { name: 'New character' }).click();
   const form = page.getByRole('form', { name: 'New character' });
   await form.getByLabel('Name').fill('Lia');
-  await form.getByRole('radio', { name: '2024 rules' }).check();
   await form.getByRole('button', { name: 'Start building' }).click();
   await expect(page).toHaveURL(/characters\/[a-z0-9]+/);
   await page.goto('./#/boards?list=1');

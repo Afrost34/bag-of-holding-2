@@ -136,7 +136,9 @@ function ArtCard({ row, sourceName }: { row: ListRow; sourceName: string }) {
             path={image}
             widths={[320, 480, 720]}
             sizes="(min-width: 1024px) 300px, (min-width: 640px) 40vw, 80vw"
-            className="absolute inset-0 h-full w-full object-cover object-top"
+            // Class and species art are figures on a transparent background: shown larger, to
+            // the right of the text, so the figure fills the card.
+            className="absolute inset-0 h-full w-full origin-[80%_10%] scale-[1.35] object-cover object-top"
           />
         )}
         <div
