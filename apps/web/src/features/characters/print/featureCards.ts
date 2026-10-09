@@ -11,14 +11,44 @@ import type { CharacterDecisions } from '@boh/rules';
 const isObj = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
-/** Entries without references to other features (`refSubclassFeature`, `refOptionalfeature`…). */
+/** Tables with more rows than this, all told, do not fit a card: they are read in the app. */
+const LONG_TABLES = 12;
+
+/** How many table rows entries hold, nested ones included. */
+function tableRows(entries: unknown): number {
+  if (Array.isArray(entries)) return entries.reduce<number>((n, e) => n + tableRows(e), 0);
+  if (!isObj(entries)) return 0;
+  if (entries.type === 'table') return Array.isArray(entries.rows) ? entries.rows.length : 0;
+  return tableRows(entries.entries);
+}
+
+/**
+ * Entries without references to other features (`refSubclassFeature`, `refOptionalfeature`…),
+ * and without tables too long for a card (Wild Magic Surge's 50 rows, the Artificer's four plan
+ * lists): one line says where to find them.
+ */
 export function withoutReferences(entries: unknown): unknown[] {
   if (!Array.isArray(entries)) return [];
+  const state = { dropTables: tableRows(entries) > LONG_TABLES, noted: false };
+  return clean(entries, state);
+}
+
+function clean(entries: unknown[], state: { dropTables: boolean; noted: boolean }): unknown[] {
   const out: unknown[] = [];
   for (const e of entries) {
     if (isObj(e) && typeof e.type === 'string' && e.type.startsWith('ref')) continue;
+    if (isObj(e) && e.type === 'table' && state.dropTables) {
+      if (!state.noted) {
+        // "Magic Item Plans (Artificer Level 2+)" → "Magic Item Plans".
+        const caption =
+          typeof e.caption === 'string' ? e.caption.replace(/\s*\(.*\)\s*$/, '') : 'Its';
+        out.push(`{@i ${caption} tables: too long for a card, see them in the app.}`);
+        state.noted = true;
+      }
+      continue;
+    }
     if (isObj(e) && Array.isArray(e.entries)) {
-      const inner = withoutReferences(e.entries);
+      const inner = clean(e.entries, state);
       // A list of options, or a section, that only held references goes too.
       if (inner.length === 0 && (e.type === 'options' || !e.name)) continue;
       out.push({ ...e, entries: inner });

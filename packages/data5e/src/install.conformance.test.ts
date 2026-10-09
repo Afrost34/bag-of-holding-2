@@ -214,6 +214,19 @@ describe.runIf(hasLocalData())('full 5etools install', () => {
     expect(generated).toBeGreaterThan(4000);
   });
 
+  it('writes out the text items share ({#itemEntry …}) with their own fields', () => {
+    const ring = index.getEntity('item:ring of necrotic resistance@xdmg');
+    expect(JSON.stringify(ring?.data.entries)).toContain('necrotic damage');
+    expect(JSON.stringify(ring?.data.entries)).toContain('jet');
+    const left = ['item', 'baseitem', 'magicvariant'].flatMap((type) =>
+      index
+        .ofType(type)
+        .filter((e) => JSON.stringify(e.data.entries ?? []).includes('{#itemEntry'))
+        .map((e) => e.key),
+    );
+    expect(left).toEqual([]);
+  });
+
   it('puts every browsable entity type in a list', () => {
     const listed = new Set(CATEGORIES.flatMap((c) => c.types));
     const unlisted = Object.keys(index.countsByType()).filter(

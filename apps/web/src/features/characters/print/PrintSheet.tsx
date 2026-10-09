@@ -243,9 +243,9 @@ export function PrintSheet({
               </div>
               <Box title="Attacks & cantrips" className="min-h-0 flex-1" bodyClass="h-full">
                 <Grid
-                  columns={['Name', 'Abi', 'Hit', 'Damage/type', 'Notes']}
-                  widths={['24%', '12%', '12%', '22%', '30%']}
-                  center={[1, 2]}
+                  columns={['Name', 'Abi', 'Hit', 'Damage/type', 'Range', 'Notes']}
+                  widths={['22%', '10%', '10%', '20%', '14%', '24%']}
+                  center={[1, 2, 4]}
                   rows={sheet.attacks.map((atk) => {
                     const ability =
                       atk.save?.ability ?? atk.toHit?.parts[0]?.label.slice(0, 3).toLowerCase();
@@ -258,11 +258,10 @@ export function PrintSheet({
                           ? `DC ${String(atk.save.dc.value)}`
                           : '',
                       atk.damage ?? '',
-                      `${
-                        atk.save
-                          ? `${ABBR[atk.save.ability]} save`
-                          : atk.properties.map(propertyName).join(', ')
-                      }${atk.range ? ` (${atk.range})` : ''}`,
+                      atk.range ?? '',
+                      atk.save
+                        ? `${ABBR[atk.save.ability]} save`
+                        : atk.properties.map(propertyName).join(', '),
                     ];
                   })}
                   lines={ATTACK_ROWS}

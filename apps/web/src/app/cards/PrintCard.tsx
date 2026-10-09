@@ -1,4 +1,4 @@
-import { textToEntries, type EntityDetail } from '@boh/data5e';
+import { makeKey, textToEntries, type EntityDetail } from '@boh/data5e';
 import {
   castingTime,
   components,
@@ -11,6 +11,7 @@ import { Entries, EntityView, RichText } from '@boh/renderer';
 import { cn } from '@boh/ui';
 import type { ReactNode } from 'react';
 import { typeLabel } from '../format';
+import { useEntity } from '../data/entities';
 import { SchoolIcon } from '../lists/cells';
 
 const SCHOOLS: Record<string, string> = {
@@ -97,13 +98,40 @@ export function PrintCard({
           {d.entriesHigherLevel !== undefined && <Entries entries={d.entriesHigherLevel} />}
         </>
       ) : (
-        <EntityView type={entity.type} data={d} edition={entity.edition} />
+        <>
+          <EntityView type={entity.type} data={d} edition={entity.edition} />
+          {Array.isArray(d.mastery) && <Masteries refs={d.mastery} />}
+        </>
       )}
     </CardFrame>
   );
 }
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** A weapon's masteries (2024), each with what it does, under the weapon's own text. */
+function Masteries({ refs }: { refs: unknown[] }) {
+  return (
+    <div className="mt-1.5 space-y-1 border-t border-border pt-1.5">
+      {refs.flatMap((r) => {
+        if (typeof r !== 'string') return [];
+        const [name = '', source = 'XPHB'] = r.split('|');
+        return [<Mastery key={r} entityKey={makeKey('itemMastery', [name], source)} name={name} />];
+      })}
+    </div>
+  );
+}
+
+function Mastery({ entityKey, name }: { entityKey: string; name: string }) {
+  const state = useEntity(entityKey);
+  const entries = state.status === 'found' ? state.entity.data.entries : undefined;
+  return (
+    <div>
+      <p className="font-bold">Mastery: {name}</p>
+      {entries !== undefined && <Entries entries={entries} />}
+    </div>
+  );
+}
 
 /**
  * The look of every printed card (as the earlier app printed them): a coloured left edge, a

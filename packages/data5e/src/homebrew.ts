@@ -96,6 +96,7 @@ export function syncHomebrew(index: EntityIndex, packs: HomebrewPack[]): Homebre
     results.push(result);
   }
   index.resolveCopies('homebrew');
+  index.resolveItemEntries('homebrew');
   index.rebuildSources(allSources);
   return results;
 }
