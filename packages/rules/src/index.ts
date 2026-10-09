@@ -64,3 +64,10 @@ export {
   type OptionSummary,
 } from './options';
 export * from './encounter';
+export {
+  crLabel,
+  isEligibleForm,
+  wildShapeLimits,
+  type FormCandidate,
+  type WildShapeLimits,
+} from './wildShape';
