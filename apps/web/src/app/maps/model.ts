@@ -1,5 +1,5 @@
 import { newId } from '../cards/model';
-import { pointInPolygon } from './geometry';
+import { pointInPolygon } from './polygon';
 import type { RouteDash } from './lettering';
 import type { TerrainId } from './terrain';
 import type { MapScale, TravelSpeed } from './travel';

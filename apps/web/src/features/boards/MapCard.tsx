@@ -16,7 +16,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
 import type { BoardCard, CardContent } from '../../app/boards/model';
 import { templateOutline } from '../../app/maps/geometry';
-import { useLiveMaps } from '../../app/maps/live';
+import { useLiveMaps } from '../../app/maps/useLiveMaps';
 import { measurePath, measurePoint } from '../../app/maps/measure';
 import type { TemplateShape } from '../../app/maps/model';
 import { PinHover } from '../../app/maps/PinHover';
