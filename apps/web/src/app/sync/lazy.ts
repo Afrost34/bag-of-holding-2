@@ -1,5 +1,5 @@
 import { fetchLazyFile } from '@boh/storage';
-import { userStore } from '../userStore';
+import { syncedStore } from '../userStore';
 import { remoteIdOf, repoFor, useSyncSettings } from './settings';
 
 /**
@@ -16,7 +16,8 @@ export function fetchMissing(path: string): Promise<Uint8Array | null> {
   if (!settings || !isLazy(path)) return Promise.resolve(null);
   let job = pending.get(path);
   if (!job) {
-    job = userStore()
+    // A picture already in the repository: fetching it is not a change to send.
+    job = syncedStore()
       .then((store) => fetchLazyFile(store, repoFor(settings), remoteIdOf(settings), path))
       .catch(() => null)
       .finally(() => {

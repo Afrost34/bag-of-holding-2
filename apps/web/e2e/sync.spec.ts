@@ -33,6 +33,16 @@ test('a device syncs with the data repository, both ways', async ({ page }) => {
   repo.push({ [`${journalDir}Written on the phone.md`]: 'Hello from the phone.' });
   await page.getByRole('button', { name: 'Sync now', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('Synced at');
+  // The sync button says what the last sync did.
+  await page.getByRole('button', { name: /^Synced at/ }).click();
+  const panel = page.getByRole('dialog', { name: 'Sync' });
+  await expect(panel.getByRole('region', { name: 'Fetched (1)' })).toContainText(
+    'Written on the phone',
+  );
+  // Nothing changed since: the next sync only looks at the repository.
+  await panel.getByRole('button', { name: 'Sync now' }).click();
+  await expect(panel).toContainText('Nothing had changed.');
+  await page.keyboard.press('Escape');
   await page.goto('./#/journal');
   await showFiles(page);
   await expect(

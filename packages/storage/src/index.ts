@@ -14,6 +14,7 @@ export {
   syncStore,
   SYNC_DIR,
   type SyncOptions,
+  type SyncPlanSummary,
   type SyncResult,
 } from './sync/engine';
 export { planSync, resolveConflict, type SyncPlan } from './sync/plan';

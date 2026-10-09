@@ -1,4 +1,4 @@
-import { GitHubError, syncStore, type SyncResult } from '@boh/storage';
+import { GitHubError, syncStore, type SyncPlanSummary, type SyncResult } from '@boh/storage';
 import { create } from 'zustand';
 import { flushAnnotations, reloadAnnotations } from '../annotations/store';
 import { useCalendar } from '../calendar/store';
@@ -11,7 +11,7 @@ import { useMaps } from '../maps/store';
 import { useCardSheets } from '../cards/store';
 import { useCharacters } from '../characters/store';
 import { useHomebrew } from '../data/homebrew';
-import { userStore } from '../userStore';
+import { returnWrites, syncedStore, takeWrites } from '../userStore';
 import { isLazy } from './lazy';
 import { remoteIdOf, repoFor, useSyncSettings } from './settings';
 
@@ -31,6 +31,8 @@ interface SyncStore {
   lastResult: SyncResult | null;
   error: string | null;
   progress: { done: number; total: number } | null;
+  /** What the sync under way sends and fetches. */
+  plan: SyncPlanSummary | null;
   syncNow: () => Promise<void>;
 }
 
@@ -50,6 +52,8 @@ export function explain(error: unknown): string {
 }
 
 let running: Promise<void> | null = null;
+/** The first sync of a session always looks at every file (edits may predate it). */
+let fullSyncDone = false;
 
 export const useSync = create<SyncStore>()((set) => ({
   status: useSyncSettings.getState().settings ? 'idle' : 'off',
@@ -57,6 +61,7 @@ export const useSync = create<SyncStore>()((set) => ({
   lastResult: null,
   error: null,
   progress: null,
+  plan: null,
 
   syncNow: () => {
     running ??= (async () => {
@@ -81,19 +86,39 @@ export const useSync = create<SyncStore>()((set) => ({
         await useEncounters.getState().flush();
         await useTables.getState().flush();
         await useMaps.getState().flush();
-        const result = await syncStore(await userStore(), repoFor(settings), {
-          remoteId: remoteIdOf(settings),
-          lazy: isLazy,
-          device: settings.device || 'a device',
-          onProgress: (done, total) => {
-            set({ progress: { done, total } });
-          },
-        });
+        // Only what the app wrote since the last sync counts: with nothing written and the
+        // repository unchanged, the sync stops after one request.
+        const written = takeWrites();
+        let result: SyncResult;
+        try {
+          result = await syncStore(await syncedStore(), repoFor(settings), {
+            localUnchanged: fullSyncDone && written === 0,
+            onPlan: (plan) => {
+              set({ plan });
+            },
+            remoteId: remoteIdOf(settings),
+            lazy: isLazy,
+            device: settings.device || 'a device',
+            onProgress: (done, total) => {
+              set({ progress: { done, total } });
+            },
+          });
+        } catch (error) {
+          returnWrites(written);
+          throw error;
+        }
+        fullSyncDone = true;
         const changed = [...result.downloaded, ...result.deletedHere];
         if (changed.length > 0) await refreshAfterSync(changed);
-        set({ status: 'idle', lastSync: Date.now(), lastResult: result, progress: null });
+        set({
+          status: 'idle',
+          lastSync: Date.now(),
+          lastResult: result,
+          progress: null,
+          plan: null,
+        });
       } catch (error) {
-        set({ status: 'error', error: explain(error), progress: null });
+        set({ status: 'error', error: explain(error), progress: null, plan: null });
       }
     })().finally(() => {
       running = null;

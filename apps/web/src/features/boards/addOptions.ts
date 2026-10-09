@@ -1,7 +1,9 @@
 /** What can be added to a board, shared by the tool bar's Add menu and the right-click menu. */
 import '@xyflow/react/dist/style.css';
 import { type Board, type CardContent } from '../../app/boards/model';
+import { generateNames } from '../../app/boards/names';
 import { generateNpc } from '../../app/boards/npc';
+import { useSpeciesNames } from '../../app/boards/useSpeciesNames';
 import { useJournal } from '../../app/journal/store';
 import { shrinkImage } from '../../app/shrinkImage';
 import { type KIND_ICONS, KIND_LABELS } from './kinds';
@@ -35,6 +37,7 @@ export function useAddOptions(
 ): AddOption[] {
   const addAttachment = useJournal((s) => s.addAttachment);
   const journalFor = useJournal((s) => s.campaignId);
+  const species = useSpeciesNames();
   const pickPicture = (at?: { x: number; y: number }) => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -98,9 +101,16 @@ export function useAddOptions(
     },
     { ...simple('calendar', 'calendar', () => ({ kind: 'calendar' })), disabled: !board.campaign },
     {
-      ...simple('npc', 'npc', () => ({ kind: 'npc', npc: generateNpc() })),
+      ...simple('npc', 'npc', () => ({
+        kind: 'npc',
+        npc: generateNpc(Math.random, undefined, species),
+      })),
       label: 'NPC generator',
       separator: true,
+    },
+    {
+      ...simple('names', 'names', () => ({ kind: 'names', names: generateNames(20, species) })),
+      label: 'Name generator',
     },
     simple('text', 'text', () => ({ kind: 'text', text: '' })),
     simple('dice', 'dice', () => ({ kind: 'dice', formulas: [] })),

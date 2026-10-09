@@ -52,11 +52,15 @@ export type CardContent =
       kind: 'character';
       character: string;
       show: { spells: boolean; features: boolean; inventory: boolean; story?: boolean };
+      /** The tab shown: the sheet (absent) or one section alone. */
+      tab?: 'spells' | 'features' | 'inventory' | 'story';
     }
   /** The campaign's calendar: today, this month and what comes next. */
   | { kind: 'calendar' }
   /** A generated NPC (the DM's own text from then on). */
   | { kind: 'npc'; npc: Npc }
+  /** Generated names, of one species or of any (`species` absent). */
+  | { kind: 'names'; species?: string; names: { name: string; species: string }[] }
   | { kind: 'frame'; title: string }
   | { kind: 'stack'; items: string[]; active: number };
 
@@ -106,7 +110,8 @@ export const SIZES: Record<CardKind, { w: number; h: number }> = {
   encounter: { w: 340, h: 320 },
   map: { w: 520, h: 400 },
   character: { w: 460, h: 620 },
-  npc: { w: 340, h: 380 },
+  npc: { w: 360, h: 520 },
+  names: { w: 340, h: 460 },
   frame: { w: 760, h: 480 },
   stack: { w: 340, h: 380 },
   calendar: { w: 340, h: 460 },

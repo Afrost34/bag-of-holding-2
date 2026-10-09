@@ -171,6 +171,25 @@ describe('sync between two devices', () => {
     expect(again).toMatchObject({ downloaded: [], uploaded: [], commit: null });
   });
 
+  it('stops after one request when nothing changed, and tells its plan first', async () => {
+    const repo = new MemoryRepo();
+    const pc = new MemoryFileStore();
+    await pc.writeFile('notes/a.md', 'A');
+    const plans: string[][] = [];
+    await syncStore(pc, repo, { ...options('PC'), onPlan: (p) => plans.push(p.upload) });
+    expect(plans).toEqual([['notes/a.md']]);
+    const quiet = await syncStore(pc, repo, { ...options('PC'), localUnchanged: true });
+    expect(quiet).toMatchObject({ unchanged: true, downloaded: [], uploaded: [] });
+    // Another device moved the repository: the full sync runs.
+    const phone = new MemoryFileStore();
+    await syncStore(phone, repo, options('phone'));
+    await phone.writeFile('notes/b.md', 'B');
+    await syncStore(phone, repo, options('phone'));
+    const after = await syncStore(pc, repo, { ...options('PC'), localUnchanged: true });
+    expect(after.unchanged).toBeUndefined();
+    expect(after.downloaded).toEqual(['notes/b.md']);
+  });
+
   it('passes deletions on, but never deletes an edit', async () => {
     const repo = new MemoryRepo();
     const pc = new MemoryFileStore();
