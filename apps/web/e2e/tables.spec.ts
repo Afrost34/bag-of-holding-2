@@ -201,8 +201,15 @@ test('a table goes on a board as a card, and rolls there', async ({ page }) => {
     .getByRole('button', { name: /Wild magic/ })
     .click();
   await expect(page.getByRole('heading', { name: 'Wild magic', exact: true })).toBeVisible();
+  // The whole table is on the card, and the row that comes up is lit.
+  const rows = page.getByRole('list', { name: 'Wild magic table' });
+  await expect(rows.getByRole('listitem')).toHaveCount(1);
+  await expect(rows.locator('[aria-current="true"]')).toHaveCount(0);
   await page.getByRole('button', { name: 'Roll Wild magic' }).click();
   await expect(page.getByRole('list', { name: 'Rolled on Wild magic' })).toContainText(
     'Your hair turns blue',
   );
+  await expect(rows.getByRole('listitem').first()).toHaveAttribute('aria-current', 'true');
+  await page.getByRole('button', { name: 'Clear' }).click();
+  await expect(rows.locator('[aria-current="true"]')).toHaveCount(0);
 });

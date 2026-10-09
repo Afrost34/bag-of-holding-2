@@ -1,7 +1,7 @@
 import { RichText } from '@boh/renderer';
-import { Button } from '@boh/ui';
+import { Button, cn } from '@boh/ui';
 import { Dices, Swords, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppLink } from '../AppLink';
 import { entityPath, useEntity } from '../data/entities';
 import { useBuildEncounter } from './buildEncounter';
@@ -51,20 +51,64 @@ export function RowPrice({ row }: { row: TableRow }) {
   return <span className="tabular-nums">{price ?? '—'}</span>;
 }
 
+/** The whole table, one row per line with its range; the rows just rolled are lit. */
+function TableRows({ table, lit }: { table: RollTable; lit: readonly string[] }) {
+  const list = useRef<HTMLUListElement>(null);
+  const ranges = new Map(rowRanges(table).map((r) => [r.id, r]));
+  useEffect(() => {
+    list.current?.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
+  }, [lit]);
+  if (table.rows.length === 0) return <p className="text-sm text-muted">No rows yet.</p>;
+  return (
+    <ul
+      ref={list}
+      aria-label={`${table.name} table`}
+      className="max-h-72 divide-y divide-border overflow-y-auto rounded-md border border-border text-sm"
+    >
+      {table.rows.map((r) => {
+        const on = lit.includes(r.id);
+        const range = ranges.get(r.id);
+        return (
+          <li
+            key={r.id}
+            aria-current={on ? 'true' : undefined}
+            className={cn(
+              'flex items-baseline gap-2 px-2 py-1',
+              on && 'bg-accent-soft font-medium',
+            )}
+          >
+            <span className="w-12 shrink-0 text-right font-mono text-xs text-muted tabular-nums">
+              {range ? formatRange(range) : ''}
+            </span>
+            <span className="min-w-0 flex-1">
+              {r.count && <span className="text-muted tabular-nums">{r.count} × </span>}
+              <RowLabel row={r} />
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 /**
  * Rolls a table and lists what came up. Encounter tables turn their creatures into an encounter
- * (`onCreatures`, else a new encounter in the table's campaign).
+ * (`onCreatures`, else a new encounter in the table's campaign). `showRows` lists the whole table
+ * under the buttons and lights the rows that came up.
  */
 export function TableRoller({
   table,
   onCreatures,
   creaturesLabel = 'Build an encounter',
+  showRows = false,
 }: {
   table: RollTable;
   onCreatures?: (keys: string[]) => void;
   creaturesLabel?: string;
+  showRows?: boolean;
 }) {
   const [rolls, setRolls] = useState<TableRoll[]>([]);
+  const [lit, setLit] = useState<string[]>([]);
   const [times, setTimes] = useState(1);
   const build = useBuildEncounter();
   const creatures = creaturesOf(rolls);
@@ -81,6 +125,7 @@ export function TableRoller({
               r ? [r] : [],
             );
             setRolls((rs) => [...next, ...rs]);
+            setLit(next.map((r) => r.row.id));
           }}
         >
           <Dices className="h-4 w-4" aria-hidden /> Roll
@@ -104,6 +149,7 @@ export function TableRoller({
             variant="ghost"
             onClick={() => {
               setRolls([]);
+              setLit([]);
             }}
           >
             <X className="h-4 w-4" aria-hidden /> Clear
@@ -121,6 +167,7 @@ export function TableRoller({
           </Button>
         )}
       </div>
+      {showRows && <TableRows table={table} lit={lit} />}
       {rolls.length > 0 && (
         <ol aria-label={`Rolled on ${table.name}`} className="space-y-1 text-sm">
           {rolls.map((r, i) => (
