@@ -14,6 +14,7 @@ import { useEncounters } from '../../app/encounters/store';
 import { characterInputs, monsterInputs } from '../../app/encounters/run';
 import { JournalViewContext } from '../../app/journal/notes/context';
 import { EntitySearch } from '../../app/search/EntitySearch';
+import { askConfirm } from '../../app/confirm';
 
 const TABS = ['Creature', 'Character', 'Encounter', 'By hand'] as const;
 type Tab = (typeof TABS)[number];
@@ -103,12 +104,20 @@ export function CombatAdd({
         <EncounterPick
           busy={busy}
           onLoad={(encounter, party) => {
-            if (
-              occupied &&
-              !window.confirm(`Start ${encounter.name} in place of the combat on this card?`)
-            )
+            const load = () => {
+              join(monsterInputs(encounter.monsters), characterInputs(party), true);
+            };
+            if (!occupied) {
+              load();
               return;
-            join(monsterInputs(encounter.monsters), characterInputs(party), true);
+            }
+            void askConfirm({
+              title: `Start ${encounter.name}?`,
+              message: 'It takes the place of the combat on this card.',
+              confirmLabel: 'Start',
+            }).then((ok) => {
+              if (ok) load();
+            });
           }}
         />
       )}

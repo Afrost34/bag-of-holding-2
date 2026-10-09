@@ -22,6 +22,7 @@ import { EntitySearch } from '../../app/search/EntitySearch';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 import { CardPagesView } from './CardPages';
 import { useCardPacking } from './packing';
+import { askConfirm } from '../../app/confirm';
 
 /** Width of an A4 page in CSS pixels: the preview is scaled to fit the space it has. */
 const PAGE_PX = (210 * 96) / 25.4;
@@ -213,10 +214,15 @@ export function CardSheetPage({ id }: { id: string }) {
           <button
             type="button"
             onClick={() => {
-              if (window.confirm(`Delete the card sheet “${sheet.name}”?`))
-                void remove(sheet.id).then(() => {
-                  navigate('/cards');
-                });
+              void askConfirm({
+                title: `Delete the card sheet “${sheet.name}”?`,
+                confirmLabel: 'Delete',
+              }).then((ok) => {
+                if (ok)
+                  void remove(sheet.id).then(() => {
+                    navigate('/cards');
+                  });
+              });
             }}
             className="mt-6 inline-flex items-center gap-1 text-sm text-muted hover:text-accent-ink"
           >

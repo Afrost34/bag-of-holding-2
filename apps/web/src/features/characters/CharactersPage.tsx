@@ -7,6 +7,7 @@ import { useCharacters } from '../../app/characters/store';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 import { CharacterRow } from './CharacterRow';
+import { askConfirm } from '../../app/confirm';
 
 /** Stands for the library in selects (campaign ids are slugs, never start with @). */
 const LIBRARY = '@library';
@@ -156,7 +157,13 @@ export function CharactersPage() {
                   void copyTo(c.id, target === LIBRARY ? undefined : target);
                 }}
                 onDelete={() => {
-                  if (window.confirm(`Delete ${c.name}? This cannot be undone.`)) void remove(c.id);
+                  void askConfirm({
+                    title: `Delete ${c.name}?`,
+                    message: 'This cannot be undone.',
+                    confirmLabel: 'Delete',
+                  }).then((ok) => {
+                    if (ok) void remove(c.id);
+                  });
                 }}
               />
             ))}
