@@ -65,6 +65,11 @@ export interface CharacterPreferences {
   advancement?: Advancement;
   /** Outside campaigns: carrying rules (in a campaign, the campaign decides). */
   encumbrance?: Encumbrance;
+  /**
+   * Wild Shape forms beyond the Beast Shapes limits (CR, fly and swim speeds), by the DM's leave;
+   * the number of known forms still holds.
+   */
+  wildShapeAnyBeast?: boolean;
 }
 
 export const DEFAULT_PREFERENCES: CharacterPreferences = {

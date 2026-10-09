@@ -222,16 +222,18 @@ export function usePrintData(
           ).values(),
         ],
       }));
-    // Each group's heading travels with its first card; groups follow on without a page break,
-    // so the pages stay full.
+    // Each group's heading travels with its first card. Spell levels follow on without a page
+    // break, so those pages stay full; features and items start a page of their own.
     const packed = groups
       .filter((g) => shown(g.section))
       .map((g) => ({ ...g, cards: g.cards.filter((c) => !off.has(c.hideId)) }))
       .filter((g) => g.cards.length > 0)
-      .flatMap((g): PackItem[] => [
+      .flatMap((g, i, all): PackItem[] => [
         {
           id: `heading:${g.title}`,
           keepWithNext: true,
+          // Spells, features and items each start on a page of their own; spell levels follow on.
+          ...(i > 0 && all[i - 1]?.section !== g.section ? { breakBefore: true } : {}),
           node: (
             <h2 className="border-b border-border pb-1 text-center font-serif text-[13px] font-bold tracking-widest text-header uppercase">
               {g.title}
