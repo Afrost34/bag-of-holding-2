@@ -518,7 +518,6 @@ test('a unit converter card turns feet into metres and squares, and back', async
   await page.getByRole('button', { name: 'New board' }).click();
   await page.getByRole('button', { name: 'Create' }).click();
   await addCard(page, 'Unit converter');
-  const converted = page.getByRole('definition').locator('xpath=..').locator('xpath=..');
   const out = page.getByLabel('Converted');
   await expect(out).toContainText('Squares6');
   await expect(out).toContainText('Metres9');
