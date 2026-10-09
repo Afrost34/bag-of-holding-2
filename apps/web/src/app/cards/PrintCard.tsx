@@ -1,4 +1,4 @@
-import type { EntityDetail } from '@boh/data5e';
+import { textToEntries, type EntityDetail } from '@boh/data5e';
 import {
   castingTime,
   components,
@@ -52,6 +52,7 @@ export function PrintCard({
   subtitle,
   extra,
   className,
+  text,
 }: {
   entity: EntityDetail;
   /** Overrides the entity's name ("Hoot" for a familiar). */
@@ -60,6 +61,8 @@ export function PrintCard({
   /** Shown under the subtitle: a save DC, who it belongs to… */
   extra?: ReactNode;
   className?: string;
+  /** Text rewritten by hand (plain paragraphs), in place of the entry's own. */
+  text?: string | undefined;
 }) {
   const d = entity.data;
   const spell = entity.type === 'spell';
@@ -86,7 +89,9 @@ export function PrintCard({
         )
       }
     >
-      {spell ? (
+      {text !== undefined ? (
+        <Entries entries={textToEntries(text)} />
+      ) : spell ? (
         <>
           <Entries entries={d.entries} />
           {d.entriesHigherLevel !== undefined && <Entries entries={d.entriesHigherLevel} />}

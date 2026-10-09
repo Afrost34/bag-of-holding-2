@@ -1,4 +1,4 @@
-import type { EntityDetail } from '@boh/data5e';
+import { textToEntries, type EntityDetail } from '@boh/data5e';
 import { Entries } from '@boh/renderer';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { CharacterFile } from '../../../app/characters/model';
@@ -7,6 +7,7 @@ import { PrintCard } from '../../../app/cards/PrintCard';
 import { loadEntity } from '../../../app/data/entities';
 import type { CharacterView } from '../../../app/data/protocol';
 import { FeatureCard, SaveLine } from './PrintCards';
+import { inOrder, plainText } from './cardEdits';
 import { asksOnly, lineageTrait, withoutReferences } from './featureCards';
 import { ORDINAL, sourceLabel } from './printText';
 import type { PrintSection } from './sections';
@@ -32,8 +33,18 @@ export interface PrintData {
 
 export interface CardGroup {
   title: string;
-  /** `id` is what `printHidden` stores to leave the card out. */
-  cards: { id: string; label: string }[];
+  /** In the order they print. */
+  cards: CardChoice[];
+}
+
+export interface CardChoice {
+  /** What `printHidden`, `printOrder` and `printEdits` store for the card. */
+  id: string;
+  label: string;
+  /** Its text as plain paragraphs, from the data: where editing starts. */
+  source: string;
+  /** The text rewritten by hand, if it was. */
+  edited?: string;
 }
 
 /** Entities the sheet shows in full (spells, features, items, species), loaded once. */
@@ -91,17 +102,22 @@ export function usePrintData(
         ),
     [spellId, entities],
   );
-  const hiddenId = hidden.join('|');
+  // Joined by line breaks: card ids hold '|' (`feature:classfeature:x|bard|xphb|1@xphb`).
+  const hiddenId = hidden.join('\n');
+  const orderId = (character?.preferences.printOrder ?? []).join('\n');
+  const editsId = JSON.stringify(character?.preferences.printEdits ?? {});
   const dc = view?.sheet.spellcasting[0]?.dc.value;
 
   const { cards, cardChoices } = useMemo(() => {
     if (!character || !view) return { cards: [], cardChoices: [] };
-    const off = new Set(hiddenId.split('|'));
+    const off = new Set(hiddenId.split('\n'));
+    const order = orderId ? orderId.split('\n') : [];
+    const edits = JSON.parse(editsId) as Record<string, string>;
     const shown = (s: PrintSection) => !off.has(s);
     const groups: {
       title: string;
       section: PrintSection;
-      cards: (PackItem & { label: string; hideId: string })[];
+      cards: (PackItem & { label: string; hideId: string; source: string })[];
     }[] = [];
     for (let lvl = 0; lvl <= 9; lvl++) {
       const list = spells.filter((s) => (s.data.level ?? 0) === lvl);
@@ -112,7 +128,8 @@ export function usePrintData(
           id: s.key,
           hideId: s.key,
           label: s.name,
-          node: <PrintCard entity={s} extra={<SaveLine spell={s} dc={dc} />} />,
+          source: plainText([s.data.entries, s.data.entriesHigherLevel]),
+          node: <PrintCard entity={s} extra={<SaveLine spell={s} dc={dc} />} text={edits[s.key]} />,
         })),
       });
     }
@@ -127,13 +144,20 @@ export function usePrintData(
                 id: `feature:${f.key}`,
                 hideId: `feature:${f.key}`,
                 label: f.name,
+                source: plainText(text),
                 node: (
                   <FeatureCard
                     from={f.from}
                     title={f.name}
                     subtitle={`${sourceLabel(f.from, view)}${f.level ? ` — Level ${String(f.level)}` : ''}`}
                   >
-                    <Entries entries={text} />
+                    <Entries
+                      entries={
+                        edits[`feature:${f.key}`] === undefined
+                          ? text
+                          : textToEntries(edits[`feature:${f.key}`] ?? '')
+                      }
+                    />
                   </FeatureCard>
                 ),
               },
@@ -151,18 +175,35 @@ export function usePrintData(
                 id: `item:${String(i)}:${it.key}`,
                 hideId: `item:${it.key}`,
                 label: it.name ?? e.name,
-                node: <PrintCard entity={e} />,
+                source: plainText(e.data.entries),
+                node: <PrintCard entity={e} text={edits[`item:${it.key}`]} />,
               },
             ]
           : [];
       }),
     });
+    // Each group in the player's order.
+    for (const g of groups)
+      g.cards = inOrder(
+        g.cards.map((c) => ({ ...c, id: c.hideId, packId: c.id })),
+        order,
+      ).map(({ packId, ...c }) => ({ ...c, id: packId }));
     const choices: CardGroup[] = groups
       .filter((g) => g.cards.length > 0 && shown(g.section))
       .map((g) => ({
         title: g.title,
         cards: [
-          ...new Map(g.cards.map((c) => [c.hideId, { id: c.hideId, label: c.label }])).values(),
+          ...new Map(
+            g.cards.map((c): [string, CardChoice] => [
+              c.hideId,
+              {
+                id: c.hideId,
+                label: c.label,
+                source: c.source,
+                ...(edits[c.hideId] !== undefined ? { edited: edits[c.hideId] } : {}),
+              },
+            ]),
+          ).values(),
         ],
       }));
     // Each group's heading travels with its first card; groups follow on without a page break,
@@ -184,7 +225,7 @@ export function usePrintData(
         ...g.cards.map(({ id, node }) => ({ id, node })),
       ]);
     return { cards: packed, cardChoices: choices };
-  }, [character, view, spells, entities, hiddenId, dc]);
+  }, [character, view, spells, entities, hiddenId, orderId, editsId, dc]);
 
   const key = `${cards.map((c) => c.id).join('|')}#${String(entities.size)}`;
   const { packing, measurer } = usePacking(cards, key);
