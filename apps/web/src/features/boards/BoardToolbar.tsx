@@ -2,17 +2,86 @@
 import { Button } from '@boh/ui';
 import * as Menu from '@radix-ui/react-dropdown-menu';
 import '@xyflow/react/dist/style.css';
-import { ArrowLeft, MonitorUp, Plus, Redo2, Trash2, Undo2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  Check,
+  ChevronDown,
+  LayoutList,
+  MonitorUp,
+  Plus,
+  Redo2,
+  Trash2,
+  Undo2,
+} from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
 import { type Board } from '../../app/boards/model';
 import { openPlayerWindow } from '../../app/boards/player';
+import { useBoards } from '../../app/boards/store';
+import { useAppNavigate } from '../../app/navigation';
 import { itemClass, type AddOption } from './addOptions';
 import { KIND_ICONS } from './kinds';
 
 function OptionIcon({ kind }: { kind: AddOption['kind'] }) {
   const I = KIND_ICONS[kind];
   return <I className="h-4 w-4" aria-hidden />;
+}
+
+/** Another board of the same campaign, a new one, or the list of all boards. */
+function BoardSwitcher({ board }: { board: Board }) {
+  const navigate = useAppNavigate();
+  const all = useBoards((s) => s.boards);
+  const create = useBoards((s) => s.create);
+  const mine = all.filter((b) => !b.players && b.campaign === board.campaign);
+  return (
+    <Menu.Root>
+      <Menu.Trigger
+        aria-label="Switch board"
+        className="rounded p-1 text-muted hover:bg-sunken hover:text-text"
+      >
+        <ChevronDown className="h-4 w-4" aria-hidden />
+      </Menu.Trigger>
+      <Menu.Portal>
+        <Menu.Content
+          align="start"
+          sideOffset={4}
+          className="z-50 max-h-96 min-w-56 overflow-y-auto rounded-md border border-border bg-surface p-1 text-text shadow-card"
+        >
+          {mine.map((b) => (
+            <Menu.Item
+              key={b.id}
+              className={itemClass}
+              onSelect={() => {
+                if (b.id !== board.id) navigate(`/boards/${b.id}`);
+              }}
+            >
+              <Check className={b.id === board.id ? 'h-4 w-4' : 'h-4 w-4 opacity-0'} aria-hidden />
+              {b.name}
+            </Menu.Item>
+          ))}
+          <Menu.Separator className="my-1 h-px bg-border" />
+          <Menu.Item
+            className={itemClass}
+            onSelect={() => {
+              void create('New board', board.campaign).then((b) => {
+                navigate(`/boards/${b.id}`);
+              });
+            }}
+          >
+            <Plus className="h-4 w-4" aria-hidden /> New board
+          </Menu.Item>
+          <Menu.Item
+            className={itemClass}
+            onSelect={() => {
+              navigate('/boards?list=1');
+            }}
+          >
+            <LayoutList className="h-4 w-4" aria-hidden /> All boards
+          </Menu.Item>
+        </Menu.Content>
+      </Menu.Portal>
+    </Menu.Root>
+  );
 }
 
 /** The Add menu where the board was right-clicked; cards land there. */
@@ -97,7 +166,7 @@ export function Toolbar({
     <div className="flex flex-wrap items-center gap-2 border-b border-border bg-surface px-3 py-2">
       {!players && (
         <AppLink
-          to="/boards"
+          to="/boards?list=1"
           aria-label="All boards"
           className="rounded p-1 text-muted hover:bg-sunken hover:text-text"
         >
@@ -115,6 +184,7 @@ export function Toolbar({
         }}
         className="min-w-0 flex-1 rounded bg-transparent px-1 font-serif text-lg font-bold focus:bg-sunken focus:outline-none"
       />
+      {!players && <BoardSwitcher board={board} />}
       <span className="hidden text-sm text-muted sm:inline">
         {board.cards.filter((c) => c.kind !== 'stack' && c.kind !== 'frame').length} cards
       </span>

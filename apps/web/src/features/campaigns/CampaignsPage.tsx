@@ -53,10 +53,17 @@ export function CampaignsPage() {
                 <li
                   key={c.id}
                   className={cn(
-                    'flex flex-col rounded-lg border bg-surface p-4',
+                    'flex flex-col overflow-hidden rounded-lg border bg-surface p-4',
                     active ? 'border-accent' : 'border-border',
                   )}
                 >
+                  {c.cover && (
+                    <img
+                      src={c.cover}
+                      alt=""
+                      className="-mx-4 -mt-4 mb-3 aspect-[3/1] w-[calc(100%+2rem)] max-w-none rounded-t-lg object-cover"
+                    />
+                  )}
                   <div className="flex items-start gap-3">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-ink">
                       <Castle className="h-5 w-5" aria-hidden />

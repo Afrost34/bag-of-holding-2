@@ -158,13 +158,13 @@ test('the player window is a board of its own, that cards are sent to', async ({
   await expect(page.getByRole('heading', { level: 1, name: 'Fireball' })).toBeVisible();
   await expect(page.getByText('open in another tab or window')).toHaveCount(0);
   // The players' board is not one of the DM's boards.
-  await page.goto('./#/boards');
+  await page.goto('./#/boards?list=1');
   await expect(page.getByRole('link', { name: /Players/ })).toHaveCount(0);
 });
 
 test('right-click adds where clicked; the NPC generator; frames rename', async ({ page }) => {
   test.skip(isPhone(page), 'Right-click is a desktop gesture.');
-  await page.goto('./#/boards');
+  await page.goto('./#/boards?list=1');
   await page.getByRole('button', { name: 'New board' }).click();
   await page.getByLabel('Name').fill('Session 1');
   await page.getByRole('button', { name: 'Create' }).click();
@@ -307,7 +307,7 @@ test('a character card is the first page of its sheet, with sections on its side
   await form.getByRole('radio', { name: '2024 rules' }).check();
   await form.getByRole('button', { name: 'Start building' }).click();
   await expect(page).toHaveURL(/characters\/[a-z0-9]+/);
-  await page.goto('./#/boards');
+  await page.goto('./#/boards?list=1');
   await page.reload();
   await page.getByRole('button', { name: 'New board' }).click();
   await page.getByLabel('Name').fill('Party');
@@ -329,7 +329,7 @@ test('a card fills the whole screen, and a map in it still pans and zooms', asyn
   await page.getByRole('form', { name: 'New map' }).getByLabel('Name').fill('Sunash Sea');
   await page.getByRole('button', { name: 'Create' }).click();
   await expect(page.getByRole('textbox', { name: 'Map name' })).toHaveValue('Sunash Sea');
-  await page.goto('./#/boards');
+  await page.goto('./#/boards?list=1');
   await page.getByRole('button', { name: 'New board' }).click();
   await page.getByLabel('Name').fill('Session 1');
   await page.getByRole('button', { name: 'Create' }).click();
@@ -364,7 +364,7 @@ test('a card fills the whole screen, and a map in it still pans and zooms', asyn
 });
 
 test('board changes are undone and redone, with the buttons or the keyboard', async ({ page }) => {
-  await page.goto('./#/boards');
+  await page.goto('./#/boards?list=1');
   await page.getByRole('button', { name: 'New board' }).click();
   await page.getByLabel('Name').fill('Session 1');
   await page.getByRole('button', { name: 'Create' }).click();
@@ -385,4 +385,26 @@ test('board changes are undone and redone, with the buttons or the keyboard', as
   await expect(page.getByRole('button', { name: 'Undo' })).toBeDisabled();
   await page.keyboard.press('ControlOrMeta+y');
   await expect(nodes).toHaveCount(1);
+});
+
+test('Boards reopens the last board; the title switches boards and makes new ones', async ({
+  page,
+}) => {
+  await page.goto('./#/boards?list=1');
+  await page.getByRole('button', { name: 'New board' }).click();
+  await page.getByLabel('Name').fill('Prep');
+  await page.getByRole('button', { name: 'Create' }).click();
+  await expect(page.getByRole('textbox', { name: 'Board name' })).toHaveValue('Prep');
+  await page.getByRole('button', { name: 'Switch board' }).click();
+  await page.getByRole('menuitem', { name: 'New board' }).click();
+  await expect(page.getByRole('textbox', { name: 'Board name' })).toHaveValue('New board');
+  // Boards comes back to the board open last.
+  await page.goto('./#/boards');
+  await expect(page.getByRole('textbox', { name: 'Board name' })).toHaveValue('New board');
+  await page.getByRole('button', { name: 'Switch board' }).click();
+  await page.getByRole('menuitem', { name: 'Prep' }).click();
+  await expect(page.getByRole('textbox', { name: 'Board name' })).toHaveValue('Prep');
+  await page.getByRole('button', { name: 'Switch board' }).click();
+  await page.getByRole('menuitem', { name: 'All boards' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Boards' })).toBeVisible();
 });

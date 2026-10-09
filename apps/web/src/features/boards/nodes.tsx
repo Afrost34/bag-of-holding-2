@@ -115,6 +115,57 @@ function useFullScreen(el: RefObject<HTMLElement | null>): boolean {
   return full;
 }
 
+/** The tallest a card grows to fit what it shows; the user can make it taller. */
+const FIT_MAX = 720;
+
+/**
+ * A card marked `fit` (opened from a link) takes the height its content needs, once that has
+ * loaded and stopped changing, between its title bar's height and FIT_MAX; then the mark goes.
+ */
+function useFitOnce(
+  card: BoardCard,
+  body: RefObject<HTMLDivElement | null>,
+  update: (id: string, change: (card: BoardCard) => BoardCard) => void,
+) {
+  const fit = card.fit === true;
+  const id = card.id;
+  useEffect(() => {
+    const el = body.current;
+    if (!fit || !el) return;
+    let timer = 0;
+    const apply = (final = false) => {
+      const content = el.firstElementChild instanceof HTMLElement ? el.firstElementChild : el;
+      // Still loading (nothing shown yet): wait, unless time is up.
+      if (!final && content.scrollHeight < 40) return;
+      // Title bar (40) and the body's padding (24) around the content.
+      const h = Math.min(FIT_MAX, Math.max(160, Math.ceil(content.scrollHeight + 40 + 24)));
+      update(id, (c) => {
+        const { fit: _f, ...rest } = c;
+        return { ...rest, h };
+      });
+    };
+    const settle = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        apply();
+      }, 500);
+    };
+    const observer = new ResizeObserver(settle);
+    if (el.firstElementChild) observer.observe(el.firstElementChild);
+    observer.observe(el);
+    settle();
+    // Content that never settles still fits after a few seconds.
+    const last = window.setTimeout(() => {
+      apply(true);
+    }, 4000);
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(timer);
+      window.clearTimeout(last);
+    };
+  }, [fit, id, body, update]);
+}
+
 /** Card chrome: title bar (drag handle), collapse, menu, resize handles. */
 function Shell({
   card,
@@ -134,6 +185,8 @@ function Shell({
   const zoomedOut = useFar();
   const Icon = KIND_ICONS[card.kind];
   const box = useRef<HTMLElement>(null);
+  const body = useRef<HTMLDivElement>(null);
+  useFitOnce(card, body, actions.update);
   const full = useFullScreen(box);
   // Full screen always shows the card itself, however far the board is zoomed out.
   const far = zoomedOut && !full;
@@ -214,7 +267,10 @@ function Shell({
             {title}
           </div>
         ) : (
-          <div className="nowheel nodrag min-h-0 flex-1 cursor-auto overflow-auto p-3 text-sm select-text">
+          <div
+            ref={body}
+            className="nowheel nodrag min-h-0 flex-1 cursor-auto overflow-auto p-3 text-sm select-text"
+          >
             {children}
           </div>
         ))}

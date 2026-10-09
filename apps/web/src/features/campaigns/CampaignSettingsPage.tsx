@@ -7,6 +7,7 @@ import { useCampaigns } from '../../app/campaigns/store';
 import { SourceLibrary } from '../../app/data/SourceLibrary';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
+import { CoverPicker } from './CoverPicker';
 import { EditionPicker, fieldLabel, RulesFields } from './CampaignOptions';
 
 export function CampaignSettingsPage({ id }: { id: string }) {
@@ -90,6 +91,10 @@ function Settings({ campaign, active }: { campaign: Campaign; active: boolean })
               onChange={(edition) => void update(campaign.id, { edition })}
             />
           </div>
+        </Panel>
+
+        <Panel title="Cover picture">
+          <CoverPicker campaign={campaign} />
         </Panel>
 
         <Panel title="Rules">

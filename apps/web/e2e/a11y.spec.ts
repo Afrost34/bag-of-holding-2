@@ -33,7 +33,7 @@ test('the main pages pass axe', async ({ page }) => {
     ['./#/journal', 'Journal'],
     ['./#/characters', 'Characters'],
     ['./#/cards', 'Cards'],
-    ['./#/boards', 'Boards'],
+    ['./#/boards?list=1', 'Boards'],
     ['./#/encounters', 'Encounters'],
     ['./#/tables', 'Tables'],
     ['./#/maps', 'Maps'],
@@ -65,7 +65,7 @@ test('editors pass axe: character, board, encounter, map, note', async ({ page }
   await page.waitForTimeout(800);
   await check(page, 'Character builder');
   for (const [path, button, name] of [
-    ['./#/boards', 'New board', 'Board'],
+    ['./#/boards?list=1', 'New board', 'Board'],
     ['./#/encounters', 'New encounter', 'Encounter'],
     ['./#/maps', 'New map', 'Map editor'],
     ['./#/tables', 'New table', 'Table'],
