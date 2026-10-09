@@ -1,6 +1,8 @@
 import { Outlet, useRouterState } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PLAYER_ROUTE } from '../boards/player';
+import { useScrollMemory } from './scrollMemory';
+import { ContextMenu } from './ContextMenu';
 import { useCampaigns } from '../campaigns/store';
 import { Dice3DLayer } from '../dice/Dice3DLayer';
 import { DiceTray } from '../dice/DiceTray';
@@ -23,6 +25,8 @@ export function AppShell() {
   const setActivePath = useTabs((s) => s.setActivePath);
   const { collapsed, toggle } = useSidebarPrefs();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
+  useScrollMemory(mainRef);
   // The player window (a second window the DM shows things in) is not a full app.
   const player = href.split(/[?#]/, 1)[0] === PLAYER_ROUTE;
 
@@ -63,7 +67,7 @@ export function AppShell() {
             setDrawerOpen(true);
           }}
         />
-        <main className="min-h-0 flex-1 overflow-y-auto pb-16 has-[>.h-full]:pb-0">
+        <main ref={mainRef} className="min-h-0 flex-1 overflow-y-auto pb-16 has-[>.h-full]:pb-0">
           <AppRendererProvider>
             <Outlet />
           </AppRendererProvider>
@@ -96,6 +100,7 @@ export function AppShell() {
       <RollInputDialog />
       <LazySearchPalette />
       <KeyboardShortcuts />
+      <ContextMenu />
       <UpdatePrompt />
     </div>
   );

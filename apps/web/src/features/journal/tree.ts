@@ -8,7 +8,10 @@ export interface TreeNode {
   children: TreeNode[];
 }
 
-/** Folders first, then notes and files, alphabetically (like Obsidian). */
+/** A path in a folder whose name starts with "_" (the pictures in _assets): kept out of the tree. */
+export const isHiddenPath = (path: string) => path.split('/').some((part) => part.startsWith('_'));
+
+/** Folders first, then notes and files, alphabetically (like Obsidian); _ folders are hidden. */
 export function buildTree(
   notes: readonly string[],
   attachments: readonly string[],
@@ -25,7 +28,7 @@ export function buildTree(
     }
     return node;
   };
-  for (const f of folders) folderNode(f);
+  for (const f of folders) if (!isHiddenPath(f)) folderNode(f);
   const add = (path: string, kind: 'note' | 'file') => {
     const parent = folderNode(path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '');
     const base = path.slice(path.lastIndexOf('/') + 1);
@@ -37,10 +40,10 @@ export function buildTree(
     });
   };
   notes.forEach((p) => {
-    add(p, 'note');
+    if (!isHiddenPath(p)) add(p, 'note');
   });
   attachments.forEach((p) => {
-    add(p, 'file');
+    if (!isHiddenPath(p)) add(p, 'file');
   });
   const sort = (n: TreeNode) => {
     n.children.sort(

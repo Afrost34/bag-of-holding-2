@@ -50,11 +50,6 @@ export function BoardsPage() {
           <Plus className="h-4 w-4" aria-hidden /> New board
         </Button>
       </div>
-      <p className="text-muted">
-        Infinite DM screens: compendium entries, journal notes, pictures, dice, timers and
-        initiative as cards you move, resize, stack and group. Add cards on a board or with “Send to
-        → Board” on any compendium page.
-      </p>
 
       {creating && (
         <form

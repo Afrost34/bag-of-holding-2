@@ -48,11 +48,6 @@ export function EncountersPage() {
           <Plus className="h-4 w-4" aria-hidden /> New encounter
         </Button>
       </div>
-      <p className="text-muted">
-        Fights prepared ahead: monsters from the compendium, their difficulty for your party (2014
-        thresholds or the 2024 budget, by the campaign’s edition), and a combat tracker on a board
-        in one click. Add monsters here or with “Send to → Encounter” on any creature’s page.
-      </p>
 
       {creating && (
         <form

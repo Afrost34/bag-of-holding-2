@@ -22,8 +22,6 @@ export interface NavModule {
   icon: LucideIcon;
   /** One line shown on the home page and on placeholders. */
   description: string;
-  /** Roadmap milestone that delivers the module; undefined when already built. */
-  milestone?: number;
   /** Shown in the sidebar footer instead of the main list. */
   footer?: boolean;
 }
@@ -41,7 +39,6 @@ export const navModules: readonly NavModule[] = [
     label: 'Compendium',
     icon: BookOpen,
     description: 'Every spell, creature, item, class and book, fully linked and searchable.',
-    milestone: 3,
   },
   {
     path: '/campaigns',
@@ -54,42 +51,36 @@ export const navModules: readonly NavModule[] = [
     label: 'Journal',
     icon: NotebookPen,
     description: 'Campaign notes in Markdown, linked to each other and to the compendium.',
-    milestone: 4,
   },
   {
     path: '/homebrew',
     label: 'Homebrew',
     icon: FlaskConical,
     description: 'Create your own creatures, items, spells and more; share them as packs.',
-    milestone: 5,
   },
   {
     path: '/characters',
     label: 'Characters',
     icon: Users,
     description: 'Build and level characters with every choice tracked, then print them.',
-    milestone: 7,
   },
   {
     path: '/cards',
     label: 'Cards',
     icon: SquareStack,
     description: 'Lay out spell, item and feature cards on A4 pages and print them.',
-    milestone: 8,
   },
   {
     path: '/boards',
     label: 'Boards',
     icon: LayoutDashboard,
     description: 'Infinite DM screens with notes, pages, maps, trackers and dice.',
-    milestone: 9,
   },
   {
     path: '/encounters',
     label: 'Encounters',
     icon: Swords,
     description: 'Balance encounters for your party and run combat.',
-    milestone: 10,
   },
   {
     path: '/tables',
@@ -103,7 +94,6 @@ export const navModules: readonly NavModule[] = [
     label: 'Maps',
     icon: Map,
     description: 'Battle, city and world maps with stamps, grids, pins and nested maps.',
-    milestone: 11,
   },
   {
     path: '/calendar',

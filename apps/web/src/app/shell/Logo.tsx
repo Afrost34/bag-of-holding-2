@@ -21,7 +21,7 @@ export function Wordmark({ className }: { className?: string }) {
       )}
     >
       <span>Bag</span>
-      <span className="my-0.5 text-[0.5em] tracking-[0.25em] text-brand" aria-hidden>
+      <span className="my-0.5 text-[0.5em] tracking-[0.25em] text-accent-ink" aria-hidden>
         — of —
       </span>
       <span className="sr-only">of</span>

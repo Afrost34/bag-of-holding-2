@@ -67,7 +67,11 @@ export function NotesListPage({ typeId, note }: { typeId: string; note?: string 
   const count = visible.length;
   return (
     <NotesProvider campaign={campaign}>
-      <div ref={setScrollElement} className="relative h-full overflow-y-auto">
+      <div
+        ref={setScrollElement}
+        data-scroll-memory="list"
+        className="relative h-full overflow-y-auto"
+      >
         <div className="mx-auto max-w-6xl px-4 py-6 md:px-8">
           <PageHeading
             aside={

@@ -125,13 +125,14 @@ test('notes, compendium entries and pasted images are embedded', async ({ page }
   await expect(editor(page)).toContainText('The City of Splendors.');
   await expect(editor(page).getByRole('heading', { name: 'Magic Missile' })).toBeVisible();
   await expect(editor(page).getByRole('img', { name: 'map' })).toBeVisible();
+  // The picture is saved in _assets, which the file tree keeps out of sight.
   await showFiles(page);
   await expect(
     page
       .getByRole('navigation', { name: 'Journal files' })
       .filter({ visible: true })
       .getByRole('treeitem', { name: '_assets' }),
-  ).toBeVisible();
+  ).toHaveCount(0);
 });
 
 test('notes show up in the search (Ctrl+K) and open from there', async ({ page }) => {

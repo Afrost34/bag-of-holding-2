@@ -49,7 +49,10 @@ export function CardGridPage({
   };
 
   return (
-    <div className="h-full overflow-y-auto after:block after:h-16 after:content-['']">
+    <div
+      data-scroll-memory="grid"
+      className="h-full overflow-y-auto after:block after:h-16 after:content-['']"
+    >
       <div className="mx-auto max-w-6xl px-4 py-6 md:px-8">
         <PageHeading>{category.label}</PageHeading>
         <label className="relative mb-6 block max-w-md">

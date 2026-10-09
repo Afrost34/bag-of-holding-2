@@ -84,6 +84,9 @@ test('a region’s random encounter table rolls a fight into the encounter build
     await expect(
       tables.getByRole('list', { name: 'Rolled on Woods encounters' }).getByRole('listitem'),
     ).toHaveCount(1);
+    // Unlinked from the note, the table leaves it (and stays a table).
+    await tables.getByRole('button', { name: 'Unlink Woods encounters' }).click();
+    await expect(side.getByRole('listitem', { name: 'Woods encounters' })).toHaveCount(0);
   }
 });
 

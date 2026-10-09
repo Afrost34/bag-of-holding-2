@@ -50,11 +50,6 @@ export function TablesPage() {
           <Plus className="h-4 w-4" aria-hidden /> New table
         </Button>
       </div>
-      <p className="text-muted">
-        Loot to roll, a shop’s wares and prices, random encounters for a region. Link a table to
-        notes, encounters and creatures: they show it, ready to roll, and an encounter table builds
-        the fight in one click.
-      </p>
 
       <section
         aria-label="Treasure"
