@@ -1,4 +1,5 @@
 import { newId } from '../cards/model';
+import type { ScreenSection } from './dmScreen';
 import { sortCombatants, type Combatant, type CombatState } from './combat';
 import type { Npc } from './npc';
 import type { DistanceUnit } from './units';
@@ -56,6 +57,8 @@ export type CardContent =
   | { kind: 'names'; species?: string; names: { name: string; species: string }[] }
   /** Feet, metres, squares, miles and kilometres (see units.ts). */
   | { kind: 'converter'; value: number; unit: DistanceUnit }
+  /** The DM screen: conditions, actions and quick-reference tables (see dmScreen.ts). */
+  | { kind: 'screen'; section: ScreenSection }
   | { kind: 'frame'; title: string }
   | { kind: 'stack'; items: string[]; active: number };
 
@@ -109,6 +112,7 @@ export const SIZES: Record<CardKind, { w: number; h: number }> = {
   npc: { w: 360, h: 520 },
   names: { w: 340, h: 460 },
   converter: { w: 280, h: 280 },
+  screen: { w: 440, h: 560 },
   frame: { w: 760, h: 480 },
   stack: { w: 340, h: 380 },
   calendar: { w: 340, h: 460 },

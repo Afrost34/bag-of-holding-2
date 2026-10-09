@@ -77,4 +77,17 @@ test('real characters build, print and pick Wild Shape forms', async ({ page }, 
     await expect(wild).toContainText('CR up to 2');
     await expect(wild).toContainText('Circle Forms');
   });
+
+  await test.step('the DM screen lists the 2024 conditions and actions', async () => {
+    await page.goto('./#/boards?list=1');
+    await page.getByRole('button', { name: 'New board' }).click();
+    await page.getByRole('button', { name: 'Create' }).click();
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'DM screen' }).click();
+    const card = page.getByRole('region', { name: 'DM screen' });
+    await card.getByText('Blinded', { exact: true }).click();
+    await expect(card).toContainText('automatically fail any ability check that requires sight');
+    await card.getByRole('button', { name: 'Actions' }).click();
+    await expect(card.getByText('Influence', { exact: true })).toBeVisible();
+  });
 });
