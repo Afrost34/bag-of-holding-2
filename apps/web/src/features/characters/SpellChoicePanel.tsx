@@ -27,10 +27,13 @@ export function SpellChoicePanel({
   isEnabled,
   onChange,
   from,
+  granted = [],
 }: {
   choice: AnsweredChoice;
   /** The feature that gives the pick, named in the heading ("Cantrips · Thaumaturge"). */
   from?: string | undefined;
+  /** Spells of this list the character has anyway (a feat, the species, a domain), shown first. */
+  granted?: readonly GrantedSpell[];
   decisions: CharacterDecisions;
   isEnabled: (source: string | undefined) => boolean;
   onChange: (picks: string[]) => void;
@@ -110,6 +113,8 @@ export function SpellChoicePanel({
           . Pick another spell to get the most from this choice.
         </p>
       )}
+
+      {granted.length > 0 && <GrantedRows spells={granted} />}
 
       {picks.length > 0 && (
         <ul className="space-y-1.5">
@@ -208,6 +213,7 @@ function SpellRowCard({
   option,
   alsoFrom,
   action,
+  tag,
   disabled = false,
   onAction,
 }: {
@@ -216,9 +222,12 @@ function SpellRowCard({
   option: OptionSummary | undefined;
   /** Other things that already give this spell. */
   alsoFrom: string[];
-  action: 'Learn' | 'Remove';
+  /** None for spells the character has anyway (they cannot be removed here). */
+  action?: 'Learn' | 'Remove';
+  /** Where a granted spell comes from ("Elf · 1/day"), in place of the second line. */
+  tag?: string;
   disabled?: boolean;
-  onAction: () => void;
+  onAction?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const name = row?.name ?? option?.name ?? pickName(id);
@@ -250,7 +259,9 @@ function SpellRowCard({
               {(row?.legacy ?? option?.legacy) && <LegacyBadge />}
             </span>
             <span className="block truncate text-xs text-muted">
-              {alsoFrom.length > 0 ? (
+              {tag ? (
+                <span className="font-semibold text-accent-ink">{tag}</span>
+              ) : alsoFrom.length > 0 ? (
                 <span className="font-semibold text-accent-ink">
                   Already yours: {alsoFrom.join(', ')}
                 </span>
@@ -265,25 +276,27 @@ function SpellRowCard({
           <span className="hidden truncate md:block">{text('time')}</span>
           <span className="hidden truncate md:block">{text('range')}</span>
         </button>
-        <button
-          type="button"
-          aria-label={`${action} ${name}`}
-          disabled={disabled}
-          onClick={onAction}
-          className={cn(
-            'shrink-0 rounded border px-2.5 py-1 text-xs font-bold uppercase disabled:opacity-40',
-            action === 'Learn'
-              ? 'border-accent text-accent-ink hover:bg-accent hover:text-accent-fg'
-              : 'border-border text-muted hover:border-accent',
-          )}
-        >
-          {action === 'Learn' ? (
-            <Plus className="mr-0.5 inline h-3 w-3" aria-hidden />
-          ) : (
-            <Minus className="mr-0.5 inline h-3 w-3" aria-hidden />
-          )}
-          {action}
-        </button>
+        {action && (
+          <button
+            type="button"
+            aria-label={`${action} ${name}`}
+            disabled={disabled}
+            onClick={onAction}
+            className={cn(
+              'shrink-0 rounded border px-2.5 py-1 text-xs font-bold uppercase disabled:opacity-40',
+              action === 'Learn'
+                ? 'border-accent text-accent-ink hover:bg-accent hover:text-accent-fg'
+                : 'border-border text-muted hover:border-accent',
+            )}
+          >
+            {action === 'Learn' ? (
+              <Plus className="mr-0.5 inline h-3 w-3" aria-hidden />
+            ) : (
+              <Minus className="mr-0.5 inline h-3 w-3" aria-hidden />
+            )}
+            {action}
+          </button>
+        )}
       </div>
       {open && row && <Details row={row} />}
     </li>
@@ -300,5 +313,32 @@ function Details({ row }: { row: ListRow }) {
         <p className="text-muted">Loading…</p>
       )}
     </div>
+  );
+}
+
+/** A spell the character has from something else, shown in a list it belongs to. */
+export interface GrantedSpell {
+  key: string;
+  /** Where it comes from and how it is had: "Elf · 1/day", "Life Domain · Always prepared". */
+  tag: string;
+}
+
+/** Spells had anyway: rows like the picks, to open and read, without a Remove button. */
+export function GrantedRows({ spells }: { spells: readonly GrantedSpell[] }) {
+  const rows = useListRows('spells');
+  const byKey = useMemo(() => new Map((rows ?? []).map((r) => [r.key, r])), [rows]);
+  return (
+    <ul className="space-y-1.5" aria-label="Spells you have from elsewhere">
+      {spells.map((s) => (
+        <SpellRowCard
+          key={s.key}
+          id={s.key}
+          row={byKey.get(s.key)}
+          option={undefined}
+          alsoFrom={[]}
+          tag={s.tag}
+        />
+      ))}
+    </ul>
   );
 }
