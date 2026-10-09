@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { GAP, MARGIN, PAGE_H, PAGE_W, type Packing, type PackItem } from './packing';
 
 /** The packed pages, each exactly A4. */
@@ -5,10 +6,13 @@ export function PackedPages({
   packing,
   items,
   label = 'Card page',
+  decorate,
 }: {
   packing: Packing;
   items: readonly PackItem[];
   label?: string;
+  /** Wraps an item as shown (buttons over a card on screen); the packing is unchanged. */
+  decorate?: (id: string, node: ReactNode) => ReactNode;
 }) {
   const byId = new Map(items.map((c) => [c.id, c]));
   return (
@@ -27,7 +31,9 @@ export function PackedPages({
               {page.columns.map((column, c) => (
                 <div key={c} className="flex min-h-0 flex-col overflow-hidden" style={{ gap: GAP }}>
                   {column.map((id) => (
-                    <div key={id}>{byId.get(id)?.node}</div>
+                    <div key={id}>
+                      {decorate ? decorate(id, byId.get(id)?.node) : byId.get(id)?.node}
+                    </div>
                   ))}
                 </div>
               ))}

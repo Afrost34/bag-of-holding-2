@@ -207,24 +207,21 @@ test('the character sheet prints on A4 pages', async ({ page }, testInfo) => {
   await page.getByRole('checkbox', { name: 'Personality and backstory' }).uncheck();
   await expect(preview.getByText('Backstory', { exact: true })).toHaveCount(0);
 
-  // Cards: each can be left out, moved, or rewritten before printing.
-  await page.getByRole('button', { name: 'Cards', exact: true }).click();
-  const features = page.getByRole('list', { name: 'Features and traits' });
-  const first = features.getByRole('listitem').first();
-  const firstName = (await first.getAttribute('aria-label')) ?? '';
-  // (Order: with one card here it cannot move; with more, it goes down a place.)
-  if ((await features.getByRole('listitem').count()) > 1) {
-    await features.getByRole('button', { name: `Move ${firstName} down` }).click();
-    await expect(features.getByRole('listitem').nth(1)).toHaveAttribute('aria-label', firstName);
-  } else
-    await expect(features.getByRole('button', { name: `Move ${firstName} down` })).toBeDisabled();
-  await features.getByRole('button', { name: `Edit ${firstName}` }).click();
-  await features.getByLabel(`Text of ${firstName}`).fill('Written by hand, 2d6 at a time.');
-  await features.getByRole('button', { name: 'Save' }).click();
+  // Cards are arranged on the preview itself: rewritten, left out (to a page of their own,
+  // never printed) and put back.
+  const card = preview.getByRole('group', { name: /^Arrange / }).first();
+  const firstName = ((await card.getAttribute('aria-label')) ?? '').replace(/^Arrange /, '');
+  await card.getByRole('button', { name: `Edit ${firstName}` }).click();
+  const dialog = page.getByRole('dialog', { name: `Text of ${firstName}` });
+  await dialog.getByRole('textbox').fill('Written by hand, 2d6 at a time.');
+  await dialog.getByRole('button', { name: 'Save' }).click();
   await expect(preview.getByText('Written by hand,').first()).toBeVisible();
-  await features.getByRole('checkbox', { name: `Print ${firstName}` }).uncheck();
-  await expect(preview.getByText('Written by hand,')).toHaveCount(0);
-  await features.getByRole('checkbox', { name: `Print ${firstName}` }).check();
+  await card.getByRole('button', { name: `Hide ${firstName}` }).click();
+  const hiddenPage = page.getByRole('region', { name: 'Hidden cards' });
+  await expect(hiddenPage).toContainText('Written by hand,');
+  await expect(page.getByRole('region', { name: /^Cards page/ })).toHaveCount(0);
+  await hiddenPage.getByRole('button', { name: `Show ${firstName}` }).click();
+  await expect(hiddenPage).toHaveCount(0);
   // Reload once the choice is on disk (the write is quick, but a reload at once can beat it).
   await waitForSaved(page, 'campaigns/old-rules/characters', '"story"');
   await page.reload();

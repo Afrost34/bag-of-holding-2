@@ -29,6 +29,16 @@ export interface PrintData {
   measurer: ReactNode;
   /** Every card the sheet can print, by group, to choose which ones print. */
   cardChoices: CardGroup[];
+  /** What each printed card is (by its packing id): to arrange it on the page. */
+  cardInfo: ReadonlyMap<string, CardPlace>;
+  /** Cards left out: shown on a page of their own at the end of the preview, never printed. */
+  hiddenCards: { choice: CardChoice; node: ReactNode }[];
+}
+
+/** A printed card, and the cards of its group (ids, in print order), to move it among them. */
+export interface CardPlace {
+  choice: CardChoice;
+  group: string[];
 }
 
 export interface CardGroup {
@@ -108,8 +118,14 @@ export function usePrintData(
   const editsId = JSON.stringify(character?.preferences.printEdits ?? {});
   const dc = view?.sheet.spellcasting[0]?.dc.value;
 
-  const { cards, cardChoices } = useMemo(() => {
-    if (!character || !view) return { cards: [], cardChoices: [] };
+  const { cards, cardChoices, cardInfo, hiddenCards } = useMemo(() => {
+    if (!character || !view)
+      return {
+        cards: [],
+        cardChoices: [],
+        cardInfo: new Map<string, CardPlace>(),
+        hiddenCards: [],
+      };
     const off = new Set(hiddenId.split('\n'));
     const order = orderId ? orderId.split('\n') : [];
     const edits = JSON.parse(editsId) as Record<string, string>;
@@ -224,7 +240,22 @@ export function usePrintData(
         },
         ...g.cards.map(({ id, node }) => ({ id, node })),
       ]);
-    return { cards: packed, cardChoices: choices };
+    const info = new Map<string, CardPlace>();
+    const hiddenCards: { choice: CardChoice; node: ReactNode }[] = [];
+    for (const g of groups) {
+      if (!shown(g.section)) continue;
+      const choiceOf = new Map(
+        (choices.find((c) => c.title === g.title)?.cards ?? []).map((c) => [c.id, c]),
+      );
+      const group = [...choiceOf.keys()];
+      for (const c of g.cards) {
+        const choice = choiceOf.get(c.hideId);
+        if (!choice) continue;
+        if (off.has(c.hideId)) hiddenCards.push({ choice, node: c.node });
+        else info.set(c.id, { choice, group });
+      }
+    }
+    return { cards: packed, cardChoices: choices, cardInfo: info, hiddenCards };
   }, [character, view, spells, entities, hiddenId, orderId, editsId, dc]);
 
   const key = `${cards.map((c) => c.id).join('|')}#${String(entities.size)}`;
@@ -234,7 +265,17 @@ export function usePrintData(
       character && view ? printedFeatures(character, view, entities).map((p) => p.feature) : [],
     [character, view, entities],
   );
-  return { entities, spells, features, cards, packing, measurer, cardChoices };
+  return {
+    entities,
+    spells,
+    features,
+    cards,
+    packing,
+    measurer,
+    cardChoices,
+    cardInfo,
+    hiddenCards,
+  };
 }
 
 /**
