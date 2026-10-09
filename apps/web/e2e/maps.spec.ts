@@ -557,7 +557,7 @@ test('a world map measures distances, and a route moves the calendar on', async 
 
 test('a pin leads to a note: clicked on a board, the note opens beside the map', async ({
   page,
-}) => {
+}, testInfo) => {
   await installData(page);
   await createCampaign(page, 'Rust and Sunfire');
   await page.goto('./#/journal');
@@ -570,7 +570,12 @@ test('a pin leads to a note: clicked on a board, the note opens beside the map',
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await page.getByLabel('Pin label').fill('Gull’s Rest');
   await page.getByLabel('Pin leads to').selectOption({ label: 'A journal note' });
-  await page.getByLabel('Pin note').selectOption({ label: 'Gull’s Rest' });
+  // Notes are found by typing part of their name.
+  await page.getByRole('searchbox', { name: 'Pin note' }).fill('gull');
+  await page
+    .getByRole('list', { name: 'Notes' })
+    .getByRole('button', { name: /Gull’s Rest/ })
+    .click();
   await page.getByLabel('Hidden from players').check();
   await waitForSaved(page, 'campaigns/rust-and-sunfire/maps', '"secret":true');
   await waitForSaved(page, 'campaigns/rust-and-sunfire/maps', '"note":"Gull’s Rest.md"');
@@ -587,6 +592,21 @@ test('a pin leads to a note: clicked on a board, the note opens beside the map',
   await expect(map.locator('canvas')).toHaveCount(1);
   const card = await map.boundingBox();
   if (!card) throw new Error('no map card');
+  // Resting the mouse on the pin previews its note.
+  if (testInfo.project.name === 'desktop') {
+    await page.mouse.move(card.x + card.width / 2 - 3, card.y + card.height / 2 - 3);
+    await page.mouse.move(card.x + card.width / 2, card.y + card.height / 2);
+    await expect(page.getByRole('tooltip', { name: 'Preview: Gull’s Rest' })).toBeVisible();
+    // The wheel over the map zooms the board, not the map inside the card.
+    const viewport = page.locator('.react-flow__viewport');
+    const before = await viewport.getAttribute('style');
+    await page.mouse.wheel(0, -300);
+    await expect.poll(() => viewport.getAttribute('style')).not.toBe(before);
+    await page.mouse.wheel(0, 300);
+    const after = await map.boundingBox();
+    if (!after) throw new Error('no map card');
+    await page.mouse.move(after.x + after.width / 2, after.y + after.height / 2);
+  }
   await page.mouse.click(card.x + card.width / 2, card.y + card.height / 2);
   // The note card is added beside the map (off screen on a phone: the board file says so).
   await waitForSaved(page, 'campaigns/rust-and-sunfire/boards', '"path": "Gull’s Rest.md"');

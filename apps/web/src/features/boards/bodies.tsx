@@ -1,3 +1,4 @@
+import { parseFrontmatter } from '@boh/journal';
 import { EntityView } from '@boh/renderer';
 import { Button, cn } from '@boh/ui';
 import { Pause, Play, Plus, RotateCcw, X } from 'lucide-react';
@@ -72,8 +73,9 @@ function NoteBody({ path }: { path: string }) {
   const hasJournal = useContext(JournalViewContext) !== null;
   if (!hasJournal) return <p className="text-muted">Notes show on the campaign’s boards.</p>;
   if (text === undefined) return <p className="text-muted">This note no longer exists.</p>;
-  // Live: shown again whenever the note changes.
-  return <NoteViewer key={text} text={text} />;
+  // Live: shown again whenever the note changes. Only the content: properties stay in the journal.
+  const body = text.slice(parseFrontmatter(text).bodyStart);
+  return <NoteViewer key={body} text={body} />;
 }
 
 export function ImageBody({

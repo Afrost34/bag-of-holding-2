@@ -19,6 +19,7 @@ import { useSpeciesNames } from '../../app/boards/useSpeciesNames';
 import { CharacterSheetCard } from '../../app/characters/CharacterSheetCard';
 import { journalPath } from '../../app/journal/paths';
 import { useJournal } from '../../app/journal/store';
+import { PinHover } from '../../app/maps/PinHover';
 import { MapScene } from '../../app/maps/scene';
 import { useMaps } from '../../app/maps/store';
 import { useAppNavigate } from '../../app/navigation';
@@ -31,7 +32,10 @@ import type { CardContent } from '../../app/boards/model';
  * made up on the spot.
  */
 
-/** A map of the Maps module, to pan and zoom (edited in the map maker). */
+/**
+ * A map of the Maps module, fitted to its card: drag to look around it; the wheel zooms the
+ * board, not the map (edited in the map maker).
+ */
 /**
  * A point of the page in the map's own pixels: the board may be zoomed, so the card is drawn
  * smaller or larger on screen than its canvas is.
@@ -78,19 +82,6 @@ export function MapBody({ card }: { card: Extract<BoardCard, { kind: 'map' }> })
   useEffect(() => {
     if (doc) scene?.setDoc(doc);
   }, [scene, doc]);
-  useEffect(() => {
-    const el = host.current;
-    if (!el || !scene) return;
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      const at = localPoint(el, e.clientX, e.clientY);
-      scene.zoomAt(at.x, at.y, Math.exp(-e.deltaY * 0.0015));
-    };
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => {
-      el.removeEventListener('wheel', onWheel);
-    };
-  }, [scene]);
   if (!doc) return <p className="text-muted">This map no longer exists.</p>;
   return (
     <div className="-m-3 flex h-[calc(100%+1.5rem)] flex-col">
@@ -132,6 +123,7 @@ export function MapBody({ card }: { card: Extract<BoardCard, { kind: 'map' }> })
           actions.addBeside(card.id, [content]);
         }}
       />
+      <PinHover scene={scene} host={host} campaignId={doc.campaign} />
       <div className="flex justify-end border-t border-border px-2 py-1">
         <AppLink
           to={`/maps/${doc.id}`}

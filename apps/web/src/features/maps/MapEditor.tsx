@@ -52,6 +52,7 @@ import { usePageTitle } from '../../app/tabs/usePageTitle';
 import { eraseStrokes, ROUTE_COLOR, routeStatus, simplify, type Drag } from './editorModel';
 import { DeleteMap, NameInput } from './EditorParts';
 import { MapPanels } from './MapPanels';
+import { PinHover } from '../../app/maps/PinHover';
 import {
   TOOLS_WITH_SETTINGS,
   toolsFor,
@@ -843,6 +844,7 @@ function Editor({ doc }: { doc: MapDoc }) {
               e.preventDefault();
             }}
           />
+          <PinHover scene={scene} host={host} campaignId={doc.campaign} />
           {loadingPicture && (
             <p className="pointer-events-none absolute bottom-2 left-2 rounded-md bg-surface/90 px-3 py-1 text-sm text-muted shadow-card">
               Loading the picture…
