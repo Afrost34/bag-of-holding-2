@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   advanceTurn,
   changeHp,
+  joinCombat,
   LAIR,
   monsterStats,
   previousTurn,
@@ -106,5 +107,32 @@ describe('combat', () => {
     expect(hit.tempHp).toBeUndefined();
     expect(changeHp(c, -50).hp).toBe(0);
     expect(changeHp(c, 5).hp).toBe(12);
+  });
+});
+
+describe('joining a combat', () => {
+  it('adds creatures numbered with their kind, and characters only once', () => {
+    const lia = { id: 'lia', name: 'Lia', ac: 13, hp: 20, initBonus: 3 };
+    const first = joinCombat(
+      { combatants: [], turn: null, round: 1 },
+      [{ key: 'monster:goblin@mm', count: 1, data: goblin }],
+      [lia],
+      sequenceRng([10, 18]),
+    );
+    expect(first.combatants.map((c) => c.n)).toEqual([undefined, undefined]);
+    const started = advanceTurn(first);
+    const more = joinCombat(
+      started,
+      [{ key: 'monster:goblin@mm', count: 2, data: goblin }],
+      [lia],
+      sequenceRng([1, 2]),
+    );
+    expect(more.turn).toBe(started.turn);
+    expect(more.combatants.filter((c) => c.character === 'lia')).toHaveLength(1);
+    const goblins = more.combatants.filter((c) => c.key === 'monster:goblin@mm');
+    expect(goblins.map((c) => c.n).sort()).toEqual([1, 2, 3]);
+    // The goblin already fighting is Goblin 1.
+    expect(goblins.find((c) => c.initiative === 12)?.n).toBe(1);
+    expect(new Set(more.combatants.map((c) => c.id)).size).toBe(4);
   });
 });

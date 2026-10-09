@@ -1,5 +1,10 @@
 import { addBoardCards, type CardContent } from '../boards/model';
-import { startCombat, type CharacterInput, type CombatState } from '../boards/combat';
+import {
+  startCombat,
+  type CharacterInput,
+  type CombatState,
+  type MonsterInput,
+} from '../boards/combat';
 import { useBoards } from '../boards/store';
 import { useCampaigns } from '../campaigns/store';
 import type { CharacterFile } from '../characters/model';
@@ -37,10 +42,12 @@ async function characterInput(c: CharacterFile): Promise<CharacterInput | null> 
   }
 }
 
-/** The encounter's combatants, initiative rolled. */
-export async function combatFor(encounter: Encounter): Promise<CombatState> {
-  const monsters = await Promise.all(
-    encounter.monsters.map(async (m) => {
+/** Monsters with their stat blocks, ready to fight. */
+export function monsterInputs(
+  list: readonly { key: string; count: number; name?: string | undefined }[],
+): Promise<MonsterInput[]> {
+  return Promise.all(
+    list.map(async (m) => {
       const e = await loadEntity(m.key);
       return {
         key: m.key,
@@ -50,10 +57,19 @@ export async function combatFor(encounter: Encounter): Promise<CombatState> {
       };
     }),
   );
-  const party = await Promise.all((await partyOf(encounter)).map(characterInput));
+}
+
+/** Characters' numbers for a fight (AC, hit points, initiative), from their sheets. */
+export async function characterInputs(list: readonly CharacterFile[]): Promise<CharacterInput[]> {
+  const read = await Promise.all(list.map(characterInput));
+  return read.filter((c): c is CharacterInput => c !== null);
+}
+
+/** The encounter's combatants, initiative rolled. */
+export async function combatFor(encounter: Encounter): Promise<CombatState> {
   return startCombat(
-    monsters,
-    party.filter((c): c is CharacterInput => c !== null),
+    await monsterInputs(encounter.monsters),
+    await characterInputs(await partyOf(encounter)),
   );
 }
 

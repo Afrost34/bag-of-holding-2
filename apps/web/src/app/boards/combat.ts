@@ -257,3 +257,54 @@ export function removeCombatant(state: CombatState, id: string): CombatState {
   const combatants = next.combatants.filter((c) => c.id !== id);
   return { ...next, combatants, turn: next.turn === id ? null : next.turn };
 }
+
+/** Same-kind creatures numbered 1, 2, 3 (numbers already given stay); one alone has none. */
+function numberGroups(list: readonly Combatant[]): Combatant[] {
+  const group = (c: Combatant) => (c.key ? (c.name ?? c.key) : null);
+  const sizes = new Map<string, number>();
+  for (const c of list) {
+    const g = group(c);
+    if (g !== null) sizes.set(g, (sizes.get(g) ?? 0) + 1);
+  }
+  const used = new Map<string, Set<number>>();
+  for (const c of list) {
+    const g = group(c);
+    if (g !== null && c.n) used.set(g, (used.get(g) ?? new Set()).add(c.n));
+  }
+  return list.map((c) => {
+    const g = group(c);
+    if (g === null || (sizes.get(g) ?? 0) < 2 || c.n) return c;
+    const taken = used.get(g) ?? new Set<number>();
+    let n = 1;
+    while (taken.has(n)) n++;
+    used.set(g, taken.add(n));
+    return { ...c, n };
+  });
+}
+
+/**
+ * Adds creatures and characters to a combat under way (or still empty): initiative rolled for
+ * the newcomers, characters already fighting left out, creatures numbered with their kind.
+ */
+export function joinCombat(
+  state: CombatState,
+  monsters: readonly MonsterInput[],
+  characters: readonly CharacterInput[],
+  rng: Rng = secureRng,
+): CombatState {
+  const fighting = new Set(state.combatants.flatMap((c) => (c.character ? [c.character] : [])));
+  const added = startCombat(
+    monsters,
+    characters.filter((c) => !fighting.has(c.id)),
+    rng,
+  ).combatants;
+  const ids = state.combatants.map((c) => c.id);
+  const fresh = added.map(({ n: _n, ...c }) => {
+    const id = newId(ids);
+    ids.push(id);
+    return { ...c, id };
+  });
+  // Numbered in the order they joined: the creatures already there keep the first numbers.
+  const all = numberGroups([...state.combatants, ...fresh]);
+  return { ...state, combatants: sortCombatants(all) };
+}

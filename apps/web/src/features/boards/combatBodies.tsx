@@ -4,7 +4,6 @@ import { ChevronLeft, ChevronRight, Crown, Plus, Swords, X } from 'lucide-react'
 import { useState } from 'react';
 import type { BoardCard } from '../../app/boards/model';
 import {
-  addCombatant,
   advanceTurn,
   changeHp,
   CONDITIONS,
@@ -22,6 +21,7 @@ import { useEntity } from '../../app/data/entities';
 import { useEncounters } from '../../app/encounters/store';
 import { combatFor } from '../../app/encounters/run';
 import { useEncounterInfo } from '../../app/encounters/useDifficulty';
+import { CombatAdd } from './CombatAdd';
 import { useBoardActions } from './context';
 
 type CombatCard = Extract<BoardCard, { kind: 'combat' }>;
@@ -38,13 +38,15 @@ function useCombatantName(c: Combatant): string {
 /** The combat tracker: turn order, hit points, conditions, concentration, legendary actions. */
 export function CombatBody({ card }: { card: CombatCard }) {
   const { update } = useBoardActions();
-  const [adding, setAdding] = useState(false);
+  // A new, empty combat opens on what to add.
+  const [adding, setAdding] = useState(card.combatants.length === 0);
   // The opened combatant shows beside the order, which stays as it is.
   const [openId, setOpenId] = useState<string | null>(null);
   const change = (fn: (s: CombatState) => CombatState) => {
     update(card.id, (c) => (c.kind === 'combat' ? { ...c, ...fn(c) } : c));
   };
   const order = turnOrder(card.combatants);
+  const fighting = new Set(card.combatants.flatMap((c) => (c.character ? [c.character] : [])));
   const byId = new Map(card.combatants.map((c) => [c.id, c]));
   const opened = openId ? byId.get(openId) : undefined;
   const open = (id: string) => {
@@ -126,12 +128,10 @@ export function CombatBody({ card }: { card: CombatCard }) {
           })}
         </ol>
         {adding ? (
-          <AddCombatant
-            onAdd={(c) => {
-              change((s) => addCombatant(s, c));
-              setAdding(false);
-            }}
-            onCancel={() => {
+          <CombatAdd
+            change={change}
+            fighting={fighting}
+            onDone={() => {
               setAdding(false);
             }}
           />
@@ -142,7 +142,7 @@ export function CombatBody({ card }: { card: CombatCard }) {
               setAdding(true);
             }}
           >
-            <Plus className="h-4 w-4" aria-hidden /> Add a combatant
+            <Plus className="h-4 w-4" aria-hidden /> Add to the combat
           </Button>
         )}
       </div>
@@ -415,88 +415,6 @@ function StatBlock({ entityKey }: { entityKey: string }) {
     <div className="text-sm">
       <EntityView type={e.type} data={e.data} edition={e.edition} />
     </div>
-  );
-}
-
-function AddCombatant({
-  onAdd,
-  onCancel,
-}: {
-  onAdd: (c: Omit<Combatant, 'id' | 'conditions'>) => void;
-  onCancel: () => void;
-}) {
-  const [name, setName] = useState('');
-  const [init, setInit] = useState('');
-  const [hp, setHp] = useState('');
-  const [ac, setAc] = useState('');
-  const field = 'rounded border border-border bg-surface px-2 py-1 text-sm';
-  return (
-    <form
-      aria-label="New combatant"
-      className="grid grid-cols-[1fr_4rem_4rem_4rem] gap-1"
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (!name.trim()) return;
-        const h = Math.max(1, Number(hp) || 1);
-        onAdd({
-          name: name.trim(),
-          initiative: Number(init) || 0,
-          initBonus: 0,
-          hp: h,
-          maxHp: h,
-          ac: Number(ac) || 10,
-        });
-      }}
-    >
-      <input
-        value={name}
-        placeholder="Name"
-        aria-label="Combatant name"
-        autoFocus
-        onChange={(e) => {
-          setName(e.target.value);
-        }}
-        className={field}
-      />
-      <input
-        type="number"
-        value={init}
-        placeholder="Init"
-        aria-label="Combatant initiative"
-        onChange={(e) => {
-          setInit(e.target.value);
-        }}
-        className={field}
-      />
-      <input
-        type="number"
-        value={hp}
-        placeholder="HP"
-        aria-label="Combatant hit points"
-        onChange={(e) => {
-          setHp(e.target.value);
-        }}
-        className={field}
-      />
-      <input
-        type="number"
-        value={ac}
-        placeholder="AC"
-        aria-label="Combatant armor class"
-        onChange={(e) => {
-          setAc(e.target.value);
-        }}
-        className={field}
-      />
-      <div className="col-span-4 flex gap-1">
-        <Button type="submit" variant="primary">
-          Add
-        </Button>
-        <Button type="button" variant="ghost" onClick={onCancel}>
-          Cancel
-        </Button>
-      </div>
-    </form>
   );
 }
 
