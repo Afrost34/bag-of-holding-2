@@ -14,6 +14,8 @@ import { useMaps } from './store';
 
 /** How long the pointer rests on a pin before its preview opens (ms). */
 const DELAY = 300;
+/** How long the preview stays after the mouse leaves the pin, to reach it (ms). */
+const GRACE = 350;
 const WIDTH = 384;
 const HEIGHT = 420;
 
@@ -27,7 +29,8 @@ interface Hovered {
 
 /**
  * A preview of where a pin leads (the note, the compendium entry, the map), shown beside the
- * pointer while it rests on the pin. Mouse only: on a touch screen a tap follows the pin.
+ * pointer while it rests on the pin. The mouse can move onto it to scroll and read it all; it
+ * closes a moment after the mouse leaves both. Mouse only: on a touch screen a tap follows the pin.
  * Rendered once next to a map canvas; it listens to the canvas's host element itself.
  */
 export function PinHover({
@@ -41,20 +44,43 @@ export function PinHover({
   campaignId?: string | undefined;
 }) {
   const [shown, setShown] = useState<Hovered | null>(null);
-  const timer = useRef<number | undefined>(undefined);
+  const openTimer = useRef<number | undefined>(undefined);
+  const closeTimer = useRef<number | undefined>(undefined);
   const pending = useRef<string | null>(null);
+  /** Whether the mouse is on the preview itself. */
+  const inside = useRef(false);
+
+  const keep = () => {
+    window.clearTimeout(closeTimer.current);
+  };
+  /** Closes now: a click on the map, or Escape. */
+  const close = () => {
+    window.clearTimeout(openTimer.current);
+    window.clearTimeout(closeTimer.current);
+    pending.current = null;
+    inside.current = false;
+    setShown(null);
+  };
+  /** Closes in a moment, unless the mouse comes back (to the pin or onto the preview). */
+  const closeSoon = () => {
+    window.clearTimeout(openTimer.current);
+    pending.current = null;
+    window.clearTimeout(closeTimer.current);
+    closeTimer.current = window.setTimeout(() => {
+      if (!inside.current) setShown(null);
+    }, GRACE);
+  };
+  const latest = useRef({ keep, close, closeSoon });
+  useEffect(() => {
+    latest.current = { keep, close, closeSoon };
+  });
 
   useEffect(() => {
     const el = host.current;
     if (!el || !scene) return;
-    const hide = () => {
-      window.clearTimeout(timer.current);
-      pending.current = null;
-      setShown(null);
-    };
     const onMove = (e: PointerEvent) => {
       if (e.pointerType !== 'mouse' || e.buttons !== 0) {
-        hide();
+        latest.current.close();
         return;
       }
       const r = el.getBoundingClientRect();
@@ -63,39 +89,60 @@ export function PinHover({
       const hit = scene.hit(scene.toMap((e.clientX - r.left) * k, (e.clientY - r.top) * k));
       const link = hit?.kind === 'pin' ? pinLink(hit) : null;
       if (!hit || !link) {
-        hide();
+        latest.current.closeSoon();
         return;
       }
+      latest.current.keep();
       if (pending.current === hit.id) return;
       pending.current = hit.id;
-      window.clearTimeout(timer.current);
+      window.clearTimeout(openTimer.current);
       const at = { x: e.clientX, y: e.clientY };
       const label = hit.kind === 'pin' ? hit.label : '';
-      timer.current = window.setTimeout(() => {
-        setShown({ id: hit.id, label, link, ...at });
+      openTimer.current = window.setTimeout(() => {
+        setShown((now) => (now?.id === hit.id ? now : { id: hit.id, label, link, ...at }));
       }, DELAY);
     };
+    const onLeave = () => {
+      latest.current.closeSoon();
+    };
+    const onDown = () => {
+      latest.current.close();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') latest.current.close();
+    };
     el.addEventListener('pointermove', onMove);
-    el.addEventListener('pointerleave', hide);
-    el.addEventListener('pointerdown', hide);
+    el.addEventListener('pointerleave', onLeave);
+    el.addEventListener('pointerdown', onDown);
+    window.addEventListener('keydown', onKey);
     return () => {
       el.removeEventListener('pointermove', onMove);
-      el.removeEventListener('pointerleave', hide);
-      el.removeEventListener('pointerdown', hide);
-      window.clearTimeout(timer.current);
+      el.removeEventListener('pointerleave', onLeave);
+      el.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('keydown', onKey);
+      window.clearTimeout(openTimer.current);
+      window.clearTimeout(closeTimer.current);
     };
   }, [scene, host]);
 
   if (!shown) return null;
-  // Beside the pointer, kept inside the window.
-  const left = Math.max(8, Math.min(shown.x + 16, window.innerWidth - WIDTH - 8));
-  const top = Math.max(8, Math.min(shown.y + 16, window.innerHeight - HEIGHT - 8));
+  // Just beside the pointer (a short way to move onto it), kept inside the window.
+  const left = Math.max(8, Math.min(shown.x + 12, window.innerWidth - WIDTH - 8));
+  const top = Math.max(8, Math.min(shown.y + 12, window.innerHeight - HEIGHT - 8));
   return createPortal(
     <div
       role="tooltip"
       aria-label={`Preview: ${shown.label || 'pin'}`}
       style={{ left, top, width: WIDTH, maxHeight: HEIGHT }}
-      className="pointer-events-none fixed z-50 overflow-hidden rounded-lg border border-border bg-surface text-sm shadow-card"
+      onPointerEnter={() => {
+        inside.current = true;
+        keep();
+      }}
+      onPointerLeave={() => {
+        inside.current = false;
+        closeSoon();
+      }}
+      className="fixed z-50 overflow-y-auto overscroll-contain rounded-lg border border-border bg-surface text-sm shadow-card"
     >
       <Content link={shown.link} campaignId={campaignId} />
     </div>,
