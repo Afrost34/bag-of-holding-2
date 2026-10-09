@@ -117,6 +117,7 @@ export function useAddOptions(
       label: 'Unit converter',
     },
     simple('screen', 'screen', () => ({ kind: 'screen', section: 'conditions' })),
+    simple('table', 'table', () => ({ kind: 'table' })),
     simple('text', 'text', () => ({ kind: 'text', text: '' })),
     simple('dice', 'dice', () => ({ kind: 'dice', formulas: [] })),
     simple('timer', 'timer', () => ({ kind: 'timer', seconds: 600, elapsed: 0 })),

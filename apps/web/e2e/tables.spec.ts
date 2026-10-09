@@ -181,3 +181,28 @@ test('a compendium table is copied into a roll table of one’s own', async ({ p
     page.getByRole('list', { name: 'Rolled on Wild Surge' }).getByRole('listitem'),
   ).toHaveCount(1);
 });
+
+test('a table goes on a board as a card, and rolls there', async ({ page }) => {
+  await newTable(page, 'Wild magic', 'Other (effects, events…)');
+  const add = page.getByLabel('Add a row of text');
+  await add.fill('Your hair turns blue');
+  await add.press('Enter');
+  await expect(
+    page.getByRole('region', { name: 'Rows' }).getByRole('columnheader', { name: 'd1' }),
+  ).toBeVisible();
+
+  await page.goto('./#/boards?list=1');
+  await page.getByRole('button', { name: 'New board' }).click();
+  await page.getByRole('button', { name: 'Create' }).click();
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Random table' }).click();
+  await page
+    .getByRole('list', { name: 'Tables' })
+    .getByRole('button', { name: /Wild magic/ })
+    .click();
+  await expect(page.getByRole('heading', { name: 'Wild magic', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Roll Wild magic' }).click();
+  await expect(page.getByRole('list', { name: 'Rolled on Wild magic' })).toContainText(
+    'Your hair turns blue',
+  );
+});

@@ -19,6 +19,7 @@ import { useBoardActions, useIsPlayersBoard } from './context';
 import { ConverterBody } from './ConverterBody';
 import { MapBody } from './MapCard';
 import { ScreenBody } from './ScreenBody';
+import { TableBody } from './TableBody';
 import { CharacterBody, NamesBody, NpcBody } from './widgetBodies';
 
 /** What a card shows under its title bar. */
@@ -52,6 +53,8 @@ export function CardBody({ card }: { card: BoardCard }) {
       return <ConverterBody card={card} />;
     case 'screen':
       return <ScreenBody card={card} />;
+    case 'table':
+      return <TableBody card={card} />;
     case 'calendar':
       return <CalendarBody />;
     case 'frame':

@@ -10,6 +10,7 @@ import {
   UserRound,
   Ruler,
   ScrollText,
+  ListOrdered,
   Tags,
   Wand2,
   Swords,
@@ -24,6 +25,7 @@ import { useEntity } from '../../app/data/entities';
 import { useCharacters } from '../../app/characters/store';
 import { useEncounters } from '../../app/encounters/store';
 import { useMaps } from '../../app/maps/store';
+import { useTables } from '../../app/tables/store';
 
 /** Below this zoom cards show their title only, large: cheap to draw and readable from afar. */
 export const FAR_ZOOM = 0.2;
@@ -50,6 +52,7 @@ export const KIND_ICONS: Record<CardKind, LucideIcon> = {
   names: Tags,
   converter: Ruler,
   screen: ScrollText,
+  table: ListOrdered,
   calendar: CalendarDays,
   frame: Frame,
   stack: Layers,
@@ -70,6 +73,7 @@ export const KIND_LABELS: Record<CardKind, string> = {
   names: 'Names',
   converter: 'Unit converter',
   screen: 'DM screen',
+  table: 'Random table',
   calendar: 'Calendar',
   frame: 'Frame',
   stack: 'Stack',
@@ -83,6 +87,9 @@ export function useCardTitle(card: BoardCard): string {
   );
   const map = useMaps((s) =>
     card.kind === 'map' ? s.maps.find((m) => m.id === card.map)?.name : undefined,
+  );
+  const table = useTables((s) =>
+    card.kind === 'table' ? s.tables.find((t) => t.id === card.table)?.name : undefined,
   );
   const character = useCharacters((s) =>
     card.kind === 'character' ? s.characters.find((c) => c.id === card.character)?.name : undefined,
@@ -98,5 +105,6 @@ export function useCardTitle(card: BoardCard): string {
   if (card.kind === 'map') return map ?? KIND_LABELS.map;
   if (card.kind === 'character') return character ?? KIND_LABELS.character;
   if (card.kind === 'npc') return card.npc.name;
+  if (card.kind === 'table') return table ?? KIND_LABELS.table;
   return KIND_LABELS[card.kind];
 }

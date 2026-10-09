@@ -25,12 +25,13 @@ import { newId } from '../cards/model';
 
 export const TABLES_DIR = 'tables';
 
-export type TableKind = 'loot' | 'shop' | 'encounter';
+export type TableKind = 'loot' | 'shop' | 'encounter' | 'other';
 
 export const TABLE_KINDS: readonly { id: TableKind; label: string; entry: string }[] = [
   { id: 'loot', label: 'Loot', entry: 'item' },
   { id: 'shop', label: 'Shop', entry: 'item' },
   { id: 'encounter', label: 'Random encounters', entry: 'monster' },
+  { id: 'other', label: 'Other (effects, events…)', entry: 'item' },
 ];
 
 export interface TableRow {
