@@ -3,6 +3,7 @@ import { useContext, useEffect, useState } from 'react';
 import {
   addCombatant,
   joinCombat,
+  startCombat,
   type CharacterInput,
   type Combatant,
   type CombatState,
@@ -19,26 +20,35 @@ type Tab = (typeof TABS)[number];
 
 /**
  * Adding to a combat on the board: a creature from the compendium (several at once), the
- * campaign's characters, a prepared encounter (its creatures and the party), or anyone by hand.
+ * campaign's characters, or anyone by hand; or a prepared encounter, which starts a new fight
+ * in place of this one (its creatures, and the party if asked).
  * Newcomers roll initiative and take their place in the order, even mid-fight.
  */
 export function CombatAdd({
   change,
   fighting,
+  occupied,
   onDone,
 }: {
   change: (fn: (s: CombatState) => CombatState) => void;
   /** Ids of the characters already in the fight. */
   fighting: ReadonlySet<string>;
+  /** Whether anyone is in the fight (loading an encounter replaces them). */
+  occupied: boolean;
   onDone: () => void;
 }) {
   const [tab, setTab] = useState<Tab>('Creature');
   const [busy, setBusy] = useState(false);
-  const join = (monsters: Promise<MonsterInput[]>, characters: Promise<CharacterInput[]>) => {
+  const join = (
+    monsters: Promise<MonsterInput[]>,
+    characters: Promise<CharacterInput[]>,
+    /** A new fight in place of this one (a prepared encounter), not more fighters. */
+    replace = false,
+  ) => {
     setBusy(true);
     void Promise.all([monsters, characters])
       .then(([m, c]) => {
-        change((s) => joinCombat(s, m, c));
+        change((s) => (replace ? startCombat(m, c) : joinCombat(s, m, c)));
       })
       .finally(() => {
         setBusy(false);
@@ -93,7 +103,12 @@ export function CombatAdd({
         <EncounterPick
           busy={busy}
           onLoad={(encounter, party) => {
-            join(monsterInputs(encounter.monsters), characterInputs(party));
+            if (
+              occupied &&
+              !window.confirm(`Start ${encounter.name} in place of the combat on this card?`)
+            )
+              return;
+            join(monsterInputs(encounter.monsters), characterInputs(party), true);
           }}
         />
       )}
@@ -274,7 +289,7 @@ function EncounterPick({
             setWithParty(e.target.checked);
           }}
         />
-        With the party (characters already fighting stay as they are)
+        With the party
       </label>
       <Button type="submit" variant="primary" disabled={busy || !encounter}>
         Load encounter
