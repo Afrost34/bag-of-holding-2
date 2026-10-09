@@ -93,13 +93,18 @@ test('a map is drawn with stamps, brushes, walls, text, templates and pins, then
   await page.mouse.click(at(500, 150).x, at(500, 150).y);
   await page.getByLabel('Pin label').fill('Cave mouth');
 
-  // Measuring counts squares (5 ft each).
+  // Measuring counts squares (5 ft each), along a path: a point per click.
   await tool(page, 'Measure').click();
-  await page.mouse.move(at(100, 500).x, at(100, 500).y);
-  await page.mouse.down();
-  await page.mouse.move(at(400, 500).x, at(400, 500).y, { steps: 5 });
-  await expect(page.getByRole('status').filter({ hasText: /Distance: \d+ ft/ })).toBeVisible();
-  await page.mouse.up();
+  await page.mouse.click(at(100, 500).x, at(100, 500).y);
+  await page.mouse.click(at(400, 500).x, at(400, 500).y);
+  const leg = page.getByRole('status').filter({ hasText: /Distance: \d+ ft/ });
+  await expect(leg).toBeVisible();
+  const feet = async () => Number(/(\d+) ft/.exec((await leg.textContent()) ?? '')?.[1]);
+  const first = await feet();
+  await page.mouse.click(at(400, 300).x, at(400, 300).y);
+  await expect.poll(feet).toBeGreaterThan(first);
+  await page.keyboard.press('Escape');
+  await expect(leg).toHaveCount(0);
 
   // Everything is on the layers; undo takes the last one back.
   await page.getByRole('tab', { name: 'Layers' }).click();
@@ -525,13 +530,11 @@ test('a world map measures distances, and a route moves the calendar on', async 
   const box = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
   if (!box) throw new Error('no canvas');
   await tool(page, 'Measure').click();
-  await page.mouse.move(box.x + 100, box.y + 300);
-  await page.mouse.down();
-  await page.mouse.move(box.x + 400, box.y + 300, { steps: 5 });
+  await page.mouse.click(box.x + 100, box.y + 300);
+  await page.mouse.click(box.x + 400, box.y + 300);
   await expect(
     page.getByRole('status').filter({ hasText: /Distance: [\d,]+ km · Skiff: (\d|about)/ }),
   ).toBeVisible();
-  await page.mouse.up();
 
   // A route, stop by stop, says how far it goes so far.
   await tool(page, 'Route').click();
@@ -608,6 +611,16 @@ test('a pin leads to a note: clicked on a board, the note opens beside the map',
     await page.mouse.move(after.x + after.width / 2, after.y + after.height / 2);
   }
   await page.mouse.click(card.x + card.width / 2, card.y + card.height / 2);
+  // The card's ruler measures a path too.
+  const tools = page.getByRole('toolbar', { name: 'Map tools' });
+  await tools.getByRole('button', { name: 'Measure' }).click();
+  const now = await map.boundingBox();
+  if (!now) throw new Error('no map card');
+  await page.mouse.click(now.x + 20, now.y + 20);
+  await page.mouse.click(now.x + now.width - 20, now.y + 20);
+  await page.mouse.click(now.x + now.width - 20, now.y + now.height - 20);
+  await expect(page.getByRole('status', { name: 'Measured' })).toHaveText(/\d/);
+  await tools.getByRole('button', { name: 'Look around' }).click();
   // The note card is added beside the map (off screen on a phone: the board file says so).
   await waitForSaved(page, 'campaigns/rust-and-sunfire/boards', '"path": "Gull’s Rest.md"');
 });
