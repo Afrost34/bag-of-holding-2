@@ -51,6 +51,8 @@ export default defineConfig({
         // Big libraries in chunks of their own: cached across app updates, loaded only by the
         // pages that use them (the note editor, the map canvas, the 3D dice, the boards).
         codeSplitting: {
+          // Only the libraries themselves: shared code they use (React) stays where it was.
+          includeDependenciesRecursively: false,
           groups: [
             { name: 'lezer', test: /node_modules[\\/]@lezer/ },
             {
