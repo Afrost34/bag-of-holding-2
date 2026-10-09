@@ -1,7 +1,13 @@
 /** Types and styles shared by the map maker's side panels. */
 import type { Point } from '../../app/maps/geometry';
 import { type MapDoc, type MapItem } from '../../app/maps/model';
-import { type BrushSettings, type TemplateSettings, type MapMode, type Tool } from './tools';
+import {
+  type BrushSettings,
+  type FogSettings,
+  type MapMode,
+  type TemplateSettings,
+  type Tool,
+} from './tools';
 
 export type Tab = 'stamps' | 'layers' | 'pins' | 'grid' | 'item';
 
@@ -28,6 +34,8 @@ export interface MapPanelsProps {
   setEraser: (w: number) => void;
   template: TemplateSettings;
   setTemplate: (t: TemplateSettings) => void;
+  fog: FogSettings;
+  setFog: (f: FogSettings) => void;
   snap: boolean;
   setSnap: (s: boolean) => void;
   /** Starts measuring from a point (a pin's "Measure from here"). */

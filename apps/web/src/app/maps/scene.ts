@@ -17,7 +17,15 @@ import { arcLayout, dashSegments, dotsAlong, type RouteDash } from './lettering'
 import { hexCorners, templateOutline, type Point } from './geometry';
 import { resizedView, type ViewBase } from './view';
 import { hiddenFromPlayers } from './pinLink';
-import { itemShown, layerShown, pinStyle, type Grid, type MapDoc, type MapItem } from './model';
+import {
+  fogHides,
+  itemShown,
+  layerShown,
+  pinStyle,
+  type Grid,
+  type MapDoc,
+  type MapItem,
+} from './model';
 import { pinIconSvg } from './pinIcons';
 import { terrainTile, type TerrainId } from './terrain';
 
@@ -252,6 +260,8 @@ export class MapScene {
   private readonly scaleBarView = new Container();
   private scaleBarKey = '';
   private readonly layers = new Container();
+  private readonly fog = new Container();
+  private fogKey = '';
   private readonly overlay = new Container();
   private readonly selection = new Graphics();
   private readonly preview = new Graphics();
@@ -300,6 +310,7 @@ export class MapScene {
     this.world.addChild(
       this.background,
       this.layers,
+      this.fog,
       this.gridLines,
       this.scaleBarView,
       this.overlay,
@@ -483,6 +494,7 @@ export class MapScene {
         pic.destroy({ children: true });
         this.pictureViews.delete(key);
       }
+    this.drawFog(doc);
     this.applyVisibility(doc);
     this.scalePins();
     for (const [id, node] of this.nodes)
@@ -511,6 +523,42 @@ export class MapScene {
   }
 
   /**
+   * The fog: areas the players cannot see yet, laid and cut in order on a small canvas. The DM
+   * sees it faint over the map, the players see it black.
+   */
+  private drawFog(doc: MapDoc): void {
+    const shapes = doc.reveal ?? [];
+    const key = JSON.stringify([shapes, doc.width, doc.height, this.forPlayers]);
+    if (key === this.fogKey) return;
+    this.fogKey = key;
+    for (const c of this.fog.removeChildren()) c.destroy({ children: true });
+    if (shapes.length === 0 || typeof document === 'undefined') return;
+    const k = Math.min(1, 2048 / Math.max(doc.width, doc.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(doc.width * k));
+    canvas.height = Math.max(1, Math.round(doc.height * k));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.fillStyle = '#0b0b10';
+    for (const shape of shapes) {
+      ctx.globalCompositeOperation = shape.revealed ? 'destination-out' : 'source-over';
+      ctx.beginPath();
+      for (let i = 0; i + 1 < shape.points.length; i += 2) {
+        const x = (shape.points[i] ?? 0) * k;
+        const y = (shape.points[i + 1] ?? 0) * k;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+    const sprite = new Sprite(Texture.from(canvas));
+    sprite.scale.set(1 / k);
+    sprite.alpha = this.forPlayers ? 1 : 0.5;
+    this.fog.addChild(sprite);
+  }
+
+  /**
    * What shows: the active variant's items, the Creator's no pins or routes, the players' no
    * secret pins, and no pin in a hidden category.
    */
@@ -520,7 +568,9 @@ export class MapScene {
       let shown = itemShown(doc, id);
       if (this.hideAnnotations && (item.kind === 'pin' || item.kind === 'route')) shown = false;
       if (item.kind === 'pin')
-        shown &&= !pinStyle(doc, item).hidden && !(this.forPlayers && item.secret === true);
+        shown &&=
+          !pinStyle(doc, item).hidden &&
+          !(this.forPlayers && (item.secret === true || fogHides(doc, item.x, item.y)));
       node.view.visible = shown;
     }
   }
@@ -812,6 +862,7 @@ export class MapScene {
         if (this.forPlayers && hiddenFromPlayers(item)) continue;
         if (this.hideAnnotations && (item.kind === 'pin' || item.kind === 'route')) continue;
         if (!itemShown(this.doc, item.id)) continue;
+        if (this.forPlayers && item.kind === 'pin' && fogHides(this.doc, item.x, item.y)) continue;
         if (item.kind === 'stroke' || item.kind === 'wall' || item.kind === 'route') {
           const width =
             item.kind === 'wall'

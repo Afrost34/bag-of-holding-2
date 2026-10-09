@@ -1,6 +1,13 @@
 /** Pure helpers of the map maker: erasing, simplifying strokes, the route status line. */
 import { eraseStroke, type Point } from '../../app/maps/geometry';
-import { addItem, itemId, removeItem, type MapDoc, type MapItem } from '../../app/maps/model';
+import {
+  addItem,
+  itemId,
+  layerShown,
+  removeItem,
+  type MapDoc,
+  type MapItem,
+} from '../../app/maps/model';
 import { formatDistance, routeLength, speedsOf, travelTimes } from '../../app/maps/travel';
 
 /** New routes' colour (the item keeps it, so it can be changed later). */
@@ -19,7 +26,7 @@ export function routeStatus(points: readonly number[], doc: MapDoc): string {
 }
 
 export interface Drag {
-  mode: 'pan' | 'move' | 'stroke' | 'erase' | 'measure' | 'template' | 'calibrate';
+  mode: 'pan' | 'move' | 'stroke' | 'erase' | 'measure' | 'template' | 'fog' | 'calibrate';
   start: Point;
   screen: Point;
   last: Point;
@@ -34,7 +41,7 @@ export interface Drag {
 export function eraseStrokes(doc: MapDoc, path: readonly number[], radius: number): MapDoc {
   let next = doc;
   for (const layer of doc.layers) {
-    if (!layer.visible || layer.locked) continue;
+    if (!layerShown(doc, layer) || layer.locked) continue;
     for (const item of layer.items) {
       if (item.kind !== 'stroke') continue;
       const pieces = eraseStroke(item.points, path, radius + item.width / 2);

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { docStore, inCampaign } from '../docStore';
+import { publishMap } from './live';
 import {
   newMap,
   parseMap,
@@ -49,6 +50,10 @@ export const useMaps = create<MapsStore>()((set, get) => {
     maps: [],
     loaded: false,
     ...docs.actions,
+    save: (map) => {
+      docs.actions.save(map);
+      publishMap(map);
+    },
     create: (name, campaign, kind) =>
       docs.add(inCampaign(newMap(name, docs.ids(), new Date().toISOString(), kind), campaign)),
   };

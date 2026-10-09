@@ -7,6 +7,7 @@ import {
   Hand,
   Maximize,
   Ruler,
+  Triangle,
   ZoomIn,
   ZoomOut,
   type LucideIcon,
@@ -14,7 +15,10 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
 import type { BoardCard, CardContent } from '../../app/boards/model';
+import { templateOutline } from '../../app/maps/geometry';
+import { useLiveMaps } from '../../app/maps/live';
 import { measurePath, measurePoint } from '../../app/maps/measure';
+import type { TemplateShape } from '../../app/maps/model';
 import { PinHover } from '../../app/maps/PinHover';
 import { pinLink } from '../../app/maps/pinLink';
 import { MapScene } from '../../app/maps/scene';
@@ -25,7 +29,7 @@ interface Point {
   x: number;
   y: number;
 }
-type Tool = 'look' | 'measure';
+type Tool = 'look' | 'measure' | 'range';
 
 /**
  * A point of the page in the map's own pixels: the board may be zoomed, so the card is drawn
@@ -60,6 +64,14 @@ export function MapBody({ card }: { card: Extract<BoardCard, { kind: 'map' }> })
   const flow = useReactFlow();
   const locked = card.locked === true;
   const forPlayers = useIsPlayersBoard();
+  // In the player window the DM's changes (fog, variants, pins) arrive live.
+  useLiveMaps(forPlayers);
+  /** A range to show (spell cone, sphere…), measured in feet: never kept on the map. */
+  const [range, setRange] = useState<{ shape: TemplateShape; feet: number }>({
+    shape: 'cone',
+    feet: 15,
+  });
+  const rangeFrom = useRef<Point | null>(null);
   useEffect(() => {
     if (!loaded) void load();
   }, [loaded, load]);
@@ -134,6 +146,16 @@ export function MapBody({ card }: { card: Extract<BoardCard, { kind: 'map' }> })
             pick('look');
           }}
         />
+        {doc.kind !== 'world' && (
+          <ToolButton
+            label="Range"
+            Icon={Triangle}
+            pressed={tool === 'range'}
+            onClick={() => {
+              pick('range');
+            }}
+          />
+        )}
         <ToolButton
           label="Measure"
           Icon={Ruler}
@@ -190,7 +212,7 @@ export function MapBody({ card }: { card: Extract<BoardCard, { kind: 'map' }> })
         // drag): `nopan`, and the press stops at the map.
         className={cn(
           'nopan relative min-h-0 flex-1 touch-none overflow-hidden bg-sunken',
-          tool === 'measure' ? 'cursor-crosshair' : 'cursor-grab',
+          tool === 'look' ? 'cursor-grab' : 'cursor-crosshair',
         )}
         onMouseDown={(e) => {
           e.stopPropagation();
@@ -198,10 +220,30 @@ export function MapBody({ card }: { card: Extract<BoardCard, { kind: 'map' }> })
         onPointerDown={(e) => {
           if (e.button === 1) e.preventDefault();
           e.currentTarget.setPointerCapture(e.pointerId);
+          if (tool === 'range') {
+            rangeFrom.current = toMap(e.clientX, e.clientY);
+            return;
+          }
           drag.current = { x: e.clientX, y: e.clientY };
           downAt.current = { x: e.clientX, y: e.clientY };
         }}
         onPointerMove={(e) => {
+          if (tool === 'range' && rangeFrom.current && scene) {
+            const to = toMap(e.clientX, e.clientY);
+            const from = rangeFrom.current;
+            if (!to) return;
+            const angle = (Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI;
+            const o = templateOutline(range.shape, from, range.feet, angle, doc.grid);
+            scene.drawPreview(
+              (g) => {
+                if (o.circle) g.circle(o.circle.x, o.circle.y, o.circle.r);
+                if (o.polygon) g.poly(o.polygon.flatMap((q) => [q.x, q.y]));
+                g.fill({ color: 0xdc2626, alpha: 0.25 }).stroke({ color: 0xdc2626, width: 3 });
+              },
+              { text: `${String(range.feet)} ft ${range.shape}`, at: to },
+            );
+            return;
+          }
           if (tool === 'measure' && !drag.current) {
             const p = toMap(e.clientX, e.clientY);
             setHover(p ? measurePoint(p, basis) : null);
@@ -230,6 +272,10 @@ export function MapBody({ card }: { card: Extract<BoardCard, { kind: 'map' }> })
         }}
         onPointerUp={(e) => {
           drag.current = null;
+          if (tool === 'range') {
+            rangeFrom.current = null;
+            return;
+          }
           // A click, not a drag: the ruler adds a point; otherwise a pin opens beside the map.
           const from = downAt.current;
           if (!scene || !from || Math.hypot(e.clientX - from.x, e.clientY - from.y) > 5) return;
@@ -269,6 +315,34 @@ export function MapBody({ card }: { card: Extract<BoardCard, { kind: 'map' }> })
                 Clear
               </button>
             )}
+          </>
+        ) : tool === 'range' ? (
+          <>
+            <select
+              aria-label="Range shape"
+              value={range.shape}
+              onChange={(e) => {
+                setRange({ ...range, shape: e.target.value as TemplateShape });
+              }}
+              className="rounded border border-border bg-surface px-1 py-0.5"
+            >
+              <option value="cone">Cone</option>
+              <option value="sphere">Sphere</option>
+              <option value="cube">Cube</option>
+              <option value="line">Line</option>
+            </select>
+            <input
+              type="number"
+              aria-label="Range in feet"
+              min={5}
+              step={5}
+              value={range.feet}
+              onChange={(e) => {
+                setRange({ ...range, feet: Math.max(5, Number(e.target.value) || 5) });
+              }}
+              className="w-16 rounded border border-border bg-surface px-1 py-0.5"
+            />
+            <span className="flex-1 truncate text-muted">ft. Drag on the map from the origin.</span>
           </>
         ) : (
           <span className="flex-1" />

@@ -1,4 +1,5 @@
 import { newId } from '../cards/model';
+import { pointInPolygon } from './geometry';
 import type { RouteDash } from './lettering';
 import type { TerrainId } from './terrain';
 import type { MapScale, TravelSpeed } from './travel';
@@ -692,10 +693,20 @@ export function removeVariant(doc: MapDoc, id: string): MapDoc {
 
 // region Fog (areas the players cannot see until revealed)
 
-/** Hides an area from the players (a polygon, or a rectangle from two corners). */
-export function addFog(doc: MapDoc, points: number[]): MapDoc {
+/**
+ * Hides an area from the players (a polygon), or with `revealed` cuts a hole in the fog laid
+ * before it. Shapes apply in order, so a later one wins.
+ */
+export function addFog(doc: MapDoc, points: number[], revealed = false): MapDoc {
   const id = newId([...allIds(doc), ...(doc.reveal ?? []).map((r) => r.id)]);
-  return { ...doc, reveal: [...(doc.reveal ?? []), { id, points, revealed: false }] };
+  return { ...doc, reveal: [...(doc.reveal ?? []), { id, points, revealed }] };
+}
+
+/** Whether the fog hides a point from the players (the last shape over it decides). */
+export function fogHides(doc: MapDoc, x: number, y: number): boolean {
+  let hidden = false;
+  for (const r of doc.reveal ?? []) if (pointInPolygon({ x, y }, r.points)) hidden = !r.revealed;
+  return hidden;
 }
 
 export function setFogRevealed(doc: MapDoc, id: string, revealed: boolean): MapDoc {
