@@ -117,6 +117,7 @@ export function CardFrame({
   subtitle,
   head,
   className,
+  uses,
   children,
 }: {
   accent: string;
@@ -125,6 +126,8 @@ export function CardFrame({
   subtitle: string;
   head?: ReactNode;
   className?: string | undefined;
+  /** Boxes to tick off uses (a feature used once per Long Rest…), beside the title. */
+  uses?: { count: number; per?: string } | null | undefined;
   children: ReactNode;
 }) {
   return (
@@ -137,7 +140,7 @@ export function CardFrame({
     >
       <div className="flex items-center gap-2">
         {icon}
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h4 className="font-serif text-[15px] leading-tight font-bold">{title}</h4>
           <p
             className="text-[10px] first-letter:uppercase"
@@ -146,6 +149,16 @@ export function CardFrame({
             {subtitle}
           </p>
         </div>
+        {uses && (
+          <div className="shrink-0 text-right" aria-label={`${String(uses.count)} uses`}>
+            <div className="flex flex-wrap justify-end gap-0.5">
+              {Array.from({ length: uses.count }, (_, i) => (
+                <span key={i} className="inline-block h-3 w-3 rounded-sm border border-text" />
+              ))}
+            </div>
+            {uses.per && <p className="text-[8px] text-muted uppercase">{uses.per}</p>}
+          </div>
+        )}
       </div>
       {head !== undefined && head !== null && <div className="mt-1.5 space-y-1">{head}</div>}
       {/* Headings inside an entry stay small: the card's title is its only big type. */}
