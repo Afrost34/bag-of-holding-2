@@ -51,6 +51,7 @@ jobs:
           args: ${{ steps.config.outputs.args }}
           includeUpdaterJson: true
           projectPath: apps/desktop
+          tauriScript: pnpm tauri
           tagName: ${{ github.ref_name }}
           releaseName: Bag of Holding ${{ github.ref_name }}
           releaseDraft: true
