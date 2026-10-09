@@ -165,11 +165,17 @@ export function MapBody({ card }: { card: Extract<BoardCard, { kind: 'map' }> })
         ref={host}
         role="img"
         aria-label={`Map: ${doc.name}`}
+        // Drags here move the map only (React Flow would also pan the board on a middle-button
+        // drag): `nopan`, and the press stops at the map.
         className={cn(
-          'relative min-h-0 flex-1 touch-none overflow-hidden bg-sunken',
+          'nopan relative min-h-0 flex-1 touch-none overflow-hidden bg-sunken',
           tool === 'measure' ? 'cursor-crosshair' : 'cursor-grab',
         )}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+        }}
         onPointerDown={(e) => {
+          if (e.button === 1) e.preventDefault();
           e.currentTarget.setPointerCapture(e.pointerId);
           drag.current = { x: e.clientX, y: e.clientY };
           downAt.current = { x: e.clientX, y: e.clientY };

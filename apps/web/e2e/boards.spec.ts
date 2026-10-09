@@ -483,3 +483,32 @@ test('note cards format the whole note, change note in place, and copy with Ctrl
   await expect(card(page, 'Short')).toContainText('A short note.');
   await expect(card(page, 'Plans')).toHaveCount(1);
 });
+
+test('the wheel zooms the board over a card that fits, and scrolls one that does not', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'A mouse wheel.');
+  await page.goto('./#/boards?list=1');
+  await page.getByRole('button', { name: 'New board' }).click();
+  await page.getByRole('button', { name: 'Create' }).click();
+  await addCard(page, 'Text');
+  const body = page.locator('.react-flow__node').last().locator('.nodrag').last();
+  const box = await body.boundingBox();
+  if (!box) throw new Error('no card');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  const viewport = page.locator('.react-flow__viewport');
+  const before = await viewport.getAttribute('style');
+  await page.mouse.wheel(0, -300);
+  await expect.poll(() => viewport.getAttribute('style')).not.toBe(before);
+  // More lines than fit: the wheel scrolls the text, the board stays as it is.
+  await page
+    .getByRole('textbox', { name: 'Text' })
+    .fill(Array.from({ length: 60 }, (_, i) => `Line ${String(i)}`).join('\n'));
+  const after = await body.boundingBox();
+  if (!after) throw new Error('no card');
+  await page.mouse.move(after.x + after.width / 2, after.y + after.height / 2);
+  const still = await viewport.getAttribute('style');
+  await page.mouse.wheel(0, 200);
+  await page.waitForTimeout(500);
+  expect(await viewport.getAttribute('style')).toBe(still);
+});

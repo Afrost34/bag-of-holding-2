@@ -169,7 +169,7 @@ function TextBody({ card }: { card: Extract<BoardCard, { kind: 'text' }> }) {
         const text = e.target.value;
         update(card.id, (c) => (c.kind === 'text' ? { ...c, text } : c));
       }}
-      className="h-full w-full resize-none bg-transparent focus:outline-none"
+      className="block h-full w-full resize-none bg-transparent focus:outline-none"
     />
   );
 }

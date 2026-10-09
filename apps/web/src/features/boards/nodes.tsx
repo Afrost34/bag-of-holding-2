@@ -281,11 +281,13 @@ function Shell({
         ) : (
           <div
             ref={body}
-            // The wheel scrolls a card's content, except over a map: there it zooms the board.
-            className={cn(
-              card.kind !== 'map' && 'nowheel',
-              'nodrag min-h-0 flex-1 cursor-auto overflow-auto p-3 text-sm select-text',
-            )}
+            // The wheel scrolls what can scroll under the pointer (the card's content, a list in
+            // it); where nothing can, it zooms the board. React Flow reads `nowheel` once the
+            // event reaches the board, so it is set here, on the way down.
+            onWheelCapture={(e) => {
+              e.currentTarget.classList.toggle('nowheel', canScroll(e.target, e.currentTarget));
+            }}
+            className="nodrag min-h-0 flex-1 cursor-auto overflow-auto p-3 text-sm select-text"
           >
             {children}
           </div>
@@ -457,3 +459,20 @@ export const FrameNode = memo(function FrameNode({ data, selected }: NodeProps<C
     </section>
   );
 });
+
+/**
+ * Whether there is something to scroll between the element under the pointer and the card's
+ * body (both included): an element with a scroll bar. Cards that fit leave the wheel to the
+ * board's zoom.
+ */
+function canScroll(target: EventTarget, body: HTMLElement): boolean {
+  for (let el = target instanceof Element ? target : null; el; el = el.parentElement) {
+    // A few pixels over (an inline element's descender) is not something to scroll.
+    if (el instanceof HTMLElement && el.scrollHeight > el.clientHeight + 4) {
+      const overflow = getComputedStyle(el).overflowY;
+      if (overflow === 'auto' || overflow === 'scroll') return true;
+    }
+    if (el === body) break;
+  }
+  return false;
+}
