@@ -60,6 +60,14 @@ jobs:
             echo "Install attempt $attempt failed or stalled; trying again."
           done
           exit 1
+      # real-data.spec.ts installs the real 5etools release (skipped without it).
+      - uses: actions/cache@v4
+        with:
+          path: .data/5etools
+          key: 5etools-${{ hashFiles('packages/data5e/src/testing/localData.ts') }}
+      - run: pnpm data:fetch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: pnpm e2e
       - uses: actions/upload-artifact@v4
         if: failure()
