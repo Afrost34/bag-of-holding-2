@@ -4,7 +4,7 @@ import { AlertTriangle, Copy, Printer, Trash2 } from 'lucide-react';
 import { useMemo } from 'react';
 import { AppLink } from '../../app/AppLink';
 import type { CharacterFile } from '../../app/characters/model';
-import { PortraitImage } from './Portrait';
+import { PortraitImage } from '../../app/characters/PortraitImage';
 import { useCharacterView } from './useCharacterView';
 
 const iconButton =

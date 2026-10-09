@@ -324,6 +324,11 @@ test('a character card is the first page of its sheet, with its sections as tabs
   await expect(sheet.getByRole('region', { name: 'Skills' })).toHaveCount(0);
   await sheet.getByRole('tab', { name: 'Sheet' }).click();
   await expect(sheet.getByRole('region', { name: 'Skills' })).toBeVisible();
+  // Passive scores under the abilities; proficiencies in a tab of their own.
+  await expect(sheet.getByLabel('Passive scores')).toContainText('Investigation');
+  await expect(sheet.getByRole('region', { name: 'Proficiencies' })).toHaveCount(0);
+  await sheet.getByRole('tab', { name: 'Proficiencies' }).click();
+  await expect(sheet.getByRole('region', { name: 'Proficiencies' })).toContainText('Languages');
 });
 
 test('a card fills the whole screen, and a map in it still pans and zooms', async ({ page }) => {

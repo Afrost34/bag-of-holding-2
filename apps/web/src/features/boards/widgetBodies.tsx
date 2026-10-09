@@ -5,6 +5,7 @@ import {
   BookOpen,
   NotebookPen,
   ScrollText,
+  ShieldCheck,
   Shuffle,
   Sparkles,
   UserRound,
@@ -32,6 +33,7 @@ const SECTIONS = [
   { part: 'spells', label: 'Spells', Icon: Sparkles },
   { part: 'features', label: 'Features', Icon: ScrollText },
   { part: 'inventory', label: 'Inventory', Icon: Backpack },
+  { part: 'proficiencies', label: 'Proficiencies', Icon: ShieldCheck },
   { part: 'story', label: 'Story', Icon: BookOpen },
 ] as const;
 

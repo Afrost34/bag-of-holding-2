@@ -44,7 +44,7 @@ export type CardContent =
       character: string;
       show: { spells: boolean; features: boolean; inventory: boolean; story?: boolean };
       /** The tab shown: the sheet (absent) or one section alone. */
-      tab?: 'spells' | 'features' | 'inventory' | 'story';
+      tab?: 'spells' | 'features' | 'inventory' | 'proficiencies' | 'story';
     }
   /** The campaign's calendar: today, this month and what comes next. */
   | { kind: 'calendar' }
