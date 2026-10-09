@@ -1,13 +1,12 @@
 import { Button } from '@boh/ui';
-import { Plus, Trash2, Users } from 'lucide-react';
+import { Plus, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { AppLink } from '../../app/AppLink';
 import { useActiveCampaign, useCampaigns } from '../../app/campaigns/store';
 import type { CharacterFile } from '../../app/characters/model';
 import { useCharacters } from '../../app/characters/store';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
-import { PortraitImage } from '../../app/characters/PortraitImage';
+import { CharacterRow } from './CharacterRow';
 
 /** Stands for the library in selects (campaign ids are slugs, never start with @). */
 const LIBRARY = '@library';
@@ -149,50 +148,17 @@ export function CharactersPage() {
           <h2 className="mb-2 font-serif text-lg font-bold">{g.title}</h2>
           <ul className="grid gap-3 sm:grid-cols-2">
             {g.list.map((c) => (
-              <li
+              <CharacterRow
                 key={c.id}
-                className="flex items-center gap-3 rounded-lg border border-border bg-surface p-3"
-              >
-                <PortraitImage character={c} size={48} />
-                <AppLink
-                  to={`/characters/${c.id}?step=class`}
-                  className="min-w-0 flex-1 hover:text-accent-ink"
-                >
-                  <span className="block truncate font-serif text-lg font-bold">{c.name}</span>
-                  <span className="block truncate text-sm text-muted">
-                    {c.summary || 'Not built yet'}
-                  </span>
-                </AppLink>
-                <select
-                  aria-label={`Copy ${c.name} to`}
-                  value=""
-                  onChange={(e) => {
-                    const target = e.target.value;
-                    void copyTo(c.id, target === LIBRARY ? undefined : target);
-                  }}
-                  className="w-24 rounded-md border border-border bg-surface px-1 py-1 text-sm"
-                >
-                  <option value="" disabled>
-                    Copy to…
-                  </option>
-                  {places.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.label}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  aria-label={`Delete ${c.name}`}
-                  onClick={() => {
-                    if (window.confirm(`Delete ${c.name}? This cannot be undone.`))
-                      void remove(c.id);
-                  }}
-                  className="rounded p-1.5 text-muted hover:bg-sunken hover:text-text"
-                >
-                  <Trash2 className="h-4 w-4" aria-hidden />
-                </button>
-              </li>
+                character={c}
+                places={places}
+                onCopy={(target) => {
+                  void copyTo(c.id, target === LIBRARY ? undefined : target);
+                }}
+                onDelete={() => {
+                  if (window.confirm(`Delete ${c.name}? This cannot be undone.`)) void remove(c.id);
+                }}
+              />
             ))}
           </ul>
         </section>
