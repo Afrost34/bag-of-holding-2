@@ -59,6 +59,8 @@ export type CardContent =
   | { kind: 'converter'; value: number; unit: DistanceUnit }
   /** The DM screen: conditions, actions and quick-reference tables (see dmScreen.ts). */
   | { kind: 'screen'; section: ScreenSection }
+  /** A roll table of Tables (its id), rolled on the board; picked on the card when absent. */
+  | { kind: 'table'; table?: string }
   | { kind: 'frame'; title: string }
   | { kind: 'stack'; items: string[]; active: number };
 
@@ -113,6 +115,7 @@ export const SIZES: Record<CardKind, { w: number; h: number }> = {
   names: { w: 340, h: 460 },
   converter: { w: 280, h: 280 },
   screen: { w: 440, h: 560 },
+  table: { w: 380, h: 420 },
   frame: { w: 760, h: 480 },
   stack: { w: 340, h: 380 },
   calendar: { w: 340, h: 460 },
