@@ -99,6 +99,7 @@ accent-coloured text).
 - Fonts: `font-sans` (Inter) for UI, `font-serif` (Merriweather) for headings and section headers.
 - In-app links use `AppLink` / `useAppNavigate` so Ctrl/middle-click opens an app tab.
 - Every page must work at 375 px wide (phone) and with touch.
+- Never `window.confirm`/`alert`/`prompt`: ask with `askConfirm` (`app/confirm.ts`), shown in the app.
 - Interactive elements need accessible names; e2e tests select by role and name.
 - Per-device preferences (theme, tabs, sidebar) may use localStorage via zustand `persist`.
   Anything that should sync between devices goes in the data repo instead (from M4).

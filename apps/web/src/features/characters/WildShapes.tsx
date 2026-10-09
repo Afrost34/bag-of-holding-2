@@ -1,5 +1,6 @@
 import { crLabel, isEligibleForm, wildShapeLimits, type WildShapeLimits } from '@boh/rules';
-import { Plus, Search } from 'lucide-react';
+import { AlertTriangle, Plus, Search } from 'lucide-react';
+import type { ListRow } from '@boh/data5e';
 import { useMemo, useState } from 'react';
 import type { CharacterFile, Companion } from '../../app/characters/model';
 import { useListRows } from '../../app/data/lists';
@@ -65,24 +66,17 @@ function FormPicker({
   const forms = character.companions.filter((c) => c.kind === 'wild shape');
   const chosen = new Set(forms.map((f) => f.key));
   const full = limits.known !== null && forms.length >= limits.known;
+  const anyBeast = character.preferences.wildShapeAnyBeast === true;
+  // With the DM's leave, any Beast (still not a swarm); those beyond the rules are tagged.
+  const listed = anyBeast ? NO_LIMITS : limits;
   const eligible = useMemo(
     () =>
       (rows ?? [])
-        .filter((r) =>
-          isEligibleForm(
-            {
-              name: r.name,
-              type: typeof r.f.type === 'string' ? r.f.type : '',
-              cr: typeof r.f.cr === 'number' ? r.f.cr : null,
-              speeds: Array.isArray(r.f.speeds) ? r.f.speeds.map(String) : [],
-            },
-            limits,
-          ),
-        )
+        .filter((r) => isEligibleForm(candidate(r), listed))
         .sort(
           (a, b) => Number(b.f.cr ?? 0) - Number(a.f.cr ?? 0) || a.name.localeCompare(b.name, 'en'),
         ),
-    [rows, limits],
+    [rows, listed],
   );
   const q = query.trim().toLowerCase();
   const shown = eligible
@@ -113,6 +107,19 @@ function FormPicker({
         </p>
       </div>
       {moonNote && <p className="text-sm">{moonNote}</p>}
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={anyBeast}
+          onChange={(e) => {
+            save({
+              ...character,
+              preferences: { ...character.preferences, wildShapeAnyBeast: e.target.checked },
+            });
+          }}
+        />
+        Ignore the CR, fly and swim limits (DM's permission)
+      </label>
       {full && (
         <p className="text-sm text-muted">
           All your forms are chosen. Remove one below (a long rest swaps one) to choose another.
@@ -149,6 +156,11 @@ function FormPicker({
               <span className="min-w-0 flex-1 truncate font-medium">
                 {r.name}
                 {r.legacy && <LegacyBadge />}
+                {anyBeast && !isEligibleForm(candidate(r), limits) && (
+                  <span className="ml-1.5 inline-flex items-center gap-0.5 rounded bg-sunken px-1 text-[10px] font-semibold text-accent-ink">
+                    <AlertTriangle className="h-3 w-3" aria-hidden /> beyond the rules
+                  </span>
+                )}
               </span>
               <span className="hidden truncate text-xs text-muted sm:block">
                 {Array.isArray(r.f.speeds) ? r.f.speeds.join(', ') : ''}
@@ -180,4 +192,17 @@ function FormPicker({
       )}
     </section>
   );
+}
+
+/** Any Beast, whatever its CR and speeds (the number of forms known still counts). */
+const NO_LIMITS: WildShapeLimits = { known: null, maxCr: 30, fly: true, swim: true };
+
+/** A monster list row as Wild Shape reads it. */
+function candidate(r: ListRow) {
+  return {
+    name: r.name,
+    type: typeof r.f.type === 'string' ? r.f.type : '',
+    cr: typeof r.f.cr === 'number' ? r.f.cr : null,
+    speeds: Array.isArray(r.f.speeds) ? r.f.speeds.map(String) : [],
+  };
 }
