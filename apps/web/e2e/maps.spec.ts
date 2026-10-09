@@ -599,7 +599,21 @@ test('a pin leads to a note: clicked on a board, the note opens beside the map',
   if (testInfo.project.name === 'desktop') {
     await page.mouse.move(card.x + card.width / 2 - 3, card.y + card.height / 2 - 3);
     await page.mouse.move(card.x + card.width / 2, card.y + card.height / 2);
-    await expect(page.getByRole('tooltip', { name: 'Preview: Gull’s Rest' })).toBeVisible();
+    const preview = page.getByRole('tooltip', { name: 'Preview: Gull’s Rest' });
+    await expect(preview).toBeVisible();
+    // The mouse can go onto the preview (to scroll it) without it closing.
+    const tip = await preview.boundingBox();
+    if (!tip) throw new Error('no preview');
+    await page.mouse.move(tip.x + tip.width / 2, tip.y + 20, { steps: 4 });
+    await page.waitForTimeout(600);
+    await expect(preview).toBeVisible();
+    await expect(preview).toHaveCSS('overflow-y', 'auto');
+    // Leaving it closes it.
+    await page.mouse.move(tip.x + tip.width + 200, tip.y + tip.height + 200);
+    await expect(preview).toHaveCount(0);
+    await page.mouse.move(card.x + card.width / 2 - 3, card.y + card.height / 2 - 3);
+    await page.mouse.move(card.x + card.width / 2, card.y + card.height / 2);
+    await expect(preview).toBeVisible();
     // The wheel over the map zooms the board, not the map inside the card.
     const viewport = page.locator('.react-flow__viewport');
     const before = await viewport.getAttribute('style');
