@@ -99,7 +99,7 @@ test('a character is built from its choices and kept', async ({ page }) => {
     page.getByRole('region', { name: 'Core Bard Traits' }).getByLabel('Choose 3 skills (1)'),
   ).toHaveValue('arcana');
   await page.getByRole('link', { name: 'Characters', exact: true }).first().click();
-  await expect(page.getByRole('link', { name: /Lia/ })).toContainText('Level 3 Elf Bard');
+  await expect(page.getByRole('link', { name: /^Lia/ })).toContainText('Level 3 Elf Bard');
 });
 
 test('a multiclass character in a campaign, with rolled hit points, copied to the library', async ({
@@ -147,7 +147,9 @@ test('a multiclass character in a campaign, with rolled hit points, copied to th
 
   // Copied to the library: same choices, the campaign's copy untouched.
   await page.getByRole('link', { name: 'Characters', exact: true }).first().click();
-  await page.getByLabel('Copy Brakka to').selectOption('Library');
+  await expect(page.getByRole('link', { name: 'Export Brakka' })).toHaveAttribute('href', /print/);
+  await page.getByRole('button', { name: 'Copy Brakka to' }).click();
+  await page.getByRole('menuitem', { name: 'Library' }).click();
   await expect(page.getByRole('region', { name: 'Library' })).toContainText(
     'Level 3 Fighter 2 / Bard 1',
   );
