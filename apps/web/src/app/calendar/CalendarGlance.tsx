@@ -1,9 +1,10 @@
 import { Button, cn } from '@boh/ui';
-import { ExternalLink } from 'lucide-react';
-import { useEffect } from 'react';
+import { ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { AppLink } from '../AppLink';
 import {
   addDays,
+  addMonths,
   eventsOn,
   formatDate,
   formatYear,
@@ -15,8 +16,10 @@ import {
   setToday,
   upcoming,
   type Calendar,
+  type CalendarDate,
 } from './model';
 import { useCalendar } from './store';
+import { DayEvents } from './DayEvents';
 
 /**
  * The campaign's calendar at a glance, for a board card or the player window: today, the season
@@ -35,6 +38,9 @@ export function CalendarGlance({
   const stored = useCalendar();
   const { loaded, load, reload, save, campaignId: loadedFor } = stored;
   const cal = given ?? stored.calendar;
+  /** The month shown (today's unless browsed) and the day opened in it. */
+  const [shift, setShift] = useState(0);
+  const [picked, setPicked] = useState<CalendarDate | null>(null);
   useEffect(() => {
     if (campaignId) void load(campaignId);
   }, [campaignId, load]);
@@ -62,7 +68,12 @@ export function CalendarGlance({
     );
   const today = cal.today;
   const season = seasonOf(cal, today);
-  const weeks = monthWeeks(cal, today.year, today.month);
+  const shown = addMonths(cal, { ...today, day: 1 }, shift);
+  const weeks = monthWeeks(cal, shown.year, shown.month);
+  const browse = (by: number) => {
+    setShift(shift + by);
+    setPicked(null);
+  };
   const coming = upcoming(cal, today, 30).filter((u) => !forPlayers || !u.event.secret);
   const color = (id: string | undefined) => cal.categories.find((c) => c.id === id)?.color;
   return (
@@ -82,22 +93,66 @@ export function CalendarGlance({
       </div>
       <table className="w-full table-fixed border-collapse text-center text-xs">
         <caption className="pb-1 text-left font-semibold">
-          {cal.months[today.month]?.name} · {formatYear(cal, today.year)}
+          <span className="flex items-center gap-1">
+            <span className="flex-1">
+              {cal.months[shown.month]?.name} · {formatYear(cal, shown.year)}
+            </span>
+            {shift !== 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  browse(-shift);
+                }}
+                className="rounded px-1.5 text-xs font-normal text-link hover:underline"
+              >
+                This month
+              </button>
+            )}
+            <button
+              type="button"
+              aria-label="Previous month"
+              onClick={() => {
+                browse(-1);
+              }}
+              className="rounded p-0.5 text-muted hover:bg-sunken hover:text-text"
+            >
+              <ChevronLeft className="h-4 w-4" aria-hidden />
+            </button>
+            <button
+              type="button"
+              aria-label="Next month"
+              onClick={() => {
+                browse(1);
+              }}
+              className="rounded p-0.5 text-muted hover:bg-sunken hover:text-text"
+            >
+              <ChevronRight className="h-4 w-4" aria-hidden />
+            </button>
+          </span>
         </caption>
         <tbody>
           {weeks.map((row, i) => (
             <tr key={i}>
               {row.map((day, j) => {
                 if (day === null) return <td key={j} />;
-                const date = { ...today, day };
+                const date = { year: shown.year, month: shown.month, day };
                 const events = eventsOn(cal, date).filter((e) => !forPlayers || !e.secret);
+                const open = picked !== null && sameDay(date, picked);
                 return (
                   <td key={j} className="p-px">
-                    <span
+                    <button
+                      type="button"
+                      aria-label={formatDate(cal, date)}
+                      aria-pressed={open}
                       title={events.map((e) => e.name).join(', ') || undefined}
+                      onClick={() => {
+                        setPicked(open ? null : date);
+                      }}
                       className={cn(
-                        'flex h-6 flex-col items-center justify-center rounded',
-                        sameDay(date, today) && 'bg-accent font-bold text-accent-fg',
+                        'flex h-6 w-full flex-col items-center justify-center rounded hover:bg-sunken',
+                        sameDay(date, today) &&
+                          'bg-accent font-bold text-accent-fg hover:bg-accent',
+                        open && 'ring-2 ring-accent',
                       )}
                     >
                       {day}
@@ -108,7 +163,7 @@ export function CalendarGlance({
                           style={{ backgroundColor: color(events[0]?.category) ?? 'currentColor' }}
                         />
                       )}
-                    </span>
+                    </button>
                   </td>
                 );
               })}
@@ -116,6 +171,17 @@ export function CalendarGlance({
           ))}
         </tbody>
       </table>
+      {picked && (
+        <DayEvents
+          cal={cal}
+          date={picked}
+          forPlayers={forPlayers}
+          {...(given ? {} : { save })}
+          onClose={() => {
+            setPicked(null);
+          }}
+        />
+      )}
       <section aria-label="Coming up">
         <h4 className="font-semibold">Coming up</h4>
         {coming.length === 0 ? (
