@@ -8,6 +8,7 @@ export const PRINT_SECTIONS = [
   { id: 'spellCards', label: 'Spell cards' },
   { id: 'featureCards', label: 'Feature cards' },
   { id: 'itemCards', label: 'Item cards' },
+  { id: 'companionCards', label: 'Companion cards' },
 ] as const;
 
 export type PrintSection = (typeof PRINT_SECTIONS)[number]['id'];

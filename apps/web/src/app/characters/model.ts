@@ -110,6 +110,14 @@ export interface CharacterFile {
 export const COMPANION_KINDS = ['companion', 'familiar', 'mount', 'wild shape', 'summon'] as const;
 export type CompanionKind = (typeof COMPANION_KINDS)[number];
 
+export const COMPANION_LABELS: Record<CompanionKind, string> = {
+  companion: 'Companion',
+  familiar: 'Familiar',
+  mount: 'Mount',
+  'wild shape': 'Wild Shape',
+  summon: 'Summon',
+};
+
 /** A creature attached to a character: a reference to its stat block, never a copy. */
 export interface Companion {
   /** Monster key (`monster:owl@xmm`). */

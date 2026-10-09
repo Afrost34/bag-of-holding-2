@@ -180,6 +180,14 @@ test('a companion is a stat block attached to the character', async ({ page }) =
   await expect(page.getByRole('region', { name: 'Snik' }).getByLabel('What Snik is')).toHaveValue(
     'familiar',
   );
+  // On the printed sheet, Snik is a card with its stat block.
+  await page.getByRole('link', { name: /Printable sheet/ }).click();
+  const snikCard = page
+    .locator('main .paper article')
+    .filter({ has: page.getByRole('heading', { name: 'Snik' }) })
+    .first();
+  await expect(snikCard).toContainText('Familiar · Goblin');
+  await expect(snikCard).toContainText('Scimitar');
 
   // The picture is in the library: another character can use it.
   await newCharacter(page, 'Moss', '2024 rules');

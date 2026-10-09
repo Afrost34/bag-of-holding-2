@@ -5,6 +5,7 @@ import { ChevronDown, PawPrint, Search, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import {
   COMPANION_KINDS,
+  COMPANION_LABELS,
   type CharacterFile,
   type Companion,
   type CompanionKind,
@@ -13,13 +14,7 @@ import { dataWorker } from '../../app/data/client';
 import { useEntity } from '../../app/data/entities';
 import { pickName } from './steps';
 
-const KIND_LABELS: Record<CompanionKind, string> = {
-  companion: 'Companion',
-  familiar: 'Familiar',
-  mount: 'Mount',
-  'wild shape': 'Wild Shape',
-  summon: 'Summon',
-};
+const KIND_LABELS = COMPANION_LABELS;
 
 /** Companions, familiars, mounts, Wild Shapes and summons: stat blocks attached to the character. */
 export function CompanionsStep({
