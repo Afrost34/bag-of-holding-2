@@ -25,12 +25,12 @@ const fields =
     readEntity(data, key, { add: () => undefined });
 
 /**
- * Ability Score Improvement. 2024: the Ability Score Improvement feat or another General feat.
+ * Ability Score Improvement. 2024: any feat (the book offers General feats; the owner opened it up
+ * to every category, e.g. Dragonmark feats).
  * 2014: +2 to one score or +1 to two, or a feat where the campaign allows feats.
  */
 const abilityScoreImprovement: Patch = (key, edition) => {
-  if (edition === '2024')
-    return fields({ feats: [{ anyFromCategory: { category: ['G'], count: 1 } }] })(key, edition);
+  if (edition === '2024') return fields({ feats: [{ any: 1 }] })(key, edition);
   const scores = readAbilities(
     [
       { choose: { from: [...ABILITIES], count: 1, amount: 2 } },
