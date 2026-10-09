@@ -1,16 +1,9 @@
 import { EntityView } from '@boh/renderer';
 import { Button, cn } from '@boh/ui';
-import { ChevronRight, Pause, Play, Plus, RotateCcw, X } from 'lucide-react';
+import { Pause, Play, Plus, RotateCcw, X } from 'lucide-react';
 import { useContext, useEffect, useState } from 'react';
 import { ArtImage } from '../../app/ArtImage';
-import {
-  nextTurn,
-  sortInitiative,
-  timerLeft,
-  type BoardCard,
-  type InitiativeRow,
-} from '../../app/boards/model';
-import { newId } from '../../app/cards/model';
+import { timerLeft, type BoardCard } from '../../app/boards/model';
 import { useEntity } from '../../app/data/entities';
 import { DICE } from '../../app/dice/pool';
 import { useDice } from '../../app/dice/store';
@@ -38,8 +31,6 @@ export function CardBody({ card }: { card: BoardCard }) {
       return <DiceBody card={card} />;
     case 'timer':
       return <TimerBody card={card} />;
-    case 'initiative':
-      return <InitiativeBody card={card} />;
     case 'combat':
       return <CombatBody card={card} />;
     case 'encounter':
@@ -299,125 +290,6 @@ function TimerBody({ card }: { card: Extract<BoardCard, { kind: 'timer' }> }) {
           min
         </label>
       </div>
-    </div>
-  );
-}
-
-function InitiativeBody({ card }: { card: Extract<BoardCard, { kind: 'initiative' }> }) {
-  const { update } = useBoardActions();
-  const [name, setName] = useState('');
-  const [init, setInit] = useState('');
-  const change = (fn: (c: Extract<BoardCard, { kind: 'initiative' }>) => Partial<typeof c>) => {
-    update(card.id, (c) => (c.kind === 'initiative' ? { ...c, ...fn(c) } : c));
-  };
-  const setRow = (id: string, patch: Partial<InitiativeRow>) => {
-    change((c) => ({ rows: c.rows.map((r) => (r.id === id ? { ...r, ...patch } : r)) }));
-  };
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-semibold text-muted uppercase">Round {card.round}</span>
-        <Button
-          variant="primary"
-          className="ml-auto"
-          disabled={card.rows.length === 0}
-          onClick={() => {
-            change((c) => nextTurn(c));
-          }}
-        >
-          Next turn <ChevronRight className="h-4 w-4" aria-hidden />
-        </Button>
-      </div>
-      <ol aria-label="Initiative order" className="divide-y divide-border">
-        {card.rows.map((r, i) => (
-          <li
-            key={r.id}
-            aria-current={i === card.turn ? 'true' : undefined}
-            className={cn(
-              'flex items-center gap-2 py-1',
-              i === card.turn && 'bg-accent-soft font-semibold',
-            )}
-          >
-            <input
-              type="number"
-              value={r.initiative}
-              aria-label={`${r.name} initiative`}
-              onChange={(e) => {
-                setRow(r.id, { initiative: Number(e.target.value) || 0 });
-              }}
-              onBlur={() => {
-                change((c) => ({ rows: sortInitiative(c.rows) }));
-              }}
-              className="w-12 rounded border border-border bg-surface px-1 text-center text-sm"
-            />
-            <span className="min-w-0 flex-1 truncate">{r.name}</span>
-            <input
-              value={r.hp ?? ''}
-              placeholder="HP"
-              aria-label={`${r.name} hit points`}
-              onChange={(e) => {
-                setRow(r.id, { hp: e.target.value });
-              }}
-              className="w-14 rounded border border-border bg-surface px-1 text-center text-sm"
-            />
-            <button
-              type="button"
-              aria-label={`Remove ${r.name}`}
-              onClick={() => {
-                change((c) => {
-                  const rows = c.rows.filter((x) => x.id !== r.id);
-                  return { rows, turn: Math.min(c.turn, Math.max(0, rows.length - 1)) };
-                });
-              }}
-              className="text-muted hover:text-text"
-            >
-              <X className="h-3.5 w-3.5" aria-hidden />
-            </button>
-          </li>
-        ))}
-      </ol>
-      <form
-        className="flex gap-1"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!name.trim()) return;
-          change((c) => ({
-            rows: sortInitiative([
-              ...c.rows,
-              {
-                id: newId(c.rows.map((r) => r.id)),
-                name: name.trim(),
-                initiative: Number(init) || 0,
-              },
-            ]),
-          }));
-          setName('');
-          setInit('');
-        }}
-      >
-        <input
-          value={name}
-          placeholder="Name"
-          aria-label="Combatant name"
-          onChange={(e) => {
-            setName(e.target.value);
-          }}
-          className="min-w-0 flex-1 rounded border border-border bg-surface px-2 py-1 text-sm"
-        />
-        <input
-          type="number"
-          value={init}
-          placeholder="Init"
-          aria-label="Combatant initiative"
-          onChange={(e) => {
-            setInit(e.target.value);
-          }}
-          className="w-16 rounded border border-border bg-surface px-1 py-1 text-sm"
-        />
-        <Button type="submit" variant="ghost" aria-label="Add combatant">
-          <Plus className="h-4 w-4" aria-hidden />
-        </Button>
-      </form>
     </div>
   );
 }

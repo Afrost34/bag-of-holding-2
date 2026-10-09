@@ -5,7 +5,6 @@ import {
   dropCard,
   moveBoardCards,
   newBoard,
-  nextTurn,
   parseBoard,
   contentOf,
   playersBoardId,
@@ -13,7 +12,6 @@ import {
   serializeBoard,
   setFrame,
   SIZES,
-  sortInitiative,
   stackOnto,
   timerLeft,
   unstack,
@@ -125,17 +123,38 @@ describe('boards', () => {
     expect(beside.cards.some((c) => c.kind === 'stack' || c.parent)).toBe(false);
   });
 
-  it('counts timers down and runs initiative rounds', () => {
+  it('counts timers down', () => {
     expect(timerLeft({ seconds: 60, elapsed: 0, startedAt: 1000 }, 31_000)).toBe(30);
     expect(timerLeft({ seconds: 60, elapsed: 50_000 }, 999_999)).toBe(10);
     expect(timerLeft({ seconds: 60, elapsed: 0, startedAt: 0 }, 90_000)).toBe(0);
-    const rows = sortInitiative([
-      { id: '1', name: 'Goblin', initiative: 12 },
-      { id: '2', name: 'Lia', initiative: 18 },
+  });
+
+  it('opens old initiative cards as combat cards', () => {
+    const old = {
+      name: 'Old',
+      cards: [
+        {
+          id: 'i',
+          kind: 'initiative',
+          x: 0,
+          y: 0,
+          w: 320,
+          h: 300,
+          rows: [
+            { id: '1', name: 'Goblin', initiative: 12, hp: '7' },
+            { id: '2', name: 'Lia', initiative: 18 },
+          ],
+          turn: 1,
+          round: 3,
+        },
+      ],
+    };
+    const card = parseBoard(JSON.stringify(old), 'b')?.cards[0];
+    expect(card).toMatchObject({ kind: 'combat', turn: null, round: 3, w: 320 });
+    expect(card?.kind === 'combat' && card.combatants.map((c) => [c.name, c.hp])).toEqual([
+      ['Lia', 0],
+      ['Goblin', 7],
     ]);
-    expect(rows.map((r) => r.name)).toEqual(['Lia', 'Goblin']);
-    expect(nextTurn({ rows, turn: 0, round: 1 })).toEqual({ turn: 1, round: 1 });
-    expect(nextTurn({ rows, turn: 1, round: 1 })).toEqual({ turn: 0, round: 2 });
   });
 
   it('reads back what it writes and skips cards it does not know', () => {

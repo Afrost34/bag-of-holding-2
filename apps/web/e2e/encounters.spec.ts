@@ -161,3 +161,53 @@ test('a campaign NPC with a stat block joins an encounter by name', async ({ pag
   await brakka.getByRole('link', { name: 'Brakka the Boss' }).click();
   await expect(page.getByLabel('Note title')).toHaveValue('Brakka the Boss');
 });
+
+test('a combat is put together on the board: creatures, characters, an encounter, anyone', async ({
+  page,
+}) => {
+  await createCampaign(page, 'Rust and Sunfire', '2014 rules');
+  await page.goto('./#/characters');
+  await page.getByRole('button', { name: 'New character' }).click();
+  const form = page.getByRole('form', { name: 'New character' });
+  await form.getByLabel('Name').fill('Brakka');
+  await form.getByRole('button', { name: 'Start building' }).click();
+  await expect(page.getByRole('textbox', { name: 'Character Name' })).toHaveValue('Brakka');
+  // A prepared encounter: one goblin.
+  await page.goto(`./#/compendium/${encodeURIComponent('monster:goblin@mm')}`);
+  await page.getByRole('button', { name: 'Send to' }).click();
+  await page.getByRole('menuitem', { name: /New encounter with Goblin/ }).click();
+  await expect(page.getByRole('status')).toBeVisible();
+
+  await page.goto('./#/boards?list=1');
+  await page.getByRole('button', { name: 'New board' }).click();
+  await page.getByRole('button', { name: 'Create' }).click();
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Combat' }).click();
+  const add = page.getByRole('region', { name: 'Add to the combat' });
+  const order = page.getByRole('list', { name: 'Combat order' });
+
+  // Two goblins from the compendium.
+  await add.getByLabel('How many').fill('2');
+  await add.getByRole('searchbox', { name: 'Add a creature' }).fill('goblin');
+  await add
+    .getByRole('button', { name: /^Goblin\b/ })
+    .first()
+    .click();
+  await expect(order.getByRole('listitem')).toHaveCount(2);
+  // The campaign's character.
+  await add.getByRole('tab', { name: 'Character' }).click();
+  await add.getByRole('button', { name: 'Add Brakka' }).click();
+  await expect(order.getByRole('listitem', { name: 'Brakka' })).toBeVisible();
+  // The prepared encounter: its goblin joins as Goblin 3, Brakka is not added twice.
+  await add.getByRole('tab', { name: 'Encounter' }).click();
+  await add.getByLabel('Encounter', { exact: true }).selectOption({ label: 'Goblin encounter' });
+  await add.getByRole('button', { name: 'Load encounter' }).click();
+  await expect(order.getByRole('listitem', { name: 'Goblin 3', exact: true })).toBeVisible();
+  await expect(order.getByRole('listitem', { name: 'Brakka' })).toHaveCount(1);
+  // Anyone else, by hand.
+  await add.getByRole('tab', { name: 'By hand' }).click();
+  await add.getByLabel('Combatant name').fill('Wolf');
+  await add.getByLabel('Combatant initiative').fill('15');
+  await add.getByRole('button', { name: 'Add', exact: true }).click();
+  await expect(order.getByRole('listitem')).toHaveCount(5);
+});

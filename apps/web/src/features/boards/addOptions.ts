@@ -115,7 +115,7 @@ export function useAddOptions(
     simple('text', 'text', () => ({ kind: 'text', text: '' })),
     simple('dice', 'dice', () => ({ kind: 'dice', formulas: [] })),
     simple('timer', 'timer', () => ({ kind: 'timer', seconds: 600, elapsed: 0 })),
-    simple('initiative', 'initiative', () => ({ kind: 'initiative', rows: [], turn: 0, round: 1 })),
+    simple('combat', 'combat', () => ({ kind: 'combat', combatants: [], turn: null, round: 1 })),
     simple('frame', 'frame', () => ({ kind: 'frame', title: 'Frame' })),
   ];
 }

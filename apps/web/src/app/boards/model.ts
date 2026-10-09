@@ -1,10 +1,10 @@
 import { newId } from '../cards/model';
-import type { CombatState } from './combat';
+import { sortCombatants, type Combatant, type CombatState } from './combat';
 import type { Npc } from './npc';
 
 /**
  * DM boards: infinite canvases of cards (compendium entries, journal notes, images, dice,
- * timers, initiative…), many per campaign.
+ * timers, combat…), many per campaign.
  *
  *   boards/<id>.json                       boards kept outside any campaign
  *   campaigns/<campaign>/boards/<id>.json  a campaign's boards
@@ -15,14 +15,6 @@ import type { Npc } from './npc';
  */
 
 export const BOARDS_DIR = 'boards';
-
-export interface InitiativeRow {
-  id: string;
-  name: string;
-  initiative: number;
-  hp?: string;
-  note?: string;
-}
 
 /** What a card shows. */
 export type CardContent =
@@ -40,7 +32,6 @@ export type CardContent =
    * paused: only `elapsed`.
    */
   | { kind: 'timer'; seconds: number; elapsed: number; startedAt?: number }
-  | { kind: 'initiative'; rows: InitiativeRow[]; turn: number; round: number }
   /** A combat tracker (see `combat.ts`); `encounter` is the encounter it was started from. */
   | ({ kind: 'combat'; encounter?: string } & CombatState)
   /** An encounter of the campaign, with its difficulty and a button to start the fight. */
@@ -107,7 +98,6 @@ export const SIZES: Record<CardKind, { w: number; h: number }> = {
   text: { w: 240, h: 170 },
   dice: { w: 280, h: 190 },
   timer: { w: 240, h: 150 },
-  initiative: { w: 320, h: 300 },
   combat: { w: 480, h: 560 },
   encounter: { w: 340, h: 320 },
   map: { w: 520, h: 400 },
@@ -352,26 +342,41 @@ export function timerLeft(
   return Math.max(0, card.seconds - Math.floor(ran / 1000));
 }
 
-/** Initiative rows highest first (ties keep their order). */
-export function sortInitiative(rows: readonly InitiativeRow[]): InitiativeRow[] {
-  return [...rows].sort((a, b) => b.initiative - a.initiative);
-}
-
-/** The next turn; past the last row starts a new round. */
-export function nextTurn(card: { rows: readonly InitiativeRow[]; turn: number; round: number }): {
-  turn: number;
-  round: number;
-} {
-  if (card.rows.length === 0) return { turn: 0, round: card.round };
-  return card.turn + 1 >= card.rows.length
-    ? { turn: 0, round: card.round + 1 }
-    : { turn: card.turn + 1, round: card.round };
-}
-
 const KINDS = new Set<string>(Object.keys(SIZES));
 const isObj = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+
+/**
+ * Boards from before the combat card held "initiative" cards (name, initiative, hit points as
+ * text): they open as combat cards, not yet started.
+ */
+function upgradeCard(c: unknown): unknown {
+  if (!isObj(c) || c.kind !== 'initiative') return c;
+  const rows = (Array.isArray(c.rows) ? c.rows : []).filter(isObj);
+  const combatants: Combatant[] = rows.map((r, i) => {
+    const hp = Number.parseInt(typeof r.hp === 'string' ? r.hp : '', 10);
+    const points = Number.isFinite(hp) ? hp : 0;
+    return {
+      id: typeof r.id === 'string' ? r.id : String(i),
+      name: typeof r.name === 'string' ? r.name : '?',
+      initiative: num(r.initiative, 0),
+      initBonus: 0,
+      hp: points,
+      maxHp: points,
+      ac: 10,
+      conditions: [],
+    };
+  });
+  const { rows: _rows, turn: _turn, ...rest } = c;
+  return {
+    ...rest,
+    kind: 'combat',
+    combatants: sortCombatants(combatants),
+    turn: null,
+    round: num(c.round, 1),
+  };
+}
 
 export function parseBoard(text: string | null, id: string, campaign?: string): Board | null {
   if (!text) return null;
@@ -382,10 +387,12 @@ export function parseBoard(text: string | null, id: string, campaign?: string): 
     return null;
   }
   if (!isObj(json)) return null;
-  const cards = (Array.isArray(json.cards) ? json.cards : []).filter(
-    (c): c is BoardCard =>
-      isObj(c) && typeof c.id === 'string' && typeof c.kind === 'string' && KINDS.has(c.kind),
-  );
+  const cards = (Array.isArray(json.cards) ? json.cards : [])
+    .map(upgradeCard)
+    .filter(
+      (c): c is BoardCard =>
+        isObj(c) && typeof c.id === 'string' && typeof c.kind === 'string' && KINDS.has(c.kind),
+    );
   const viewport = isObj(json.viewport)
     ? {
         x: num(json.viewport.x, 0),
