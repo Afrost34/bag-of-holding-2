@@ -89,7 +89,15 @@ export function measureLine(
   scale: MapScale,
   speeds: readonly TravelSpeed[] | undefined,
 ): string {
-  const distance = scaledDistance(a, b, scale);
+  return measureTotal(scaledDistance(a, b, scale), scale, speeds);
+}
+
+/** A distance on the map as a measure says it: the distance, then the time at each speed. */
+export function measureTotal(
+  distance: number,
+  scale: MapScale,
+  speeds: readonly TravelSpeed[] | undefined,
+): string {
   const times = travelTimes(distance, speeds?.length ? speeds : DEFAULT_SPEEDS[scale.unit]);
   return [formatDistance(distance, scale.unit), ...times.map((t) => `${t.name}: ${t.time}`)].join(
     ' · ',

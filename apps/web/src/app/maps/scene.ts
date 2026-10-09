@@ -667,6 +667,22 @@ export class MapScene {
     }
   }
 
+  /** A measured path: its legs, a dot at each point, and what it measures by the last point. */
+  drawMeasure(points: readonly Point[], label: string | null): void {
+    const last = points.at(-1);
+    this.drawPreview(
+      (g) => {
+        const [first, ...rest] = points;
+        if (!first) return;
+        g.moveTo(first.x, first.y);
+        for (const p of rest) g.lineTo(p.x, p.y);
+        g.stroke({ color: 0xfacc15, width: 4 / this.zoom });
+        for (const p of points) g.circle(p.x, p.y, 6 / this.zoom).fill({ color: 0xfacc15 });
+      },
+      label && last ? { text: label, at: last } : undefined,
+    );
+  }
+
   /** A brush stroke being drawn, as it will look once kept. */
   previewStroke(points: readonly number[], style: StrokeStyle): void {
     for (const c of this.strokePreview.removeChildren()) c.destroy({ children: true });
