@@ -12,9 +12,10 @@ import { useClassPage } from '../../app/data/pages';
 import type { CharacterView } from '../../app/data/protocol';
 import { ChoiceControl } from './ChoiceControl';
 import { withoutIncreaseParts } from './increaseModel';
+import { placeGranted } from './grantedSpells';
 import { sheetSpells } from './sheetSpells';
 import { ClassChooser } from './ClassChooser';
-import { SpellChoicePanel } from './SpellChoicePanel';
+import { GrantedRows, SpellChoicePanel, type GrantedSpell } from './SpellChoicePanel';
 import { featureOf, forget, hitPointLevels, inBookOrder, pickName } from './steps';
 import { useTableRules } from './tableRules';
 import { Accordion } from './ui';
@@ -237,19 +238,25 @@ function ClassPanel({
         }}
       />
     ));
+  const entityName = (k: string) => view?.entities.find((e) => e.key === k)?.name ?? pickName(k);
   // Spells the class and subclass give outright (domain spells, patron spells…).
-  const alwaysPrepared = [
-    ...new Set(
-      grants.flatMap((g) =>
-        g.kind === 'spell' && !g.choice && keys.includes(g.from) ? [g.key] : [],
-      ),
-    ),
-  ];
+  const alwaysPrepared: GrantedSpell[] = sheetSpells(
+    grants.filter((g) => g.kind === 'spell' && !g.choice && keys.includes(g.from)),
+    entityName,
+  ).map((s) => ({ key: s.key, tag: `${s.from} · Always prepared` }));
   const spellcasting = view?.sheet.spellcasting.filter((s) => keys.includes(s.from)) ?? [];
   // Spells from the species, a feat or the background, shown here as known or prepared.
-  const elsewhere = sheetSpells(
+  const elsewhere: GrantedSpell[] = sheetSpells(
     grants.filter((g) => !view?.classes.some((c) => c.key === g.from || c.subclass === g.from)),
-    (k) => view?.entities.find((e) => e.key === k)?.name ?? pickName(k),
+    entityName,
+  ).map((s) => ({ key: s.key, tag: `${s.from} · ${s.how}` }));
+  // Each spell had anyway goes in the list of its level: cantrips with the cantrips, the rest
+  // with the prepared or known spells; with no such list, in a list of its own.
+  const spellRows = useListRows('spells');
+  const { grantedIn, unplaced } = placeGranted(
+    [...alwaysPrepared, ...elsewhere],
+    spellLists.filter((c) => !c.via),
+    (key) => Number(spellRows?.find((r) => r.key === key)?.f.level ?? 0),
   );
 
   return (
@@ -400,22 +407,11 @@ function ClassPanel({
               )}
             </p>
           ))}
-          {alwaysPrepared.length > 0 && (
-            <p className="text-sm">
-              <span className="font-bold">Always prepared: </span>
-              {alwaysPrepared.map(pickName).join(', ')}
-            </p>
-          )}
-          {elsewhere.length > 0 && (
-            <p className="text-sm">
-              <span className="font-bold">Also yours: </span>
-              {elsewhere.map((s) => `${pickName(s.key)} (${s.from}, ${s.how})`).join(', ')}
-            </p>
-          )}
           {spellLists.map((c) => (
             <SpellChoicePanel
               key={c.id}
               choice={c}
+              granted={grantedIn.get(c.id) ?? []}
               from={featureName(c.via)}
               decisions={decisions}
               isEnabled={isEnabled}
@@ -424,6 +420,14 @@ function ClassPanel({
               }}
             />
           ))}
+          {unplaced.length > 0 && (
+            <section aria-label="Other spells you have" className="space-y-2">
+              <h4 className="rounded-md bg-sunken px-3 py-2 font-semibold">
+                Other spells you have
+              </h4>
+              <GrantedRows spells={unplaced} />
+            </section>
+          )}
         </div>
       )}
     </section>
