@@ -1,6 +1,9 @@
 import { cn } from '@boh/ui';
+import { useReactFlow } from '@xyflow/react';
 import {
   ExternalLink,
+  Lock,
+  LockOpen,
   Hand,
   Maximize,
   Ruler,
@@ -54,6 +57,8 @@ export function MapBody({ card }: { card: Extract<BoardCard, { kind: 'map' }> })
   const drag = useRef<{ x: number; y: number } | null>(null);
   const downAt = useRef<{ x: number; y: number } | null>(null);
   const actions = useBoardActions();
+  const flow = useReactFlow();
+  const locked = card.locked === true;
   const forPlayers = useIsPlayersBoard();
   useEffect(() => {
     if (!loaded) void load();
@@ -141,6 +146,7 @@ export function MapBody({ card }: { card: Extract<BoardCard, { kind: 'map' }> })
         <ToolButton
           label="Zoom in"
           Icon={ZoomIn}
+          disabled={locked}
           onClick={() => {
             zoom(1.25);
           }}
@@ -148,6 +154,7 @@ export function MapBody({ card }: { card: Extract<BoardCard, { kind: 'map' }> })
         <ToolButton
           label="Zoom out"
           Icon={ZoomOut}
+          disabled={locked}
           onClick={() => {
             zoom(0.8);
           }}
@@ -155,9 +162,23 @@ export function MapBody({ card }: { card: Extract<BoardCard, { kind: 'map' }> })
         <ToolButton
           label="Fit the map"
           Icon={Maximize}
+          disabled={locked}
           onClick={() => {
             scene?.fit();
             setView((v) => v + 1);
+          }}
+        />
+        <span className="flex-1" />
+        <ToolButton
+          label={locked ? 'Unlock the map' : 'Lock the map'}
+          Icon={locked ? Lock : LockOpen}
+          pressed={locked}
+          onClick={() => {
+            actions.update(card.id, (c) => {
+              if (c.kind !== 'map') return c;
+              const { locked: _was, ...rest } = c;
+              return locked ? rest : { ...rest, locked: true };
+            });
           }}
         />
       </div>
@@ -186,6 +207,17 @@ export function MapBody({ card }: { card: Extract<BoardCard, { kind: 'map' }> })
             setHover(p ? measurePoint(p, basis) : null);
           }
           if (!drag.current || !scene) return;
+          if (locked) {
+            // Locked: the drag moves the board (in screen pixels), the map stays as it is.
+            const vp = flow.getViewport();
+            void flow.setViewport({
+              x: vp.x + e.clientX - drag.current.x,
+              y: vp.y + e.clientY - drag.current.y,
+              zoom: vp.zoom,
+            });
+            drag.current = { x: e.clientX, y: e.clientY };
+            return;
+          }
           // The map follows the pointer however far the board is zoomed.
           const r = e.currentTarget.getBoundingClientRect();
           const k = r.width ? e.currentTarget.clientWidth / r.width : 1;
@@ -256,10 +288,12 @@ function ToolButton({
   label,
   Icon,
   pressed,
+  disabled = false,
   onClick,
 }: {
   label: string;
   Icon: LucideIcon;
+  disabled?: boolean;
   /** For tools that stay on (look, measure); absent for one-off actions (zoom). */
   pressed?: boolean;
   onClick: () => void;
@@ -270,10 +304,12 @@ function ToolButton({
       aria-label={label}
       title={label}
       aria-pressed={pressed}
+      disabled={disabled}
       onClick={onClick}
       className={cn(
         'rounded p-1',
         pressed ? 'bg-accent text-accent-fg' : 'text-muted hover:bg-sunken hover:text-text',
+        'disabled:opacity-30',
       )}
     >
       <Icon className="h-4 w-4" aria-hidden />
