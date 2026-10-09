@@ -11,19 +11,20 @@ import { ToolSettings } from './ToolSettings';
 
 /** The editor's side panel: what the tool draws, then stamps, layers, grid or the picked item. */
 export function MapPanels(props: MapPanelsProps) {
-  const { open, onClose, selected, tool } = props;
-  const [tab, setTab] = useState<Tab>('stamps');
+  const { open, onClose, selected, tool, mode } = props;
+  const creator = mode === 'creator';
+  const [tab, setTab] = useState<Tab>(creator ? 'stamps' : 'pins');
   const [shownFor, setShownFor] = useState<string | null>(null);
   // Picking an item shows its settings.
   if ((selected?.id ?? null) !== shownFor) {
     setShownFor(selected?.id ?? null);
     if (selected) setTab('item');
-    else if (tab === 'item') setTab('stamps');
+    else if (tab === 'item') setTab(creator ? 'stamps' : 'pins');
   }
   const tabs: { id: Tab; label: string }[] = [
-    { id: 'stamps', label: 'Stamps' },
+    ...(creator ? [{ id: 'stamps' as const, label: 'Stamps' }] : []),
     { id: 'layers', label: 'Layers' },
-    { id: 'pins', label: 'Pins' },
+    ...(creator ? [] : [{ id: 'pins' as const, label: 'Pins' }]),
     { id: 'grid', label: 'Map' },
     ...(selected ? [{ id: 'item' as const, label: 'Item' }] : []),
   ];

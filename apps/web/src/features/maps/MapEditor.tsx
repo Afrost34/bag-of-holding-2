@@ -4,6 +4,8 @@ import {
   Download,
   Expand,
   Maximize,
+  Paintbrush,
+  Eye,
   PanelRight,
   Redo2,
   Swords,
@@ -52,12 +54,13 @@ import {
   TOOLS_WITH_SETTINGS,
   toolsFor,
   type BrushSettings,
+  type MapMode,
   type TemplateSettings,
   type Tool,
 } from './tools';
 
 /** One map, edited: the canvas, the tool bar and the side panels. */
-export function MapEditor({ id }: { id: string }) {
+export function MapEditor({ id, mode }: { id: string; mode: MapMode }) {
   const { loaded, load } = useMaps();
   const doc = useMapDoc(id);
   const { loaded: campaignsLoaded, load: loadCampaigns } = useCampaigns();
@@ -87,18 +90,19 @@ export function MapEditor({ id }: { id: string }) {
 
   if (!loaded) return <p className="p-8 text-muted">Loading…</p>;
   if (!doc) return <p className="p-8">This map does not exist (any more).</p>;
-  return <Editor doc={doc} />;
+  return <Editor key={mode} doc={doc} mode={mode} />;
 }
 
-function Editor({ doc }: { doc: MapDoc }) {
+function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   const navigate = useAppNavigate();
   const host = useRef<HTMLDivElement>(null);
   const shell = useRef<HTMLDivElement>(null);
   const [scene, setScene] = useState<MapScene | null>(null);
-  const [tool, setTool] = useState<Tool>('select');
+  const creator = mode === 'creator';
+  const [tool, setTool] = useState<Tool>(creator ? 'select' : 'pan');
   /** Where the pointer went down (screen), to tell a click from a drag. */
   const downAt = useRef<Point | null>(null);
-  const tools = toolsFor(mapKind(doc));
+  const tools = toolsFor(mapKind(doc), mode);
   // A tool the map's kind does not have (its kind was just changed) gives way to Select.
   if (tool !== 'select' && tool !== 'calibrate' && !tools.some((t) => t.id === tool))
     setTool('select');
@@ -144,6 +148,7 @@ function Editor({ doc }: { doc: MapDoc }) {
     const el = host.current;
     if (!el) return;
     const s = new MapScene();
+    s.hideAnnotations = creator;
     s.onLoading = setLoadingPicture;
     let live = true;
     void s.init(el).then(() => {
@@ -157,7 +162,7 @@ function Editor({ doc }: { doc: MapDoc }) {
       live = false;
       s.destroy();
     };
-  }, [docId]);
+  }, [docId, creator]);
 
   useEffect(() => {
     scene?.setDoc(doc);
@@ -286,7 +291,10 @@ function Editor({ doc }: { doc: MapDoc }) {
     if (e.button !== 0) return;
     switch (tool) {
       case 'select': {
-        const hit = scene.hit(p);
+        const found = scene.hit(p);
+        // The Viewer moves what it placed (pins, routes), never the map's art.
+        const hit =
+          found && !creator && found.kind !== 'pin' && found.kind !== 'route' ? null : found;
         setSelected(hit?.id ?? null);
         drag.current = hit ? { mode: 'move', ...base, item: hit } : { mode: 'pan', ...base };
         return;
@@ -735,7 +743,7 @@ function Editor({ doc }: { doc: MapDoc }) {
           >
             <Expand className="h-4 w-4" aria-hidden />
           </Button>
-          {encounter && (
+          {!creator && encounter && (
             <Button
               variant="ghost"
               onClick={() => {
@@ -748,6 +756,25 @@ function Editor({ doc }: { doc: MapDoc }) {
               <span className="hidden sm:inline">Run {encounter.name}</span>
               <span className="sr-only sm:hidden">Run {encounter.name}</span>
             </Button>
+          )}
+          {creator ? (
+            <AppLink
+              to={`/maps/${doc.id}`}
+              className="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-muted hover:bg-sunken hover:text-text"
+            >
+              <Eye className="h-4 w-4" aria-hidden />
+              <span className="hidden sm:inline">View map</span>
+              <span className="sr-only sm:hidden">View map</span>
+            </AppLink>
+          ) : (
+            <AppLink
+              to={`/maps/${doc.id}/edit`}
+              className="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-muted hover:bg-sunken hover:text-text"
+            >
+              <Paintbrush className="h-4 w-4" aria-hidden />
+              <span className="hidden sm:inline">Edit map</span>
+              <span className="sr-only sm:hidden">Edit map</span>
+            </AppLink>
           )}
           <Button variant="ghost" onClick={toggleView}>
             <Maximize className="h-4 w-4" aria-hidden />
@@ -780,7 +807,7 @@ function Editor({ doc }: { doc: MapDoc }) {
               }}
             />
           )}
-          <DeleteMap doc={doc} />
+          {creator && <DeleteMap doc={doc} />}
           <Button
             variant="ghost"
             aria-label="Panels"
@@ -880,6 +907,7 @@ function Editor({ doc }: { doc: MapDoc }) {
         </div>
         {!viewing && (
           <MapPanels
+            mode={mode}
             doc={doc}
             open={panelOpen}
             onClose={() => {

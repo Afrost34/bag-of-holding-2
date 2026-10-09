@@ -31,6 +31,14 @@ async function newMap(page: Page, name: string, kind?: 'World or city map') {
   );
 }
 
+/** The Creator draws the map, the Viewer uses it: this goes from one to the other. */
+async function switchMode(page: Page, to: 'View map' | 'Edit map') {
+  await page.getByRole('link', { name: to }).click();
+  await expect(page.getByRole('application', { name: 'Map canvas' }).locator('canvas')).toHaveCount(
+    1,
+  );
+}
+
 const tool = (page: Page, name: string) =>
   page.getByRole('toolbar', { name: 'Map tools' }).getByRole('button', { name, exact: true });
 
@@ -83,6 +91,7 @@ test('a map is drawn with stamps, brushes, walls, text, templates and pins, then
   await tool(page, 'Text').click();
   await page.mouse.click(at(300, 420).x, at(300, 420).y);
   await page.getByRole('region', { name: 'Text' }).getByLabel('Text').fill('Goblin lookout');
+  await switchMode(page, 'View map');
   await tool(page, 'Spell template').click();
   await page.mouse.move(at(450, 300).x, at(450, 300).y);
   await page.mouse.down();
@@ -327,7 +336,8 @@ test('terrain textures, the eraser, and pins in categories', async ({ page }, te
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect.poll(strokes).toBe(1);
 
-  // A category of pins with its icon; a pin in it takes the icon.
+  // A category of pins with its icon; a pin in it takes the icon (pins are the Viewer's).
+  await switchMode(page, 'View map');
   await page.getByRole('tab', { name: 'Pins' }).click();
   await page.getByRole('button', { name: 'New category' }).click();
   const categories = page.getByRole('region', { name: 'Pin categories' });
@@ -526,9 +536,9 @@ test('a world map measures distances, and a route moves the calendar on', async 
   await expect(page.getByRole('region', { name: 'Today' })).toContainText('1 Deepwinter, Year 1');
 
   await newMap(page, 'The Sunash Sea', 'World or city map');
-  // A world map has routes, not walls or spell templates.
-  await expect(tool(page, 'Route')).toBeVisible();
-  await expect(tool(page, 'Wall')).toHaveCount(0);
+  // The Creator draws: no pins, routes or spell templates there.
+  await expect(tool(page, 'Wall')).toBeVisible();
+  await expect(tool(page, 'Route')).toHaveCount(0);
   await expect(tool(page, 'Spell template')).toHaveCount(0);
   await page.getByRole('tab', { name: 'Map' }).click();
   await expect(page.getByRole('region', { name: 'Grid' })).toHaveCount(0);
@@ -554,7 +564,10 @@ test('a world map measures distances, and a route moves the calendar on', async 
     page.getByRole('status').filter({ hasText: /Distance: [\d,]+ km · Skiff: (\d|about)/ }),
   ).toBeVisible();
 
-  // A route, stop by stop, says how far it goes so far.
+  // A route, stop by stop, says how far it goes so far (routes are the Viewer's).
+  await switchMode(page, 'View map');
+  await expect(tool(page, 'Route')).toBeVisible();
+  await expect(tool(page, 'Wall')).toHaveCount(0);
   await tool(page, 'Route').click();
   await page.mouse.click(box.x + 100, box.y + 200);
   await page.mouse.click(box.x + 300, box.y + 200);
@@ -587,6 +600,7 @@ test('a pin leads to a note: clicked on a board, the note opens beside the map',
   await newMap(page, 'Coast');
   const box = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
   if (!box) throw new Error('no canvas');
+  await switchMode(page, 'View map');
   await tool(page, 'Pin').click();
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await page.getByLabel('Pin label').fill('Gull’s Rest');
@@ -698,6 +712,7 @@ test('region names lettered as on an old map, dashed routes, measuring from a pi
   await text.getByLabel(/Curve/).fill('40');
   await waitForSaved(page, 'maps', '"curve":40');
 
+  await switchMode(page, 'View map');
   await tool(page, 'Route').click();
   await page.mouse.click(box.x + 100, box.y + 300);
   await page.mouse.click(box.x + 500, box.y + 320);
@@ -728,4 +743,23 @@ test('a scale bar, plain or as on an old map', async ({ page }) => {
   await waitForSaved(page, 'maps', '"scaleBar":"fantasy"');
   await page.getByRole('combobox', { name: 'Scale bar' }).selectOption('plain');
   await waitForSaved(page, 'maps', '"scaleBar":"plain"');
+});
+
+test('the Creator draws the map and the Viewer uses it', async ({ page }) => {
+  await newMap(page, 'Split Keep');
+  // New maps open in the Creator: art tools, no pins, routes or spell templates.
+  await expect(tool(page, 'Stamp')).toBeVisible();
+  await expect(tool(page, 'Terrain brush')).toBeVisible();
+  await expect(tool(page, 'Pin')).toHaveCount(0);
+  await expect(tool(page, 'Spell template')).toHaveCount(0);
+  await switchMode(page, 'View map');
+  await expect(page).toHaveURL(/#\/maps\/[^/]+$/);
+  await expect(tool(page, 'Pin')).toBeVisible();
+  await expect(tool(page, 'Spell template')).toBeVisible();
+  await expect(tool(page, 'Measure')).toBeVisible();
+  await expect(tool(page, 'Stamp')).toHaveCount(0);
+  await expect(tool(page, 'Terrain brush')).toHaveCount(0);
+  await switchMode(page, 'Edit map');
+  await expect(page).toHaveURL(/#\/maps\/[^/]+\/edit$/);
+  await expect(tool(page, 'Stamp')).toBeVisible();
 });

@@ -24,11 +24,12 @@ export function usePageTitle(title: string | undefined): void {
   }, [href, title, setTitle, current]);
 }
 
-/** Paths compared as text: one side may still be URL-encoded (`spell%3Afireball`). */
+/** Paths compared as text: one side may still be URL-encoded (`spell%3Afireball`) or end in `/`. */
 function decoded(path: string): string {
+  const bare = path.length > 1 ? path.replace(/\/$/, '') : path;
   try {
-    return decodeURIComponent(path);
+    return decodeURIComponent(bare);
   } catch {
-    return path;
+    return bare;
   }
 }

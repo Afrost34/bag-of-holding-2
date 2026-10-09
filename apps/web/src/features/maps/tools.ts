@@ -48,14 +48,31 @@ export const TOOLS: { id: Tool; label: string; icon: LucideIcon; key: string }[]
   { id: 'route', label: 'Route', icon: Route, key: 'o' },
 ];
 
-/** Tools for battle maps only, and for world and city maps only. */
-const BATTLE_ONLY = new Set<Tool>(['wall', 'template']);
-const WORLD_ONLY = new Set<Tool>(['route']);
+/** The Creator draws the map; the Viewer uses it (pins, routes, ranges). Both can measure. */
+export type MapMode = 'creator' | 'viewer';
 
-/** The tools a kind of map shows, in tool bar order. */
-export function toolsFor(kind: MapKind): typeof TOOLS {
-  const hidden = kind === 'world' ? BATTLE_ONLY : WORLD_ONLY;
-  return TOOLS.filter((t) => !hidden.has(t.id));
+const CREATOR_TOOLS = new Set<Tool>([
+  'select',
+  'pan',
+  'stamp',
+  'pen',
+  'terrain',
+  'eraser',
+  'wall',
+  'text',
+  'measure',
+]);
+const VIEWER_TOOLS = new Set<Tool>(['pan', 'select', 'pin', 'route', 'measure', 'template']);
+
+/** The tools a mode shows, in tool bar order. Routes are for world maps, templates for battle maps. */
+export function toolsFor(kind: MapKind, mode: MapMode): typeof TOOLS {
+  const set = mode === 'creator' ? CREATOR_TOOLS : VIEWER_TOOLS;
+  return TOOLS.filter((t) => {
+    if (!set.has(t.id)) return false;
+    if (t.id === 'route') return kind === 'world';
+    if (t.id === 'template') return kind === 'battle';
+    return true;
+  });
 }
 
 export const CALIBRATE_ICON = Crosshair;
