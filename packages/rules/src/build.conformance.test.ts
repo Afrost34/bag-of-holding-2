@@ -193,12 +193,18 @@ describe.runIf(hasLocalData())('the builder over the pinned 5etools release', ()
     expect(sheet.initiative.value).toBe(5);
     expect(sheet.passive.perception.value).toBe(14);
     expect(
-      sheet.attacks.map((a) => [a.name, a.toHit?.value ?? a.save?.dc.value, a.damage ?? '']),
+      sheet.attacks.map((a) => [
+        a.name,
+        a.toHit?.value ?? a.save?.dc.value,
+        a.damage ?? '',
+        a.range ?? '',
+      ]),
     ).toEqual([
-      ['Club', 3, '1d4+1 bludgeoning'],
-      ['Dagger', 5, '1d4+3 piercing'],
-      ['Mind Sliver', 14, ''],
-      ['Vicious Mockery', 14, ''],
+      ['Club', 3, '1d4+1 bludgeoning', '5 feet'],
+      ['Dagger', 5, '1d4+3 piercing', '20/60 feet'],
+      // Cantrip damage at the character's level (level 3: one die).
+      ['Mind Sliver', 14, '1d6 psychic', '60 feet'],
+      ['Vicious Mockery', 14, '1d6 psychic', '60 feet'],
     ]);
     expect(sheet.skills.deception).toMatchObject({ value: 9, proficiency: 2 });
     expect(sheet.skills.stealth).toMatchObject({ value: 6, proficiency: 1 });

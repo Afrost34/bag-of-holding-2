@@ -142,6 +142,8 @@ export async function installData(
   if (foundation.length > 0 && plan.unchanged > 0) index.recomputeEditions(ctx);
   const copyErrors = index.resolveCopies();
   index.regenerateItemVariants(ctx);
+  // After the variants: generated items (Breastplate of Acid Resistance) share text too.
+  index.resolveItemEntries();
   index.rebuildSources();
 
   index.setMeta(META.version, source.version);

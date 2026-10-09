@@ -56,4 +56,30 @@ describe('feature cards', () => {
     expect(lineageTrait(elf, 'Elven Lineage', decisions)).toEqual(['Your Speed increases to 35 feet.']);
     expect(lineageTrait(elf, 'Darkvision', decisions)).toBeUndefined();
   }); // prettier-ignore
+
+  it('leaves tables too long for a card off it, with one line saying so', () => {
+    const rows = Array.from({ length: 50 }, (_, n) => [String(n), 'Something wild']);
+    expect(
+      withoutReferences([
+        'Your spellcasting can unleash surges.',
+        { type: 'table', caption: 'Wild Magic Surge', rows },
+        { type: 'table', caption: 'Beast Shapes', rows: rows.slice(0, 3) },
+      ]),
+    ).toEqual([
+      'Your spellcasting can unleash surges.',
+      '{@i Wild Magic Surge tables: too long for a card, see them in the app.}',
+    ]);
+    // Short tables stay.
+    const short = [{ type: 'table', caption: 'Beast Shapes', rows: rows.slice(0, 3) }];
+    expect(withoutReferences(short)).toEqual(short);
+    // Several that add up to too many go together, under one line.
+    const plans = [10, 9].map((n, i) => ({
+      type: 'table',
+      caption: `Magic Item Plans (Level ${String(i)})`,
+      rows: rows.slice(0, n),
+    }));
+    expect(withoutReferences(plans)).toEqual([
+      '{@i Magic Item Plans tables: too long for a card, see them in the app.}',
+    ]);
+  });
 });

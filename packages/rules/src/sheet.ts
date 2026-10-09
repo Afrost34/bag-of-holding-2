@@ -1,4 +1,5 @@
 import type { EntityDetail, RawEntity } from '@boh/data5e';
+import { spellRange } from '@boh/data5e/format';
 import type {
   BuiltCharacter,
   CharacterDecisions,
@@ -582,7 +583,13 @@ export function computeSheet(
               `${d.dmg1}${dmgBonus ? (dmgBonus > 0 ? `+${String(dmgBonus)}` : String(dmgBonus)) : ''} ${DAMAGE[String(d.dmgType)] ?? ''}`.trim(),
           }
         : {}),
-      ...(typeof d.range === 'string' ? { range: d.range } : {}),
+      // A ranged or thrown weapon's range; a melee weapon's reach.
+      range:
+        typeof d.range === 'string'
+          ? `${d.range} feet`
+          : props.includes('R')
+            ? '10 feet'
+            : '5 feet',
       properties: props,
     });
   }
@@ -597,9 +604,12 @@ export function computeSheet(
       : undefined;
     const saveAbility = typeof save === 'string' ? (save.slice(0, 3) as Ability) : undefined;
     if (!attack && !saveAbility) continue;
+    const damage = cantripDamage(spell.data, level);
     attacks.push({
       name: spell.name,
       key: spell.key,
+      range: spellRange(spell.data),
+      ...(damage ? { damage } : {}),
       ...(attack ? { toHit: caster.attack } : {}),
       ...(saveAbility && isAbility(saveAbility)
         ? { save: { dc: caster.dc, ability: saveAbility } }
@@ -674,4 +684,22 @@ export function castableGrants<G extends HeldGrant>(
 ): G[] {
   const top = highestSlotLevel(sheet);
   return grants.filter((g) => g.kind !== 'spell' || (g.slotLevel ?? 0) <= top);
+}
+
+/**
+ * A cantrip's damage at a character level, from its scaling dice ("2d6 psychic" at level 5 for
+ * Mind Sliver). Undefined for cantrips that deal none.
+ */
+export function cantripDamage(spell: RawEntity, level: number): string | undefined {
+  const raw: unknown = spell.scalingLevelDice;
+  const first: unknown = Array.isArray(raw) ? raw[0] : raw;
+  if (!isObj(first) || !isObj(first.scaling)) return undefined;
+  const steps = Object.entries(first.scaling)
+    .map(([at, dice]) => [Number(at), String(dice)] as const)
+    .filter(([at]) => at <= level)
+    .sort((a, b) => b[0] - a[0]);
+  const dice = steps[0]?.[1];
+  if (!dice) return undefined;
+  const type = Array.isArray(spell.damageInflict) ? spell.damageInflict.map(String).join('/') : '';
+  return `${dice} ${type}`.trim();
 }

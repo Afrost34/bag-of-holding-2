@@ -19,6 +19,7 @@ import type { EntityDetail, EntitySummary, Layer } from '../entity';
 import { entityEdition, type Edition } from '../editions';
 import type { ExtractContext, ExtractResult } from '../extract';
 import type { RawEntity } from '../identity';
+import { expandItemEntries } from '../itemEntries';
 import { makeKey, parseKey } from '../keys';
 import type { RegistryEntry } from '../sourceRegistry';
 import { buildSourceCatalog, indexSources, sourceFromMetadata, type SourceInfo } from '../sources';
@@ -359,6 +360,36 @@ export class EntityIndex {
       }
     });
     return errors;
+  }
+
+  /**
+   * Writes out `{#itemEntry …}` entries (text items share, filled with their own fields) into
+   * the items' resolved data; run after the copies are resolved. Returns how many items changed.
+   */
+  resolveItemEntries(layer?: Layer): number {
+    const rows = this.db.all<{ key: string; raw: string; resolved: string | null }>(
+      `SELECT key, raw, resolved FROM entities
+       WHERE type IN ('item', 'baseitem', 'magicvariant') AND raw LIKE '%{#itemEntry%'${
+         layer ? ' AND layer = ?' : ''
+       }`,
+      layer ? [layer] : [],
+    );
+    const find = (name: string, source: string) =>
+      this.getRaw(makeKey('itemEntry', [name], source));
+    let changed = 0;
+    this.db.transaction(() => {
+      for (const row of rows) {
+        const data = JSON.parse(row.resolved ?? row.raw) as RawEntity;
+        const expanded = expandItemEntries(data, find);
+        if (!expanded) continue;
+        this.db.exec('UPDATE entities SET resolved = ? WHERE key = ?', [
+          JSON.stringify(expanded),
+          row.key,
+        ]);
+        changed++;
+      }
+    });
+    return changed;
   }
 
   // endregion

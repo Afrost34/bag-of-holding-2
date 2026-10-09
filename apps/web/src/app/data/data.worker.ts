@@ -93,6 +93,8 @@ async function openIndex(): Promise<EntityIndex> {
   // this is a no-op when it is already up to date.
   if (index.getMeta(META.version) !== undefined) {
     index.regenerateItemVariants(index.extractContext());
+    // Items sharing text ({#itemEntry …}) written out; quick, and nothing to do once done.
+    index.resolveItemEntries();
   }
   return index;
 }

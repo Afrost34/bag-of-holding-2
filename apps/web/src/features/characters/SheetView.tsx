@@ -305,6 +305,7 @@ export function SheetView({
                         DC {atk.save.dc.value} {atk.save.ability.toUpperCase()}
                       </span>
                     )}
+                    {atk.range && <span className="text-xs text-muted">{atk.range}</span>}
                     {atk.damage && (
                       <RollChip
                         roll={{
