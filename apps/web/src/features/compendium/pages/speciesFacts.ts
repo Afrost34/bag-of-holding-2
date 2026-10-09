@@ -1,4 +1,5 @@
 import { ABILITY_NAME } from '@boh/data5e/format';
+import { signed } from '../../../app/format';
 
 /** Species facts as text: 5etools stores ability increases as data, not prose. */
 
@@ -6,7 +7,6 @@ type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
 const name = (code: string) =>
   (ABILITY_NAME as Partial<Record<string, string>>)[code] ?? code.toUpperCase();
-const signed = (n: number) => (n >= 0 ? `+${String(n)}` : String(n));
 
 function choiceText(choose: Obj): string {
   const from = Array.isArray(choose.from) ? choose.from.map((c) => name(String(c))) : [];

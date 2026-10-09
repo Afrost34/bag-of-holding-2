@@ -49,6 +49,21 @@ export function typeLabel(type: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
+/** A bonus with its sign: `+2`, `0` as `+0`, `-1`. */
+export const signed = (n: number): string => (n >= 0 ? `+${String(n)}` : String(n));
+
+const SUFFIX = ['th', 'st', 'nd', 'rd'];
+
+/** `1st`, `2nd`, `11th`, `22nd`. */
+export function ordinal(n: number): string {
+  const v = n % 100;
+  return `${String(n)}${SUFFIX[(v - 20) % 10] ?? SUFFIX[v] ?? 'th'}`;
+}
+
+/** Every word with a capital letter: `sleight of hand` → `Sleight Of Hand`. */
+export const titleWords = (s: string): string =>
+  s.replace(/(^|\s)(\p{L})/gu, (_, a: string, b: string) => a + b.toUpperCase());
+
 /** How long ago, in words: "just now", "5 min ago", "yesterday", "3 days ago". */
 export function ago(at: number, now = Date.now()): string {
   const minutes = Math.floor((now - at) / 60_000);

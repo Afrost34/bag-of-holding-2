@@ -9,6 +9,7 @@ import { wantsNewTab } from '../navigation';
 import { EntityLinkClickContext } from '../renderer/linkClick';
 import { useCharacters } from './store';
 import { useCharacterSheet } from './useCharacterSheet';
+import { signed } from '../format';
 
 /**
  * A character as the first page of its sheet, for a board: the numbers, abilities and saves,
@@ -24,7 +25,6 @@ export interface SheetSections {
 }
 
 const ABBR = { str: 'STR', dex: 'DEX', con: 'CON', int: 'INT', wis: 'WIS', cha: 'CHA' } as const;
-const signed = (n: number) => (n >= 0 ? `+${String(n)}` : String(n));
 const titled = (s: string) => s.replace(/(^|\s)(\p{L})/gu, (m) => m.toUpperCase());
 const nameOfKey = (key: string) => titled(key.split(':')[1]?.split('@')[0]?.split('|')[0] ?? key);
 

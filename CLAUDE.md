@@ -20,6 +20,7 @@ pnpm desktop:dev      # desktop app (needs Rust)
 pnpm check            # format + lint + typecheck + boundaries + unit tests — run before every commit
 pnpm e2e              # Playwright against the production build
 pnpm data:fetch       # download the pinned 5etools release into .data/ (for conformance tests)
+pnpm conformance      # only the suites that run on the real 5etools data (needs data:fetch)
 pnpm format           # fix formatting
 ```
 
@@ -61,10 +62,11 @@ See ADR 0003 for how the index is built.
 User data (characters, card sheets, boards, encounters, maps, the stamp library, the campaign
 calendar) lives in stores
 under `apps/web/src/app/<kind>/`: a pure `model.ts` with its tests (paths, parse/serialize, every
-change as a function) and a zustand `store.ts` that writes each file on change, in `<kind>/` or
+change as a function) and a zustand `store.ts` built on the shared `app/docStore.ts` (undo through
+`app/history.ts`) that writes each file on change, in `<kind>/` or
 `campaigns/<c>/<kind>/`, and is reloaded after a sync (`app/sync/store.ts`). Code two features
 share (the journal's note views, the compendium search box, print cards) moves to `app/`, since
-features never import each other. The map canvas (`features/maps/scene.ts`) is PixiJS outside
+features never import each other. The map canvas (`app/maps/scene.ts`) is PixiJS outside
 React and draws only on change. Desktop windows, outside links and updates are in
 `apps/desktop/src-tauri/src/lib.rs` (ADR 0007). `e2e/a11y.spec.ts` runs axe over the main pages
 in light and dark: keep it green (text needs 4.5:1; use `text-accent-ink`, not `text-accent`, for
@@ -107,6 +109,38 @@ accent-coloured text).
 2. Create `apps/web/src/features/<module>/` with the page component.
 3. Point `apps/web/src/routes/<module>.tsx` at it.
 4. Add an e2e spec for the main flow.
+
+## Where to look first
+
+| Task                                | Start in                                                                                |
+| ----------------------------------- | --------------------------------------------------------------------------------------- |
+| A character choice is missing/wrong | `packages/rules/src/patches.ts` (by feature name), then `extract/*.ts`                  |
+| Sheet numbers (AC, saves, spells)   | `packages/rules/src/sheet.ts`; the worker assembles the view in `data.worker.ts`        |
+| Character builder steps             | `apps/web/src/features/characters/*Step.tsx`, choices via `ChoiceControl`               |
+| Printed character sheet             | `features/characters/print/` (`PrintSheet`, `usePrintData`, `sections.ts`)              |
+| Board widgets (NPC, names, cards…)  | `app/boards/model.ts` (kinds), `features/boards/widgetBodies.tsx`, `addOptions.ts`      |
+| A store for a new kind of user file | copy `app/tables/` (model + test + store); register reload in `app/sync/store.ts`       |
+| Sync                                | `packages/storage/src/sync/engine.ts`; app side `app/sync/store.ts`, `app/userStore.ts` |
+| Shell: sidebar, tabs, right-click   | `app/shell/` (`contextMenuModel.ts` is the pure part)                                   |
+| Small text formats (`+2`, `3rd`)    | `app/format.ts` — reuse, don't copy                                                     |
+
+## Pitfalls already met
+
+- `pnpm e2e` runs on the production build. Playwright reuses a preview server that is already
+  running locally, which can serve an old build: stop it (or run `pnpm build`) before trusting
+  a screenshot.
+- Tailwind breakpoints follow the window, not the page: with the sidebar open a `md:` layout
+  can be too narrow. Use container queries (`@container` + `@4xl:`) for page-internal columns.
+- Characters kept in a campaign live in `campaigns/<id>/characters/`, not `characters/`; their
+  rules (2014/2024) come from the campaign. e2e helpers: `createCampaign(page, name, '2014 rules')`.
+- Write user files through `userStore()` (it counts writes so the sync can skip quiet runs);
+  only the sync itself uses `syncedStore()`.
+- Conformance suites run inside `pnpm check` only when `pnpm data:fetch` has filled `.data/`.
+  Run them before touching `packages/rules` or `packages/data5e`.
+- The accessibility test checks light and dark: ability colours (`--boh-str`…) are light in
+  dark mode, so use them for text and borders, never as a fill under white text.
+- The board canvas renders every node (`onlyRenderVisibleElements={false}`): turning culling on
+  re-sorts the DOM on every pan and made large boards lag.
 
 ## Git
 

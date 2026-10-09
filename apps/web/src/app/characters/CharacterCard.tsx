@@ -6,6 +6,7 @@ import { entityPath } from '../data/entities';
 import { RollChip } from '../dice/RollChip';
 import { useCharacters } from './store';
 import { useCharacterSheet } from './useCharacterSheet';
+import { signed } from '../format';
 
 /**
  * A character at a glance, for boards, encounters and the combat tracker: the numbers a DM asks
@@ -20,7 +21,6 @@ export interface CharacterCardShow {
 }
 
 const ABBR = { str: 'STR', dex: 'DEX', con: 'CON', int: 'INT', wis: 'WIS', cha: 'CHA' } as const;
-const signed = (n: number) => (n >= 0 ? `+${String(n)}` : String(n));
 const nameOfKey = (key: string) =>
   (key.split(':')[1]?.split('@')[0] ?? key).replace(/(^|\s)(\p{L})/gu, (m) => m.toUpperCase());
 
