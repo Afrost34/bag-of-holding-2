@@ -42,6 +42,27 @@ export default defineConfig({
   worker: {
     format: 'es',
   },
+  build: {
+    // Two chunks are one library each and load only where used: the 3D dice (one 545 kB file)
+    // and PixiJS under the map canvas (526 kB). Anything else past this limit should be split.
+    chunkSizeWarningLimit: 560,
+    rolldownOptions: {
+      output: {
+        // Big libraries in chunks of their own: cached across app updates, loaded only by the
+        // pages that use them (the note editor, the map canvas, the 3D dice, the boards).
+        codeSplitting: {
+          groups: [
+            { name: 'lezer', test: /node_modules[\\/]@lezer/ },
+            {
+              name: 'codemirror',
+              test: /node_modules[\\/](@codemirror|@marijn|style-mod|w3c-keyname|crelt)/,
+            },
+            { name: 'reactflow', test: /node_modules[\\/](@xyflow|d3-)/ },
+          ],
+        },
+      },
+    },
+  },
   plugins: [
     tanstackRouter({ target: 'react', autoCodeSplitting: true }),
     react(),
