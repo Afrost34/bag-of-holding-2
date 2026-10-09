@@ -18,6 +18,7 @@
     "deps:check": "depcruise apps packages --config .dependency-cruiser.cjs",
     "test": "vitest run",
     "test:watch": "vitest",
+    "conformance": "vitest run --project packages conformance",
     "e2e": "pnpm --filter @boh/web e2e",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm deps:check && pnpm test",
     "data:fetch": "node packages/data5e/scripts/fetch-data.mjs"

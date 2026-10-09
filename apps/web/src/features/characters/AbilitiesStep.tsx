@@ -17,6 +17,7 @@ import type { CharacterView } from '../../app/data/protocol';
 import { useDice } from '../../app/dice/store';
 import { selectClass } from './styles';
 import { StepTitle } from './ui';
+import { signed } from '../../app/format';
 
 const METHODS: { id: AbilityMethod; label: string; hint: string }[] = [
   { id: 'standard', label: 'Standard Array', hint: 'Place 15, 14, 13, 12, 10 and 8, one each.' },
@@ -32,8 +33,6 @@ const METHODS: { id: AbilityMethod; label: string; hint: string }[] = [
   },
   { id: 'manual', label: 'Manual / Rolled', hint: 'Type the scores in, as your table decided.' },
 ];
-
-const signed = (n: number) => (n >= 0 ? `+${String(n)}` : String(n));
 
 /** Ability Scores as on D&D Beyond: the method, six score pickers, then how each total is made. */
 export function AbilitiesStep({

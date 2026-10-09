@@ -1,7 +1,6 @@
 import type { CharacterView } from '../../../app/data/protocol';
 
-export const ORDINAL = (n: number) =>
-  `${String(n)}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'}`;
+export { ordinal as ORDINAL } from '../../../app/format';
 
 export function sourceLabel(from: string, view: CharacterView): string {
   if (from.startsWith('race:') || from.startsWith('subrace:')) return 'Species';

@@ -11,17 +11,13 @@ import { RollChip } from '../../app/dice/RollChip';
 import { SchoolIcon } from '../../app/lists/cells';
 import { sheetSpells, type SheetSpell } from './sheetSpells';
 import { pickName } from './steps';
+import { signed, titleWords as title, ordinal } from '../../app/format';
 
-const signed = (n: number) => (n >= 0 ? `+${String(n)}` : String(n));
 const d20 = (bonus: number, label: string): RollSpec => ({
   kind: 'd20',
   expression: `1d20${bonus ? (bonus > 0 ? ` + ${String(bonus)}` : ` - ${String(-bonus)}`) : ''}`,
   label,
 });
-const title = (s: string) =>
-  s.replace(/(^|\s)(\p{L})/gu, (_, a: string, b: string) => a + b.toUpperCase());
-const ORDINAL = (n: number) =>
-  `${String(n)}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'}`;
 
 const PROFICIENCY_LABELS: Record<0 | 0.5 | 1 | 2, string> = {
   0: 'Not proficient',
@@ -373,13 +369,13 @@ export function SheetView({
               {slots.map((n, i) =>
                 n > 0 ? (
                   <span key={i} className="rounded-full border border-border px-2">
-                    {ORDINAL(i + 1)}: <strong>{n}</strong>
+                    {ordinal(i + 1)}: <strong>{n}</strong>
                   </span>
                 ) : null,
               )}
               {sheet.pact && (
                 <span className="rounded-full border border-border px-2">
-                  Pact ({ORDINAL(sheet.pact.level)}): <strong>{sheet.pact.slots}</strong>
+                  Pact ({ordinal(sheet.pact.level)}): <strong>{sheet.pact.slots}</strong>
                 </span>
               )}
             </p>

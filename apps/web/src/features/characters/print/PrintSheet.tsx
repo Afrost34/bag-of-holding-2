@@ -11,6 +11,7 @@ import { SchoolIcon } from '../../../app/lists/cells';
 import { PortraitImage } from '../Portrait';
 import { pickName } from '../steps';
 import type { PrintSection } from './sections';
+import { signed, titleWords as title } from '../../../app/format';
 
 /**
  * The character sheet on paper, in the layout of the owner's own sheets: a main page (portrait,
@@ -31,9 +32,6 @@ const ABBR: Record<Ability, string> = {
   wis: 'WIS',
   cha: 'CHA',
 };
-const signed = (n: number) => (n >= 0 ? `+${String(n)}` : String(n));
-const title = (s: string) =>
-  s.replace(/(^|\s)(\p{L})/gu, (_, a: string, b: string) => a + b.toUpperCase());
 
 export function PrintSheet({
   character,
