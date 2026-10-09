@@ -1,11 +1,12 @@
 /** Types and styles shared by the map maker's side panels. */
 import type { Point } from '../../app/maps/geometry';
 import { type MapDoc, type MapItem } from '../../app/maps/model';
-import { type BrushSettings, type TemplateSettings, type Tool } from './tools';
+import { type BrushSettings, type TemplateSettings, type MapMode, type Tool } from './tools';
 
 export type Tab = 'stamps' | 'layers' | 'pins' | 'grid' | 'item';
 
 export interface MapPanelsProps {
+  mode: MapMode;
   doc: MapDoc;
   open: boolean;
   onClose: () => void;

@@ -30,7 +30,6 @@ import { Route as CharactersIdRouteImport } from './routes/characters_.$id'
 import { Route as CompendiumKeyRouteImport } from './routes/compendium_.$key'
 import { Route as EncountersIdRouteImport } from './routes/encounters_.$id'
 import { Route as HomebrewPackRouteImport } from './routes/homebrew_.$pack'
-import { Route as MapsIdRouteImport } from './routes/maps_.$id'
 import { Route as SettingsDataRouteImport } from './routes/settings_.data'
 import { Route as SettingsSyncRouteImport } from './routes/settings_.sync'
 import { Route as TablesIdRouteImport } from './routes/tables_.$id'
@@ -41,6 +40,8 @@ import { Route as CompendiumLibraryKindRouteImport } from './routes/compendium_.
 import { Route as CompendiumListCategoryRouteImport } from './routes/compendium_.list.$category'
 import { Route as CompendiumNotesTypeRouteImport } from './routes/compendium_.notes.$type'
 import { Route as CompendiumQuickrefIdRouteImport } from './routes/compendium_.quickref.$id'
+import { Route as MapsIdIndexRouteImport } from './routes/maps_.$id.index'
+import { Route as MapsIdEditRouteImport } from './routes/maps_.$id.edit'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -147,11 +148,6 @@ const HomebrewPackRoute = HomebrewPackRouteImport.update({
   path: '/homebrew/$pack',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MapsIdRoute = MapsIdRouteImport.update({
-  id: '/maps_/$id',
-  path: '/maps/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SettingsDataRoute = SettingsDataRouteImport.update({
   id: '/settings_/data',
   path: '/settings/data',
@@ -202,6 +198,16 @@ const CompendiumQuickrefIdRoute = CompendiumQuickrefIdRouteImport.update({
   path: '/compendium/quickref/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MapsIdIndexRoute = MapsIdIndexRouteImport.update({
+  id: '/maps_/$id/',
+  path: '/maps/$id/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MapsIdEditRoute = MapsIdEditRouteImport.update({
+  id: '/maps_/$id/edit',
+  path: '/maps/$id/edit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -225,7 +231,6 @@ export interface FileRoutesByFullPath {
   '/compendium/$key': typeof CompendiumKeyRoute
   '/encounters/$id': typeof EncountersIdRoute
   '/homebrew/$pack': typeof HomebrewPackRoute
-  '/maps/$id': typeof MapsIdRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/sync': typeof SettingsSyncRoute
   '/tables/$id': typeof TablesIdRoute
@@ -236,6 +241,8 @@ export interface FileRoutesByFullPath {
   '/compendium/list/$category': typeof CompendiumListCategoryRoute
   '/compendium/notes/$type': typeof CompendiumNotesTypeRoute
   '/compendium/quickref/$id': typeof CompendiumQuickrefIdRoute
+  '/maps/$id/edit': typeof MapsIdEditRoute
+  '/maps/$id/': typeof MapsIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -259,7 +266,6 @@ export interface FileRoutesByTo {
   '/compendium/$key': typeof CompendiumKeyRoute
   '/encounters/$id': typeof EncountersIdRoute
   '/homebrew/$pack': typeof HomebrewPackRoute
-  '/maps/$id': typeof MapsIdRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/sync': typeof SettingsSyncRoute
   '/tables/$id': typeof TablesIdRoute
@@ -270,6 +276,8 @@ export interface FileRoutesByTo {
   '/compendium/list/$category': typeof CompendiumListCategoryRoute
   '/compendium/notes/$type': typeof CompendiumNotesTypeRoute
   '/compendium/quickref/$id': typeof CompendiumQuickrefIdRoute
+  '/maps/$id/edit': typeof MapsIdEditRoute
+  '/maps/$id': typeof MapsIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -294,7 +302,6 @@ export interface FileRoutesById {
   '/compendium_/$key': typeof CompendiumKeyRoute
   '/encounters_/$id': typeof EncountersIdRoute
   '/homebrew_/$pack': typeof HomebrewPackRoute
-  '/maps_/$id': typeof MapsIdRoute
   '/settings_/data': typeof SettingsDataRoute
   '/settings_/sync': typeof SettingsSyncRoute
   '/tables_/$id': typeof TablesIdRoute
@@ -305,6 +312,8 @@ export interface FileRoutesById {
   '/compendium_/list/$category': typeof CompendiumListCategoryRoute
   '/compendium_/notes/$type': typeof CompendiumNotesTypeRoute
   '/compendium_/quickref/$id': typeof CompendiumQuickrefIdRoute
+  '/maps_/$id/edit': typeof MapsIdEditRoute
+  '/maps_/$id/': typeof MapsIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -330,7 +339,6 @@ export interface FileRouteTypes {
     | '/compendium/$key'
     | '/encounters/$id'
     | '/homebrew/$pack'
-    | '/maps/$id'
     | '/settings/data'
     | '/settings/sync'
     | '/tables/$id'
@@ -341,6 +349,8 @@ export interface FileRouteTypes {
     | '/compendium/list/$category'
     | '/compendium/notes/$type'
     | '/compendium/quickref/$id'
+    | '/maps/$id/edit'
+    | '/maps/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -364,7 +374,6 @@ export interface FileRouteTypes {
     | '/compendium/$key'
     | '/encounters/$id'
     | '/homebrew/$pack'
-    | '/maps/$id'
     | '/settings/data'
     | '/settings/sync'
     | '/tables/$id'
@@ -375,6 +384,8 @@ export interface FileRouteTypes {
     | '/compendium/list/$category'
     | '/compendium/notes/$type'
     | '/compendium/quickref/$id'
+    | '/maps/$id/edit'
+    | '/maps/$id'
   id:
     | '__root__'
     | '/'
@@ -398,7 +409,6 @@ export interface FileRouteTypes {
     | '/compendium_/$key'
     | '/encounters_/$id'
     | '/homebrew_/$pack'
-    | '/maps_/$id'
     | '/settings_/data'
     | '/settings_/sync'
     | '/tables_/$id'
@@ -409,6 +419,8 @@ export interface FileRouteTypes {
     | '/compendium_/list/$category'
     | '/compendium_/notes/$type'
     | '/compendium_/quickref/$id'
+    | '/maps_/$id/edit'
+    | '/maps_/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -433,7 +445,6 @@ export interface RootRouteChildren {
   CompendiumKeyRoute: typeof CompendiumKeyRoute
   EncountersIdRoute: typeof EncountersIdRoute
   HomebrewPackRoute: typeof HomebrewPackRoute
-  MapsIdRoute: typeof MapsIdRoute
   SettingsDataRoute: typeof SettingsDataRoute
   SettingsSyncRoute: typeof SettingsSyncRoute
   TablesIdRoute: typeof TablesIdRoute
@@ -444,6 +455,8 @@ export interface RootRouteChildren {
   CompendiumListCategoryRoute: typeof CompendiumListCategoryRoute
   CompendiumNotesTypeRoute: typeof CompendiumNotesTypeRoute
   CompendiumQuickrefIdRoute: typeof CompendiumQuickrefIdRoute
+  MapsIdEditRoute: typeof MapsIdEditRoute
+  MapsIdIndexRoute: typeof MapsIdIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -595,13 +608,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HomebrewPackRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/maps_/$id': {
-      id: '/maps_/$id'
-      path: '/maps/$id'
-      fullPath: '/maps/$id'
-      preLoaderRoute: typeof MapsIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/settings_/data': {
       id: '/settings_/data'
       path: '/settings/data'
@@ -672,6 +678,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompendiumQuickrefIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/maps_/$id/': {
+      id: '/maps_/$id/'
+      path: '/maps/$id'
+      fullPath: '/maps/$id/'
+      preLoaderRoute: typeof MapsIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/maps_/$id/edit': {
+      id: '/maps_/$id/edit'
+      path: '/maps/$id/edit'
+      fullPath: '/maps/$id/edit'
+      preLoaderRoute: typeof MapsIdEditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -697,7 +717,6 @@ const rootRouteChildren: RootRouteChildren = {
   CompendiumKeyRoute: CompendiumKeyRoute,
   EncountersIdRoute: EncountersIdRoute,
   HomebrewPackRoute: HomebrewPackRoute,
-  MapsIdRoute: MapsIdRoute,
   SettingsDataRoute: SettingsDataRoute,
   SettingsSyncRoute: SettingsSyncRoute,
   TablesIdRoute: TablesIdRoute,
@@ -708,6 +727,8 @@ const rootRouteChildren: RootRouteChildren = {
   CompendiumListCategoryRoute: CompendiumListCategoryRoute,
   CompendiumNotesTypeRoute: CompendiumNotesTypeRoute,
   CompendiumQuickrefIdRoute: CompendiumQuickrefIdRoute,
+  MapsIdEditRoute: MapsIdEditRoute,
+  MapsIdIndexRoute: MapsIdIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

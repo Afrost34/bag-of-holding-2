@@ -79,7 +79,7 @@ export function MapsPage() {
             void create(name, where === LIBRARY ? undefined : where, kind).then((s) => {
               setCreating(false);
               setName('');
-              navigate(`/maps/${s.id}`);
+              navigate(`/maps/${s.id}/edit`);
             });
           }}
         >

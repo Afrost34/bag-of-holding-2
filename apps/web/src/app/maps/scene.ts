@@ -275,6 +275,8 @@ export class MapScene {
   followResize = false;
   /** The players see it (the player window): pins hidden from them are left off. */
   forPlayers = false;
+  /** The Creator shows the map's art only: pins and routes are the Viewer's (set before `setDoc`). */
+  hideAnnotations = false;
 
   async init(host: HTMLElement): Promise<void> {
     await this.app.init({
@@ -452,6 +454,8 @@ export class MapScene {
         if (node) node.view.destroy({ children: true });
         const fresh = this.drawItem(item, doc);
         fresh.cullable = true;
+        if (this.hideAnnotations && (item.kind === 'pin' || item.kind === 'route'))
+          fresh.visible = false;
         this.nodes.set(item.id, { item, view: fresh, look });
         view.addChildAt(fresh, Math.min(i, view.children.length));
       });
@@ -789,6 +793,7 @@ export class MapScene {
       if (!layer.visible || layer.locked) continue;
       for (const item of [...layer.items].reverse()) {
         if (this.forPlayers && hiddenFromPlayers(item)) continue;
+        if (this.hideAnnotations && (item.kind === 'pin' || item.kind === 'route')) continue;
         if (item.kind === 'stroke' || item.kind === 'wall' || item.kind === 'route') {
           const width =
             item.kind === 'wall'
