@@ -268,6 +268,27 @@ export function MapSettings({ doc, commit, setTool, snap, setSnap }: MapPanelsPr
           <option value="fantasy">Fantasy map: inked icons, italic names</option>
         </select>
       </Section>
+      <Section title="Scale bar">
+        <select
+          value={doc.scaleBar ?? 'none'}
+          aria-label="Scale bar"
+          onChange={(e) => {
+            const v = e.target.value;
+            commit((d) => {
+              const { scaleBar: _old, ...rest } = d;
+              return v === 'plain' || v === 'fantasy' ? { ...rest, scaleBar: v } : rest;
+            });
+          }}
+          className={field}
+        >
+          <option value="none">None</option>
+          <option value="plain">Plain</option>
+          <option value="fantasy">Fantasy map: inked, old lettering</option>
+        </select>
+        {doc.scaleBar && !doc.scale && mapKind(doc) === 'world' && (
+          <p className="text-xs text-muted">Give the map its real size (Scale and travel) first.</p>
+        )}
+      </Section>
       <Section title="Picture">
         <PictureFile
           label={doc.background ? 'Replace the picture' : 'Choose a picture'}
