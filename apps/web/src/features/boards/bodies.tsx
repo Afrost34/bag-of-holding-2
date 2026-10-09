@@ -16,6 +16,7 @@ import { useJournal } from '../../app/journal/store';
 import { CalendarGlance } from '../../app/calendar/CalendarGlance';
 import { CombatBody, EncounterBody } from './combatBodies';
 import { useBoardActions, useIsPlayersBoard } from './context';
+import { ConverterBody } from './ConverterBody';
 import { MapBody } from './MapCard';
 import { CharacterBody, NamesBody, NpcBody } from './widgetBodies';
 
@@ -46,6 +47,8 @@ export function CardBody({ card }: { card: BoardCard }) {
       return <NpcBody card={card} />;
     case 'names':
       return <NamesBody card={card} />;
+    case 'converter':
+      return <ConverterBody card={card} />;
     case 'calendar':
       return <CalendarBody />;
     case 'frame':
