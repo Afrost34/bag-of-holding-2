@@ -23,6 +23,7 @@ export {
 export { patchFor, type Patch } from './patches';
 export {
   buildCharacter,
+  missingBySource,
   classChoiceId,
   FOUNDRY_FILE,
   makeRulesData,

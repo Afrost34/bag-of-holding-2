@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCharacter,
   meetsRequirements,
+  missingBySource,
   newCharacter,
   requirementText,
   type CharacterDecisions,
@@ -223,5 +224,24 @@ describe('buildCharacter', () => {
     expect(built.grants).toContainEqual(
       expect.objectContaining({ kind: 'language', value: 'common' }),
     );
+  });
+});
+
+describe('missing data', () => {
+  it('reports picks and items that are not in the data, by source', () => {
+    const decisions: CharacterDecisions = {
+      ...fighter(1, { 'class:fighter@phb/level:1/skill': ['athletics'] }),
+      species: 'race:goblin@homebrew',
+      inventory: [
+        { key: 'item:pistol@gs', quantity: 1 },
+        { key: 'item:musket@gs', quantity: 1 },
+        { key: '', name: 'Weighted dice', quantity: 1 },
+      ],
+    };
+    const built = buildCharacter(data, decisions);
+    expect(missingBySource(built.warnings)).toEqual([
+      { source: 'homebrew', names: ['Goblin'] },
+      { source: 'gs', names: ['Pistol', 'Musket'] },
+    ]);
   });
 });

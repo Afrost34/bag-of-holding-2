@@ -518,7 +518,41 @@ export function buildCharacter(
     Object.assign(carried, moves);
     built = buildOnce(data, withCarried(built.decisions, moves), rules);
   }
-  return { ...built, carried };
+  return { ...built, carried, warnings: [...built.warnings, ...missingPicks(data, built)] };
+}
+
+const ENTITY_KEY = /^[a-z]+:[^/]+@[a-z0-9-]+$/;
+
+/** Picked spells, feats… and carried items that are not in the data (homebrew not installed). */
+function missingPicks(data: RulesData, built: BuiltCharacter): Warning[] {
+  const warned = new Set(built.warnings.filter((w) => w.kind === 'missing').map((w) => w.ref));
+  const keys = [
+    ...built.choices.flatMap((c) => c.picks),
+    ...(built.decisions.inventory ?? []).map((i) => i.key),
+  ];
+  const out: Warning[] = [];
+  for (const key of new Set(keys))
+    if (ENTITY_KEY.test(key) && !warned.has(key) && !data.get(itemKey(data, key)))
+      out.push({ kind: 'missing', message: `Not in the data: ${key}`, ref: key });
+  return out;
+}
+
+/** Missing entities by source (`gs`, `xphb`…), with their names, for "install this pack". */
+export function missingBySource(
+  warnings: readonly Warning[],
+): { source: string; names: string[] }[] {
+  const out = new Map<string, string[]>();
+  for (const w of warnings) {
+    if (w.kind !== 'missing') continue;
+    const at = w.ref.lastIndexOf('@');
+    const source = at < 0 ? '' : w.ref.slice(at + 1);
+    const name = w.ref.slice(w.ref.indexOf(':') + 1, at < 0 ? undefined : at).split('|')[0] ?? '';
+    out.set(source, [
+      ...(out.get(source) ?? []),
+      name.replace(/\b\p{L}/gu, (c) => c.toUpperCase()),
+    ]);
+  }
+  return [...out].map(([source, names]) => ({ source, names }));
 }
 
 /** `class:druid@phb/level:2/subclass` → `class:druid/level:2/subclass`: the id without sources. */

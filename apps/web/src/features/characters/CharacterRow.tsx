@@ -1,6 +1,7 @@
 import * as Menu from '@radix-ui/react-dropdown-menu';
+import { missingBySource } from '@boh/rules';
 import { cn } from '@boh/ui';
-import { AlertTriangle, Copy, Printer, Trash2 } from 'lucide-react';
+import { AlertTriangle, Copy, PackageX, Printer, Trash2 } from 'lucide-react';
 import { useMemo } from 'react';
 import { AppLink } from '../../app/AppLink';
 import type { CharacterFile } from '../../app/characters/model';
@@ -33,6 +34,7 @@ export function CharacterRow({
   );
   const view = useCharacterView(character.decisions, rules);
   const open = view?.pending.length ?? 0;
+  const missing = missingBySource(view?.warnings ?? []);
   return (
     <li
       aria-label={character.name}
@@ -53,6 +55,17 @@ export function CharacterRow({
         {open > 0 && (
           <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-accent px-2 text-xs font-bold text-accent-fg">
             <AlertTriangle className="h-3 w-3" aria-hidden /> {open} to choose
+          </span>
+        )}
+        {missing.length > 0 && (
+          <span
+            title={missing
+              .map((m) => `${m.source.toUpperCase()}: ${m.names.join(', ')}`)
+              .join('\n')}
+            className="mt-0.5 ml-1 inline-flex items-center gap-1 rounded-full border border-accent px-2 text-xs font-bold text-accent-ink"
+          >
+            <PackageX className="h-3 w-3" aria-hidden /> Missing{' '}
+            {missing.map((m) => m.source.toUpperCase()).join(', ')}
           </span>
         )}
       </AppLink>
