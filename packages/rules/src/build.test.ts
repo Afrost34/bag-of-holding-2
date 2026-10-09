@@ -120,6 +120,37 @@ describe('buildCharacter', () => {
     expect(decisions.choices[old]).toEqual(['1']);
   });
 
+  it('reads a feat picked the 2014 way as the answer to a 2024 Ability Score Improvement', () => {
+    const asi = 'classfeature:ability score improvement|gunslinger|gs|4@gs';
+    const brew = fakeData([
+      [
+        'class:gunslinger@gs',
+        'class',
+        {
+          name: 'Gunslinger',
+          source: 'GS',
+          classFeatures: ['Ability Score Improvement|Gunslinger|GS|4'],
+        },
+        '2024',
+      ],
+      [
+        asi,
+        'classFeature',
+        { name: 'Ability Score Improvement', source: 'GS', className: 'Gunslinger', level: 4 },
+        '2024',
+      ],
+    ]);
+    const built = buildCharacter(brew, {
+      ...newCharacter('2024'),
+      classes: [{ class: 'class:gunslinger@gs', levels: 4 }],
+      choices: { [`${asi}/asi`]: ['feat'], [`${asi}/feat`]: ['feat:handy with a piece@gs'] },
+    });
+    expect(built.choices.find((c) => c.id === `${asi}/feats`)?.picks).toEqual([
+      'feat:handy with a piece@gs',
+    ]);
+    expect(built.warnings.filter((w) => w.kind === 'orphan')).toEqual([]);
+  });
+
   it('offers a feat for an Ability Score Improvement only where feats are allowed', () => {
     const asi = 'classfeature:ability score improvement|fighter|phb|4@phb/asi';
     const decisions = fighter(4, { [asi]: ['feat'] });
