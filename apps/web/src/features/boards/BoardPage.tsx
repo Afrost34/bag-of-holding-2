@@ -485,7 +485,7 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
               : { fitView: true, fitViewOptions: { maxZoom: 1 } })}
             minZoom={0.05}
             maxZoom={2}
-            onlyRenderVisibleElements
+            onlyRenderVisibleElements={false}
             deleteKeyCode={['Delete', 'Backspace']}
             onBeforeDelete={({ nodes: gone }) => {
               // Only the cards picked go (a frame's cards stay, freed), as the card's own delete

@@ -297,7 +297,7 @@ test('a link in a card brings its entry onto the board; Ctrl+click opens it', as
   await expect(page.getByRole('tab', { selected: true }).first()).toHaveText(/Magic Missile/);
 });
 
-test('a character card is the first page of its sheet, with sections on its side', async ({
+test('a character card is the first page of its sheet, with its sections as tabs', async ({
   page,
 }) => {
   await page.goto('./#/characters');
@@ -316,11 +316,15 @@ test('a character card is the first page of its sheet, with sections on its side
   await page.getByRole('list', { name: 'Characters' }).getByRole('button', { name: /Lia/ }).click();
   const sheet = page.locator('.react-flow__node').filter({ hasText: 'Lia' });
   await expect(sheet.getByRole('region', { name: 'Skills' })).toContainText('Stealth');
-  const story = sheet.getByRole('button', { name: 'Story' });
-  await expect(story).toHaveAttribute('aria-pressed', 'false');
+  // The side works like tabs: one section alone, or the sheet.
+  const story = sheet.getByRole('tab', { name: 'Story' });
+  await expect(story).toHaveAttribute('aria-selected', 'false');
   await story.click();
-  await expect(story).toHaveAttribute('aria-pressed', 'true');
+  await expect(story).toHaveAttribute('aria-selected', 'true');
   await expect(sheet.getByRole('region', { name: 'Story' })).toBeVisible();
+  await expect(sheet.getByRole('region', { name: 'Skills' })).toHaveCount(0);
+  await sheet.getByRole('tab', { name: 'Sheet' }).click();
+  await expect(sheet.getByRole('region', { name: 'Skills' })).toBeVisible();
 });
 
 test('a card fills the whole screen, and a map in it still pans and zooms', async ({ page }) => {

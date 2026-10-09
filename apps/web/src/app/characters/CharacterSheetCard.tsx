@@ -68,11 +68,15 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 export function CharacterSheetCard({
   characterId,
-  show = {},
+  show: shown = {},
+  only,
 }: {
   characterId: string;
   show?: SheetSections;
+  /** One section alone, instead of the sheet (the board card's tabs). */
+  only?: keyof SheetSections;
 }) {
+  const show: SheetSections = only ? { [only]: true } : shown;
   const { loaded, load } = useCharacters();
   const character = useCharacters((s) => s.characters.find((c) => c.id === characterId));
   useEffect(() => {
@@ -123,128 +127,132 @@ export function CharacterSheetCard({
         <p className="truncate text-xs text-muted">{character.summary}</p>
       </div>
 
-      <dl className="grid grid-cols-3 gap-1 text-center sm:grid-cols-6">
-        {(
-          [
-            ['AC', String(s.ac.value)],
-            ['HP', String(s.hp.value)],
-            ['Init', signed(s.initiative.value)],
-            [
-              'Speed',
-              `${String(s.speed.walk ?? 30)}${s.speed.fly ? `/${String(s.speed.fly)}f` : ''}`,
-            ],
-            ['Prof', signed(s.proficiencyBonus)],
-            ['Passive', String(s.passive.perception.value)],
-          ] as const
-        ).map(([label, value]) => (
-          <div key={label} className="rounded border border-border px-1 py-1">
-            <dt className="text-[10px] font-semibold text-muted uppercase">{label}</dt>
-            <dd className="font-bold">
-              {label === 'Init' ? (
-                <RollChip plain roll={roll(s.initiative.value, 'initiative')}>
-                  {value}
-                </RollChip>
-              ) : (
-                value
-              )}
-            </dd>
-          </div>
-        ))}
-      </dl>
-
-      <div className="grid grid-cols-6 gap-1 text-center">
-        {ABILITIES.map((a) => {
-          const line = s.abilities[a];
-          return (
-            <div key={a} className="rounded border border-border px-0.5 py-1">
-              <p className="text-[10px] font-semibold text-muted">{ABBR[a]}</p>
-              <RollChip plain roll={roll(line.check.value, `${abilityName(a)} check`)}>
-                <span className="font-bold">{signed(line.modifier)}</span>
-              </RollChip>
-              <p className="text-[10px] text-muted">{line.score.value}</p>
-              <p className="border-t border-border text-[10px] text-muted">
-                Save{' '}
-                <RollChip plain roll={roll(line.save.value, `${abilityName(a)} save`)}>
-                  <span className={cn(line.save.proficient && 'font-bold text-text')}>
-                    {signed(line.save.value)}
-                  </span>
-                </RollChip>
-              </p>
-            </div>
-          );
-        })}
-      </div>
-
-      <Section title="Skills">
-        <ul className="grid grid-cols-2 gap-x-3 text-xs">
-          {Object.entries(s.skills).map(([name, line]) => (
-            <li key={name} className="flex items-center gap-1.5 py-px">
-              <span
-                aria-hidden
-                className={cn(
-                  'h-2 w-2 shrink-0 rounded-full border border-text',
-                  line.proficiency >= 1 && 'bg-text',
-                  line.proficiency === 2 && 'ring-2 ring-accent',
-                )}
-              />
-              <span className={cn('flex-1 truncate', line.proficiency > 0 && 'font-semibold')}>
-                {titled(name)}
-              </span>
-              <RollChip plain roll={roll(line.value, titled(name))}>
-                {signed(line.value)}
-              </RollChip>
-            </li>
-          ))}
-        </ul>
-      </Section>
-
-      {s.attacks.length > 0 && (
-        <Section title="Attacks">
-          <ul aria-label={`${character.name} attacks`} className="space-y-0.5 text-xs">
-            {s.attacks.map((a) => (
-              <li key={a.key + a.name} className="flex flex-wrap items-baseline gap-x-2">
-                <EntryLink to={a.key} className="flex-1 font-semibold text-text">
-                  {a.name}
-                </EntryLink>
-                {a.toHit && (
-                  <RollChip plain roll={roll(a.toHit.value, a.name)}>
-                    {signed(a.toHit.value)}
-                  </RollChip>
-                )}
-                {a.save && (
-                  <span>
-                    DC {a.save.dc.value} {ABBR[a.save.ability]}
-                  </span>
-                )}
-                {a.damage && (
-                  <RollChip
-                    plain
-                    roll={{
-                      kind: 'damage',
-                      expression: a.damage.split(' ')[0] ?? a.damage,
-                      label: `${character.name}: ${a.name}`,
-                    }}
-                  >
-                    {a.damage}
-                  </RollChip>
-                )}
-              </li>
-            ))}
-          </ul>
-        </Section>
-      )}
-
-      {proficiencyRows.length > 0 && (
-        <Section title="Proficiencies">
-          <dl className="space-y-0.5 text-xs">
-            {proficiencyRows.map(([label, items]) => (
-              <div key={label} className="flex gap-2">
-                <dt className="w-20 shrink-0 font-semibold text-muted">{label}</dt>
-                <dd className="min-w-0 capitalize">{items.join(', ')}</dd>
+      {!only && (
+        <>
+          <dl className="grid grid-cols-3 gap-1 text-center sm:grid-cols-6">
+            {(
+              [
+                ['AC', String(s.ac.value)],
+                ['HP', String(s.hp.value)],
+                ['Init', signed(s.initiative.value)],
+                [
+                  'Speed',
+                  `${String(s.speed.walk ?? 30)}${s.speed.fly ? `/${String(s.speed.fly)}f` : ''}`,
+                ],
+                ['Prof', signed(s.proficiencyBonus)],
+                ['Passive', String(s.passive.perception.value)],
+              ] as const
+            ).map(([label, value]) => (
+              <div key={label} className="rounded border border-border px-1 py-1">
+                <dt className="text-[10px] font-semibold text-muted uppercase">{label}</dt>
+                <dd className="font-bold">
+                  {label === 'Init' ? (
+                    <RollChip plain roll={roll(s.initiative.value, 'initiative')}>
+                      {value}
+                    </RollChip>
+                  ) : (
+                    value
+                  )}
+                </dd>
               </div>
             ))}
           </dl>
-        </Section>
+
+          <div className="grid grid-cols-6 gap-1 text-center">
+            {ABILITIES.map((a) => {
+              const line = s.abilities[a];
+              return (
+                <div key={a} className="rounded border border-border px-0.5 py-1">
+                  <p className="text-[10px] font-semibold text-muted">{ABBR[a]}</p>
+                  <RollChip plain roll={roll(line.check.value, `${abilityName(a)} check`)}>
+                    <span className="font-bold">{signed(line.modifier)}</span>
+                  </RollChip>
+                  <p className="text-[10px] text-muted">{line.score.value}</p>
+                  <p className="border-t border-border text-[10px] text-muted">
+                    Save{' '}
+                    <RollChip plain roll={roll(line.save.value, `${abilityName(a)} save`)}>
+                      <span className={cn(line.save.proficient && 'font-bold text-text')}>
+                        {signed(line.save.value)}
+                      </span>
+                    </RollChip>
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          <Section title="Skills">
+            <ul className="grid grid-cols-2 gap-x-3 text-xs">
+              {Object.entries(s.skills).map(([name, line]) => (
+                <li key={name} className="flex items-center gap-1.5 py-px">
+                  <span
+                    aria-hidden
+                    className={cn(
+                      'h-2 w-2 shrink-0 rounded-full border border-text',
+                      line.proficiency >= 1 && 'bg-text',
+                      line.proficiency === 2 && 'ring-2 ring-accent',
+                    )}
+                  />
+                  <span className={cn('flex-1 truncate', line.proficiency > 0 && 'font-semibold')}>
+                    {titled(name)}
+                  </span>
+                  <RollChip plain roll={roll(line.value, titled(name))}>
+                    {signed(line.value)}
+                  </RollChip>
+                </li>
+              ))}
+            </ul>
+          </Section>
+
+          {s.attacks.length > 0 && (
+            <Section title="Attacks">
+              <ul aria-label={`${character.name} attacks`} className="space-y-0.5 text-xs">
+                {s.attacks.map((a) => (
+                  <li key={a.key + a.name} className="flex flex-wrap items-baseline gap-x-2">
+                    <EntryLink to={a.key} className="flex-1 font-semibold text-text">
+                      {a.name}
+                    </EntryLink>
+                    {a.toHit && (
+                      <RollChip plain roll={roll(a.toHit.value, a.name)}>
+                        {signed(a.toHit.value)}
+                      </RollChip>
+                    )}
+                    {a.save && (
+                      <span>
+                        DC {a.save.dc.value} {ABBR[a.save.ability]}
+                      </span>
+                    )}
+                    {a.damage && (
+                      <RollChip
+                        plain
+                        roll={{
+                          kind: 'damage',
+                          expression: a.damage.split(' ')[0] ?? a.damage,
+                          label: `${character.name}: ${a.name}`,
+                        }}
+                      >
+                        {a.damage}
+                      </RollChip>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
+
+          {proficiencyRows.length > 0 && (
+            <Section title="Proficiencies">
+              <dl className="space-y-0.5 text-xs">
+                {proficiencyRows.map(([label, items]) => (
+                  <div key={label} className="flex gap-2">
+                    <dt className="w-20 shrink-0 font-semibold text-muted">{label}</dt>
+                    <dd className="min-w-0 capitalize">{items.join(', ')}</dd>
+                  </div>
+                ))}
+              </dl>
+            </Section>
+          )}
+        </>
       )}
 
       {show.spells && (spells.length > 0 || s.spellcasting.length > 0) && (

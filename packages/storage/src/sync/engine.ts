@@ -19,6 +19,8 @@ interface SyncState {
   remote: string;
   /** Every file as it was after the last sync: path → blob hash. */
   files: Record<string, string>;
+  /** The repository's commit right after the last sync (absent in older states). */
+  head?: string;
 }
 
 export interface SyncResult {
@@ -30,6 +32,16 @@ export interface SyncResult {
   conflicts: { path: string; winner: 'local' | 'remote' }[];
   /** The commit made, or null when this device had nothing to send. */
   commit: string | null;
+  /** Nothing changed on either side since the last sync: nothing was read or sent. */
+  unchanged?: true;
+}
+
+/** What a sync is about to do, before it sends or fetches anything. */
+export interface SyncPlanSummary {
+  upload: string[];
+  download: string[];
+  deleteHere: string[];
+  deleteThere: string[];
 }
 
 export interface SyncOptions {
@@ -38,6 +50,13 @@ export interface SyncOptions {
   /** Names this device in commit messages, e.g. "phone". */
   device: string;
   onProgress?: (done: number, total: number) => void;
+  /** Told what will be sent, fetched and deleted, before any of it happens. */
+  onPlan?: (plan: SyncPlanSummary) => void;
+  /**
+   * Nothing was written on this device since the last sync (the app knows): when the repository
+   * has not moved either, the sync stops there, without reading every file.
+   */
+  localUnchanged?: boolean;
   /** Files never synced (besides the sync's own folder). */
   ignore?: (path: string) => boolean;
   /**
@@ -64,7 +83,12 @@ async function readState(store: FileStore, remoteId: string): Promise<SyncState>
   try {
     const state = JSON.parse(text) as Partial<SyncState> | null;
     return state?.version === 1 && state.remote === remoteId && state.files
-      ? { version: 1, remote: remoteId, files: state.files }
+      ? {
+          version: 1,
+          remote: remoteId,
+          files: state.files,
+          ...(typeof state.head === 'string' ? { head: state.head } : {}),
+        }
       : fresh;
   } catch {
     return fresh;
@@ -92,6 +116,21 @@ export async function syncStore(
   const ignored = (p: string) =>
     p === SYNC_DIR || p.startsWith(`${SYNC_DIR}/`) || options.ignore?.(p) === true;
   const state = await readState(store, options.remoteId);
+
+  // Nothing written here and the repository where it was: done, at the cost of one request.
+  if (options.localUnchanged === true && state.head) {
+    const now = await repo.head();
+    if (now?.commit === state.head)
+      return {
+        downloaded: [],
+        uploaded: [],
+        deletedHere: [],
+        deletedThere: [],
+        conflicts: [],
+        commit: null,
+        unchanged: true,
+      };
+  }
 
   // This device: every file's hash and age.
   const localPaths = (await walk(store)).filter((p) => !ignored(p));
@@ -142,6 +181,12 @@ export async function syncStore(
     }
   }
 
+  options.onPlan?.({
+    upload: [...upload],
+    download: [...download],
+    deleteHere: [...deleteLocal],
+    deleteThere: [...deleteRemote],
+  });
   const total = download.length + upload.length + losers.length;
   let done = 0;
   const tick = () => {
@@ -210,6 +255,7 @@ export async function syncStore(
       version: 1,
       remote: options.remoteId,
       files: Object.fromEntries(finalRemote),
+      head: commit ?? head.commit,
     } satisfies SyncState),
   );
 
