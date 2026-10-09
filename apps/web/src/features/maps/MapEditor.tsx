@@ -20,13 +20,7 @@ import { emptyHistory, record, redo as redoStep, undo as undoStep } from '../../
 import { journalPath } from '../../app/journal/paths';
 import { useJournal } from '../../app/journal/store';
 import { useStamps } from '../../app/maps/assets';
-import {
-  distanceFeet,
-  snapToCell,
-  snapToCorner,
-  templateOutline,
-  type Point,
-} from '../../app/maps/geometry';
+import { snapToCell, snapToCorner, templateOutline, type Point } from '../../app/maps/geometry';
 import {
   addItem,
   findItem,
@@ -46,7 +40,7 @@ import {
   type StrokeStyle,
 } from '../../app/maps/scene';
 import { useMapDoc, useMaps } from '../../app/maps/store';
-import { measureLine } from '../../app/maps/travel';
+import { measurePath } from '../../app/maps/measure';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 import { eraseStrokes, ROUTE_COLOR, routeStatus, simplify, type Drag } from './editorModel';
@@ -130,7 +124,8 @@ function Editor({ doc }: { doc: MapDoc }) {
   const [wall, setWall] = useState<number[] | null>(null);
   const [exporting, setExporting] = useState(false);
   const [loadingPicture, setLoadingPicture] = useState(false);
-  const [measure, setMeasure] = useState<string | null>(null);
+  /** The path being measured: a point per click, until Escape or another tool. */
+  const [measured, setMeasured] = useState<Point[]>([]);
   const drag = useRef<Drag | null>(null);
   const pointers = useRef(new Map<number, Point>());
   const pinch = useRef<{ distance: number; mid: Point } | null>(null);
@@ -207,6 +202,16 @@ function Editor({ doc }: { doc: MapDoc }) {
   const grid = doc.grid;
   const snapCell = (p: Point) => (snap ? snapToCell(p, grid) : p);
   const snapPoint = (p: Point) => (snap ? snapToCorner(p, grid) : p);
+  // A map with a real scale (a world map) measures from point to point, not cell to cell.
+  const measureAt = (p: Point) => (doc.scale ? p : snapCell(p));
+  const measureBasis = { scale: doc.scale, travel: doc.travel, grid };
+  const measure = measurePath(measured, measureBasis);
+  /** Draws the path, with the leg to the pointer when given. */
+  const drawMeasured = (points: readonly Point[]) => {
+    const line = measurePath(points, measureBasis);
+    // On the map, the distance; the times are in the bar above.
+    scene?.drawMeasure(points, line ? (line.split(' · ')[0] ?? line) : null);
+  };
 
   const place = (item: MapItem) => {
     if (!layer || layer.locked) return;
@@ -339,8 +344,8 @@ function Editor({ doc }: { doc: MapDoc }) {
         setPanelOpen(true);
         return;
       case 'measure':
-        // A map with a real scale (a world map) measures from point to point, not cell to cell.
-        drag.current = { mode: 'measure', ...base, start: doc.scale ? p : snapCell(p) };
+        // The point is added when the button comes up without moving (see onPointerUp).
+        drag.current = { mode: 'measure', ...base, start: measureAt(p) };
         return;
       case 'template':
         drag.current = { mode: 'template', ...base, start: snap ? snapPoint(p) : p };
@@ -366,6 +371,8 @@ function Editor({ doc }: { doc: MapDoc }) {
       return;
     }
     const p = scene.toMap(screen.x, screen.y);
+    if (tool === 'measure' && measured.length > 0 && !drag.current)
+      drawMeasured([...measured, measureAt(p)]);
     if (wall && tool === 'route')
       scene.drawPreview((g) => {
         drawRoute(g, [...wall, p.x, p.y], ROUTE_COLOR, routeWidth(doc));
@@ -415,24 +422,8 @@ function Editor({ doc }: { doc: MapDoc }) {
         else previewEraser(d.points ?? []);
         return;
       }
-      case 'measure': {
-        const end = doc.scale ? p : snapCell(p);
-        const line = doc.scale
-          ? measureLine(d.start, end, doc.scale, doc.travel)
-          : `${String(distanceFeet(d.start, end, grid))} ft`;
-        setMeasure(line);
-        scene.drawPreview(
-          (g) => {
-            g.moveTo(d.start.x, d.start.y)
-              .lineTo(end.x, end.y)
-              .stroke({ color: 0xfacc15, width: 4 / scene.zoom });
-            g.circle(d.start.x, d.start.y, 6 / scene.zoom).fill({ color: 0xfacc15 });
-          },
-          // On the map, the distance; the times are in the bar above.
-          { text: line.split(' · ')[0] ?? line, at: end },
-        );
+      case 'measure':
         return;
-      }
       case 'template': {
         const angle = (Math.atan2(p.y - d.start.y, p.x - d.start.x) * 180) / Math.PI;
         const o = templateOutline(template.shape, d.start, template.feet, angle, grid);
@@ -550,9 +541,15 @@ function Editor({ doc }: { doc: MapDoc }) {
         commit((doc2) => eraseStrokes(doc2, path, eraser / 2));
         return;
       }
-      case 'measure':
-        // A measurement is not kept: it stays until the next click.
+      case 'measure': {
+        // A click adds a point to the path; a measurement is never kept on the map.
+        const up = local(e);
+        if (Math.hypot(up.x - d.screen.x, up.y - d.screen.y) >= 5) return;
+        const next = [...measured, d.start];
+        setMeasured(next);
+        drawMeasured(next);
         return;
+      }
       case 'template': {
         scene.clearPreview();
         const angle =
@@ -636,7 +633,7 @@ function Editor({ doc }: { doc: MapDoc }) {
       if (e.key === 'Escape') {
         if (wall) finishWall();
         setSelected(null);
-        setMeasure(null);
+        setMeasured([]);
         scene?.clearPreview();
         if (viewing) setViewing(false);
         return;
@@ -810,7 +807,7 @@ function Editor({ doc }: { doc: MapDoc }) {
                 onClick={() => {
                   if (wall) finishWall();
                   setTool(t.id);
-                  setMeasure(null);
+                  setMeasured([]);
                   scene?.clearPreview();
                   if (TOOLS_WITH_SETTINGS.has(t.id)) setPanelOpen(true);
                 }}
@@ -850,7 +847,7 @@ function Editor({ doc }: { doc: MapDoc }) {
               Loading the picture…
             </p>
           )}
-          {(wall !== null || measure !== null || tool === 'calibrate') && !viewing && (
+          {(wall !== null || measured.length > 0 || tool === 'calibrate') && !viewing && (
             <p
               role="status"
               className="pointer-events-none absolute top-2 left-1/2 -translate-x-1/2 rounded-md bg-surface/90 px-3 py-1 text-sm shadow-card"
@@ -861,7 +858,9 @@ function Editor({ doc }: { doc: MapDoc }) {
                   ? routeStatus(wall, doc)
                   : wall
                     ? 'Click to add corners; double-click or Enter to finish the wall.'
-                    : `Distance: ${measure ?? ''}`}
+                    : measure
+                      ? `Distance: ${measure} (Escape to clear)`
+                      : 'Click the next point.'}
             </p>
           )}
           {viewing && (

@@ -15,7 +15,8 @@ import { useJournal } from '../../app/journal/store';
 import { CalendarGlance } from '../../app/calendar/CalendarGlance';
 import { CombatBody, EncounterBody } from './combatBodies';
 import { useBoardActions, useIsPlayersBoard } from './context';
-import { CharacterBody, MapBody, NamesBody, NpcBody } from './widgetBodies';
+import { MapBody } from './MapCard';
+import { CharacterBody, NamesBody, NpcBody } from './widgetBodies';
 
 /** What a card shows under its title bar. */
 export function CardBody({ card }: { card: BoardCard }) {

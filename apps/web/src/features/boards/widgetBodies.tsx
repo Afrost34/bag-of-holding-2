@@ -3,15 +3,13 @@ import { Button, cn } from '@boh/ui';
 import {
   Backpack,
   BookOpen,
-  ExternalLink,
   NotebookPen,
   ScrollText,
   Shuffle,
   Sparkles,
   UserRound,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import { AppLink } from '../../app/AppLink';
+import { useState } from 'react';
 import type { BoardCard } from '../../app/boards/model';
 import { generateNames } from '../../app/boards/names';
 import { generateNpc, type Npc } from '../../app/boards/npc';
@@ -19,122 +17,13 @@ import { useSpeciesNames } from '../../app/boards/useSpeciesNames';
 import { CharacterSheetCard } from '../../app/characters/CharacterSheetCard';
 import { journalPath } from '../../app/journal/paths';
 import { useJournal } from '../../app/journal/store';
-import { PinHover } from '../../app/maps/PinHover';
-import { MapScene } from '../../app/maps/scene';
-import { useMaps } from '../../app/maps/store';
 import { useAppNavigate } from '../../app/navigation';
-import { useBoardActions, useIsPlayersBoard } from './context';
-import { pinLink } from '../../app/maps/pinLink';
-import type { CardContent } from '../../app/boards/model';
+import { useBoardActions } from './context';
 
 /**
- * Board widgets beyond notes and entries: a map to look at, a character at a glance, and an NPC
- * made up on the spot.
+ * Board widgets beyond notes and entries: a character at a glance, an NPC made up on the spot
+ * and names to pick from (the map card is in MapCard.tsx).
  */
-
-/**
- * A map of the Maps module, fitted to its card: drag to look around it; the wheel zooms the
- * board, not the map (edited in the map maker).
- */
-/**
- * A point of the page in the map's own pixels: the board may be zoomed, so the card is drawn
- * smaller or larger on screen than its canvas is.
- */
-function localPoint(el: HTMLElement, clientX: number, clientY: number) {
-  const r = el.getBoundingClientRect();
-  const kx = r.width ? el.clientWidth / r.width : 1;
-  const ky = r.height ? el.clientHeight / r.height : 1;
-  return { x: (clientX - r.left) * kx, y: (clientY - r.top) * ky };
-}
-
-export function MapBody({ card }: { card: Extract<BoardCard, { kind: 'map' }> }) {
-  const doc = useMaps((s) => s.maps.find((m) => m.id === card.map));
-  const { loaded, load } = useMaps();
-  const host = useRef<HTMLDivElement>(null);
-  const [scene, setScene] = useState<MapScene | null>(null);
-  const drag = useRef<{ x: number; y: number } | null>(null);
-  const downAt = useRef<{ x: number; y: number } | null>(null);
-  const actions = useBoardActions();
-  const forPlayers = useIsPlayersBoard();
-  useEffect(() => {
-    if (!loaded) void load();
-  }, [loaded, load]);
-  useEffect(() => {
-    const el = host.current;
-    if (!el || !doc) return;
-    const s = new MapScene();
-    s.followResize = true;
-    s.forPlayers = forPlayers;
-    let live = true;
-    void s.init(el).then(() => {
-      if (!live) return;
-      s.setDoc(doc);
-      s.fit();
-      setScene(s);
-    });
-    return () => {
-      live = false;
-      s.destroy();
-    };
-    // One canvas per map; changes to it arrive through setDoc below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc?.id]);
-  useEffect(() => {
-    if (doc) scene?.setDoc(doc);
-  }, [scene, doc]);
-  if (!doc) return <p className="text-muted">This map no longer exists.</p>;
-  return (
-    <div className="-m-3 flex h-[calc(100%+1.5rem)] flex-col">
-      <div
-        ref={host}
-        role="img"
-        aria-label={`Map: ${doc.name}`}
-        className="relative min-h-0 flex-1 cursor-grab touch-none overflow-hidden bg-sunken"
-        onPointerDown={(e) => {
-          e.currentTarget.setPointerCapture(e.pointerId);
-          drag.current = { x: e.clientX, y: e.clientY };
-          downAt.current = { x: e.clientX, y: e.clientY };
-        }}
-        onPointerMove={(e) => {
-          if (!drag.current || !scene) return;
-          // The map follows the pointer however far the board is zoomed.
-          const r = e.currentTarget.getBoundingClientRect();
-          const k = r.width ? e.currentTarget.clientWidth / r.width : 1;
-          scene.panBy((e.clientX - drag.current.x) * k, (e.clientY - drag.current.y) * k);
-          drag.current = { x: e.clientX, y: e.clientY };
-        }}
-        onPointerUp={(e) => {
-          drag.current = null;
-          // A click (not a drag) on a pin opens where it leads, beside the map.
-          const from = downAt.current;
-          const el = host.current;
-          if (!scene || !el || !from || Math.hypot(e.clientX - from.x, e.clientY - from.y) > 5)
-            return;
-          const at = localPoint(el, e.clientX, e.clientY);
-          const hit = scene.hit(scene.toMap(at.x, at.y));
-          const link = hit?.kind === 'pin' ? pinLink(hit) : null;
-          if (!link) return;
-          const content: CardContent =
-            link.kind === 'note'
-              ? { kind: 'note', path: link.path }
-              : link.kind === 'map'
-                ? { kind: 'map', map: link.id }
-                : { kind: 'entity', key: link.key };
-          actions.addBeside(card.id, [content]);
-        }}
-      />
-      <PinHover scene={scene} host={host} campaignId={doc.campaign} />
-      <div className="flex justify-end border-t border-border px-2 py-1">
-        <AppLink
-          to={`/maps/${doc.id}`}
-          className="inline-flex items-center gap-1 text-xs text-link hover:underline"
-        >
-          <ExternalLink className="h-3.5 w-3.5" aria-hidden /> Open in the map maker
-        </AppLink>
-      </div>
-    </div>
-  );
-}
 
 const SECTIONS = [
   { part: undefined, label: 'Sheet', Icon: UserRound },
