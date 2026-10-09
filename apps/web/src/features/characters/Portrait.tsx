@@ -8,7 +8,9 @@ import type { CharacterFile } from '../../app/characters/model';
 import { loadEntity } from '../../app/data/entities';
 import { loadRows } from '../../app/data/lists';
 import type { CharacterView } from '../../app/data/protocol';
-import { shrinkImage } from '../../app/shrinkImage';
+import { picturePathOf, pictureRef } from '../../app/pictures/model';
+import { LibraryPicture, PictureLibrary } from '../../app/pictures/PictureLibrary';
+import { usePictures } from '../../app/pictures/store';
 
 /** A character's picture, or its initial when it has none. */
 export function PortraitImage({
@@ -28,6 +30,16 @@ export function PortraitImage({
         path={p.slice(4)}
         widths={[192, 384]}
         sizes={`${String(size)}px`}
+        alt={`Portrait of ${character.name}`}
+        style={style}
+        className={cn('shrink-0 rounded object-cover object-top', className)}
+      />
+    );
+  const library = picturePathOf(p);
+  if (library)
+    return (
+      <LibraryPicture
+        path={library}
         alt={`Portrait of ${character.name}`}
         style={style}
         className={cn('shrink-0 rounded object-cover object-top', className)}
@@ -170,11 +182,29 @@ function PortraitDialog({
   const [filter, setFilter] = useState('');
   const shown = all.filter((a) => a.name.toLowerCase().includes(filter.trim().toLowerCase()));
   const [problem, setProblem] = useState<string | null>(null);
-  const set = (portrait: string | undefined) => {
+  const addPicture = usePictures((s) => s.add);
+  const write = (portrait: string | undefined) => {
     const { portrait: _old, ...rest } = character;
     save(portrait ? { ...rest, portrait } : rest);
+  };
+  const set = (portrait: string | undefined) => {
+    write(portrait);
     onClose();
   };
+  // A portrait kept inside the character (older ones) joins the library, to be used again.
+  const embedded = character.portrait?.startsWith('data:') ? character.portrait : null;
+  useEffect(() => {
+    if (!embedded) return;
+    void fetch(embedded)
+      .then((r) => r.blob())
+      .then((blob) => addPicture(blob, character.name))
+      .then((path) => {
+        write(pictureRef(path));
+      })
+      .catch(() => undefined);
+    // Once per portrait.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [embedded]);
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3"
@@ -214,9 +244,9 @@ function PortraitDialog({
                   const file = e.target.files?.[0];
                   e.target.value = '';
                   if (file)
-                    void shrinkImage(file)
-                      .then((url) => {
-                        set(url);
+                    void addPicture(file, file.name)
+                      .then((path) => {
+                        set(pictureRef(path));
                       })
                       .catch(() => {
                         setProblem('This picture could not be read.');
@@ -240,6 +270,15 @@ function PortraitDialog({
               {problem}
             </p>
           )}
+          <div>
+            <h3 className="mb-2 font-bold">Your pictures</h3>
+            <PictureLibrary
+              selected={picturePathOf(character.portrait)}
+              onPick={(path) => {
+                set(pictureRef(path));
+              }}
+            />
+          </div>
           <div>
             <h3 className="mb-2 font-bold">Or pick art from your books</h3>
             {art.length === 0 ? (

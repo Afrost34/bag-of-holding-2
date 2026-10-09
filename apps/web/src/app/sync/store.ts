@@ -8,6 +8,7 @@ import { useEncounters } from '../encounters/store';
 import { useTables } from '../tables/store';
 import { useStamps } from '../maps/assets';
 import { useMaps } from '../maps/store';
+import { usePictures } from '../pictures/store';
 import { useCardSheets } from '../cards/store';
 import { useCharacters } from '../characters/store';
 import { useHomebrew } from '../data/homebrew';
@@ -155,6 +156,7 @@ async function refreshAfterSync(paths: string[]): Promise<void> {
   if (touched(/^(tables\/|campaigns\/[^/]+\/tables\/)/)) await useTables.getState().reload();
   if (touched(/^(maps\/|campaigns\/[^/]+\/maps\/)[^/]+\.json$/)) await useMaps.getState().reload();
   if (touched(/^stamps\//) && useStamps.getState().loaded) await useStamps.getState().load();
+  if (touched(/^pictures\//) && usePictures.getState().loaded) await usePictures.getState().load();
   if (touched(/^campaigns\/[^/]+\/calendar\.json$/)) await useCalendar.getState().reload();
 }
 
