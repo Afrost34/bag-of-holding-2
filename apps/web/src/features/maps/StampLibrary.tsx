@@ -1,27 +1,60 @@
 import { Button, cn } from '@boh/ui';
-import { FolderOpen, Globe, ImagePlus, Search } from 'lucide-react';
+import { FolderOpen, ImagePlus, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { fileUrl, findStamps, stampFile, useStamps, type Stamp } from '../../app/maps/assets';
-import { OnlineStamps } from './OnlineStamps';
+import { PackBrowser } from './PackBrowser';
+
+type Pick = (path: string, aspect: number, squares?: { w: number; h: number }) => void;
 
 /**
- * The stamp library: pictures imported from folders (sub-folders become categories) or added from
- * packs online, searched by
- * name, folder or tag. Picking one starts the stamp tool with it.
+ * The stamp library: asset packs imported as zips, and your own pictures (folders whose
+ * sub-folders become categories). Picking one starts the stamp tool with it.
  */
-export function StampLibrary({
-  selected,
-  onPick,
-}: {
-  selected: string | null;
-  onPick: (path: string, aspect: number) => void;
-}) {
+export function StampLibrary({ selected, onPick }: { selected: string | null; onPick: Pick }) {
+  const [source, setSource] = useState<'packs' | 'mine'>('packs');
+  return (
+    <section aria-label="Stamps" className="space-y-2">
+      <div role="tablist" aria-label="Stamp source" className="grid grid-cols-2 gap-1">
+        {(
+          [
+            ['packs', 'Asset packs'],
+            ['mine', 'My stamps'],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={source === id}
+            onClick={() => {
+              setSource(id);
+            }}
+            className={cn(
+              'rounded-md border px-2 py-1 text-sm',
+              source === id
+                ? 'border-accent bg-accent-soft font-medium'
+                : 'border-border text-muted',
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {source === 'packs' ? (
+        <PackBrowser selected={selected} onPick={onPick} />
+      ) : (
+        <MyStamps selected={selected} onPick={onPick} />
+      )}
+    </section>
+  );
+}
+
+function MyStamps({ selected, onPick }: { selected: string | null; onPick: Pick }) {
   const { stamps, tags, importFiles, setTags } = useStamps();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [online, setOnline] = useState(false);
   const categories = [...new Set(stamps.flatMap((s) => prefixes(s.category)))].sort();
   const shown = findStamps(stamps, tags, query, category).slice(0, 300);
   const picked = stamps.find((s) => s.path === selected);
@@ -48,7 +81,7 @@ export function StampLibrary({
   };
 
   return (
-    <section aria-label="Stamps" className="space-y-2">
+    <div className="space-y-2">
       <div className="flex flex-wrap gap-1">
         <Button
           variant="ghost"
@@ -68,17 +101,7 @@ export function StampLibrary({
         >
           <ImagePlus className="h-4 w-4" aria-hidden /> Pictures
         </Button>
-        <Button
-          variant="ghost"
-          aria-expanded={online}
-          onClick={() => {
-            setOnline(!online);
-          }}
-        >
-          <Globe className="h-4 w-4" aria-hidden /> Find online
-        </Button>
       </div>
-      {online && <OnlineStamps onPick={onPick} />}
       {message && (
         <p role="status" className="text-xs text-muted">
           {message}
@@ -153,7 +176,7 @@ export function StampLibrary({
           )}
         </>
       )}
-    </section>
+    </div>
   );
 }
 
@@ -164,15 +187,7 @@ function prefixes(category: string): string[] {
   return parts.map((_, i) => parts.slice(0, i + 1).join('/'));
 }
 
-function StampTile({
-  stamp,
-  active,
-  onPick,
-}: {
-  stamp: Stamp;
-  active: boolean;
-  onPick: (path: string, aspect: number) => void;
-}) {
+function StampTile({ stamp, active, onPick }: { stamp: Stamp; active: boolean; onPick: Pick }) {
   const [url, setUrl] = useState<string | null>(null);
   const [aspect, setAspect] = useState(1);
   useEffect(() => {

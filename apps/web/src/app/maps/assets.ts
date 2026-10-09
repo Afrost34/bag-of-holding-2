@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { fetchMissing } from '../sync/lazy';
 import { userStore } from '../userStore';
 import { mapAssetPath, mapThumbPath, STAMPS_DIR } from './model';
+import { isPackRef } from './packModel';
+import { packPictureUrl } from './packs';
 
 /**
  * Pictures for maps: backgrounds (kept with the campaign's maps) and the stamp library (shared by
@@ -24,6 +26,8 @@ const urls = new Map<string, Promise<string | null>>();
 
 /** An object URL for a file in the user store (null when it is missing). */
 export function fileUrl(path: string): Promise<string | null> {
+  // A stamp of an asset pack on this device.
+  if (isPackRef(path)) return packPictureUrl(path);
   let url = urls.get(path);
   if (!url) {
     url = userStore()
@@ -105,7 +109,7 @@ export interface Stamp {
   category: string;
 }
 
-export const stampFile = (path: string) => `${STAMPS_DIR}/${path}`;
+export const stampFile = (path: string) => (isPackRef(path) ? path : `${STAMPS_DIR}/${path}`);
 const TAGS_FILE = `${STAMPS_DIR}/library.json`;
 
 async function walk(dir: string, prefix = ''): Promise<Stamp[]> {

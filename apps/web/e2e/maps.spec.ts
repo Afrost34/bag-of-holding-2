@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
+import { strToU8, zipSync } from 'fflate';
 import { createCampaign, installData, isPhone, newNote } from './helpers/journal';
 import { waitForSaved } from './helpers/saved';
 
@@ -58,6 +59,7 @@ test('a map is drawn with stamps, brushes, walls, text, templates and pins, then
   mkdirSync(join(folder, 'Doors'), { recursive: true });
   writeFileSync(join(folder, 'Doors', 'oak-door.png'), PNG);
   writeFileSync(join(folder, 'barrel.png'), PNG);
+  await page.getByRole('tab', { name: 'My stamps' }).click();
   const [chooser] = await Promise.all([
     page.waitForEvent('filechooser'),
     page.getByRole('button', { name: 'Import a folder' }).click(),
@@ -373,56 +375,66 @@ test('terrain textures, the eraser, and pins in categories', async ({ page }, te
   await canvas.screenshot({ path: testInfo.outputPath('pins-far.png') });
 });
 
-test('stamps found online are added to the library and placed', async ({ page }) => {
-  test.skip(isPhone(page), 'Checked on the desktop.');
-  // The pack, served here instead of the CDN (a few icons in the same Iconify format).
-  let downloads = 0;
-  await page.route(
-    'https://cdn.jsdelivr.net/npm/@iconify-json/game-icons@*/icons.json',
-    (route) => {
-      downloads++;
-      return route.fulfill({
-        contentType: 'application/json',
-        body: JSON.stringify({
-          prefix: 'game-icons',
-          width: 512,
-          height: 512,
-          icons: {
-            castle: {
-              body: '<path fill="currentColor" d="M64 448V160h96v64h64v-96h64v96h64v-64h96v288z"/>',
-            },
-            'castle-ruins': { body: '<path fill="currentColor" d="M64 448V256h128v192z"/>' },
-            'oak-tree': { body: '<circle fill="currentColor" cx="256" cy="200" r="150"/>' },
-          },
-        }),
-      });
-    },
+test('asset packs are imported as zips, browsed with previews, and their stamps placed', async ({
+  page,
+}, testInfo) => {
+  test.skip(isPhone(page), 'The Creator is used on the desktop.');
+  await installData(page);
+  await newMap(page, 'Pack Village');
+  const zip = Buffer.from(
+    zipSync({
+      'FA_Assets_Webp/Copyright.url': strToU8('[InternetShortcut]'),
+      'FA_Assets_Webp/Desert/Town/Well_Stone_A1_2x2.png': [PIXEL, { level: 0 }],
+      'FA_Assets_Webp/Desert/Town/Cart_Wood_B1_3x1.png': [PIXEL, { level: 0 }],
+      'FA_Assets_Webp/Forest/Trees/Oak_A1_1x1.png': [PIXEL, { level: 0 }],
+    }),
   );
-  await newMap(page, 'Neverwinter');
-  await page.getByRole('button', { name: 'Find online' }).click();
-  const online = page.getByRole('region', { name: 'Stamps online' });
-  await expect(online).toContainText('CC BY 3.0');
-  await online.getByRole('button', { name: /Download the pack/ }).click();
-  await online.getByLabel('Find stamps online').fill('castle');
-  const found = online.getByRole('list', { name: 'Online stamps' });
-  await expect(found.getByRole('listitem')).toHaveCount(2);
-  await online.getByRole('radio', { name: 'Red' }).click();
-  await found.getByRole('button', { name: 'Add castle', exact: true }).click();
-  await expect(online.getByRole('status')).toContainText('Added “castle”');
-  // It is in the library, picked, and the stamp tool is on.
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Import packs (zip)' }).click();
+  await (
+    await chooser
+  ).setFiles({ name: 'Village_Pack_v1.zip', mimeType: 'application/zip', buffer: zip });
+  await expect(page.getByRole('status').filter({ hasText: '1 added' })).toBeVisible();
+  // Browsed by folder, with a count; the same zip again is recognised.
+  const folders = page.getByRole('list', { name: 'Folders' });
+  await expect(folders.getByRole('button', { name: /Desert/ })).toBeVisible();
+  await folders.getByRole('button', { name: /Desert/ }).click();
+  await page.getByRole('list', { name: 'Folders' }).getByRole('button', { name: /Town/ }).click();
+  const pictures = page.getByRole('list', { name: 'Pack pictures' });
+  await expect(pictures.getByRole('button')).toHaveCount(2);
+  await expect(pictures.getByRole('button', { name: 'Well Stone A1' })).toBeVisible();
+  await expect(pictures.locator('img').first()).toBeVisible();
+  // A search looks through every folder.
+  await page.getByRole('button', { name: 'All packs' }).click();
+  await page.getByLabel('Find a pack picture').fill('oak');
+  await expect(pictures.getByRole('button')).toHaveCount(1);
+  await page.getByLabel('Find a pack picture').fill('well');
+  await pictures.getByRole('button', { name: 'Well Stone A1' }).click();
   await expect(tool(page, 'Stamp')).toHaveAttribute('aria-pressed', 'true');
-  await expect(
-    page.getByRole('list', { name: 'Stamp pictures' }).getByRole('button', { name: 'castle' }),
-  ).toBeVisible();
-  const box = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
+  // Placed at the size its name gives: 2 × 2 squares.
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
   if (!box) throw new Error('no canvas');
-  await page.mouse.click(box.x + 200, box.y + 200);
-  await expect(page.getByRole('region', { name: 'Stamp' })).toBeVisible();
-  // Opened again, the pack comes from the browser's cache: no second download.
+  await page.mouse.click(box.x + 300, box.y + 300);
+  await waitForSaved(page, 'maps', '"stamp":"pack:');
+  await waitForSaved(page, 'maps', '"w":140,"h":140');
+  await canvas.screenshot({ path: testInfo.outputPath('pack-stamp.png') });
+  // Importing the same zip again adds nothing.
+  await page.getByRole('tab', { name: 'Stamps', exact: true }).click();
+  const again = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Import packs (zip)' }).click();
+  await (
+    await again
+  ).setFiles({ name: 'Village_Pack_v1 (1).zip', mimeType: 'application/zip', buffer: zip });
+  await expect(page.getByRole('status').filter({ hasText: 'already here' })).toBeVisible();
+  // Kept after a reload, and the pack can be removed.
   await page.reload();
-  await page.getByRole('button', { name: 'Find online' }).click();
-  await expect(online.getByLabel('Find stamps online')).toBeVisible();
-  expect(downloads).toBe(1);
+  await expect(canvas.locator('canvas')).toHaveCount(1);
+  await page.getByRole('tab', { name: 'Stamps', exact: true }).click();
+  await page.getByRole('button', { name: /^Packs \(1\)/ }).click();
+  await page.getByRole('button', { name: /^Remove Village Pack v1/ }).click();
+  await page.getByRole('button', { name: 'Remove', exact: true }).click();
+  await expect(page.getByText('No packs yet')).toBeVisible();
 });
 
 test('on a phone the panels open over the map', async ({ page }) => {
