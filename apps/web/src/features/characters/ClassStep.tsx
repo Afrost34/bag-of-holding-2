@@ -197,11 +197,24 @@ function ClassPanel({
   const featureKeyOf = (c: AnsweredChoice) => featureOf(c, choices, grants);
   const mine = (c: AnsweredChoice) =>
     keys.includes(c.from) || keys.some((k) => c.id.startsWith(`${k}/`));
-  // The class's own lists, then spell picks its features add (Thaumaturge's extra cantrip).
-  const spellLists = inBookOrder([
-    ...choices.filter((c) => mine(c) && isClassSpellList(c, keys)),
-    ...choices.filter((c) => mine(c) && c.kind === 'spell' && c.via && !isClassSpellList(c, keys)),
-  ]);
+  // The class's own lists, then spell picks its features add (Thaumaturge's extra cantrip): a
+  // feature's pick from the same list as one of the class's is shown in that list, tagged.
+  const classLists = choices.filter((c) => mine(c) && isClassSpellList(c, keys));
+  const featureLists = choices.filter(
+    (c) => mine(c) && c.kind === 'spell' && c.via && !isClassSpellList(c, keys),
+  );
+  const sameList = (a: AnsweredChoice, b: AnsweredChoice) =>
+    a.filter?.type === 'spell' &&
+    b.filter?.type === 'spell' &&
+    a.filter.filter.toLowerCase() === b.filter.filter.toLowerCase();
+  const joinedTo = new Map<string, AnsweredChoice[]>();
+  const apart: AnsweredChoice[] = [];
+  for (const f of featureLists) {
+    const host = classLists.find((c) => sameList(c, f));
+    if (host) joinedTo.set(host.id, [...(joinedTo.get(host.id) ?? []), f]);
+    else apart.push(f);
+  }
+  const spellLists = inBookOrder([...classLists, ...apart]);
   const featureName = (key: string | undefined) =>
     key ? view?.features.find((f) => f.key === key)?.name : undefined;
   // Proficiency picks at level 1 belong to no feature: D&D Beyond's "Core <Class> Traits".
@@ -412,6 +425,13 @@ function ClassPanel({
               key={c.id}
               choice={c}
               granted={grantedIn.get(c.id) ?? []}
+              joined={(joinedTo.get(c.id) ?? []).map((j) => ({
+                choice: j,
+                tag: featureName(j.via) ?? 'Feature',
+                onChange: (picks: string[]) => {
+                  setPicks(j.id, picks);
+                },
+              }))}
               from={featureName(c.via)}
               decisions={decisions}
               isEnabled={isEnabled}

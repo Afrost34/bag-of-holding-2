@@ -114,7 +114,12 @@ export function PrintSheet({
               <div className="flex min-h-0 flex-1 gap-2">
                 <div className="flex w-[21%] flex-col justify-between">
                   {ABILITIES.map((a) => (
-                    <AbilityBox key={a} ability={a} line={sheet.abilities[a]} />
+                    <AbilityBox
+                      key={a}
+                      ability={a}
+                      line={sheet.abilities[a]}
+                      display={character.preferences.abilityDisplay}
+                    />
                   ))}
                 </div>
                 <Box title="Skills" className="flex-1" bodyClass="p-0">
@@ -553,11 +558,16 @@ function ProfSection({
 function AbilityBox({
   ability,
   line,
+  display,
 }: {
   ability: Ability;
   line: CharacterView['sheet']['abilities'][Ability];
+  /** Which the box shows large, as the character's sheet setting says. */
+  display: 'modifiers' | 'scores';
 }) {
   const Icon = ABILITY_ICONS[ability];
+  const big = display === 'scores' ? String(line.score.value) : signed(line.modifier);
+  const small = display === 'scores' ? signed(line.modifier) : String(line.score.value);
   return (
     <div
       className="overflow-hidden rounded-md border-2 bg-surface text-center"
@@ -569,9 +579,9 @@ function AbilityBox({
       >
         <Icon className="h-2.5 w-2.5" aria-hidden /> {ABBR[ability]}
       </p>
-      <p className="text-lg leading-tight font-bold">{line.score.value}</p>
+      <p className="text-lg leading-tight font-bold">{big}</p>
       <p className="text-[10px] text-muted">
-        {signed(line.modifier)}
+        {small}
         {/* An item adding to checks (Stone of Good Luck): the check, beside the modifier. */}
         {line.check.value !== line.modifier && ` · check ${signed(line.check.value)}`}
       </p>

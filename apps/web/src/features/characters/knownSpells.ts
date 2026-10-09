@@ -38,9 +38,14 @@ export function knownSpells(
   return map;
 }
 
-/** Where else a spell comes from, leaving out the choice being made. */
-export function otherSources(known: KnownSpells, spell: string, choiceId: string): string[] {
+/** Where else a spell comes from, leaving out the choice (or choices) being made. */
+export function otherSources(
+  known: KnownSpells,
+  spell: string,
+  choiceId: string | readonly string[],
+): string[] {
+  const own = typeof choiceId === 'string' ? [choiceId] : choiceId;
   return (known.get(spellName(spell)) ?? [])
-    .filter((k) => k.choice !== choiceId)
+    .filter((k) => k.choice === undefined || !own.includes(k.choice))
     .map((k) => k.from);
 }
