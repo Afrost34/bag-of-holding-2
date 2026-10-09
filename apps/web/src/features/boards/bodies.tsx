@@ -101,8 +101,8 @@ function NoteBody({ card }: { card: Extract<BoardCard, { kind: 'note' }> }) {
           notes={[...notes.keys()]}
           onPick={(path) => {
             setChoosing(false);
-            // The card fits the new note once, as when it was added.
-            update(card.id, (c) => (c.kind === 'note' ? { ...c, path, fit: true } : c));
+            // The card keeps its size: it was set for this place on the board.
+            update(card.id, (c) => (c.kind === 'note' ? { ...c, path } : c));
           }}
         />
       </>

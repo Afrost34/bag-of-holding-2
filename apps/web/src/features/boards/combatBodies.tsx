@@ -1,6 +1,6 @@
 import { Entries, EntityView } from '@boh/renderer';
 import { Button, cn } from '@boh/ui';
-import { ChevronLeft, ChevronRight, Crown, Plus, Swords, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Crown, Plus, RotateCcw, Swords, X } from 'lucide-react';
 import { useState } from 'react';
 import type { BoardCard } from '../../app/boards/model';
 import {
@@ -68,6 +68,20 @@ export function CombatBody({ card }: { card: CombatCard }) {
           <span className="flex-1" />
           <Button
             variant="ghost"
+            aria-label="Reset combat"
+            title="Reset: everyone out, back to round 1"
+            disabled={card.combatants.length === 0}
+            onClick={() => {
+              if (!window.confirm('Remove everyone from this combat and start again?')) return;
+              change(() => ({ combatants: [], turn: null, round: 1 }));
+              setOpenId(null);
+              setAdding(true);
+            }}
+          >
+            <RotateCcw className="h-4 w-4" aria-hidden />
+          </Button>
+          <Button
+            variant="ghost"
             aria-label="Previous turn"
             disabled={card.turn === null}
             onClick={() => {
@@ -131,6 +145,7 @@ export function CombatBody({ card }: { card: CombatCard }) {
           <CombatAdd
             change={change}
             fighting={fighting}
+            occupied={card.combatants.length > 0}
             onDone={() => {
               setAdding(false);
             }}

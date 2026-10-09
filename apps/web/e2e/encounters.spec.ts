@@ -198,16 +198,22 @@ test('a combat is put together on the board: creatures, characters, an encounter
   await add.getByRole('tab', { name: 'Character' }).click();
   await add.getByRole('button', { name: 'Add Brakka' }).click();
   await expect(order.getByRole('listitem', { name: 'Brakka' })).toBeVisible();
-  // The prepared encounter: its goblin joins as Goblin 3, Brakka is not added twice.
+  // The prepared encounter starts a new fight in place of this one: its goblin and the party.
+  page.once('dialog', (d) => void d.accept());
   await add.getByRole('tab', { name: 'Encounter' }).click();
   await add.getByLabel('Encounter', { exact: true }).selectOption({ label: 'Goblin encounter' });
   await add.getByRole('button', { name: 'Load encounter' }).click();
-  await expect(order.getByRole('listitem', { name: 'Goblin 3', exact: true })).toBeVisible();
+  await expect(order.getByRole('listitem')).toHaveCount(2);
+  await expect(order.getByRole('listitem', { name: 'Goblin', exact: true })).toBeVisible();
   await expect(order.getByRole('listitem', { name: 'Brakka' })).toHaveCount(1);
   // Anyone else, by hand.
   await add.getByRole('tab', { name: 'By hand' }).click();
   await add.getByLabel('Combatant name').fill('Wolf');
   await add.getByLabel('Combatant initiative').fill('15');
   await add.getByRole('button', { name: 'Add', exact: true }).click();
-  await expect(order.getByRole('listitem')).toHaveCount(5);
+  await expect(order.getByRole('listitem')).toHaveCount(3);
+  // Reset empties the card for the next fight.
+  page.once('dialog', (d) => void d.accept());
+  await page.getByRole('button', { name: 'Reset combat' }).click();
+  await expect(order.getByRole('listitem')).toHaveCount(0);
 });
