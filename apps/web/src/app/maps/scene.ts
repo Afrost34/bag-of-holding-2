@@ -698,21 +698,25 @@ export class MapScene {
   }
 
   /**
-   * The whole map at full size as a PNG: drawn in tiles (one GPU frame cannot hold an 8k map) into
-   * one canvas. The overlay is left out.
+   * The whole map as a picture: drawn in tiles (one GPU frame cannot hold an 8k map) into one
+   * canvas, at `scale` of its own size, pins `pinScale` times their on-screen size (on the map
+   * they keep one size on screen whatever the zoom, so a print needs a size of its own). The
+   * overlay is left out.
    */
-  async exportPng(withGrid: boolean): Promise<Blob> {
+  exportCanvas({ withGrid, scale = 1, pinScale = 1 }: ExportOptions): HTMLCanvasElement {
     if (!this.doc) throw new Error('No map');
     const { width, height } = this.doc;
     const out = document.createElement('canvas');
-    out.width = width;
-    out.height = height;
+    out.width = Math.max(1, Math.round(width * scale));
+    out.height = Math.max(1, Math.round(height * scale));
     const ctx = out.getContext('2d');
     if (!ctx) throw new Error('Cannot draw the picture on this device');
     const view = { x: this.world.x, y: this.world.y, zoom: this.world.scale.x };
     this.overlay.visible = false;
     this.gridLines.visible = withGrid;
     this.setView(0, 0, 1);
+    for (const { item, view: v } of this.nodes.values())
+      if (item.kind === 'pin') v.scale.set(pinScale);
     // Everything is drawn, on screen or not.
     uncull(this.world);
     try {
@@ -722,15 +726,22 @@ export class MapScene {
           const tile = this.app.renderer.extract.canvas({
             target: this.world,
             frame,
-            resolution: 1,
+            resolution: scale,
           });
-          ctx.drawImage(tile as HTMLCanvasElement, x, y);
+          ctx.drawImage(tile as HTMLCanvasElement, Math.round(x * scale), Math.round(y * scale));
         }
     } finally {
       this.overlay.visible = true;
       this.gridLines.visible = true;
+      // Pins back to screen size.
       this.setView(view.x, view.y, view.zoom);
     }
+    return out;
+  }
+
+  /** The map as a PNG file (see `exportCanvas`). */
+  async exportPng(options: ExportOptions): Promise<Blob> {
+    const out = this.exportCanvas(options);
     return new Promise((resolve, reject) => {
       out.toBlob((b) => {
         if (b) resolve(b);
@@ -738,6 +749,14 @@ export class MapScene {
       }, 'image/png');
     });
   }
+}
+
+export interface ExportOptions {
+  withGrid: boolean;
+  /** Size of the picture against the map's own (1 = full size). */
+  scale?: number;
+  /** Pins' size against their size on screen. */
+  pinScale?: number;
 }
 
 function nearPolyline(p: Point, points: readonly number[], tolerance: number): boolean {

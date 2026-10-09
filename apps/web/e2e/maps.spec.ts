@@ -131,14 +131,22 @@ test('a map is drawn with stamps, brushes, walls, text, templates and pins, then
   await page.getByLabel('Type').selectOption('square');
 
   // The PNG is the whole map at full size.
+  // The export shows a preview, and asks for the picture's size and the pins'.
+  await page.getByRole('button', { name: 'Export PNG' }).click();
+  const exportDialog = page.getByRole('dialog', { name: 'Export as a picture' });
+  await expect(
+    exportDialog.getByRole('img', { name: 'Preview of the exported map' }),
+  ).toBeVisible();
+  await exportDialog.getByLabel('Pin size').selectOption('3');
+  await exportDialog.getByLabel('Export size').selectOption('0.5');
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Export PNG' }).click(),
+    exportDialog.getByRole('button', { name: 'Export' }).click(),
   ]);
   expect(download.suggestedFilename()).toBe('Cragmaw Hideout.png');
   const file = testInfo.outputPath('map.png');
   await download.saveAs(file);
-  expect(pngSize(readFileSync(file))).toEqual({ width: 2800, height: 2100 });
+  expect(pngSize(readFileSync(file))).toEqual({ width: 1400, height: 1050 });
 
   // Kept after a reload.
   await page.reload();
@@ -268,9 +276,13 @@ test('an 8k map with 1,000 stamps edits smoothly and exports as PNG', async ({
   expect(median).toBeLessThan(50);
 
   // The export is the whole 8k map.
+  await page.getByRole('button', { name: 'Export PNG' }).click();
   const [download] = await Promise.all([
     page.waitForEvent('download', { timeout: 150_000 }),
-    page.getByRole('button', { name: 'Export PNG' }).click(),
+    page
+      .getByRole('dialog', { name: 'Export as a picture' })
+      .getByRole('button', { name: 'Export' })
+      .click(),
   ]);
   const file = testInfo.outputPath('world.png');
   await download.saveAs(file);
