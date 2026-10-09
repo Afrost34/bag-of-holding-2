@@ -269,7 +269,11 @@ function Shell({
         ) : (
           <div
             ref={body}
-            className="nowheel nodrag min-h-0 flex-1 cursor-auto overflow-auto p-3 text-sm select-text"
+            // The wheel scrolls a card's content, except over a map: there it zooms the board.
+            className={cn(
+              card.kind !== 'map' && 'nowheel',
+              'nodrag min-h-0 flex-1 cursor-auto overflow-auto p-3 text-sm select-text',
+            )}
           >
             {children}
           </div>

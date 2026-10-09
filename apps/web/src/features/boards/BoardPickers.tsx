@@ -1,9 +1,10 @@
 /** The side panels a board opens to pick what to add: a map, a character, a journal note. */
 import '@xyflow/react/dist/style.css';
 import { X } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { AppLink } from '../../app/AppLink';
 import { useCharacters } from '../../app/characters/store';
+import { NotePicker as FindNote } from '../../app/journal/NotePicker';
 import { useJournal } from '../../app/journal/store';
 import { useMaps } from '../../app/maps/store';
 
@@ -118,41 +119,8 @@ export function Panel({
   );
 }
 
+/** The campaign's journal notes, found by name, to put one on the board. */
 export function NotePicker({ onPick }: { onPick: (path: string) => void }) {
   const notes = useJournal((s) => s.notes);
-  const [query, setQuery] = useState('');
-  const q = query.trim().toLowerCase();
-  const found = [...notes.keys()]
-    .filter((p) => !q || p.toLowerCase().includes(q))
-    .sort((a, b) => a.localeCompare(b, 'en'))
-    .slice(0, 50);
-  return (
-    <div>
-      <input
-        type="search"
-        value={query}
-        aria-label="Find a note"
-        placeholder="Note name…"
-        onChange={(e) => {
-          setQuery(e.target.value);
-        }}
-        className="w-full rounded-md border border-border bg-surface px-3 py-2 text-base focus:border-accent focus:outline-none sm:text-sm"
-      />
-      <ul aria-label="Notes" className="mt-1 max-h-72 overflow-y-auto">
-        {found.map((p) => (
-          <li key={p}>
-            <button
-              type="button"
-              onClick={() => {
-                onPick(p);
-              }}
-              className="w-full truncate px-2 py-1.5 text-left text-sm hover:bg-sunken"
-            >
-              {p.replace(/\.md$/i, '')}
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
+  return <FindNote notes={[...notes.keys()]} onPick={onPick} />;
 }

@@ -6,6 +6,7 @@ import { journalPath } from '../../app/journal/paths';
 import type { MapDoc, MapItem } from '../../app/maps/model';
 import { pinLink, withPinLink, type PinLink } from '../../app/maps/pinLink';
 import { useAppNavigate } from '../../app/navigation';
+import { NotePicker } from '../../app/journal/NotePicker';
 import { EntitySearch } from '../../app/search/EntitySearch';
 import { EntryName } from '../../app/tables/TableRoller';
 
@@ -73,21 +74,20 @@ export function PinLinkField({
         </select>
       </label>
       {kind === 'note' && (
-        <select
-          value={link?.kind === 'note' ? link.path : ''}
-          aria-label="Pin note"
-          onChange={(e) => {
-            setLink(e.target.value ? { kind: 'note', path: e.target.value } : null);
-          }}
-          className={field}
-        >
-          <option value="">Pick a note…</option>
-          {notes.map((n) => (
-            <option key={n} value={n}>
-              {n.replace(/\.md$/i, '')}
-            </option>
-          ))}
-        </select>
+        <>
+          {link?.kind === 'note' && (
+            <p className="text-sm">
+              Note: <strong>{(link.path.split('/').pop() ?? '').replace(/\.md$/i, '')}</strong>
+            </p>
+          )}
+          <NotePicker
+            notes={notes}
+            label="Pin note"
+            onPick={(path) => {
+              setLink({ kind: 'note', path });
+            }}
+          />
+        </>
       )}
       {kind === 'map' && (
         <select
