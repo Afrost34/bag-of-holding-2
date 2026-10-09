@@ -16,6 +16,7 @@ import {
   COLLAPSED_H,
   contentOf,
   dropCard,
+  duplicateCards,
   moveBoardCards,
   removeBoardCard,
   setFrame,
@@ -184,6 +185,8 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
     };
   }, [step]);
 
+  /** Cards to select once the board shows them (the copies Ctrl+D just made). */
+  const [selectAfter, setSelectAfter] = useState<string[] | null>(null);
   const actions = useMemo<BoardActions>(
     () => ({
       update: (id, change) => {
@@ -197,6 +200,15 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
       },
       unframe: (id) => {
         commit((b) => setFrame(b, id, null));
+      },
+      duplicate: (ids) => {
+        let copies: string[] = [];
+        commit((b) => {
+          const done = duplicateCards(b, ids);
+          copies = done.ids;
+          return done.board;
+        });
+        setSelectAfter(copies);
       },
       addBeside: (id, contents) => {
         commit((b) => {
@@ -233,9 +245,31 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
   const [shownFrom, setShownFrom] = useState(derived);
   if (shownFrom !== derived) {
     setShownFrom(derived);
-    const selected = new Set(nodes.filter((n) => n.selected).map((n) => n.id));
-    setNodes(derived.map((n) => (selected.has(n.id) ? { ...n, selected: true } : n)));
+    // Copies just made are selected instead of their originals (Ctrl+D again copies them).
+    const selected = new Set(selectAfter ?? nodes.filter((n) => n.selected).map((n) => n.id));
+    if (selectAfter) setSelectAfter(null);
+    setNodes(
+      // Unchanged cards keep their node objects (derived nodes are never selected).
+      derived.map((n) => (selected.has(n.id) ? { ...n, selected: true } : n)),
+    );
   }
+  // Ctrl+D copies the selected cards.
+  const selectedIds = useRef<string[]>([]);
+  useEffect(() => {
+    selectedIds.current = nodes.filter((n) => n.selected).map((n) => n.id);
+  });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || typingIn(e.target)) return;
+      if (e.key.toLowerCase() !== 'd' || selectedIds.current.length === 0) return;
+      e.preventDefault();
+      actions.duplicate(selectedIds.current);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [actions]);
   const onNodesChange = useCallback((changes: NodeChange<CardNodeType>[]) => {
     setNodes((ns) => applyNodeChanges(changes, ns));
   }, []);

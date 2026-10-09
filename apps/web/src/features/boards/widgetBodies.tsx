@@ -9,12 +9,14 @@ import {
   Sparkles,
   UserRound,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import type { BoardCard } from '../../app/boards/model';
 import { generateNames } from '../../app/boards/names';
 import { generateNpc, type Npc } from '../../app/boards/npc';
 import { useSpeciesNames } from '../../app/boards/useSpeciesNames';
 import { CharacterSheetCard } from '../../app/characters/CharacterSheetCard';
+import { useCharacters } from '../../app/characters/store';
+import { JournalViewContext } from '../../app/journal/notes/context';
 import { journalPath } from '../../app/journal/paths';
 import { useJournal } from '../../app/journal/store';
 import { useAppNavigate } from '../../app/navigation';
@@ -79,12 +81,45 @@ export function CharacterBody({ card }: { card: Extract<BoardCard, { kind: 'char
         })}
       </div>
       <div className="min-w-0 flex-1 overflow-auto p-3">
+        <CharacterSelect
+          value={card.character}
+          onChange={(character) => {
+            update(card.id, (c) => (c.kind === 'character' ? { ...c, character } : c));
+          }}
+        />
         <CharacterSheetCard
           characterId={card.character}
           {...(card.tab ? { only: card.tab } : {})}
         />
       </div>
     </div>
+  );
+}
+
+/** Which character the card shows: any of the board's campaign (or of the library). */
+function CharacterSelect({ value, onChange }: { value: string; onChange: (id: string) => void }) {
+  const campaignId = useContext(JournalViewContext)?.campaignId;
+  const { characters, loaded, load } = useCharacters();
+  useEffect(() => {
+    if (!loaded) void load();
+  }, [loaded, load]);
+  const mine = characters.filter((c) => (c.campaign ?? undefined) === campaignId || c.id === value);
+  if (mine.length < 2) return null;
+  return (
+    <select
+      aria-label="Character shown"
+      value={value}
+      onChange={(e) => {
+        onChange(e.target.value);
+      }}
+      className="mb-2 w-full rounded border border-border bg-surface px-2 py-1 text-sm"
+    >
+      {mine.map((c) => (
+        <option key={c.id} value={c.id}>
+          {c.name}
+        </option>
+      ))}
+    </select>
   );
 }
 

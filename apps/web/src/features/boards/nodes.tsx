@@ -4,6 +4,7 @@ import { NodeResizer, useStore, type NodeProps } from '@xyflow/react';
 import {
   ChevronDown,
   ChevronRight,
+  Copy,
   ExternalLink,
   Frame,
   Layers,
@@ -51,6 +52,17 @@ function CardMenu({ card, title, inStack }: { card: BoardCard; title: string; in
               }}
             >
               <ExternalLink className="h-4 w-4" aria-hidden /> Open
+            </Menu.Item>
+          )}
+          {!inStack && (
+            <Menu.Item
+              className={itemClass}
+              onSelect={() => {
+                actions.duplicate([card.id]);
+              }}
+            >
+              <Copy className="h-4 w-4" aria-hidden /> Duplicate
+              <span className="ml-auto text-xs text-muted">Ctrl D</span>
             </Menu.Item>
           )}
           {showable && (

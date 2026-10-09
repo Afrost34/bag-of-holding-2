@@ -13,6 +13,7 @@ import {
   setFrame,
   SIZES,
   stackOnto,
+  duplicateCards,
   timerLeft,
   unstack,
   type Board,
@@ -174,7 +175,41 @@ describe('the players board', () => {
   it('is one per campaign, and takes copies of cards', () => {
     expect(playersBoardId('rust')).toBe('players-rust');
     expect(playersBoardId()).toBe('players-library');
-    const card: BoardCard = { id: 'a', kind: 'text', text: 'Hi', x: 5, y: 6, w: 240, h: 170, title: 'Note' };
+    const card: BoardCard = {
+      id: 'a',
+      kind: 'text',
+      text: 'Hi',
+      x: 5,
+      y: 6,
+      w: 240,
+      h: 170,
+      title: 'Note',
+    };
     expect(contentOf(card)).toEqual({ kind: 'text', text: 'Hi', title: 'Note' });
   });
-}); // prettier-ignore
+
+  it('duplicates cards beside themselves, a stack with its cards', () => {
+    const { board, ids } = addBoardCards(empty(), [
+      { kind: 'text', text: 'a' },
+      { kind: 'text', text: 'b' },
+      { kind: 'dice', formulas: ['1d20'] },
+    ]);
+    const [a = '', b = '', d = ''] = ids;
+    const stacked = stackOnto(board, b, a);
+    const stack = stacked.cards.find((x) => x.kind === 'stack');
+    const copy = duplicateCards(stacked, [stack?.id ?? '', d, a]);
+    // The stack and the dice; a card inside a stack is copied with its stack only.
+    expect(copy.ids).toHaveLength(2);
+    const dice = copy.board.cards.find((c) => c.id === copy.ids[1]);
+    expect(dice).toMatchObject({
+      kind: 'dice',
+      formulas: ['1d20'],
+      x: (byId(stacked, d)?.x ?? 0) + 32,
+    });
+    const newStack = copy.board.cards.find((c) => c.id === copy.ids[0]);
+    expect(newStack?.kind === 'stack' && newStack.items).toHaveLength(2);
+    const members = copy.board.cards.filter((c) => c.inStack === newStack?.id);
+    expect(members.map((c) => c.kind === 'text' && c.text)).toEqual(['a', 'b']);
+    expect(copy.board.cards).toHaveLength(stacked.cards.length + 4);
+  });
+});

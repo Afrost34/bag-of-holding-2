@@ -283,7 +283,7 @@ export function journalViewerExtensions(
     EditorView.editable.of(false),
     EditorView.lineWrapping,
     markdown({ base: markdownLanguage }),
-    livePreview(opts),
+    livePreview({ ...opts, wholeDocument: true }),
     ...(opts.embeds ? [baseBlocks(opts.embeds)] : []),
     tableBlocks(),
     linkClicks(opts.openLink, opts.openUrl, opts.openTag),

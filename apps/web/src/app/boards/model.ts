@@ -474,3 +474,44 @@ export function contentOf(card: BoardCard): CardContent {
   } = card;
   return content;
 }
+
+/** How far a copy sits from its original (canvas pixels). */
+const COPY_OFFSET = 32;
+
+/**
+ * Copies of cards (Ctrl+D): each a little below and to the right of its original, in the same
+ * frame, with a stack's cards copied into the new stack (a frame is copied empty). Cards in a
+ * stack are copied with their stack only. Returns the board and the ids of the copies drawn on
+ * their own.
+ */
+export function duplicateCards(
+  board: Board,
+  ids: readonly string[],
+): { board: Board; ids: string[] } {
+  const taken = board.cards.map((c) => c.id);
+  const fresh = () => {
+    const id = newId(taken);
+    taken.push(id);
+    return id;
+  };
+  const byId = new Map(board.cards.map((c) => [c.id, c]));
+  const copies: BoardCard[] = [];
+  const top: string[] = [];
+  for (const id of new Set(ids)) {
+    const card = byId.get(id);
+    if (!card || card.inStack) continue;
+    const id2 = fresh();
+    top.push(id2);
+    if (card.kind === 'stack') {
+      const items = card.items.flatMap((m) => {
+        const member = byId.get(m);
+        if (!member) return [];
+        const copy = { ...member, id: fresh(), inStack: id2 };
+        copies.push(copy);
+        return [copy.id];
+      });
+      copies.push({ ...card, id: id2, items, x: card.x + COPY_OFFSET, y: card.y + COPY_OFFSET });
+    } else copies.push({ ...card, id: id2, x: card.x + COPY_OFFSET, y: card.y + COPY_OFFSET });
+  }
+  return { board: { ...board, cards: [...board.cards, ...copies] }, ids: top };
+}
