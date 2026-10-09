@@ -5,6 +5,8 @@ import { AppLink } from '../../app/AppLink';
 import { useActiveCampaign, useCampaigns } from '../../app/campaigns/store';
 import type { Board } from '../../app/boards/model';
 import { useBoards } from '../../app/boards/store';
+import { lastBoardOf, useLastBoard } from '../../app/boards/lastBoard';
+import { useRouterState } from '@tanstack/react-router';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 
@@ -28,6 +30,17 @@ export function BoardsPage() {
     if (!loaded) void load();
     if (!campaignsLoaded) void loadCampaigns();
   }, [loaded, load, campaignsLoaded, loadCampaigns]);
+
+  // Boards opens the campaign's last board, unless the list was asked for (?list=1).
+  const wantsList = useRouterState({ select: (s) => 'list' in s.location.search });
+  const last = lastBoardOf(
+    useLastBoard((s) => s.byCampaign),
+    active?.id,
+  );
+  const resume = !wantsList && loaded && last !== undefined && sheets.some((b) => b.id === last);
+  useEffect(() => {
+    if (resume) navigate(`/boards/${last}`, { replace: true });
+  }, [resume, last, navigate]);
 
   const groups: { id: string; title: string; list: Board[] }[] = [
     ...[...campaigns]

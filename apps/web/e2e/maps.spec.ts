@@ -575,7 +575,7 @@ test('a pin leads to a note: clicked on a board, the note opens beside the map',
   await waitForSaved(page, 'campaigns/rust-and-sunfire/maps', '"secret":true');
   await waitForSaved(page, 'campaigns/rust-and-sunfire/maps', '"note":"Gull’s Rest.md"');
 
-  await page.goto('./#/boards');
+  await page.goto('./#/boards?list=1');
   await page.getByRole('button', { name: 'New board' }).click();
   await page.getByLabel('Name').fill('Session 1');
   await page.getByRole('button', { name: 'Create' }).click();

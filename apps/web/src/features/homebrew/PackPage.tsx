@@ -70,10 +70,13 @@ export function PackPage({
   name,
   edit,
   isNew,
+  tab,
 }: {
   name: string;
   edit: string | undefined;
   isNew: string | undefined;
+  /** The kind of entries listed (one tab per kind). */
+  tab: string | undefined;
 }) {
   const { packs, loaded, load, savePack, remove } = useHomebrew();
   const navigate = useAppNavigate();
@@ -103,8 +106,10 @@ export function PackPage({
   const entries = packEntries(pack.json);
   const editing =
     edit !== undefined ? entries.find((e) => `${e.type}:${e.name}` === edit) : undefined;
+  // Back to the list, on the tab of the kind just made or changed.
   const back = () => {
-    navigate(packPath(path));
+    const kind = editing?.type ?? isNew;
+    navigate(kind ? `${packPath(path)}?tab=${encodeURIComponent(kind)}` : packPath(path));
   };
 
   /** Writes the pack, then goes back to it with a note. */
@@ -248,6 +253,9 @@ export function PackPage({
 
   const groups = new Map<string, typeof entries>();
   for (const e of entries) groups.set(e.type, [...(groups.get(e.type) ?? []), e]);
+  const sorted = [...groups].sort(([a], [b]) => order(a) - order(b));
+  // The tab asked for, else the first kind the pack has.
+  const shown = tab !== undefined && groups.has(tab) ? tab : sorted[0]?.[0];
   const deleteEntry = (type: string, entryName: string) => {
     const entity = entries.find((e) => e.type === type && e.name === entryName)?.entity;
     const json =
@@ -347,46 +355,74 @@ export function PackPage({
       {entries.length === 0 ? (
         <p className="text-muted">Nothing in this pack yet.</p>
       ) : (
-        [...groups]
-          .sort(([a], [b]) => order(a) - order(b))
-          .map(([type, list]) => (
-            <section key={type} aria-label={plural(typeLabel(type), 2)}>
-              <h2 className="mb-2 font-serif text-lg font-bold">
+        <>
+          <div
+            role="tablist"
+            aria-label="Kinds of entries"
+            className="flex flex-wrap gap-1 border-b border-border"
+          >
+            {sorted.map(([type, list]) => (
+              <button
+                key={type}
+                type="button"
+                role="tab"
+                aria-selected={type === shown}
+                onClick={() => {
+                  navigate(`${packPath(path)}?tab=${encodeURIComponent(type)}`, { replace: true });
+                }}
+                className={cn(
+                  '-mb-px rounded-t-md border border-b-0 px-3 py-1.5 text-sm font-medium',
+                  type === shown
+                    ? 'border-border bg-surface text-text'
+                    : 'border-transparent text-muted hover:text-text',
+                )}
+              >
                 {plural(typeLabel(type), 2)}{' '}
-                <span className="text-sm font-normal text-faint">{list.length}</span>
-              </h2>
-              <ul className="divide-y divide-border rounded-lg border border-border bg-surface">
-                {list.map((e) => (
-                  <li key={e.name}>
-                    <EntryRow
-                      pack={pack.json}
-                      meta={meta}
-                      type={e.type}
-                      name={e.name}
-                      entity={e.entity}
-                      confirming={confirm === `${e.type}:${e.name}`}
-                      onEdit={
-                        isKind(e.type)
-                          ? () => {
-                              navigate(
-                                `${packPath(path)}?edit=${encodeURIComponent(`${e.type}:${e.name}`)}`,
-                              );
-                            }
-                          : null
-                      }
-                      onDelete={() => {
-                        setConfirm(`${e.type}:${e.name}`);
-                      }}
-                      onConfirm={(yes) => {
-                        setConfirm(null);
-                        if (yes) deleteEntry(e.type, e.name);
-                      }}
-                    />
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))
+                <span className="text-xs text-faint">{list.length}</span>
+              </button>
+            ))}
+          </div>
+          {sorted
+            .filter(([type]) => type === shown)
+            .map(([type, list]) => (
+              <section key={type} aria-label={plural(typeLabel(type), 2)}>
+                <h2 className="mb-2 font-serif text-lg font-bold">
+                  {plural(typeLabel(type), 2)}{' '}
+                  <span className="text-sm font-normal text-faint">{list.length}</span>
+                </h2>
+                <ul className="divide-y divide-border rounded-lg border border-border bg-surface">
+                  {list.map((e) => (
+                    <li key={e.name}>
+                      <EntryRow
+                        pack={pack.json}
+                        meta={meta}
+                        type={e.type}
+                        name={e.name}
+                        entity={e.entity}
+                        confirming={confirm === `${e.type}:${e.name}`}
+                        onEdit={
+                          isKind(e.type)
+                            ? () => {
+                                navigate(
+                                  `${packPath(path)}?edit=${encodeURIComponent(`${e.type}:${e.name}`)}`,
+                                );
+                              }
+                            : null
+                        }
+                        onDelete={() => {
+                          setConfirm(`${e.type}:${e.name}`);
+                        }}
+                        onConfirm={(yes) => {
+                          setConfirm(null);
+                          if (yes) deleteEntry(e.type, e.name);
+                        }}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+        </>
       )}
     </div>
   );

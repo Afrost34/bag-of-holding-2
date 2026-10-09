@@ -76,6 +76,8 @@ export type BoardCard = CardContent & {
   parent?: string;
   /** The stack it is a tab of; not drawn on its own. */
   inStack?: string;
+  /** Grows (or shrinks) once to fit what it shows, when that has loaded (a card opened from a link). */
+  fit?: true;
 };
 
 export interface Board {
@@ -190,6 +192,7 @@ export function addBoardCards(
   board: Board,
   contents: readonly CardContent[],
   at?: { x: number; y: number },
+  options: { fit?: boolean } = {},
 ): { board: Board; ids: string[] } {
   const ids = board.cards.map((c) => c.id);
   const added: BoardCard[] = [];
@@ -201,7 +204,7 @@ export function addBoardCards(
     const id = newId(ids);
     ids.push(id);
     const size = SIZES[content.kind];
-    added.push({ ...content, id, x, y, ...size });
+    added.push({ ...content, id, x, y, ...size, ...(options.fit ? { fit: true as const } : {}) });
     x += size.w + GAP;
   }
   return { board: { ...board, cards: [...board.cards, ...added] }, ids: added.map((c) => c.id) };
@@ -454,6 +457,7 @@ export function contentOf(card: BoardCard): CardContent {
     parent: _p,
     inStack: _i,
     collapsed: _c,
+    fit: _f,
     ...content
   } = card;
   return content;

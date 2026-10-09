@@ -1,5 +1,5 @@
 /** The Map panel of the map maker: kind, picture, filing, scale and travel or grid, encounter. */
-import { Button, cn } from '@boh/ui';
+import { Button } from '@boh/ui';
 import { Eye, EyeOff, Plus, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import { useEncounters } from '../../app/encounters/store';
@@ -87,7 +87,7 @@ function ScaleAndTravel({ doc, commit }: Pick<MapPanelsProps, 'doc' | 'commit'>)
         <div className="space-y-1.5">
           <p className="text-sm font-medium">Travel speeds ({unit} per day)</p>
           {speeds.map((s, i) => (
-            <div key={i} className="flex gap-1.5">
+            <div key={i} className="space-y-1 rounded-md border border-border p-1.5">
               <input
                 value={s.name}
                 aria-label={`Speed ${String(i + 1)} name`}
@@ -98,33 +98,38 @@ function ScaleAndTravel({ doc, commit }: Pick<MapPanelsProps, 'doc' | 'commit'>)
                 onBlur={() => {
                   save();
                 }}
-                className={cn(field, 'min-w-0 flex-1')}
+                className={field}
               />
-              <input
-                type="number"
-                min={0}
-                value={s.perDay}
-                aria-label={`Speed ${String(i + 1)} per day`}
-                onChange={(e) => {
-                  setSpeeds(speeds.map((x, j) => (j === i ? { ...x, perDay: e.target.value } : x)));
-                }}
-                onBlur={() => {
-                  save();
-                }}
-                className={cn(field, 'w-20')}
-              />
-              <button
-                type="button"
-                aria-label={`Remove speed ${String(i + 1)}`}
-                onClick={() => {
-                  const next = speeds.filter((_, j) => j !== i);
-                  setSpeeds(next);
-                  save(unit, across, next);
-                }}
-                className="rounded p-1 text-muted hover:bg-sunken"
-              >
-                <X className="h-4 w-4" aria-hidden />
-              </button>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="number"
+                  min={0}
+                  value={s.perDay}
+                  aria-label={`Speed ${String(i + 1)} per day`}
+                  onChange={(e) => {
+                    setSpeeds(
+                      speeds.map((x, j) => (j === i ? { ...x, perDay: e.target.value } : x)),
+                    );
+                  }}
+                  onBlur={() => {
+                    save();
+                  }}
+                  className="w-24 rounded-md border border-border bg-surface px-2 py-1 text-sm"
+                />
+                <span className="flex-1 text-xs text-muted">{unit} a day</span>
+                <button
+                  type="button"
+                  aria-label={`Remove speed ${String(i + 1)}`}
+                  onClick={() => {
+                    const next = speeds.filter((_, j) => j !== i);
+                    setSpeeds(next);
+                    save(unit, across, next);
+                  }}
+                  className="rounded p-1 text-muted hover:bg-sunken"
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
             </div>
           ))}
           <Button

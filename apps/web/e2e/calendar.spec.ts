@@ -91,7 +91,7 @@ test('the calendar goes on a board and to the players', async ({ page, context }
   await page.getByRole('button', { name: 'Start a calendar' }).click();
   await expect(page.getByRole('region', { name: 'Today' })).toContainText('1 Deepwinter');
 
-  await page.goto('./#/boards');
+  await page.goto('./#/boards?list=1');
   await page.reload();
   await page.getByRole('button', { name: 'New board' }).click();
   await page.getByLabel('Name').fill('Session');

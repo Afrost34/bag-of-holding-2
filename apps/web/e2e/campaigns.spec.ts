@@ -113,6 +113,19 @@ test('campaign settings: rename, rules, save as template, delete', async ({ page
   await page.reload();
   await expect(page.getByRole('radio', { name: /Variant/ })).toBeChecked();
 
+  // A cover picture, shown on the campaign's card.
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==',
+    'base64',
+  );
+  await page
+    .getByLabel('Cover picture')
+    .setInputFiles({ name: 'cover.png', mimeType: 'image/png', buffer: png });
+  await expect(page.getByRole('img', { name: 'Cover of Rust & Sunfire' })).toBeVisible();
+  await page.goto('./#/campaigns');
+  await expect(page.getByRole('list', { name: 'Your campaigns' }).locator('img')).toHaveCount(1);
+  await page.getByRole('link', { name: 'Settings of Rust & Sunfire' }).click();
+
   await page.goto('./#/campaigns');
   await page.getByRole('button', { name: 'New campaign' }).click();
   await expect(page.getByRole('radio', { name: 'Our table' })).toBeVisible();

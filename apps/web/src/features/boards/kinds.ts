@@ -24,7 +24,7 @@ import { useEncounters } from '../../app/encounters/store';
 import { useMaps } from '../../app/maps/store';
 
 /** Below this zoom cards show their title only, large: cheap to draw and readable from afar. */
-export const FAR_ZOOM = 0.45;
+export const FAR_ZOOM = 0.2;
 
 export interface CardData extends Record<string, unknown> {
   card: BoardCard;

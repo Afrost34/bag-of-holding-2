@@ -28,6 +28,7 @@ import {
 } from '../../app/boards/model';
 import { sendToPlayers } from '../../app/boards/player';
 import { useBoard, useBoards } from '../../app/boards/store';
+import { useLastBoard } from '../../app/boards/lastBoard';
 import { useCampaigns } from '../../app/campaigns/store';
 import { entityPath } from '../../app/data/entities';
 import { useEncounters } from '../../app/encounters/store';
@@ -67,7 +68,7 @@ export function BoardPage({ id, focus }: { id: string; focus?: string }) {
     <div className="flex h-full flex-col">
       <ReactFlowProvider>
         <NotesProvider campaign={campaign}>
-          <BoardEditor board={board} {...(focus ? { focus } : {})} />
+          <BoardEditor key={board.id} board={board} {...(focus ? { focus } : {})} />
         </NotesProvider>
       </ReactFlowProvider>
     </div>
@@ -117,6 +118,11 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
   const theme = useTheme((s) => s.mode);
   const wrapper = useRef<HTMLDivElement>(null);
   const boardId = board.id;
+  // Boards opens this one again next time (not the players' board: it lives in its window).
+  const remember = useLastBoard((s) => s.remember);
+  useEffect(() => {
+    if (!board.players) remember(board.id, board.campaign);
+  }, [board.id, board.campaign, board.players, remember]);
   const campaignId = board.campaign;
 
   /** Versions to undo and redo, and whether there are any (for the buttons). */
@@ -197,7 +203,9 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
           const card = b.cards.find((c) => c.id === id);
           if (!card) return b;
           const at = absolutePosition(b, card);
-          return addBoardCards(b, contents, { x: at.x + card.w + 24, y: at.y }).board;
+          // Opened from a link: the card fits what it shows.
+          return addBoardCards(b, contents, { x: at.x + card.w + 24, y: at.y }, { fit: true })
+            .board;
         });
       },
       show: (card) => {

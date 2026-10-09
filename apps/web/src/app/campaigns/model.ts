@@ -32,6 +32,8 @@ export interface Campaign {
   sources: Record<string, boolean>;
   rules: CampaignRules;
   createdAt: string;
+  /** A cover picture (a data URL, shrunk when picked): it travels inside campaign.json. */
+  cover?: string;
 }
 
 /** What a new campaign is made from: a template, or the settings chosen when creating it. */
@@ -197,6 +199,9 @@ export function parseCampaign(text: string | null, id: string): Campaign | null 
     sources: parseSources(raw.sources),
     rules: parseRules(raw.rules),
     createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : '',
+    ...(typeof raw.cover === 'string' && raw.cover.startsWith('data:image/')
+      ? { cover: raw.cover }
+      : {}),
   };
 }
 

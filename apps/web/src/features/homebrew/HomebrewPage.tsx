@@ -159,15 +159,15 @@ export function HomebrewPage() {
           No homebrew yet. Make a pack for your campaign, then add items to it.
         </div>
       ) : (
-        <ul aria-label="Packs" className="grid gap-3 sm:grid-cols-2">
+        <ul aria-label="Packs" className="grid auto-rows-fr gap-3 sm:grid-cols-2">
           {packs.map((p) => {
             const meta = packMeta(p.json);
             const cover = packCover(p.json);
             return (
-              <li key={p.path}>
+              <li key={p.path} className="h-full">
                 <AppLink
                   to={packPath(p.path)}
-                  className="flex gap-3 rounded-lg border border-border bg-surface p-3 hover:border-accent"
+                  className="flex h-full gap-3 rounded-lg border border-border bg-surface p-3 hover:border-accent"
                 >
                   <span className="flex aspect-[3/4] w-16 shrink-0 items-center justify-center overflow-hidden rounded bg-sunken">
                     {cover ? (
@@ -177,13 +177,15 @@ export function HomebrewPage() {
                     )}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block font-serif text-lg font-bold">
+                    <span className="block truncate font-serif text-lg font-bold">
                       {meta?.name ?? p.fileName}
                     </span>
                     <span className="block text-xs text-muted">
                       {meta ? `${meta.id} · ${meta.edition} rules` : p.fileName}
                     </span>
-                    <span className="mt-2 block text-sm">{packSummary(packEntries(p.json))}</span>
+                    <span className="mt-2 line-clamp-2 text-sm">
+                      {packSummary(packEntries(p.json))}
+                    </span>
                   </span>
                 </AppLink>
               </li>

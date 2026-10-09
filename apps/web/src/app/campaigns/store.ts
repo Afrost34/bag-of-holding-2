@@ -41,7 +41,7 @@ interface CampaignsStore {
   activate: (id: string) => Promise<void>;
   update: (
     id: string,
-    patch: Partial<Pick<Campaign, 'name' | 'edition' | 'rules' | 'sources'>>,
+    patch: Partial<Pick<Campaign, 'name' | 'edition' | 'rules' | 'sources' | 'cover'>>,
   ) => Promise<void>;
   remove: (id: string) => Promise<void>;
   saveTemplate: (campaignId: string, name: string) => Promise<void>;
@@ -157,7 +157,9 @@ export const useCampaigns = create<CampaignsStore>()((set, get) => ({
   update: async (id, patch) => {
     const current = get().campaigns.find((c) => c.id === id);
     if (!current) return;
-    const next = { ...current, ...patch };
+    // An empty cover removes it.
+    const { cover, ...rest } = { ...current, ...patch };
+    const next: Campaign = cover ? { ...rest, cover } : rest;
     set((s) => ({ campaigns: s.campaigns.map((c) => (c.id === id ? next : c)) }));
     // The open campaign's sources are what the whole app filters by.
     if (patch.sources && id === get().activeId) {

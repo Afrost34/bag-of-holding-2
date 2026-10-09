@@ -191,18 +191,25 @@ test('a pack is a source with a cover, and holds feats, species and classes', as
   await cls.getByRole('button', { name: 'Save class' }).click();
 
   // The pack lists them like the compendium: open a row to read it.
+  // One tab per kind; saving the class brought the list to its tab.
+  await expect(page.getByRole('tab', { name: /Classes/ })).toHaveAttribute('aria-selected', 'true');
   for (const name of ['Feats', 'Species', 'Classes']) {
+    await page.getByRole('tab', { name: new RegExp(name) }).click();
     await expect(page.getByRole('region', { name })).toBeVisible();
   }
+  await page.getByRole('tab', { name: /Species/ }).click();
   await page.getByRole('button', { name: 'Show Tidekin' }).click();
   await expect(page.getByRole('main')).toContainText('You can breathe air and water.');
+  await page.getByRole('tab', { name: /Classes/ }).click();
   await page.getByRole('button', { name: 'Show Corsair' }).click();
   await expect(page.getByRole('main')).toContainText('You know ships.');
 
   // They are in the compendium like the book ones.
+  await page.getByRole('tab', { name: /Feats/ }).click();
   await page.getByRole('link', { name: 'Sea Legs' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Sea Legs' })).toBeVisible();
   await page.goBack();
+  await page.getByRole('tab', { name: /Classes/ }).click();
   await page.getByRole('link', { name: 'Corsair', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Corsair' })).toBeVisible();
   await expect(page.getByRole('main')).toContainText('Sea Dog');
