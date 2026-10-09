@@ -88,13 +88,28 @@
   }
 }
 
-/* On paper, rolls read as plain text: no dice colours. Text takes the paper's own colour (not
-   the dark theme's, inherited from the page). */
+/* On paper, dice read as small chips (as the earlier app printed them). Text takes the paper's
+   own colour (not the dark theme's, inherited from the page). */
 .paper {
+  /* The printed sheet's own greys (cooler than the app's), as the earlier app printed. */
+  --boh-surface: #ffffff;
+  --boh-surface-2: #f8fafc;
+  --boh-sunken: #eef2f6;
+  --boh-border: #d6dce4;
+  --boh-border-strong: #b9c2ce;
+  --boh-text: #1e2430;
+  --boh-text-muted: #5d6878;
+  --boh-text-faint: #6b7584;
+  --boh-header: #1f2836;
+  --boh-header-fg: #ffffff;
+  --boh-link: #5b3fc4;
+  /* Proficiency dots and pact slot rings; card subtitles. */
+  --boh-paper-mark: #4b55c8;
+  --boh-paper-subtitle: #5a6c94;
   color: var(--boh-text);
-  --boh-dice-bg: transparent;
-  --boh-dice-fg: var(--boh-text);
-  --boh-dice-border: transparent;
+  --boh-dice-bg: #fdf0e3;
+  --boh-dice-fg: #b4530f;
+  --boh-dice-border: #eab07a;
   /* Ability colours as full, bright fills (on screen they are darker, to read as text). */
   --boh-str: #e03a3e;
   --boh-dex: #22a45d;

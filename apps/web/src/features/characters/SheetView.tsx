@@ -50,10 +50,12 @@ function valueAt(sheet: CharacterView['sheet'], path: string): SheetValue | unde
     case 'passive':
       return tail === 'perception' ? sheet.passive.perception : undefined;
     case 'score':
-    case 'save': {
+    case 'save':
+    case 'check': {
       const a = ABILITIES.find((x) => x === tail);
       if (!a) return undefined;
-      return head === 'score' ? sheet.abilities[a].score : sheet.abilities[a].save;
+      const line = sheet.abilities[a];
+      return head === 'score' ? line.score : head === 'check' ? line.check : line.save;
     }
     case 'skill':
       return sheet.skills[tail];
@@ -186,6 +188,21 @@ export function SheetView({
                       }}
                     />
                   </p>
+                  {/* An item or feature adding to checks (Stone of Good Luck): checks differ. */}
+                  {line.check.value !== line.modifier && (
+                    <p className="flex items-center justify-center gap-0.5 border-t border-border py-0.5 text-[11px] text-muted">
+                      Check{' '}
+                      <RollChip plain roll={d20(line.check.value, `${name} check`)}>
+                        <span className="font-bold text-text">{signed(line.check.value)}</span>
+                      </RollChip>
+                      <InfoButton
+                        label={`${name} check`}
+                        onClick={() => {
+                          open(`check.${a}`, `${name} check`, line.check);
+                        }}
+                      />
+                    </p>
+                  )}
                   <p className="flex items-center justify-center gap-0.5 border-t border-border py-0.5 text-[11px] text-muted">
                     Save{' '}
                     <RollChip plain roll={d20(line.save.value, `${name} save`)}>
