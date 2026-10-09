@@ -2,8 +2,8 @@
 //! real folders on disk, the player window (`window.open` from a board), links to other sites in
 //! the system browser, and updates from GitHub Releases.
 
-use tauri::webview::NewWindowResponse;
-use tauri::{AppHandle, Url, WebviewUrl, WebviewWindowBuilder};
+use tauri::webview::{NewWindowFeatures, NewWindowResponse};
+use tauri::{AppHandle, Manager, Url, WebviewUrl, WebviewWindowBuilder, Wry};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_updater::UpdaterExt;
@@ -11,7 +11,43 @@ use tauri_plugin_updater::UpdaterExt;
 /// Pages of the app itself (in a build or in `tauri dev`), as opposed to other sites.
 fn is_app_url(url: &Url) -> bool {
     url.scheme() == "tauri"
-        || matches!(url.host_str(), Some("tauri.localhost") | Some("localhost") | Some("127.0.0.1"))
+        || matches!(
+            url.host_str(),
+            Some("tauri.localhost") | Some("localhost") | Some("127.0.0.1")
+        )
+}
+
+/// The label of the player window (there is one at a time).
+const PLAYER: &str = "player";
+
+/// What `window.open` does in an app window. The app's own pages (the player window) open in a
+/// window built here: a bare popup (the "Allow" answer) has no access to the app's files in an
+/// installed build, so it stayed blank. Other sites open in the system browser.
+fn on_new_window(app: &AppHandle, url: Url, features: NewWindowFeatures) -> NewWindowResponse<Wry> {
+    if !is_app_url(&url) {
+        let _ = app.opener().open_url(url.as_str(), None::<&str>);
+        return NewWindowResponse::Deny;
+    }
+    if let Some(existing) = app.get_webview_window(PLAYER) {
+        let _ = existing.navigate(url);
+        let _ = existing.unminimize();
+        let _ = existing.set_focus();
+        return NewWindowResponse::Deny;
+    }
+    let handle = app.clone();
+    match WebviewWindowBuilder::new(app, PLAYER, WebviewUrl::External(url))
+        .window_features(features)
+        .title("Bag of Holding — Players")
+        .min_inner_size(400.0, 300.0)
+        .on_new_window(move |url, features| on_new_window(&handle, url, features))
+        .build()
+    {
+        Ok(window) => NewWindowResponse::Create { window },
+        Err(error) => {
+            eprintln!("Player window failed: {error}");
+            NewWindowResponse::Deny
+        }
+    }
 }
 
 /// Looks for a newer release; when there is one, asks before installing it and restarting.
@@ -59,16 +95,7 @@ pub fn run() {
                 .inner_size(1440.0, 900.0)
                 .min_inner_size(400.0, 500.0)
                 .center()
-                // The app's own pages (the player window) open as app windows; other sites in
-                // the browser.
-                .on_new_window(move |url, _features| {
-                    if is_app_url(&url) {
-                        NewWindowResponse::Allow
-                    } else {
-                        let _ = handle.opener().open_url(url.as_str(), None::<&str>);
-                        NewWindowResponse::Deny
-                    }
-                })
+                .on_new_window(move |url, features| on_new_window(&handle, url, features))
                 .build()?;
             let app = app.handle().clone();
             tauri::async_runtime::spawn(async move {
