@@ -28,12 +28,15 @@ export function SpellChoicePanel({
   onChange,
   from,
   granted = [],
+  joined = [],
 }: {
   choice: AnsweredChoice;
   /** The feature that gives the pick, named in the heading ("Cantrips · Thaumaturge"). */
   from?: string | undefined;
   /** Spells of this list the character has anyway (a feat, the species, a domain), shown first. */
   granted?: readonly GrantedSpell[];
+  /** Picks from the same list that a feature adds (Magician's cantrip), shown in this list. */
+  joined?: readonly JoinedChoice[];
   decisions: CharacterDecisions;
   isEnabled: (source: string | undefined) => boolean;
   onChange: (picks: string[]) => void;
@@ -47,7 +50,28 @@ export function SpellChoicePanel({
   const options = useChoiceOptions(decisions, choice.id, true);
   const rows = useListRows('spells');
   const known = useKnownSpells();
-  const full = picks.length >= choice.count;
+  // With the picks a feature adds to the same list: one count, one list, one Add.
+  const extra = useMemo(
+    () =>
+      joined.map((j) => ({
+        ...j,
+        picks: decisions.choices[j.choice.id] ?? j.choice.picks,
+      })),
+    [joined, decisions.choices],
+  );
+  const allPicks = useMemo(() => [...picks, ...extra.flatMap((j) => j.picks)], [picks, extra]);
+  const total = choice.count + extra.reduce((n, j) => n + j.choice.count, 0);
+  const full = allPicks.length >= total;
+  const ownIds = [choice.id, ...joined.map((j) => j.choice.id)];
+  /** Learning fills the list's own picks first, then the features'. */
+  const learn = (id: string) => {
+    if (picks.length < choice.count) {
+      onChange([...picks, id]);
+      return;
+    }
+    const room = extra.find((j) => j.picks.length < j.choice.count);
+    room?.onChange([...room.picks, id]);
+  };
   const byKey = useMemo(() => new Map((rows ?? []).map((r) => [r.key, r])), [rows]);
 
   const levels = useMemo(
@@ -58,14 +82,14 @@ export function SpellChoicePanel({
     const q = query.trim().toLowerCase();
     return (options ?? []).filter(
       (o) =>
-        !picks.includes(o.id) &&
+        !allPicks.includes(o.id) &&
         isEnabled(o.source) &&
         (level === null || o.level === level) &&
         (!q || o.name.toLowerCase().includes(q)),
     );
-  }, [options, picks, isEnabled, level, query]);
+  }, [options, allPicks, isEnabled, level, query]);
   const option = (id: string) => (options ?? []).find((o) => o.id === id);
-  const twice = picks.filter((id) => otherSources(known, id, choice.id).length > 0);
+  const twice = allPicks.filter((id) => otherSources(known, id, ownIds).length > 0);
   // "Cantrips", "Level 1 spell": what the pick is, rather than "Choose a spell".
   const only = levels.length === 1 ? levels[0] : undefined;
   const title =
@@ -87,7 +111,7 @@ export function SpellChoicePanel({
           {from && <span className="font-normal text-muted"> · {from}</span>}
         </h4>
         <span className={cn('text-sm font-bold', full ? 'text-text' : 'text-accent-ink')}>
-          {picks.length}/{choice.count}
+          {allPicks.length}/{total}
         </span>
         <button
           type="button"
@@ -107,7 +131,7 @@ export function SpellChoicePanel({
           {twice
             .map(
               (id) =>
-                `${option(id)?.name ?? pickName(id)} is already yours from ${otherSources(known, id, choice.id).join(' and ')}`,
+                `${option(id)?.name ?? pickName(id)} is already yours from ${otherSources(known, id, ownIds).join(' and ')}`,
             )
             .join('; ')}
           . Pick another spell to get the most from this choice.
@@ -116,7 +140,7 @@ export function SpellChoicePanel({
 
       {granted.length > 0 && <GrantedRows spells={granted} />}
 
-      {picks.length > 0 && (
+      {allPicks.length > 0 && (
         <ul className="space-y-1.5">
           {picks.map((id) => (
             <SpellRowCard
@@ -124,13 +148,29 @@ export function SpellChoicePanel({
               id={id}
               row={byKey.get(id)}
               option={option(id)}
-              alsoFrom={otherSources(known, id, choice.id)}
+              alsoFrom={otherSources(known, id, ownIds)}
               action="Remove"
               onAction={() => {
                 onChange(picks.filter((p) => p !== id));
               }}
             />
           ))}
+          {extra.flatMap((j) =>
+            j.picks.map((id) => (
+              <SpellRowCard
+                key={`${j.choice.id}:${id}`}
+                id={id}
+                row={byKey.get(id)}
+                option={option(id)}
+                alsoFrom={[]}
+                tag={j.tag}
+                action="Remove"
+                onAction={() => {
+                  j.onChange(j.picks.filter((p) => p !== id));
+                }}
+              />
+            )),
+          )}
         </ul>
       )}
 
@@ -193,7 +233,7 @@ export function SpellChoicePanel({
                   action="Learn"
                   disabled={full}
                   onAction={() => {
-                    onChange([...picks, o.id]);
+                    learn(o.id);
                   }}
                 />
               ))}
@@ -341,4 +381,12 @@ export function GrantedRows({ spells }: { spells: readonly GrantedSpell[] }) {
       ))}
     </ul>
   );
+}
+
+/** A feature's pick from the same list as the class's (Magician: a Druid cantrip). */
+export interface JoinedChoice {
+  choice: AnsweredChoice;
+  /** Where it comes from, on its rows ("Magician"). */
+  tag: string;
+  onChange: (picks: string[]) => void;
 }
