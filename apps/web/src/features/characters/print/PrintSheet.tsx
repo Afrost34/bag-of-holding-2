@@ -18,7 +18,7 @@ import { PackedPages } from '../../../app/cards/PackedPages';
 import type { CharacterView } from '../../../app/data/protocol';
 import { signed, titleWords as title } from '../../../app/format';
 import { SchoolIcon } from '../../../app/lists/cells';
-import { PortraitImage } from '../Portrait';
+import { PortraitImage } from '../../../app/characters/PortraitImage';
 import { pickName } from '../steps';
 import { ArrangedCard, HiddenCardsPage, type CardArranging } from './CardArrange';
 import { ORDINAL, pageRows, shortCast, shortRange, sourceLabel } from './printText';

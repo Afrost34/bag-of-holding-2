@@ -7,7 +7,7 @@ import type { CharacterFile } from '../../app/characters/model';
 import { useCharacters } from '../../app/characters/store';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
-import { PortraitImage } from './Portrait';
+import { PortraitImage } from '../../app/characters/PortraitImage';
 
 /** Stands for the library in selects (campaign ids are slugs, never start with @). */
 const LIBRARY = '@library';

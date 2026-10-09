@@ -8,24 +8,29 @@ import { RollChip } from '../dice/RollChip';
 import { wantsNewTab } from '../navigation';
 import { EntityLinkClickContext } from '../renderer/linkClick';
 import { useCharacters } from './store';
+import { PortraitImage } from './PortraitImage';
 import { useCharacterSheet } from './useCharacterSheet';
 import { signed } from '../format';
 
 /**
- * A character as the first page of its sheet, for a board: the numbers, abilities and saves,
- * every skill, attacks, proficiencies and defences. Spells, features, inventory and the story are
- * sections the DM opens from the card's side. Every number rolls.
+ * A character as the first page of its sheet, for a board: portrait, the numbers, abilities and
+ * saves, passive scores, every skill. Spells, features, inventory, proficiencies and the story
+ * are sections the DM opens from the card's side. Every number rolls.
  */
 
 export interface SheetSections {
   spells?: boolean;
+  proficiencies?: boolean;
   features?: boolean;
   inventory?: boolean;
   story?: boolean;
 }
 
 const ABBR = { str: 'STR', dex: 'DEX', con: 'CON', int: 'INT', wis: 'WIS', cha: 'CHA' } as const;
-const titled = (s: string) => s.replace(/(^|\s)(\p{L})/gu, (m) => m.toUpperCase());
+const titled = (s: string) =>
+  s
+    .replace(/(^|\s)(\p{L})/gu, (m) => m.toUpperCase())
+    .replace(/ (Of|And) /g, (m) => m.toLowerCase());
 const nameOfKey = (key: string) => titled(key.split(':')[1]?.split('@')[0]?.split('|')[0] ?? key);
 
 /** A link to an entry; on a board, a plain click brings it onto the board instead. */
@@ -118,13 +123,16 @@ export function CharacterSheetCard({
 
   return (
     <div className="space-y-3 text-sm">
-      <div className="flex items-baseline gap-2">
-        <p className="min-w-0 flex-1 truncate font-serif text-base font-bold">
-          <AppLink to={`/characters/${character.id}?step=sheet`} className="hover:underline">
-            {character.name}
-          </AppLink>
-        </p>
-        <p className="truncate text-xs text-muted">{character.summary}</p>
+      <div className="flex items-center gap-2">
+        <PortraitImage character={character} size={44} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-serif text-base leading-tight font-bold">
+            <AppLink to={`/characters/${character.id}?step=sheet`} className="hover:underline">
+              {character.name}
+            </AppLink>
+          </p>
+          <p className="truncate text-xs text-muted">{character.summary}</p>
+        </div>
       </div>
 
       {!only && (
@@ -140,7 +148,14 @@ export function CharacterSheetCard({
                   `${String(s.speed.walk ?? 30)}${s.speed.fly ? `/${String(s.speed.fly)}f` : ''}`,
                 ],
                 ['Prof', signed(s.proficiencyBonus)],
-                ['Passive', String(s.passive.perception.value)],
+                ...(s.spellcasting[0]
+                  ? ([['Spell DC', String(s.spellcasting[0].dc.value)]] as const)
+                  : ([
+                      [
+                        'Hit dice',
+                        s.hitDice.map((h) => `${String(h.count)}d${String(h.faces)}`).join('+'),
+                      ],
+                    ] as const)),
               ] as const
             ).map(([label, value]) => (
               <div key={label} className="rounded border border-border px-1 py-1">
@@ -181,6 +196,24 @@ export function CharacterSheetCard({
             })}
           </div>
 
+          <dl
+            aria-label="Passive scores"
+            className="flex flex-wrap justify-center gap-x-4 gap-y-0.5 rounded border border-border px-2 py-1 text-xs"
+          >
+            {(
+              [
+                ['Passive Perception', s.passive.perception.value],
+                ['Insight', s.passive.insight.value],
+                ['Investigation', s.passive.investigation.value],
+              ] as const
+            ).map(([label, value]) => (
+              <div key={label} className="flex gap-1">
+                <dt className="text-muted">{label}</dt>
+                <dd className="font-bold">{value}</dd>
+              </div>
+            ))}
+          </dl>
+
           <Section title="Skills">
             <ul className="grid grid-cols-2 gap-x-3 text-xs">
               {Object.entries(s.skills).map(([name, line]) => (
@@ -203,58 +236,21 @@ export function CharacterSheetCard({
               ))}
             </ul>
           </Section>
-
-          {s.attacks.length > 0 && (
-            <Section title="Attacks">
-              <ul aria-label={`${character.name} attacks`} className="space-y-0.5 text-xs">
-                {s.attacks.map((a) => (
-                  <li key={a.key + a.name} className="flex flex-wrap items-baseline gap-x-2">
-                    <EntryLink to={a.key} className="flex-1 font-semibold text-text">
-                      {a.name}
-                    </EntryLink>
-                    {a.toHit && (
-                      <RollChip plain roll={roll(a.toHit.value, a.name)}>
-                        {signed(a.toHit.value)}
-                      </RollChip>
-                    )}
-                    {a.save && (
-                      <span>
-                        DC {a.save.dc.value} {ABBR[a.save.ability]}
-                      </span>
-                    )}
-                    {a.damage && (
-                      <RollChip
-                        plain
-                        roll={{
-                          kind: 'damage',
-                          expression: a.damage.split(' ')[0] ?? a.damage,
-                          label: `${character.name}: ${a.name}`,
-                        }}
-                      >
-                        {a.damage}
-                      </RollChip>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </Section>
-          )}
-
-          {proficiencyRows.length > 0 && (
-            <Section title="Proficiencies">
-              <dl className="space-y-0.5 text-xs">
-                {proficiencyRows.map(([label, items]) => (
-                  <div key={label} className="flex gap-2">
-                    <dt className="w-20 shrink-0 font-semibold text-muted">{label}</dt>
-                    <dd className="min-w-0 capitalize">{items.join(', ')}</dd>
-                  </div>
-                ))}
-              </dl>
-            </Section>
-          )}
         </>
       )}
 
+      {show.proficiencies && proficiencyRows.length > 0 && (
+        <Section title="Proficiencies">
+          <dl className="space-y-0.5 text-xs">
+            {proficiencyRows.map(([label, items]) => (
+              <div key={label} className="flex gap-2">
+                <dt className="w-20 shrink-0 font-semibold text-muted">{label}</dt>
+                <dd className="min-w-0 capitalize">{items.join(', ')}</dd>
+              </div>
+            ))}
+          </dl>
+        </Section>
+      )}
       {show.spells && (spells.length > 0 || s.spellcasting.length > 0) && (
         <Section title="Spells">
           {s.spellcasting.map((c) => (

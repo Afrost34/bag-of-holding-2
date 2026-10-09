@@ -5,68 +5,13 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArtImage } from '../../app/ArtImage';
 import type { CharacterFile } from '../../app/characters/model';
+import { PortraitImage } from '../../app/characters/PortraitImage';
 import { loadEntity } from '../../app/data/entities';
 import { loadRows } from '../../app/data/lists';
 import type { CharacterView } from '../../app/data/protocol';
 import { picturePathOf, pictureRef } from '../../app/pictures/model';
-import { LibraryPicture, PictureLibrary } from '../../app/pictures/PictureLibrary';
+import { PictureLibrary } from '../../app/pictures/PictureLibrary';
 import { usePictures } from '../../app/pictures/store';
-
-/** A character's picture, or its initial when it has none. */
-export function PortraitImage({
-  character,
-  size,
-  className,
-}: {
-  character: CharacterFile;
-  size: number;
-  className?: string;
-}) {
-  const p = character.portrait;
-  const style = { width: size, height: size };
-  if (p?.startsWith('art:'))
-    return (
-      <ArtImage
-        path={p.slice(4)}
-        widths={[192, 384]}
-        sizes={`${String(size)}px`}
-        alt={`Portrait of ${character.name}`}
-        style={style}
-        className={cn('shrink-0 rounded object-cover object-top', className)}
-      />
-    );
-  const library = picturePathOf(p);
-  if (library)
-    return (
-      <LibraryPicture
-        path={library}
-        alt={`Portrait of ${character.name}`}
-        style={style}
-        className={cn('shrink-0 rounded object-cover object-top', className)}
-      />
-    );
-  if (p?.startsWith('data:'))
-    return (
-      <img
-        src={p}
-        alt={`Portrait of ${character.name}`}
-        style={style}
-        className={cn('shrink-0 rounded object-cover object-top', className)}
-      />
-    );
-  return (
-    <span
-      style={style}
-      className={cn(
-        'flex shrink-0 items-center justify-center rounded border-2 border-dashed border-border bg-sunken font-serif text-2xl font-bold',
-        className,
-      )}
-      aria-hidden
-    >
-      {character.name.trim().charAt(0).toUpperCase() || '?'}
-    </span>
-  );
-}
 
 /** The portrait in the builder's header: click to change it. */
 export function PortraitButton({
