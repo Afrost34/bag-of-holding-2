@@ -93,11 +93,23 @@ const PIN_RADIUS = 15;
 
 const iconTextures = new Map<string, Promise<Texture | null>>();
 
-/** A pin icon, drawn white, as a texture (made once). */
-function iconTexture(id: string): Promise<Texture | null> {
-  let t = iconTextures.get(id);
+/**
+ * Fantasy-map pins (a map's `pinStyle`): inked icons on a parchment halo, names in an old
+ * printer's italic (IM Fell English, bundled with the app).
+ */
+const INK = '#2b1d0e';
+const PARCHMENT = '#f3e9d2';
+const FANTASY_FONT = '"IM Fell English", Georgia, serif';
+/** The italic is in the browser's font list once loaded; names drawn before then are redrawn. */
+let fantasyFontReady = false;
+let fantasyFontLoading: Promise<unknown> | null = null;
+
+/** A pin icon, drawn white (or in `color`, `width` thick), as a texture (made once). */
+function iconTexture(id: string, color = '#ffffff', width = 2.25): Promise<Texture | null> {
+  const textureKey = `${id}|${color}|${String(width)}`;
+  let t = iconTextures.get(textureKey);
   if (!t) {
-    const svg = pinIconSvg(id, '#ffffff', 64);
+    const svg = pinIconSvg(id, color, 64, width);
     t = svg
       ? new Promise((resolve) => {
           const img = new Image();
@@ -110,7 +122,7 @@ function iconTexture(id: string): Promise<Texture | null> {
           img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
         })
       : Promise.resolve(null);
-    iconTextures.set(id, t);
+    iconTextures.set(textureKey, t);
   }
   return t;
 }
@@ -321,6 +333,13 @@ export class MapScene {
   setDoc(doc: MapDoc): void {
     this.doc = doc;
     if (!this.ready) return;
+    if (doc.pinStyle === 'fantasy' && !fantasyFontReady && typeof document !== 'undefined') {
+      fantasyFontLoading ??= document.fonts.load(`italic 18px ${FANTASY_FONT}`);
+      void fantasyFontLoading.then(() => {
+        fantasyFontReady = true;
+        if (this.doc && !this.destroyed) this.setDoc(this.doc);
+      });
+    }
     this.drawBackground(doc);
     this.drawGrid(doc);
     // Layers, bottom first.
@@ -337,7 +356,10 @@ export class MapScene {
       layer.items.forEach((item, i) => {
         seen.add(item.id);
         const node = this.nodes.get(item.id);
-        const look = item.kind === 'pin' ? JSON.stringify(pinStyle(doc, item)) : '';
+        const look =
+          item.kind === 'pin'
+            ? JSON.stringify([pinStyle(doc, item), doc.pinStyle ?? '', fantasyFontReady])
+            : '';
         if (node?.item === item && node.look === look && node.view.parent === view) return;
         if (node) node.view.destroy({ children: true });
         const fresh = this.drawItem(item, doc);
@@ -528,6 +550,7 @@ export class MapScene {
         // Hidden from players: faint for the DM, so it is plain which pins they will not see.
         if (item.secret) holder.alpha = 0.55;
         const r = PIN_RADIUS;
+        if (doc.pinStyle === 'fantasy') return this.fantasyPin(holder, item.label, style.icon);
         const color = colorOf(style.color);
         const marker = new Graphics()
           .moveTo(0, 0)
@@ -572,6 +595,58 @@ export class MapScene {
         return holder;
       }
     }
+  }
+
+  /**
+   * A pin as on a fantasy map: an inked icon on a parchment halo (a town's dot when it has no
+   * icon), the name below in an old printer's italic.
+   */
+  private fantasyPin(holder: Container, label: string, icon: string | null): Container {
+    const r = PIN_RADIUS;
+    if (icon) {
+      const size = r * 2.6;
+      const place = (texture: Texture | null) => {
+        if (!texture || holder.destroyed) return;
+        const sprite = new Sprite(texture);
+        sprite.anchor.set(0.5);
+        sprite.width = size;
+        sprite.height = size;
+        sprite.position.set(0, -r * 1.15);
+        holder.addChild(sprite);
+        this.requestRender();
+      };
+      // The halo first, so the ink sits on it.
+      void iconTexture(icon, PARCHMENT, 6).then((halo) => {
+        place(halo);
+        void iconTexture(icon, INK, 2).then(place);
+      });
+    } else {
+      holder.addChild(
+        new Graphics()
+          .circle(0, -r * 0.5, r * 0.5)
+          .fill({ color: PARCHMENT })
+          .stroke({ color: INK, width: 2 })
+          .circle(0, -r * 0.5, r * 0.22)
+          .fill({ color: INK }),
+      );
+    }
+    if (label) {
+      const t = new Text({
+        text: label,
+        style: {
+          fontFamily: FANTASY_FONT,
+          fontStyle: 'italic',
+          fontSize: 18,
+          fill: INK,
+          stroke: { color: PARCHMENT, width: 5 },
+        },
+        resolution: 2,
+      });
+      t.anchor.set(0.5, 0);
+      t.position.set(0, 2);
+      holder.addChild(t);
+    }
+    return holder;
   }
 
   /** The topmost item under a map point, on visible unlocked layers. */
@@ -703,7 +778,12 @@ export class MapScene {
    * they keep one size on screen whatever the zoom, so a print needs a size of its own). The
    * overlay is left out.
    */
-  exportCanvas({ withGrid, scale = 1, pinScale = 1 }: ExportOptions): HTMLCanvasElement {
+  exportCanvas({
+    withGrid,
+    scale = 1,
+    pinScale = 1,
+    withSecretPins = true,
+  }: ExportOptions): HTMLCanvasElement {
     if (!this.doc) throw new Error('No map');
     const { width, height } = this.doc;
     const out = document.createElement('canvas');
@@ -717,6 +797,15 @@ export class MapScene {
     this.setView(0, 0, 1);
     for (const { item, view: v } of this.nodes.values())
       if (item.kind === 'pin') v.scale.set(pinScale);
+    // Pins hidden from players: in the picture at full strength, or left out, as asked.
+    const secret = [...this.nodes.values()].filter(
+      (n) => n.item.kind === 'pin' && n.item.secret === true,
+    );
+    const shown = secret.map((n) => n.view.visible);
+    for (const n of secret) {
+      n.view.alpha = 1;
+      if (!withSecretPins) n.view.visible = false;
+    }
     // Everything is drawn, on screen or not.
     uncull(this.world);
     try {
@@ -733,7 +822,11 @@ export class MapScene {
     } finally {
       this.overlay.visible = true;
       this.gridLines.visible = true;
-      // Pins back to screen size.
+      // Pins back to screen size, the secret ones faint again.
+      secret.forEach((n, i) => {
+        n.view.alpha = 0.55;
+        n.view.visible = shown[i] ?? true;
+      });
       this.setView(view.x, view.y, view.zoom);
     }
     return out;
@@ -757,6 +850,8 @@ export interface ExportOptions {
   scale?: number;
   /** Pins' size against their size on screen. */
   pinScale?: number;
+  /** Pins hidden from players in the picture too (they are by default). */
+  withSecretPins?: boolean;
 }
 
 function nearPolyline(p: Point, points: readonly number[], tolerance: number): boolean {

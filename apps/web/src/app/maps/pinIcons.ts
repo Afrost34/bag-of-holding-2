@@ -107,8 +107,14 @@ export const pinIcon = (id: string | null | undefined) => PIN_ICONS.find((i) => 
 const svgs = new Map<string, string>();
 
 /** An icon as SVG markup, in a colour (made once, then kept). */
-export function pinIconSvg(id: string, color: string, size = 64): string | null {
-  const key = `${id}|${color}|${String(size)}`;
+export function pinIconSvg(
+  id: string,
+  color: string,
+  size = 64,
+  /** Line width (a halo under an inked icon is drawn wider). */
+  strokeWidth = 2.25,
+): string | null {
+  const key = `${id}|${color}|${String(size)}|${String(strokeWidth)}`;
   const cached = svgs.get(key);
   if (cached) return cached;
   const icon = pinIcon(id);
@@ -117,7 +123,7 @@ export function pinIconSvg(id: string, color: string, size = 64): string | null 
     createElement(icon.Icon, {
       color,
       size,
-      strokeWidth: 2.25,
+      strokeWidth,
       xmlns: 'http://www.w3.org/2000/svg',
     }),
   );

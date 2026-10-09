@@ -341,6 +341,12 @@ test('terrain textures, the eraser, and pins in categories', async ({ page }, te
   await page.getByLabel('Pin label').fill('Waterdeep');
   await page.getByLabel('Pin category').selectOption({ label: 'Cities' });
   await canvas.screenshot({ path: testInfo.outputPath('pins.png') });
+  // Drawn as on a fantasy map: an inked castle, the name in italic.
+  await page.getByRole('tab', { name: 'Map' }).click();
+  await page.getByLabel('Pin style').selectOption('fantasy');
+  await waitForSaved(page, 'maps', '"pinStyle"');
+  await page.waitForTimeout(500);
+  await canvas.screenshot({ path: testInfo.outputPath('pins-fantasy.png') });
   // Hidden together, then shown again; kept after a reload.
   await page.getByRole('tab', { name: 'Pins' }).click();
   await page.getByRole('button', { name: 'Hide Cities' }).click();

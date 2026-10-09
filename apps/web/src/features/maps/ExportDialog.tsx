@@ -9,7 +9,7 @@ const SIZES = [0.25, 0.5, 1, 1.5, 2] as const;
 const MAX_SIDE = 16384;
 const PIN_SIZES = [0.5, 1, 2, 3, 4, 6, 8] as const;
 /** The preview's width (pixels). */
-const PREVIEW = 560;
+const PREVIEW = 960;
 
 /**
  * Exporting a map as a picture: its size, how big the pins are (they keep one size on screen
@@ -21,6 +21,7 @@ export function ExportDialog({
   width,
   height,
   hasGrid,
+  hasSecretPins,
   onClose,
 }: {
   scene: MapScene;
@@ -28,6 +29,8 @@ export function ExportDialog({
   width: number;
   height: number;
   hasGrid: boolean;
+  /** Some pins are hidden from players: they can be left out of the picture. */
+  hasSecretPins: boolean;
   onClose: () => void;
 }) {
   const sizes = SIZES.filter((s) => Math.max(width, height) * s <= MAX_SIDE);
@@ -37,6 +40,8 @@ export function ExportDialog({
     Math.max(width, height) > 4000 ? 4 : Math.max(width, height) > 2000 ? 2 : 1,
   );
   const [withGrid, setWithGrid] = useState(hasGrid);
+  // A picture is usually for the players: their hidden pins stay out unless asked for.
+  const [withSecretPins, setWithSecretPins] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
 
@@ -45,6 +50,7 @@ export function ExportDialog({
     const timer = setTimeout(() => {
       const canvas = scene.exportCanvas({
         withGrid,
+        withSecretPins,
         pinScale,
         scale: Math.min(1, PREVIEW / width),
       });
@@ -54,12 +60,12 @@ export function ExportDialog({
       live = false;
       clearTimeout(timer);
     };
-  }, [scene, withGrid, pinScale, width]);
+  }, [scene, withGrid, withSecretPins, pinScale, width]);
 
   const save = async () => {
     setExporting(true);
     try {
-      const blob = await scene.exportPng({ withGrid, pinScale, scale });
+      const blob = await scene.exportPng({ withGrid, withSecretPins, pinScale, scale });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -84,7 +90,7 @@ export function ExportDialog({
     >
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 flex max-h-[92vh] w-[min(94vw,40rem)] -translate-x-1/2 -translate-y-1/2 flex-col gap-3 overflow-y-auto rounded-lg border border-border bg-surface p-4 shadow-xl">
+        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 flex max-h-[92vh] w-[min(96vw,72rem)] -translate-x-1/2 -translate-y-1/2 flex-col gap-3 overflow-y-auto rounded-lg border border-border bg-surface p-4 shadow-xl">
           <div className="flex items-center gap-2">
             <Dialog.Title className="flex-1 font-serif text-lg font-bold">
               Export as a picture
@@ -101,7 +107,7 @@ export function ExportDialog({
               <img
                 src={preview}
                 alt="Preview of the exported map"
-                className="max-h-[45vh] max-w-full object-contain"
+                className="max-h-[65vh] max-w-full object-contain"
               />
             ) : (
               <p className="text-sm text-muted">Drawing the preview…</p>
@@ -152,6 +158,18 @@ export function ExportDialog({
                   }}
                 />
                 Grid
+              </label>
+            )}
+            {hasSecretPins && (
+              <label className="flex items-center gap-1.5 pb-1">
+                <input
+                  type="checkbox"
+                  checked={withSecretPins}
+                  onChange={(e) => {
+                    setWithSecretPins(e.target.checked);
+                  }}
+                />
+                Pins hidden from players
               </label>
             )}
             <span className="flex-1" />

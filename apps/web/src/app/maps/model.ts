@@ -160,6 +160,8 @@ export interface MapDoc {
   encounter?: string;
   /** Kinds of pins, with the icon and colour their pins take. */
   pinCategories?: PinCategory[];
+  /** How pins are drawn: markers (absent), or as on a fantasy map (inked icons, italic names). */
+  pinStyle?: 'fantasy';
   /** Where it is filed in the maps list ('Battle maps/Dungeons'). */
   folder?: string;
   /** Words to find it by ('tavern', 'night'). */
@@ -351,6 +353,7 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
     id,
     name: typeof json.name === 'string' ? json.name : 'Map',
     ...(json.kind === 'battle' || json.kind === 'world' ? { kind: json.kind } : {}),
+    ...(json.pinStyle === 'fantasy' ? { pinStyle: 'fantasy' as const } : {}),
     createdAt: typeof json.createdAt === 'string' ? json.createdAt : '',
     updatedAt: typeof json.updatedAt === 'string' ? json.updatedAt : '',
     ...(bg

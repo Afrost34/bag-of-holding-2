@@ -772,6 +772,9 @@ function Editor({ doc }: { doc: MapDoc }) {
               width={doc.width}
               height={doc.height}
               hasGrid={grid.type !== 'none'}
+              hasSecretPins={doc.layers.some((l) =>
+                l.items.some((i) => i.kind === 'pin' && i.secret === true),
+              )}
               onClose={() => {
                 setExporting(false);
               }}
