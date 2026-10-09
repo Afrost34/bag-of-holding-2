@@ -268,7 +268,8 @@ class Builder {
     if (c.level !== undefined && c.level > (gate ?? this.characterLevel)) return;
     if (this.seenChoices.has(c.id)) return;
     this.seenChoices.add(c.id);
-    const stored = this.decisions.choices[c.id] ?? [];
+    const stored =
+      this.decisions.choices[c.id] ?? legacyFeatPick(this.decisions.choices, c.id) ?? [];
     const valid = stored.filter((p) => !c.options || c.options.includes(p));
     if (valid.length !== stored.length)
       this.warn('invalid', `Some picks are no longer offered: ${c.label}`, c.id);
@@ -650,7 +651,8 @@ export function buildCharacter(
     if (
       !asked.has(id) &&
       (decisions.choices[id]?.length ?? 0) > 0 &&
-      !rememberedFor(id, b.entities)
+      !rememberedFor(id, b.entities) &&
+      !answersLegacyFeat(id, asked)
     )
       b.warn('orphan', `A decision no longer matches anything in the character: ${id}`, id);
 
@@ -749,6 +751,26 @@ export function newCharacter(edition: Edition = '2024'): CharacterDecisions {
 /** The key of a choice made at a class level: `class:bard@xphb/level:3/subclass`. */
 export const classChoiceId = (classKey: string, level: number, what: string) =>
   `${classKey}/level:${String(level)}/${what}`;
+
+/**
+ * A 2024 Ability Score Improvement asks for a feat (`…/feats`). Characters made while a class
+ * was read with 2014 rules (homebrew without its edition) answered "a feat" (`…/asi`) and then
+ * the feat (`…/feat`): that feat answers the new question.
+ */
+function legacyFeatPick(
+  choices: Readonly<Record<string, string[]>>,
+  id: string,
+): string[] | undefined {
+  if (!id.endsWith('/feats')) return undefined;
+  const base = id.slice(0, -'/feats'.length);
+  return choices[`${base}/asi`]?.[0] === 'feat' ? choices[`${base}/feat`] : undefined;
+}
+
+/** The old `…/asi` and `…/feat` decisions behind a 2024 feat pick (not orphans). */
+function answersLegacyFeat(id: string, asked: ReadonlySet<string>): boolean {
+  const m = /^(.*)\/(asi|feat)$/.exec(id);
+  return m !== null && asked.has(`${m[1] ?? ''}/feats`);
+}
 
 /** Kinds of entries whose own choices are kept, unreported, while another one is picked. */
 const SWAPPABLE = new Set(['feat', 'optionalfeature']);
