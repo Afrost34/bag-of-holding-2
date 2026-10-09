@@ -9,6 +9,7 @@ import type { CharacterView } from '../../../app/data/protocol';
 import { FeatureCard, SaveLine } from './PrintCards';
 import { ABILITIES, abilityName } from '@boh/rules';
 import { inOrder, plainText } from './cardEdits';
+import { COMPANION_LABELS } from '../../../app/characters/model';
 import { featureUses, type UsesContext } from './featureUses';
 import { asksOnly, lineageTrait, withoutReferences } from './featureCards';
 import { ORDINAL, sourceLabel } from './printText';
@@ -99,7 +100,14 @@ export function usePrintData(
   const speciesKeys = view
     ? view.entities.filter((e) => e.type === 'race' || e.type === 'subrace').map((e) => e.key)
     : [];
-  const entities = useEntities([...spellKeys, ...featureKeys, ...itemKeys, ...speciesKeys]);
+  const companionKeys = (character?.companions ?? []).map((c) => c.key);
+  const entities = useEntities([
+    ...spellKeys,
+    ...featureKeys,
+    ...itemKeys,
+    ...speciesKeys,
+    ...companionKeys,
+  ]);
   const spellId = spellKeys.join('|');
   const spells = useMemo(
     () =>
@@ -211,6 +219,34 @@ export function usePrintData(
               },
             ]
           : [];
+      }),
+    });
+    groups.push({
+      title: 'Companions',
+      section: 'companionCards',
+      // Familiars, mounts, Wild Shape forms…: each its stat block, named as the character calls it.
+      cards: character.companions.flatMap((c, i) => {
+        const e = entities.get(c.key);
+        if (!e) return [];
+        // An emptied name falls back to the creature's.
+        const given = c.name?.trim() ? c.name : undefined;
+        const label = given ?? e.name;
+        return [
+          {
+            id: `companion:${String(i)}:${c.key}`,
+            hideId: `companion:${String(i)}:${c.key}`,
+            label,
+            source: c.notes ?? '',
+            node: (
+              <PrintCard
+                entity={e}
+                title={label}
+                subtitle={`${COMPANION_LABELS[c.kind]}${label === e.name ? '' : ` · ${e.name}`}`}
+                extra={c.notes ? <p className="text-[10px] italic">{c.notes}</p> : undefined}
+              />
+            ),
+          },
+        ];
       }),
     });
     // Each group in the player's order.
