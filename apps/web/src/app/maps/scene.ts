@@ -12,6 +12,7 @@ import {
   type ColorSource,
 } from 'pixi.js';
 import { fileUrl, stampFile } from './assets';
+import { scaleBarLabel, scaleBarSpec } from './scaleBar';
 import { arcLayout, dashSegments, dotsAlong, type RouteDash } from './lettering';
 import { hexCorners, templateOutline, type Point } from './geometry';
 import { resizedView, type ViewBase } from './view';
@@ -103,6 +104,7 @@ const colorOf = (c: string): ColorSource => c;
 /** Whether the map writes anything in the fantasy font (its pins, or a region label). */
 const usesFantasyFont = (doc: MapDoc) =>
   doc.pinStyle === 'fantasy' ||
+  doc.scaleBar === 'fantasy' ||
   doc.layers.some((l) => l.items.some((i) => i.kind === 'text' && i.font === 'fantasy'));
 
 /**
@@ -246,6 +248,9 @@ export class MapScene {
   private readonly background = new Container();
   /** The grid: one-pixel lines, however big the map. */
   private readonly gridLines = new Container();
+  /** The scale bar, over the items (kept in exports). */
+  private readonly scaleBarView = new Container();
+  private scaleBarKey = '';
   private readonly layers = new Container();
   private readonly overlay = new Container();
   private readonly selection = new Graphics();
@@ -290,7 +295,13 @@ export class MapScene {
     this.app.canvas.setAttribute('aria-hidden', 'true');
     this.previewText.style.stroke = { color: 0x000000, width: 4 };
     this.overlay.addChild(this.strokePreview, this.preview, this.selection, this.previewText);
-    this.world.addChild(this.background, this.layers, this.gridLines, this.overlay);
+    this.world.addChild(
+      this.background,
+      this.layers,
+      this.gridLines,
+      this.scaleBarView,
+      this.overlay,
+    );
     this.app.stage.addChild(this.world);
     this.ready = true;
     let size = { w: host.clientWidth, h: host.clientHeight };
@@ -416,6 +427,7 @@ export class MapScene {
     }
     this.drawBackground(doc);
     this.drawGrid(doc);
+    this.drawScaleBar(doc);
     // Layers, bottom first.
     const seen = new Set<string>();
     doc.layers.forEach((layer, index) => {
@@ -521,6 +533,65 @@ export class MapScene {
       .finally(() => {
         this.onLoading(false);
       });
+  }
+
+  /**
+   * The scale bar in the bottom-left corner: alternating blocks with the distance above, in black
+   * and white, or in ink on parchment with old lettering.
+   */
+  private drawScaleBar(doc: MapDoc): void {
+    const spec = doc.scaleBar ? scaleBarSpec(doc) : null;
+    const key = JSON.stringify([doc.scaleBar, spec, doc.width, doc.height, fantasyFontReady]);
+    if (key === this.scaleBarKey) return;
+    this.scaleBarKey = key;
+    for (const c of this.scaleBarView.removeChildren()) c.destroy({ children: true });
+    if (!spec || !doc.scaleBar) return;
+    const fantasy = doc.scaleBar === 'fantasy';
+    const dark = fantasy ? INK : '#111111';
+    const light = fantasy ? PARCHMENT : '#ffffff';
+    const h = Math.max(6, spec.length / 16);
+    const margin = Math.min(doc.width, doc.height) * 0.04;
+    const holder = new Container();
+    holder.position.set(margin, doc.height - margin - h);
+    const g = new Graphics();
+    // A rim so it reads on any picture.
+    g.rect(-h * 0.4, -h * 0.4, spec.length + h * 0.8, h * 1.8).fill({ color: light, alpha: 0.75 });
+    const block = spec.length / spec.segments;
+    for (let i = 0; i < spec.segments; i++)
+      g.rect(i * block, 0, block, h).fill({ color: i % 2 === 0 ? dark : light });
+    g.rect(0, 0, spec.length, h).stroke({ color: dark, width: Math.max(1.5, h / 6) });
+    holder.addChild(g);
+    const size = Math.max(14, spec.length / 7);
+    const style = {
+      fontFamily: fantasy ? FANTASY_FONT : 'Merriweather, Georgia, serif',
+      fontStyle: fantasy ? ('italic' as const) : ('normal' as const),
+      fontWeight: fantasy ? ('400' as const) : ('700' as const),
+      fontSize: size,
+      fill: dark,
+      stroke: { color: light, width: Math.max(3, size / 5) },
+    };
+    const label = (text: string, x: number, anchorX: number) => {
+      const t = new Text({ text, style, resolution: 2 });
+      t.anchor.set(anchorX, 1);
+      t.position.set(x, -h * 0.5);
+      holder.addChild(t);
+    };
+    label('0', 0, 0.5);
+    label(scaleBarLabel(spec), spec.length, 0.5);
+    if (fantasy) {
+      // "Scale of Miles" under the bar, as old maps have it.
+      const unit = spec.unit === 'ft' ? 'Feet' : spec.unit === 'km' ? 'Kilometres' : 'Miles';
+      const t = new Text({
+        text: `Scale of ${unit}`,
+        style: { ...style, fontSize: size * 0.8 },
+        resolution: 2,
+      });
+      t.anchor.set(0.5, 0);
+      t.position.set(spec.length / 2, h * 1.5);
+      holder.addChild(t);
+      holder.y -= size * 0.9;
+    }
+    this.scaleBarView.addChild(holder);
   }
 
   private drawGrid(doc: MapDoc): void {

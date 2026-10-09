@@ -715,3 +715,17 @@ test('region names lettered as on an old map, dashed routes, measuring from a pi
   await page.mouse.click(box.x + 450, box.y + 450);
   await expect(page.getByRole('status').filter({ hasText: /Distance:/ })).toBeVisible();
 });
+
+test('a scale bar, plain or as on an old map', async ({ page }) => {
+  test.skip(isPhone(page), 'Drawn on the desktop.');
+  await newMap(page, 'The Sunash Sea', 'World or city map');
+  await page.getByRole('tab', { name: 'Map' }).click();
+  const scale = page.getByRole('region', { name: 'Scale and travel' });
+  await scale.getByLabel('Unit').selectOption('mi');
+  await scale.getByLabel('Distance across the map').fill('1400');
+  await scale.getByLabel('Unit').click();
+  await page.getByRole('combobox', { name: 'Scale bar' }).selectOption('fantasy');
+  await waitForSaved(page, 'maps', '"scaleBar":"fantasy"');
+  await page.getByRole('combobox', { name: 'Scale bar' }).selectOption('plain');
+  await waitForSaved(page, 'maps', '"scaleBar":"plain"');
+});
