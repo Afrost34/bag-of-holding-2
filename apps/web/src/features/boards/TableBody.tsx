@@ -18,7 +18,7 @@ export function TableBody({ card }: { card: Extract<BoardCard, { kind: 'table' }
   }, [loaded, load]);
   const table = card.table ? tables.find((t) => t.id === card.table) : undefined;
   if (!loaded) return <p className="text-muted">Loading…</p>;
-  if (table) return <TableRoller table={table} />;
+  if (table) return <TableRoller table={table} showRows />;
   const choices = tables
     .filter((t) => !t.campaign || t.campaign === campaignId)
     .sort((a, b) => a.name.localeCompare(b.name, 'en'));
