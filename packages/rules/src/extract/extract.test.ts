@@ -278,7 +278,7 @@ describe('features', () => {
     });
   });
 
-  it('offers 2024 Ability Score Improvements as a General feat', () => {
+  it('offers 2024 Ability Score Improvements as any feat', () => {
     const ex = readFeature(
       { name: 'Ability Score Improvement' },
       'cf',
@@ -287,8 +287,9 @@ describe('features', () => {
     );
     expect(ex.choices[0]).toMatchObject({
       kind: 'feat',
-      filter: { type: 'feat', categories: ['G'] },
+      filter: { type: 'feat' },
     });
+    expect(ex.choices[0]?.filter).not.toHaveProperty('categories');
   });
 
   it('reads Foundry choices and "choose one of the following" options', () => {

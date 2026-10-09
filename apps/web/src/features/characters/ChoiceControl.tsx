@@ -5,6 +5,7 @@ import { useEntity } from '../../app/data/entities';
 import { useId } from 'react';
 import { AbilityIncrease } from './AbilityIncrease';
 import { isAbilityIncrease } from './increaseModel';
+import { isAsiChoice, offCategoryFeatWarning } from './featWarning';
 import { pickName } from './steps';
 import { SpellChoicePanel } from './SpellChoicePanel';
 import { selectClass } from './styles';
@@ -138,6 +139,10 @@ function ChoiceDescription({
   const owner = choiceId.split('/')[0] ?? '';
   const state = useEntity(isEntry ? value : /^(race|subrace):/.test(owner) ? owner : null);
   if (state.status !== 'found') return null;
+  const warning =
+    isEntry && value.startsWith('feat:') && isAsiChoice(choiceId)
+      ? offCategoryFeatWarning(state.entity.data)
+      : null;
   let entries: unknown;
   if (isEntry) entries = state.entity.data.entries;
   else {
@@ -155,10 +160,20 @@ function ChoiceDescription({
       isObject(m) && m.items !== undefined ? [m.items] : [],
     );
   }
-  if (!Array.isArray(entries) || entries.length === 0) return null;
+  const text: unknown[] = Array.isArray(entries) ? entries : [];
+  if (text.length === 0 && !warning) return null;
   return (
-    <div className="max-h-56 overflow-y-auto rounded-md border border-border bg-surface-2 px-3 py-2 text-sm">
-      <Entries entries={entries} />
-    </div>
+    <>
+      {warning && (
+        <p role="note" className="rounded-md border border-accent bg-surface-2 px-3 py-2 text-sm">
+          {warning}
+        </p>
+      )}
+      {text.length > 0 && (
+        <div className="max-h-56 overflow-y-auto rounded-md border border-border bg-surface-2 px-3 py-2 text-sm">
+          <Entries entries={text} />
+        </div>
+      )}
+    </>
   );
 }
