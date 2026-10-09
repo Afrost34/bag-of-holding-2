@@ -251,6 +251,23 @@ export function MapSettings({ doc, commit, setTool, snap, setSnap }: MapPanelsPr
           <option value="world">World or city map</option>
         </select>
       </Section>
+      <Section title="Pins">
+        <select
+          value={doc.pinStyle ?? 'markers'}
+          aria-label="Pin style"
+          onChange={(e) => {
+            const fantasy = e.target.value === 'fantasy';
+            commit((d) => {
+              const { pinStyle: _old, ...rest } = d;
+              return fantasy ? { ...rest, pinStyle: 'fantasy' } : rest;
+            });
+          }}
+          className={field}
+        >
+          <option value="markers">Markers</option>
+          <option value="fantasy">Fantasy map: inked icons, italic names</option>
+        </select>
+      </Section>
       <Section title="Picture">
         <PictureFile
           label={doc.background ? 'Replace the picture' : 'Choose a picture'}

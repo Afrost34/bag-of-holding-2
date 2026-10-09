@@ -97,7 +97,7 @@ describe('maps', () => {
   });
 
   it('reads back what it writes, filling in what is missing', () => {
-    const doc = { ...newMap('Keep', [], 'now'), encounter: 'e1' };
+    const doc = { ...newMap('Keep', [], 'now'), encounter: 'e1', pinStyle: 'fantasy' as const };
     expect(parseMap(serializeMap({ ...doc, campaign: 'c' }), doc.id, 'c')).toEqual({
       ...doc,
       campaign: 'c',
