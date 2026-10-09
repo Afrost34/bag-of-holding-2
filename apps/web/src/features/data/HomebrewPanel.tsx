@@ -3,6 +3,7 @@ import { FileJson, Trash2, Upload } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useHomebrew } from '../../app/data/homebrew';
 import { formatNumber } from '../../app/format';
+import { askConfirm } from '../../app/confirm';
 
 export function HomebrewPanel() {
   const { packs, error, importFile, remove } = useHomebrew();
@@ -66,11 +67,13 @@ export function HomebrewPanel() {
                 size="icon-sm"
                 icon={<Trash2 className="h-4 w-4" />}
                 onClick={() => {
-                  if (
-                    window.confirm(`Remove ${pack.fileName}? Its entries disappear from the app.`)
-                  ) {
-                    void remove(pack.path);
-                  }
+                  void askConfirm({
+                    title: `Remove ${pack.fileName}?`,
+                    message: 'Its entries disappear from the app.',
+                    confirmLabel: 'Remove',
+                  }).then((ok) => {
+                    if (ok) void remove(pack.path);
+                  });
                 }}
               />
             </li>

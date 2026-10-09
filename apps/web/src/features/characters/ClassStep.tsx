@@ -19,6 +19,7 @@ import { GrantedRows, SpellChoicePanel, type GrantedSpell } from './SpellChoiceP
 import { featureOf, forget, hitPointLevels, inBookOrder, pickName } from './steps';
 import { useTableRules } from './tableRules';
 import { Accordion } from './ui';
+import { askConfirm } from '../../app/confirm';
 
 const MAX_LEVEL = 20;
 const ORDINAL = (n: number) =>
@@ -310,7 +311,13 @@ function ClassPanel({
           type="button"
           aria-label={`Remove ${name}`}
           onClick={() => {
-            if (window.confirm(`Remove ${name} and the choices made for it?`)) onRemove();
+            void askConfirm({
+              title: `Remove ${name}?`,
+              message: 'The choices made for it go too.',
+              confirmLabel: 'Remove',
+            }).then((ok) => {
+              if (ok) onRemove();
+            });
           }}
           className="rounded p-1 text-accent-ink hover:bg-sunken"
         >

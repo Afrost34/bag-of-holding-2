@@ -64,7 +64,8 @@ test('imports homebrew and deletes downloaded data', async ({ page }) => {
   });
   await expect(page.getByRole('alert')).toContainText('Not a 5etools homebrew file');
 
-  page.once('dialog', (dialog) => void dialog.accept());
   await page.getByRole('button', { name: 'Delete downloaded data' }).click();
+  // Asked in the app, never in a browser pop-up.
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
   await expect(page.getByRole('button', { name: 'Download 5etools data' })).toBeVisible();
 });

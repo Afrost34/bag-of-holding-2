@@ -23,6 +23,7 @@ import { combatFor } from '../../app/encounters/run';
 import { useEncounterInfo } from '../../app/encounters/useDifficulty';
 import { CombatAdd } from './CombatAdd';
 import { useBoardActions } from './context';
+import { askConfirm } from '../../app/confirm';
 
 type CombatCard = Extract<BoardCard, { kind: 'combat' }>;
 
@@ -72,10 +73,16 @@ export function CombatBody({ card }: { card: CombatCard }) {
             title="Reset: everyone out, back to round 1"
             disabled={card.combatants.length === 0}
             onClick={() => {
-              if (!window.confirm('Remove everyone from this combat and start again?')) return;
-              change(() => ({ combatants: [], turn: null, round: 1 }));
-              setOpenId(null);
-              setAdding(true);
+              void askConfirm({
+                title: 'Reset this combat?',
+                message: 'Everyone leaves the fight, and it starts again at round 1.',
+                confirmLabel: 'Reset',
+              }).then((ok) => {
+                if (!ok) return;
+                change(() => ({ combatants: [], turn: null, round: 1 }));
+                setOpenId(null);
+                setAdding(true);
+              });
             }}
           >
             <RotateCcw className="h-4 w-4" aria-hidden />

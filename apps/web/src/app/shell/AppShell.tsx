@@ -2,6 +2,7 @@ import { Outlet, useRouterState } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { PLAYER_ROUTE } from '../boards/player';
 import { useScrollMemory } from './scrollMemory';
+import { ConfirmHost } from '../ConfirmHost';
 import { ContextMenu } from './ContextMenu';
 import { useCampaigns } from '../campaigns/store';
 import { Dice3DLayer } from '../dice/Dice3DLayer';
@@ -54,6 +55,7 @@ export function AppShell() {
     return (
       <AppRendererProvider>
         <Outlet />
+        <ConfirmHost />
       </AppRendererProvider>
     );
 
@@ -61,6 +63,7 @@ export function AppShell() {
     <div className="flex h-full overflow-hidden">
       <Sidebar className="hidden md:flex" collapsed={collapsed} onToggleCollapsed={toggle} />
 
+      <ConfirmHost />
       <div className="flex min-w-0 flex-1 flex-col">
         <TabStrip
           onOpenMenu={() => {

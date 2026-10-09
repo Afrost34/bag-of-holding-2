@@ -9,6 +9,7 @@ import { DataSearchPanel } from './DataSearchPanel';
 import { DataStatusPanel } from './DataStatusPanel';
 import { HomebrewPanel } from './HomebrewPanel';
 import { SourcesPanel } from '../../app/data/SourcesPanel';
+import { askConfirm } from '../../app/confirm';
 
 export function DataPage() {
   const { status, busy, clear, refresh } = useData();
@@ -50,8 +51,12 @@ export function DataPage() {
           </p>
           <Button
             onClick={() => {
-              if (window.confirm('Delete the downloaded 5etools data from this device?'))
-                void clear();
+              void askConfirm({
+                title: 'Delete the downloaded 5etools data from this device?',
+                confirmLabel: 'Delete',
+              }).then((ok) => {
+                if (ok) void clear();
+              });
             }}
           >
             <Trash2 className="h-4 w-4" aria-hidden /> Delete downloaded data
