@@ -9,6 +9,7 @@ import { useEntity } from '../../app/data/entities';
 import { DICE } from '../../app/dice/pool';
 import { useDice } from '../../app/dice/store';
 import { attachmentUrl } from '../../app/journal/attachments';
+import { NotePicker } from '../../app/journal/NotePicker';
 import { JournalViewContext } from '../../app/journal/notes/context';
 import { NoteViewer } from '../../app/journal/notes/NoteViewer';
 import { useJournal } from '../../app/journal/store';
@@ -24,7 +25,7 @@ export function CardBody({ card }: { card: BoardCard }) {
     case 'entity':
       return <EntityBody entityKey={card.key} />;
     case 'note':
-      return <NoteBody path={card.path} />;
+      return <NoteBody card={card} />;
     case 'image':
       return <ImageBody src={card.src} caption={card.caption} />;
     case 'text':
@@ -69,14 +70,58 @@ function EntityBody({ entityKey }: { entityKey: string }) {
   return <EntityView type={e.type} data={e.data} edition={e.edition} />;
 }
 
-function NoteBody({ path }: { path: string }) {
-  const text = useJournal((s) => s.notes.get(path));
+/** A journal note, live; another note can be put in its place without leaving the board. */
+function NoteBody({ card }: { card: Extract<BoardCard, { kind: 'note' }> }) {
+  const { update } = useBoardActions();
+  const forPlayers = useIsPlayersBoard();
+  const notes = useJournal((s) => s.notes);
+  const text = notes.get(card.path);
   const hasJournal = useContext(JournalViewContext) !== null;
+  const [choosing, setChoosing] = useState(false);
   if (!hasJournal) return <p className="text-muted">Notes show on the campaign’s boards.</p>;
-  if (text === undefined) return <p className="text-muted">This note no longer exists.</p>;
+  const change = !forPlayers && (
+    <div className="mb-2 flex justify-end">
+      <button
+        type="button"
+        aria-expanded={choosing}
+        onClick={() => {
+          setChoosing(!choosing);
+        }}
+        className="rounded px-1.5 py-0.5 text-xs text-link hover:bg-sunken"
+      >
+        {choosing ? 'Cancel' : 'Change note'}
+      </button>
+    </div>
+  );
+  if (choosing)
+    return (
+      <>
+        {change}
+        <NotePicker
+          notes={[...notes.keys()]}
+          onPick={(path) => {
+            setChoosing(false);
+            // The card fits the new note once, as when it was added.
+            update(card.id, (c) => (c.kind === 'note' ? { ...c, path, fit: true } : c));
+          }}
+        />
+      </>
+    );
+  if (text === undefined)
+    return (
+      <>
+        {change}
+        <p className="text-muted">This note no longer exists.</p>
+      </>
+    );
   // Live: shown again whenever the note changes. Only the content: properties stay in the journal.
   const body = text.slice(parseFrontmatter(text).bodyStart);
-  return <NoteViewer key={body} text={body} />;
+  return (
+    <>
+      {change}
+      <NoteViewer key={body} text={body} />
+    </>
+  );
 }
 
 export function ImageBody({

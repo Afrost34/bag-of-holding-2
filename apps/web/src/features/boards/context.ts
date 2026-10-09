@@ -12,6 +12,8 @@ export interface BoardActions {
   unstack: (id: string) => void;
   /** Takes a card out of its frame. */
   unframe: (id: string) => void;
+  /** Copies cards beside themselves (Ctrl+D), and selects the copies. */
+  duplicate: (ids: readonly string[]) => void;
   /** Adds cards beside a card (a combat started from an encounter). */
   addBeside: (id: string, contents: CardContent[]) => void;
   /** Sends a copy of a card to the players' board (the player window). */

@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { installData, isPhone } from './helpers/journal';
+import { createCampaign, installData, isPhone } from './helpers/journal';
 import { waitForSaved } from './helpers/saved';
 
 /** DM boards: cards sent from the compendium and added on the board, moved, stacked, framed. */
@@ -410,4 +410,71 @@ test('Boards reopens the last board; the title switches boards and makes new one
   await page.getByRole('button', { name: 'Switch board' }).click();
   await page.getByRole('menuitem', { name: 'All boards' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Boards' })).toBeVisible();
+});
+
+test('note cards format the whole note, change note in place, and copy with Ctrl+D', async ({
+  page,
+}) => {
+  await createCampaign(page, 'Rust and Sunfire');
+  // Two notes written straight to the journal: a long one (formatting must reach its end).
+  const long = Array.from(
+    { length: 60 },
+    (_, i) => `- **Point ${String(i + 1)}:** something to remember`,
+  ).join('\n');
+  await page.evaluate(
+    async (notes) => {
+      let dir = await (
+        await navigator.storage.getDirectory()
+      ).getDirectoryHandle('user-data', {
+        create: true,
+      });
+      for (const part of ['campaigns', 'rust-and-sunfire', 'journal'])
+        dir = await dir.getDirectoryHandle(part, { create: true });
+      for (const [name, text] of notes) {
+        const w = await (await dir.getFileHandle(name, { create: true })).createWritable();
+        await w.write(text);
+        await w.close();
+      }
+    },
+    [
+      ['Plans.md', `---\nstatus: draft\n---\n# Plans\n\n${long}\n\n## The end\n\n**Last words.**`],
+      ['Short.md', 'A short note.'],
+    ] as [string, string][],
+  );
+  await page.goto('./#/boards?list=1');
+  await page.reload();
+  await page.getByRole('button', { name: 'New board' }).click();
+  await page.getByRole('button', { name: 'Create' }).click();
+  await addCard(page, 'Note…');
+  await page.getByRole('searchbox', { name: 'Find a note' }).fill('plans');
+  await page.getByRole('list', { name: 'Notes' }).getByRole('button', { name: /Plans/ }).click();
+  const plans = card(page, 'Plans');
+  // Scrolled down, the rest comes in formatted to the last line; no properties.
+  const body = plans.locator('.overflow-auto').first();
+  for (let i = 0; i < 8; i++) {
+    await body.evaluate((el) => {
+      el.scrollTop += 400;
+    });
+    await page.waitForTimeout(100);
+    await expect(plans).not.toContainText('**');
+  }
+  await expect(plans).toContainText('Last words.');
+  await expect(plans).not.toContainText('**');
+  await expect(plans).not.toContainText('status');
+
+  // Ctrl+D copies the selected card.
+  await plans.locator('header').first().click();
+  await page.keyboard.press('Control+d');
+  await expect(card(page, 'Plans')).toHaveCount(2);
+
+  // Another note in its place.
+  // (The copy lies on top of the original.)
+  await card(page, 'Plans').last().getByRole('button', { name: 'Change note' }).click();
+  await card(page, 'Plans')
+    .last()
+    .getByRole('list', { name: 'Notes' })
+    .getByRole('button', { name: /Short/ })
+    .click();
+  await expect(card(page, 'Short')).toContainText('A short note.');
+  await expect(card(page, 'Plans')).toHaveCount(1);
 });

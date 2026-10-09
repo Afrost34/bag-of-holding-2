@@ -5,7 +5,7 @@ import {
   parseLinkInner,
   parseTags,
 } from '@boh/journal';
-import { syntaxTree } from '@codemirror/language';
+import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
 import { EditorSelection, EditorState, StateField, type Range } from '@codemirror/state';
 import {
   Decoration,
@@ -30,6 +30,11 @@ export interface LinkContext {
   embeds?: EmbedHost;
   /** Shows the note's Markdown (code mode), e.g. to edit a base block's YAML. */
   onEditSource?: () => void;
+  /**
+   * Formats the whole note at once, not only what is on screen: for read-only views (board
+   * cards, previews), whose scrolling container or zoom can hide from the editor what is seen.
+   */
+  wholeDocument?: boolean;
 }
 
 /**
@@ -131,8 +136,14 @@ function build(view: EditorView, ctx: LinkContext): DecorationSet {
   const isActive = (_from: number, _to: number) => false;
   const decos: Range<Decoration>[] = [];
 
-  for (const { from, to } of view.visibleRanges) {
-    syntaxTree(state).iterate({
+  const whole = ctx.wholeDocument === true;
+  // The whole note parsed now (a read-only view does not wait for its background parse).
+  const tree = whole
+    ? (ensureSyntaxTree(state, state.doc.length, 1000) ?? syntaxTree(state))
+    : syntaxTree(state);
+  const ranges = whole ? [{ from: 0, to: state.doc.length }] : view.visibleRanges;
+  for (const { from, to } of ranges) {
+    tree.iterate({
       from,
       to,
       enter: (node) => {
@@ -737,7 +748,9 @@ export function livePreview(ctx: LinkContext) {
           update.docChanged ||
           update.viewportChanged ||
           update.selectionSet ||
-          update.focusChanged
+          update.focusChanged ||
+          // The background parse got further: what it reached can be formatted now.
+          syntaxTree(update.state) !== syntaxTree(update.startState)
         ) {
           this.decorations = build(update.view, ctx);
           this.atomic = atomicOf(this.decorations);
