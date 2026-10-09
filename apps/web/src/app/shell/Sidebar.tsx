@@ -11,7 +11,8 @@ import {
 } from '../compendiumLinks';
 import { moduleForPath, navModules, type NavModule } from '../nav';
 import { CampaignSwitcher } from './CampaignSwitcher';
-import { LogoMark, Wordmark } from './Logo';
+import { LogoMark } from './Logo';
+import { SearchButton } from './SearchButton';
 
 export interface SidebarProps {
   /** Icons only. Ignored in the mobile drawer. */
@@ -36,12 +37,12 @@ export function Sidebar({ collapsed, onToggleCollapsed, onNavigate, className }:
         className,
       )}
     >
-      <div className={cn('flex h-16 items-center gap-3 px-3', collapsed && 'justify-center')}>
-        <LogoMark className={cn('shrink-0', collapsed ? 'w-10' : 'w-14')} />
-        {!collapsed && <Wordmark className="text-[17px]" />}
+      <div className={cn('flex h-20 items-center justify-center px-3')}>
+        <LogoMark className={cn('shrink-0', collapsed ? 'w-10' : 'w-20')} />
       </div>
 
       {!collapsed && <CampaignSwitcher {...(onNavigate ? { onNavigate } : {})} />}
+      <SearchButton collapsed={collapsed} {...(onNavigate ? { onNavigate } : {})} />
 
       <ul className="flex-1 space-y-0.5 overflow-y-auto px-2 py-2">
         {main.map((m) => (
@@ -164,11 +165,6 @@ function NavItem({ module, active, collapsed, onNavigate, children }: NavItemPro
       )}
       <Icon className="h-[18px] w-[18px] shrink-0" aria-hidden />
       {!collapsed && <span className="flex-1 truncate">{module.label}</span>}
-      {!collapsed && module.milestone !== undefined && (
-        <span className="rounded bg-chrome-2 px-1.5 py-0.5 text-[10px] font-semibold text-chrome-muted">
-          M{module.milestone}
-        </span>
-      )}
     </AppLink>
   );
 

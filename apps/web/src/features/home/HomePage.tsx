@@ -1,6 +1,5 @@
 import { cn } from '@boh/ui';
 import {
-  Castle,
   FilePlus,
   LayoutDashboard,
   Map as MapIcon,
@@ -11,9 +10,9 @@ import {
 import { useEffect } from 'react';
 import { AppLink } from '../../app/AppLink';
 import { ago } from '../../app/format';
-import { useActiveCampaign, useCampaigns } from '../../app/campaigns/store';
+import { useCampaigns } from '../../app/campaigns/store';
 import { moduleForPath, navModules } from '../../app/nav';
-import { LogoMark } from '../../app/shell/Logo';
+import { Wordmark } from '../../app/shell/Logo';
 import { useRecent, type RecentPage } from '../../app/tabs/recent';
 import { GetStarted } from './GetStarted';
 
@@ -28,7 +27,6 @@ const QUICK: { to: string; label: string; icon: LucideIcon }[] = [
 export function HomePage() {
   const modules = navModules.filter((m) => m.path !== '/' && m.footer !== true);
   const recent = useRecent((s) => s.pages);
-  const campaign = useActiveCampaign();
   const { loaded, load } = useCampaigns();
   useEffect(() => {
     if (!loaded) void load();
@@ -36,34 +34,10 @@ export function HomePage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 md:px-8 md:py-10">
-      <header className="flex items-center gap-4">
-        <LogoMark className="w-24 shrink-0" />
-        <div className="min-w-0 flex-1">
-          <h1 className="font-serif text-2xl font-bold md:text-3xl">Bag of Holding</h1>
-          <p className="text-muted">
-            {campaign ? (
-              <>
-                Playing{' '}
-                <AppLink
-                  to={`/campaigns/${campaign.id}`}
-                  className="font-semibold text-text hover:underline"
-                >
-                  {campaign.name}
-                </AppLink>
-              </>
-            ) : (
-              'Everything for your table, in one place, online or off.'
-            )}
-          </p>
-        </div>
-        {campaign && (
-          <AppLink
-            to="/campaigns"
-            className="hidden items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm font-medium hover:border-accent sm:inline-flex"
-          >
-            <Castle className="h-4 w-4" aria-hidden /> Campaigns
-          </AppLink>
-        )}
+      <header className="flex justify-center py-2">
+        <h1>
+          <Wordmark className="text-4xl md:text-5xl" />
+        </h1>
       </header>
 
       <GetStarted />

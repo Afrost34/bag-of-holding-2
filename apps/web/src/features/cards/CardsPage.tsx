@@ -48,10 +48,6 @@ export function CardsPage() {
           <Plus className="h-4 w-4" aria-hidden /> New card sheet
         </Button>
       </div>
-      <p className="text-muted">
-        Spells, items, creatures and features as cards on A4 pages, packed two columns to a page,
-        ready to print and cut out. Add cards here or with “Send to → Cards” on any compendium page.
-      </p>
 
       {creating && (
         <form

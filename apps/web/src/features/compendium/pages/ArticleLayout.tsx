@@ -18,7 +18,10 @@ export interface TocItem {
 /** A long compendium page: contents on the side (wide screens), the article in the middle. */
 export function ArticleLayout({ toc, children }: { toc: readonly TocItem[]; children: ReactNode }) {
   return (
-    <div className="h-full overflow-y-auto after:block after:h-16 after:content-['']">
+    <div
+      data-scroll-memory="article"
+      className="h-full overflow-y-auto after:block after:h-16 after:content-['']"
+    >
       <div className="mx-auto flex max-w-6xl gap-10 px-4 py-6 md:px-8 md:py-8">
         <article className="min-w-0 flex-1 text-[15px] leading-relaxed">{children}</article>
         {toc.length > 0 && (

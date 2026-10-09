@@ -1,8 +1,15 @@
 import { cn } from '@boh/ui';
-import { ChevronRight, Dices } from 'lucide-react';
+import { ChevronRight, Dices, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AppLink } from '../AppLink';
-import { addLink, TABLE_KINDS, tablesLinkedTo, type RollTable, type TableLink } from './model';
+import {
+  addLink,
+  removeLink,
+  TABLE_KINDS,
+  tablesLinkedTo,
+  type RollTable,
+  type TableLink,
+} from './model';
 import { useTables } from './store';
 import { TableRoller, Wares } from './TableRoller';
 
@@ -55,6 +62,9 @@ export function LinkedTables({
             <LinkedTable
               key={t.id}
               table={t}
+              onUnlink={() => {
+                save(removeLink(t, link));
+              }}
               defaultOpen={linked.length === 1}
               {...(onCreatures ? { onCreatures } : {})}
               {...(creaturesLabel ? { creaturesLabel } : {})}
@@ -86,11 +96,14 @@ export function LinkedTables({
 
 function LinkedTable({
   table,
+  onUnlink,
   defaultOpen,
   onCreatures,
   creaturesLabel,
 }: {
   table: RollTable;
+  /** Takes the table off what it is linked to here (the table stays). */
+  onUnlink: () => void;
   defaultOpen: boolean;
   onCreatures?: (keys: string[]) => void;
   creaturesLabel?: string;
@@ -121,6 +134,15 @@ function LinkedTable({
           {table.name}
         </AppLink>
         <span className="text-xs text-muted">{kind}</span>
+        <button
+          type="button"
+          aria-label={`Unlink ${table.name}`}
+          title="Unlink (the table stays)"
+          onClick={onUnlink}
+          className="rounded p-0.5 text-muted hover:bg-sunken hover:text-text"
+        >
+          <X className="h-3.5 w-3.5" aria-hidden />
+        </button>
       </div>
       {open && (
         <div className="border-t border-border p-2">

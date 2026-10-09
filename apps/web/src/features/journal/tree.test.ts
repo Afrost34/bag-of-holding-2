@@ -2,21 +2,23 @@ import { describe, expect, it } from 'vitest';
 import { buildTagTree, buildTree, moveTarget } from './tree';
 
 describe('journal tree', () => {
-  it('nests notes in folders, folders first, natural order', () => {
+  it('nests notes in folders, folders first, natural order; _ folders are hidden', () => {
     const tree = buildTree(
       ['Session 10.md', 'Session 2.md', 'Places/Waterdeep.md'],
-      ['_assets/map.png'],
+      ['_assets/map.png', 'Places/plan.png'],
       ['Places', 'Empty', '_assets'],
     );
     expect(tree.map((n) => `${n.kind}:${n.name}`)).toEqual([
-      'folder:_assets',
       'folder:Empty',
       'folder:Places',
       'note:Session 2',
       'note:Session 10',
     ]);
-    expect(tree[2]?.children.map((n) => n.path)).toEqual(['Places/Waterdeep.md']);
-    expect(tree[0]?.children[0]).toMatchObject({ kind: 'file', name: 'map.png' });
+    expect(tree[1]?.children.map((n) => n.path)).toEqual([
+      'Places/plan.png',
+      'Places/Waterdeep.md',
+    ]);
+    expect(tree[1]?.children[0]).toMatchObject({ kind: 'file', name: 'plan.png' });
   });
 });
 

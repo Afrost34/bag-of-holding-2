@@ -108,3 +108,19 @@ test('keyboard shortcuts open modules, tabs, search and their own list', async (
   await page.keyboard.press('/');
   await expect(page.getByRole('dialog').getByRole('combobox')).toBeVisible();
 });
+
+test('right-click shows the app menu for what was clicked', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Right-click is a desktop gesture.');
+  const nav = await openNav(page);
+  await nav.getByRole('link', { name: 'Maps' }).click({ button: 'right' });
+  const menu = page.getByRole('menu', { name: 'Actions' });
+  await expect(menu.getByRole('menuitem', { name: 'Copy link' })).toBeVisible();
+  await menu.getByRole('menuitem', { name: 'Open in a new tab' }).click();
+  await expect(menu).toHaveCount(0);
+  await expect(page.getByRole('tab', { name: /Maps/ })).toHaveCount(1);
+  // Anywhere else: moving around.
+  await page.getByRole('main').click({ button: 'right', position: { x: 5, y: 5 } });
+  await expect(menu.getByRole('menuitem', { name: 'Back' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+});

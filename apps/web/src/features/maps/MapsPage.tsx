@@ -69,10 +69,6 @@ export function MapsPage() {
           <Plus className="h-4 w-4" aria-hidden /> New map
         </Button>
       </div>
-      <p className="text-muted">
-        Battle, city and world maps: a picture or a blank canvas, a square or hex grid, layers of
-        stamps, brushes, walls, text and spell templates, and pins to notes and maps inside maps.
-      </p>
 
       {creating && (
         <form

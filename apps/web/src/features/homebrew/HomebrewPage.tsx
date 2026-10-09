@@ -72,11 +72,6 @@ export function HomebrewPage() {
           <Plus className="h-4 w-4" aria-hidden /> New pack
         </Button>
       </div>
-      <p className="text-muted">
-        Your own items, monsters, spells, feats, backgrounds, species and classes. Each pack is a
-        source like a book: its entries show up in the compendium, in search, in links and in the
-        character builder, sync to your other devices, and can be shared as a 5etools homebrew file.
-      </p>
       {message && (
         <p role="status" className="rounded-md bg-sunken px-3 py-2 text-sm">
           {message}
