@@ -19,7 +19,6 @@ async function addCard(page: Page, label: string) {
 }
 
 /** Drags a card by its title bar so the bar's middle lands on `to`. */
-/** Drags a card by its title bar so the bar's middle lands on `to`. */
 async function dragBar(page: Page, from: Locator, to: { x: number; y: number }) {
   const box = await from.locator('header').first().boundingBox();
   if (!box) throw new Error('no title bar');
@@ -552,4 +551,27 @@ test('selected cards line up and space out; moves can snap to the grid', async (
   await expect(snap).toHaveAttribute('aria-pressed', 'false');
   await snap.click();
   await expect(snap).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('a DM screen card has the quick-reference tables, with dice to roll', async ({ page }) => {
+  // 3D dice off: the result shows at once.
+  await page.evaluate(() => {
+    localStorage.setItem('boh.dice', JSON.stringify({ state: { threeD: false }, version: 1 }));
+  });
+  await page.reload();
+  await page.goto('./#/boards?list=1');
+  await page.getByRole('button', { name: 'New board' }).click();
+  await page.getByRole('button', { name: 'Create' }).click();
+  await addCard(page, 'DM screen');
+  const sections = page.getByRole('group', { name: 'Screen sections' });
+  await expect(sections.getByRole('button', { name: 'Conditions' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await sections.getByRole('button', { name: 'Combat' }).click();
+  await expect(page.getByRole('region', { name: 'Cover' })).toContainText('Three-quarters');
+  await sections.getByRole('button', { name: 'Objects & hazards' }).click();
+  const damage = page.getByRole('region', { name: 'Improvised damage' });
+  await damage.getByRole('button', { name: '18d10' }).first().click();
+  await expect(page.getByRole('list', { name: 'Roll results' })).toContainText('18d10 →');
 });
