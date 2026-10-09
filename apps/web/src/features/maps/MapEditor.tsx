@@ -45,6 +45,7 @@ import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 import { eraseStrokes, ROUTE_COLOR, routeStatus, simplify, type Drag } from './editorModel';
 import { DeleteMap, NameInput } from './EditorParts';
+import { ExportDialog } from './ExportDialog';
 import { MapPanels } from './MapPanels';
 import { PinHover } from '../../app/maps/PinHover';
 import {
@@ -122,6 +123,7 @@ function Editor({ doc }: { doc: MapDoc }) {
   const [viewing, setViewing] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [wall, setWall] = useState<number[] | null>(null);
+  /** The export dialog is open. */
   const [exporting, setExporting] = useState(false);
   const [loadingPicture, setLoadingPicture] = useState(false);
   /** The path being measured: a point per click, until Escape or another tool. */
@@ -677,24 +679,6 @@ function Editor({ doc }: { doc: MapDoc }) {
     };
   });
 
-  const exportPng = async () => {
-    if (!scene) return;
-    setExporting(true);
-    try {
-      const blob = await scene.exportPng(grid.type !== 'none');
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${doc.name || 'map'}.png`;
-      a.click();
-      setTimeout(() => {
-        URL.revokeObjectURL(url);
-      }, 10_000);
-    } finally {
-      setExporting(false);
-    }
-  };
-
   const toggleView = () => {
     const next = !viewing;
     setViewing(next);
@@ -770,11 +754,29 @@ function Editor({ doc }: { doc: MapDoc }) {
             <span className="hidden sm:inline">Full page</span>
             <span className="sr-only sm:hidden">Full page</span>
           </Button>
-          <Button variant="ghost" disabled={exporting || !scene} onClick={() => void exportPng()}>
+          <Button
+            variant="ghost"
+            disabled={!scene}
+            onClick={() => {
+              setExporting(true);
+            }}
+          >
             <Download className="h-4 w-4" aria-hidden />
-            <span className="hidden sm:inline">{exporting ? 'Exporting…' : 'Export PNG'}</span>
+            <span className="hidden sm:inline">Export PNG</span>
             <span className="sr-only sm:hidden">Export PNG</span>
           </Button>
+          {exporting && scene && (
+            <ExportDialog
+              scene={scene}
+              name={doc.name}
+              width={doc.width}
+              height={doc.height}
+              hasGrid={grid.type !== 'none'}
+              onClose={() => {
+                setExporting(false);
+              }}
+            />
+          )}
           <DeleteMap doc={doc} />
           <Button
             variant="ghost"
