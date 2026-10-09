@@ -1,4 +1,4 @@
-import type { CharacterDecisions } from '@boh/rules';
+import { missingBySource, type CharacterDecisions } from '@boh/rules';
 import { cn } from '@boh/ui';
 import { AlertTriangle, ArrowLeft, ChevronLeft, ChevronRight, Printer } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -120,7 +120,10 @@ export function CharacterPage({ id, step }: { id: string; step: StepId }) {
 
   const byStep = view ? choicesByStep(view.choices, view.grants) : null;
   const pending = view?.pending ?? [];
-  const warnings = (view?.warnings ?? []).filter((w) => w.kind !== 'edition');
+  const warnings = (view?.warnings ?? []).filter(
+    (w) => w.kind !== 'edition' && w.kind !== 'missing',
+  );
+  const missing = missingBySource(view?.warnings ?? []);
   const editionWarnings = (view?.warnings ?? []).filter((w) => w.kind === 'edition');
   const campaignName = campaigns.find((c) => c.id === character.campaign)?.name;
   const choices = byStep?.[step] ?? [];
@@ -259,11 +262,12 @@ export function CharacterPage({ id, step }: { id: string; step: StepId }) {
           </section>
         )}
 
-        {(warnings.length > 0 || editionWarnings.length > 0) && (
+        {(warnings.length > 0 || editionWarnings.length > 0 || missing.length > 0) && (
           <section
             aria-label="Warnings"
             className="mb-5 space-y-1 rounded-lg bg-sunken p-3 text-sm"
           >
+            {missing.length > 0 && <MissingData missing={missing} />}
             {warnings.map((w) => (
               <p key={`${w.kind}:${w.ref}`} className="flex gap-2">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-accent-ink" aria-hidden />{' '}
@@ -457,4 +461,34 @@ function StepBody({
         </div>
       );
   }
+}
+
+/** What the character uses that is not in the data: a homebrew pack or a source not installed. */
+export function MissingData({ missing }: { missing: { source: string; names: string[] }[] }) {
+  return (
+    <div className="flex gap-2">
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-accent-ink" aria-hidden />
+      <div>
+        <p>
+          Not in your data. Install the homebrew pack or source, or replace these picks (
+          <AppLink to="/homebrew" className="text-link hover:underline">
+            Homebrew
+          </AppLink>
+          ,{' '}
+          <AppLink to="/settings/data" className="text-link hover:underline">
+            Data
+          </AppLink>
+          ):
+        </p>
+        <ul className="mt-1 list-disc pl-5">
+          {missing.map((m) => (
+            <li key={m.source}>
+              <span className="font-semibold uppercase">{m.source || 'No source'}</span>:{' '}
+              {m.names.join(', ')}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
 }

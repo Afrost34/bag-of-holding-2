@@ -281,12 +281,17 @@ describe.runIf(hasLocalData())('the builder over the pinned 5etools release', ()
     expect(via('classfeature:expertise|bard|xphb|2@xphb/expertise')).toBe(
       'classfeature:expertise|bard|xphb|2@xphb',
     );
-    expect(glubs.warnings.filter((w) => w.kind !== 'edition')).toEqual([]);
-    // 2014 options in a 2024 character are allowed but pointed out.
-    expect(glubs.warnings.map((w) => w.ref).sort()).toEqual([
-      'race:goblin@mpmm',
-      'subclass:whispers|bard|xphb@xge',
+    // Its homebrew spell is not in 5etools: pointed out, the rest builds.
+    expect(glubs.warnings.filter((w) => w.kind !== 'edition')).toEqual([
+      expect.objectContaining({ kind: 'missing', ref: 'spell:awaken rope@homebrew' }),
     ]);
+    // 2014 options in a 2024 character are allowed but pointed out.
+    expect(
+      glubs.warnings
+        .filter((w) => w.kind === 'edition')
+        .map((w) => w.ref)
+        .sort(),
+    ).toEqual(['race:goblin@mpmm', 'subclass:whispers|bard|xphb@xge']);
     const held = (kind: string) =>
       glubs.grants.flatMap((g) => (g.kind === kind && 'value' in g ? [g.value] : [])).sort();
     expect(held('language')).toEqual(['common', 'dwarvish', 'goblin']);

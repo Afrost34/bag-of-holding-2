@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { createCampaign, installData } from './helpers/journal';
+import { putCharacter } from './helpers/realData';
 import { waitForSaved } from './helpers/saved';
 
 /** Characters: build one step by step; every choice the rules ask for is tracked and kept. */
@@ -255,4 +256,29 @@ test('the character sheet prints on A4 pages', async ({ page }, testInfo) => {
     for (let i = 0; i < (await pages.count()); i++)
       await pages.nth(i).screenshot({ path: testInfo.outputPath(`page-${String(i + 1)}.png`) });
   }
+});
+
+test('what a character uses that is not in the data is pointed out', async ({ page }) => {
+  await putCharacter(page, {
+    id: 'pell',
+    name: 'Pell',
+    decisions: {
+      schema: 1,
+      edition: '2024',
+      baseScores: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+      species: 'race:clockwork gnome@hb',
+      classes: [],
+      choices: {},
+      inventory: [{ key: 'item:pocket pistol@hb', quantity: 1 }],
+    },
+  });
+  await page.goto('./#/characters');
+  await page.reload();
+  const row = page.getByRole('listitem', { name: 'Pell' });
+  await expect(row).toContainText('Missing HB');
+  await row.getByRole('link', { name: /^Pell/ }).click();
+  const warnings = page.getByRole('region', { name: 'Warnings' });
+  await expect(warnings).toContainText('Not in your data');
+  await expect(warnings).toContainText('Clockwork Gnome, Pocket Pistol');
+  await expect(warnings.getByRole('link', { name: 'Homebrew' })).toBeVisible();
 });
