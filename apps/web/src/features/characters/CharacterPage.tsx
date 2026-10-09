@@ -15,6 +15,7 @@ import { AbilitiesStep } from './AbilitiesStep';
 import { BackgroundStep } from './BackgroundStep';
 import { ClassStep } from './ClassStep';
 import { CompanionsStep } from './CompanionsStep';
+import { WildShapes } from './WildShapes';
 import { EquipmentStep } from './EquipmentStep';
 import { HomeStep } from './HomeStep';
 import { PortraitButton } from './Portrait';
@@ -431,6 +432,9 @@ function StepBody({
           )}
           <section aria-label="Companions">
             <h2 className="mb-3 font-serif text-2xl">Companions</h2>
+            {view && (
+              <WildShapes character={character} view={view} isEnabled={isEnabled} save={save} />
+            )}
             <CompanionsStep character={character} save={save} disabledSources={disabledSources} />
           </section>
         </div>
