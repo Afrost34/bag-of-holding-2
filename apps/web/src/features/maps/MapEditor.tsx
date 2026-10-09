@@ -894,6 +894,13 @@ function Editor({ doc }: { doc: MapDoc }) {
             }}
             layerId={layer?.id ?? ''}
             setLayerId={setLayerId}
+            onMeasureFrom={(p) => {
+              if (wall) finishWall();
+              setTool('measure');
+              setSelected(null);
+              setMeasured([p]);
+              drawMeasured([p]);
+            }}
             stamp={stamp}
             setStamp={(path, aspect) => {
               setStamp(path);

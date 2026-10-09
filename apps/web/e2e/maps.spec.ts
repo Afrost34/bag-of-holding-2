@@ -681,3 +681,37 @@ test('a pin leads to a note: clicked on a board, the note opens beside the map',
   await page.waitForTimeout(600);
   await expect(noteCards).toHaveCount(1);
 });
+
+test('region names lettered as on an old map, dashed routes, measuring from a pin', async ({
+  page,
+}) => {
+  test.skip(isPhone(page), 'Drawn and measured on the desktop.');
+  await newMap(page, 'The Westlands', 'World or city map');
+  const box = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
+  if (!box) throw new Error('no canvas');
+
+  await tool(page, 'Text').click();
+  await page.mouse.click(box.x + 300, box.y + 150);
+  const text = page.getByRole('region', { name: 'Text' });
+  await text.getByLabel('Text').fill('THE WHISPERING WOODS');
+  await text.getByLabel('Lettering').selectOption('fantasy');
+  await text.getByLabel(/Curve/).fill('40');
+  await waitForSaved(page, 'maps', '"curve":40');
+
+  await tool(page, 'Route').click();
+  await page.mouse.click(box.x + 100, box.y + 300);
+  await page.mouse.click(box.x + 500, box.y + 320);
+  await page.keyboard.press('Enter');
+  await tool(page, 'Select and move').click();
+  await page.mouse.click(box.x + 300, box.y + 310);
+  await page.getByRole('region', { name: 'Route' }).getByLabel('Line').selectOption('dashed');
+  await waitForSaved(page, 'maps', '"dash":"dashed"');
+
+  await tool(page, 'Pin').click();
+  await page.mouse.click(box.x + 150, box.y + 450);
+  await page.getByLabel('Pin label').fill('Thornwick');
+  await page.getByRole('button', { name: 'Measure from here' }).click();
+  await expect(tool(page, 'Measure')).toHaveAttribute('aria-pressed', 'true');
+  await page.mouse.click(box.x + 450, box.y + 450);
+  await expect(page.getByRole('status').filter({ hasText: /Distance:/ })).toBeVisible();
+});

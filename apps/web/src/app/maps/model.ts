@@ -1,4 +1,5 @@
 import { newId } from '../cards/model';
+import type { RouteDash } from './lettering';
 import type { TerrainId } from './terrain';
 import type { MapScale, TravelSpeed } from './travel';
 
@@ -67,8 +68,32 @@ export type MapItem =
     }
   | { kind: 'wall'; id: string; points: number[] }
   /** A way across a world or city map, stop by stop: its length says how long the journey is. */
-  | { kind: 'route'; id: string; points: number[]; label: string; color: string }
-  | { kind: 'text'; id: string; x: number; y: number; text: string; size: number; color: string }
+  | {
+      kind: 'route';
+      id: string;
+      points: number[];
+      label: string;
+      color: string;
+      /** A solid line otherwise. */
+      dash?: RouteDash;
+    }
+  | {
+      kind: 'text';
+      id: string;
+      x: number;
+      y: number;
+      text: string;
+      size: number;
+      color: string;
+      /** Lettered as on an old map (a region's name), rather than bold. */
+      font?: 'fantasy';
+      /** Space between letters, in hundredths of the size. */
+      spacing?: number;
+      /** Degrees, clockwise. */
+      rotation?: number;
+      /** −100 (a bowl) to 100 (an arch): see `arcLayout`. */
+      curve?: number;
+    }
   | {
       kind: 'template';
       id: string;

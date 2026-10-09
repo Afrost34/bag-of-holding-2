@@ -56,6 +56,25 @@ export function RouteSettings({
           className="mt-1 block h-8 w-16"
         />
       </label>
+      <label className="block text-sm">
+        Line
+        <select
+          value={item.dash ?? 'solid'}
+          onChange={(e) => {
+            const v = e.target.value;
+            set((i) => {
+              if (i.kind !== 'route') return i;
+              const { dash: _was, ...rest } = i;
+              return v === 'dashed' || v === 'dotted' ? { ...rest, dash: v } : rest;
+            });
+          }}
+          className={field}
+        >
+          <option value="solid">Solid</option>
+          <option value="dashed">Dashed</option>
+          <option value="dotted">Dotted</option>
+        </select>
+      </label>
       <p className="text-sm text-muted">
         {stops} stops, {stops - 1} {stops === 2 ? 'leg' : 'legs'}.
       </p>
