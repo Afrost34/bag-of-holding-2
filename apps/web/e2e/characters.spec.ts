@@ -195,10 +195,26 @@ test('the character sheet prints on A4 pages', async ({ page }, testInfo) => {
   // Pages can be left out, and stay left out.
   await page.getByRole('button', { name: 'Pages' }).click();
   await page.getByRole('checkbox', { name: 'Personality and backstory' }).uncheck();
-  // Single cards too: each feature, spell and item has its own box.
-  const featureCards = page.getByRole('group', { name: 'Features and traits' });
-  await expect(featureCards.getByRole('checkbox').first()).toBeChecked();
   await expect(preview.getByText('Backstory', { exact: true })).toHaveCount(0);
+
+  // Cards: each can be left out, moved, or rewritten before printing.
+  await page.getByRole('button', { name: 'Cards', exact: true }).click();
+  const features = page.getByRole('list', { name: 'Features and traits' });
+  const first = features.getByRole('listitem').first();
+  const firstName = (await first.getAttribute('aria-label')) ?? '';
+  // (Order: with one card here it cannot move; with more, it goes down a place.)
+  if ((await features.getByRole('listitem').count()) > 1) {
+    await features.getByRole('button', { name: `Move ${firstName} down` }).click();
+    await expect(features.getByRole('listitem').nth(1)).toHaveAttribute('aria-label', firstName);
+  } else
+    await expect(features.getByRole('button', { name: `Move ${firstName} down` })).toBeDisabled();
+  await features.getByRole('button', { name: `Edit ${firstName}` }).click();
+  await features.getByLabel(`Text of ${firstName}`).fill('Written by hand, 2d6 at a time.');
+  await features.getByRole('button', { name: 'Save' }).click();
+  await expect(preview.getByText('Written by hand,').first()).toBeVisible();
+  await features.getByRole('checkbox', { name: `Print ${firstName}` }).uncheck();
+  await expect(preview.getByText('Written by hand,')).toHaveCount(0);
+  await features.getByRole('checkbox', { name: `Print ${firstName}` }).check();
   // Reload once the choice is on disk (the write is quick, but a reload at once can beat it).
   await waitForSaved(page, 'campaigns/old-rules/characters', '"story"');
   await page.reload();

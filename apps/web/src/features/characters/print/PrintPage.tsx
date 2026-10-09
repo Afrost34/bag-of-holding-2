@@ -1,11 +1,12 @@
 import { Button } from '@boh/ui';
-import { ArrowLeft, ListChecks, Printer } from 'lucide-react';
+import { ArrowLeft, Layers, ListChecks, Printer } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AppLink } from '../../../app/AppLink';
 import { useCharacter, useCharacters } from '../../../app/characters/store';
 import { usePageTitle } from '../../../app/tabs/usePageTitle';
 import { useCharacterView } from '../useCharacterView';
+import { CardEditor } from './CardEditor';
 import { PrintSheet } from './PrintSheet';
 import { PRINT_SECTIONS, type PrintSection } from './sections';
 import { usePrintData } from './usePrintData';
@@ -17,6 +18,7 @@ import { usePrintData } from './usePrintData';
 export function PrintPage({ id }: { id: string }) {
   const { loaded, load, save } = useCharacters();
   const [choosing, setChoosing] = useState(false);
+  const [editingCards, setEditingCards] = useState(false);
   const character = useCharacter(id);
   usePageTitle(character ? `${character.name} — sheet` : 'Character sheet');
   useEffect(() => {
@@ -39,6 +41,10 @@ export function PrintPage({ id }: { id: string }) {
 
   if (!loaded) return <p className="p-8 text-muted">Loading…</p>;
   if (!character) return <p className="p-8">This character is not in your library.</p>;
+  /** Saves print choices (cards left out, their order, their texts). */
+  const setPreference = (change: Partial<typeof character.preferences>) => {
+    save({ ...character, preferences: { ...character.preferences, ...change } });
+  };
   /** Leaves a section or a single card out, or puts it back. */
   const toggle = (id: string) => {
     save({
@@ -72,6 +78,15 @@ export function PrintPage({ id }: { id: string }) {
           <ListChecks className="h-4 w-4" aria-hidden /> Pages
         </Button>
         <Button
+          variant="ghost"
+          aria-expanded={editingCards}
+          onClick={() => {
+            setEditingCards(!editingCards);
+          }}
+        >
+          <Layers className="h-4 w-4" aria-hidden /> Cards
+        </Button>
+        <Button
           variant="primary"
           disabled={!view}
           onClick={() => {
@@ -98,27 +113,22 @@ export function PrintPage({ id }: { id: string }) {
           ))}
         </fieldset>
       )}
-      {choosing && data.cardChoices.length > 0 && (
-        <div className="space-y-2 border-b border-border bg-surface px-4 py-3 text-sm">
-          <p className="font-semibold">Cards to print</p>
-          {data.cardChoices.map((g) => (
-            <fieldset key={g.title} className="flex flex-wrap gap-x-4 gap-y-1">
-              <legend className="mb-1 text-xs font-bold text-muted uppercase">{g.title}</legend>
-              {g.cards.map((c) => (
-                <label key={c.id} className="inline-flex items-center gap-1.5">
-                  <input
-                    type="checkbox"
-                    checked={!hiddenCards.includes(c.id)}
-                    onChange={() => {
-                      toggle(c.id);
-                    }}
-                  />
-                  {c.label}
-                </label>
-              ))}
-            </fieldset>
-          ))}
-        </div>
+      {editingCards && data.cardChoices.length > 0 && (
+        <CardEditor
+          groups={data.cardChoices}
+          hidden={hiddenCards}
+          order={character.preferences.printOrder ?? []}
+          edits={character.preferences.printEdits ?? {}}
+          onHidden={(printHidden) => {
+            setPreference({ printHidden });
+          }}
+          onOrder={(printOrder) => {
+            setPreference({ printOrder });
+          }}
+          onEdits={(printEdits) => {
+            setPreference({ printEdits });
+          }}
+        />
       )}
       <div className="overflow-x-auto py-6">
         {view ? (

@@ -55,8 +55,12 @@ export interface CharacterPreferences {
   feats: boolean;
   /** Ability blocks show the modifier large (as on the 2024 sheet) or the score. */
   abilityDisplay: 'modifiers' | 'scores';
-  /** Parts of the printed sheet left out (ids from the print page). */
+  /** Parts of the printed sheet left out, and single cards (ids from the print page). */
   printHidden?: string[];
+  /** Printed cards in the player's order (card ids; the others follow as they come). */
+  printOrder?: string[];
+  /** Printed cards whose text the player rewrote, by card id (plain paragraphs). */
+  printEdits?: Record<string, string>;
   /** Outside campaigns: how levels come (in a campaign, the campaign decides). */
   advancement?: Advancement;
   /** Outside campaigns: carrying rules (in a campaign, the campaign decides). */
