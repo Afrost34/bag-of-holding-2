@@ -6,7 +6,7 @@ import {
   type PropertyValue,
 } from '@boh/journal';
 import { Button, cn } from '@boh/ui';
-import { ImagePlus, Plus, Trash2, X } from 'lucide-react';
+import { ImagePlus, Images, Plus, Trash2, X } from 'lucide-react';
 import { useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { NoteTypeIcon } from '../../app/journal/NoteTypeIcon';
@@ -14,6 +14,9 @@ import { useAllNoteTypes } from '../../app/journal/noteTypes';
 import { useAttachmentUrl } from '../../app/journal/notes/useAttachmentUrl';
 import { loadEntity } from '../../app/data/entities';
 import { EntitySearch } from '../../app/search/EntitySearch';
+import { PictureLibrary } from '../../app/pictures/PictureLibrary';
+import { usePictures } from '../../app/pictures/store';
+import { userStore } from '../../app/userStore';
 
 /** What the wizard hands back: the note's name and its properties. */
 export interface WizardResult {
@@ -502,6 +505,21 @@ function PictureField({
     [fileUrl],
   );
   const src = fileUrl ?? (isUrl ? target : savedUrl);
+  const addPicture = usePictures((st) => st.add);
+  const [library, setLibrary] = useState(false);
+  /** A library picture, handed over as if it were chosen from the disk. */
+  const fromLibrary = async (path: string) => {
+    const bytes = await (await userStore()).readFile(path);
+    if (!bytes) return;
+    const name = path.split('/').pop() ?? 'picture.webp';
+    const type = name.endsWith('.png')
+      ? 'image/png'
+      : name.endsWith('.jpg')
+        ? 'image/jpeg'
+        : 'image/webp';
+    onFile(new File([bytes as Uint8Array<ArrayBuffer>], name, { type }));
+    setLibrary(false);
+  };
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted">
@@ -526,16 +544,36 @@ function PictureField({
             onChange={(e) => {
               const chosen = e.target.files?.[0];
               e.target.value = '';
-              if (chosen) onFile(chosen);
+              if (!chosen) return;
+              onFile(chosen);
+              // Kept in the picture library too, for other notes and characters.
+              void addPicture(chosen, chosen.name).catch(() => undefined);
             }}
           />
         </label>
+        <Button
+          type="button"
+          variant="ghost"
+          aria-expanded={library}
+          onClick={() => {
+            setLibrary(!library);
+          }}
+        >
+          <Images className="h-4 w-4" aria-hidden /> Your pictures
+        </Button>
         {(value !== null || file) && (
           <Button type="button" variant="ghost" onClick={onRemove}>
             <Trash2 className="h-4 w-4" aria-hidden /> Remove
           </Button>
         )}
       </div>
+      {library && (
+        <PictureLibrary
+          onPick={(path) => {
+            void fromLibrary(path);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -178,6 +178,16 @@ test('a companion is a stat block attached to the character', async ({ page }) =
   await expect(page.getByRole('region', { name: 'Snik' }).getByLabel('What Snik is')).toHaveValue(
     'familiar',
   );
+
+  // The picture is in the library: another character can use it.
+  await newCharacter(page, 'Moss', '2024 rules');
+  await page.getByRole('button', { name: 'Change portrait' }).click();
+  await page
+    .getByRole('dialog', { name: 'Portrait' })
+    .getByRole('list', { name: 'Your pictures' })
+    .getByRole('button', { name: 'Use wren' })
+    .click();
+  await expect(page.getByRole('img', { name: 'Portrait of Moss' })).toBeVisible();
 });
 
 test('the character sheet prints on A4 pages', async ({ page }, testInfo) => {
