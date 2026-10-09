@@ -1,6 +1,6 @@
 /** The Item panel of the map maker: the picked stamp, text, template, pin or route. */
 import { Button } from '@boh/ui';
-import { FlipHorizontal2, FlipVertical2, Trash2 } from 'lucide-react';
+import { FlipHorizontal2, FlipVertical2, Ruler, Trash2 } from 'lucide-react';
 import { useMemo } from 'react';
 import { useJournal } from '../../app/journal/store';
 import {
@@ -16,12 +16,14 @@ import { type MapPanelsProps, field } from './panelTypes';
 import { PinLinkField } from './PinLinkField';
 import { PinLook } from './PinPanels';
 import { RouteSettings } from './RouteSettings';
+import { TextLettering } from './TextLettering';
 
 export function ItemSettings({
   doc,
   commit,
   item,
   onDeselect,
+  onMeasureFrom,
 }: MapPanelsProps & { item: MapItem }) {
   // Selectors return what the stores hold; lists are made from it here (a new array from a
   // selector would re-render forever).
@@ -148,6 +150,7 @@ export function ItemSettings({
               />
             </label>
           </div>
+          <TextLettering item={item} set={set} />
         </>
       )}
       {item.kind === 'stroke' && (
@@ -220,6 +223,16 @@ export function ItemSettings({
           </label>
           <PinLook doc={doc} pin={item} set={set} />
           <PinLinkField pin={item} doc={doc} notes={notes} maps={maps} set={set} />
+          {onMeasureFrom && (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                onMeasureFrom({ x: item.x, y: item.y });
+              }}
+            >
+              <Ruler className="h-4 w-4" aria-hidden /> Measure from here
+            </Button>
+          )}
         </>
       )}
       {layer && doc.layers.length > 1 && (

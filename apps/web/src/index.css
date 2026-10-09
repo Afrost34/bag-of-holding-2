@@ -62,6 +62,7 @@
  * per `.sheet-page`. On screen that copy is hidden; the in-app preview is a separate render.
  */
 /* Fantasy-map pins (maps whose pin style is "fantasy"): names in an old printer's italic. */
+@import '@fontsource/im-fell-english/400.css';
 @import '@fontsource/im-fell-english/400-italic.css';
 
 .print-root {

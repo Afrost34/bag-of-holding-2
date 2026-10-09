@@ -1,4 +1,5 @@
 /** Types and styles shared by the map maker's side panels. */
+import type { Point } from '../../app/maps/geometry';
 import { type MapDoc, type MapItem } from '../../app/maps/model';
 import { type BrushSettings, type TemplateSettings, type Tool } from './tools';
 
@@ -28,6 +29,8 @@ export interface MapPanelsProps {
   setTemplate: (t: TemplateSettings) => void;
   snap: boolean;
   setSnap: (s: boolean) => void;
+  /** Starts measuring from a point (a pin's "Measure from here"). */
+  onMeasureFrom?: (p: Point) => void;
 }
 
 export const field =

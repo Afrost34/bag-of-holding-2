@@ -12,6 +12,7 @@ import {
   type ColorSource,
 } from 'pixi.js';
 import { fileUrl, stampFile } from './assets';
+import { arcLayout, dashSegments, dotsAlong, type RouteDash } from './lettering';
 import { hexCorners, templateOutline, type Point } from './geometry';
 import { resizedView, type ViewBase } from './view';
 import { hiddenFromPlayers } from './pinLink';
@@ -51,8 +52,13 @@ export const routeWidth = (doc: Pick<MapDoc, 'width' | 'height'>) =>
   Math.max(4, Math.round(Math.max(doc.width, doc.height) / 200));
 
 /** A route: a line with a white edge and a dot at each stop. */
-export function routeView(points: readonly number[], color: string, width: number): Graphics {
-  return drawRoute(new Graphics(), points, color, width);
+export function routeView(
+  points: readonly number[],
+  color: string,
+  width: number,
+  dash?: RouteDash,
+): Graphics {
+  return drawRoute(new Graphics(), points, color, width, dash);
 }
 
 /** Draws a route onto a graphics (a route item, or the one being drawn). */
@@ -61,16 +67,29 @@ export function drawRoute(
   points: readonly number[],
   color: string,
   width: number,
+  dash?: RouteDash,
 ): Graphics {
   if (points.length < 2) return g;
-  const line = () => {
-    g.moveTo(points[0] ?? 0, points[1] ?? 0);
-    for (let i = 2; i + 1 < points.length; i += 2) g.lineTo(points[i] ?? 0, points[i + 1] ?? 0);
-  };
-  line();
-  g.stroke({ color: 0xffffff, width: width + 4, cap: 'round', join: 'round', alpha: 0.9 });
-  line();
-  g.stroke({ color: colorOf(color), width, cap: 'round', join: 'round' });
+  if (dash === 'dotted') {
+    // Round dots on a white rim, a little more than a dot apart.
+    const dots = dotsAlong(points, width * 2.6);
+    for (const p of dots) g.circle(p.x, p.y, width * 0.75 + 2);
+    g.fill({ color: 0xffffff, alpha: 0.9 });
+    for (const p of dots) g.circle(p.x, p.y, width * 0.75);
+    g.fill({ color: colorOf(color) });
+  } else {
+    const lines = dash === 'dashed' ? dashSegments(points, width * 4, width * 2.5) : [[...points]];
+    const draw = () => {
+      for (const l of lines) {
+        g.moveTo(l[0] ?? 0, l[1] ?? 0);
+        for (let i = 2; i + 1 < l.length; i += 2) g.lineTo(l[i] ?? 0, l[i + 1] ?? 0);
+      }
+    };
+    draw();
+    g.stroke({ color: 0xffffff, width: width + 4, cap: 'round', join: 'round', alpha: 0.9 });
+    draw();
+    g.stroke({ color: colorOf(color), width, cap: 'round', join: 'round' });
+  }
   for (let i = 0; i + 1 < points.length; i += 2)
     g.circle(points[i] ?? 0, points[i + 1] ?? 0, width * 1.3)
       .fill({ color: 0xffffff })
@@ -80,6 +99,58 @@ export function drawRoute(
 const SELECT_COLOR = 0x3b82f6;
 
 const colorOf = (c: string): ColorSource => c;
+
+/** Whether the map writes anything in the fantasy font (its pins, or a region label). */
+const usesFantasyFont = (doc: MapDoc) =>
+  doc.pinStyle === 'fantasy' ||
+  doc.layers.some((l) => l.items.some((i) => i.kind === 'text' && i.font === 'fantasy'));
+
+/**
+ * Text on the map: bold with a white rim, or lettered as on an old map (the fantasy font on a
+ * parchment halo), spaced out, turned and bent along an arc.
+ */
+function textView(item: Extract<MapItem, { kind: 'text' }>): Container {
+  const fantasy = item.font === 'fantasy';
+  const style = {
+    fontFamily: fantasy ? FANTASY_FONT : 'Merriweather, Georgia, serif',
+    fontSize: item.size,
+    fontWeight: fantasy ? ('400' as const) : ('700' as const),
+    fill: colorOf(item.color),
+    stroke: fantasy
+      ? { color: PARCHMENT, width: Math.max(2, item.size / 6) }
+      : { color: 0xffffff, width: Math.max(2, item.size / 8) },
+    align: 'center' as const,
+  };
+  const spacing = ((item.spacing ?? 0) / 100) * item.size;
+  const holder = new Container();
+  holder.position.set(item.x, item.y);
+  holder.rotation = ((item.rotation ?? 0) * Math.PI) / 180;
+  const curve = item.curve ?? 0;
+  if (curve === 0 || item.text.includes('\n')) {
+    const t = new Text({ text: item.text, style: { ...style, letterSpacing: spacing } });
+    t.anchor.set(0.5);
+    holder.addChild(t);
+    return holder;
+  }
+  const letters = Array.from(
+    new Intl.Segmenter().segment(item.text),
+    (g) => new Text({ text: g.segment, style }),
+  );
+  const placed = arcLayout(
+    letters.map((t) => t.width),
+    spacing,
+    curve,
+  );
+  letters.forEach((t, i) => {
+    const p = placed[i];
+    if (!p) return;
+    t.anchor.set(0.5);
+    t.position.set(p.x, p.y);
+    t.rotation = p.angle;
+    holder.addChild(t);
+  });
+  return holder;
+}
 
 interface Node {
   item: MapItem;
@@ -333,8 +404,11 @@ export class MapScene {
   setDoc(doc: MapDoc): void {
     this.doc = doc;
     if (!this.ready) return;
-    if (doc.pinStyle === 'fantasy' && !fantasyFontReady && typeof document !== 'undefined') {
-      fantasyFontLoading ??= document.fonts.load(`italic 18px ${FANTASY_FONT}`);
+    if (usesFantasyFont(doc) && !fantasyFontReady && typeof document !== 'undefined') {
+      fantasyFontLoading ??= Promise.all([
+        document.fonts.load(`italic 18px ${FANTASY_FONT}`),
+        document.fonts.load(`18px ${FANTASY_FONT}`),
+      ]);
       void fantasyFontLoading.then(() => {
         fantasyFontReady = true;
         if (this.doc && !this.destroyed) this.setDoc(this.doc);
@@ -359,7 +433,9 @@ export class MapScene {
         const look =
           item.kind === 'pin'
             ? JSON.stringify([pinStyle(doc, item), doc.pinStyle ?? '', fantasyFontReady])
-            : '';
+            : item.kind === 'text' && item.font === 'fantasy'
+              ? String(fantasyFontReady)
+              : '';
         if (node?.item === item && node.look === look && node.view.parent === view) return;
         if (node) node.view.destroy({ children: true });
         const fresh = this.drawItem(item, doc);
@@ -512,23 +588,9 @@ export class MapScene {
         return g;
       }
       case 'route':
-        return routeView(item.points, item.color, routeWidth(doc));
-      case 'text': {
-        const t = new Text({
-          text: item.text,
-          style: {
-            fontFamily: 'Merriweather, Georgia, serif',
-            fontSize: item.size,
-            fontWeight: '700',
-            fill: colorOf(item.color),
-            stroke: { color: 0xffffff, width: Math.max(2, item.size / 8) },
-            align: 'center',
-          },
-        });
-        t.anchor.set(0.5);
-        t.position.set(item.x, item.y);
-        return t;
-      }
+        return routeView(item.points, item.color, routeWidth(doc), item.dash);
+      case 'text':
+        return textView(item);
       case 'template': {
         const g = new Graphics();
         const o = templateOutline(item.shape, item, item.feet, item.angle, grid);
