@@ -20,6 +20,7 @@ import { signed, titleWords as title } from '../../../app/format';
 import { SchoolIcon } from '../../../app/lists/cells';
 import { PortraitImage } from '../Portrait';
 import { pickName } from '../steps';
+import { ArrangedCard, HiddenCardsPage, type CardArranging } from './CardArrange';
 import { ORDINAL, pageRows, shortCast, shortRange, sourceLabel } from './printText';
 import type { PrintSection } from './sections';
 import type { PrintData } from './usePrintData';
@@ -71,12 +72,15 @@ export function PrintSheet({
   view,
   data,
   hidden = [],
+  arranging,
 }: {
   character: CharacterFile;
   view: CharacterView;
   data: PrintData;
   /** Parts left out. */
   hidden?: readonly PrintSection[];
+  /** On screen only: the cards can be moved, left out and rewritten where they are. */
+  arranging?: CardArranging;
 }) {
   const shown = (s: PrintSection) => !hidden.includes(s);
   const sheet = view.sheet;
@@ -448,7 +452,26 @@ export function PrintSheet({
       )}
 
       {/* Cards: spells by level, features and traits, items, packed into A4 pages. */}
-      <PackedPages packing={data.packing} items={data.cards} label="Cards page" />
+      <PackedPages
+        packing={data.packing}
+        items={data.cards}
+        label="Cards page"
+        {...(arranging
+          ? {
+              decorate: (id: string, node: ReactNode) => {
+                const place = data.cardInfo.get(id);
+                return place ? (
+                  <ArrangedCard place={place} arranging={arranging}>
+                    {node}
+                  </ArrangedCard>
+                ) : (
+                  node
+                );
+              },
+            }
+          : {})}
+      />
+      {arranging && <HiddenCardsPage cards={data.hiddenCards} arranging={arranging} />}
     </div>
   );
 }
