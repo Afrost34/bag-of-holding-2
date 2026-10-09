@@ -26,15 +26,25 @@ const SCHOOLS: Record<string, { icon: LucideIcon; className: string }> = {
 };
 
 /** A spell school as a coloured round badge. */
-export function SchoolIcon({ school, small = false }: { school: string; small?: boolean }) {
+export function SchoolIcon({
+  school,
+  small = false,
+  square = false,
+}: {
+  school: string;
+  small?: boolean;
+  /** A rounded square (the title of a printed spell card). */
+  square?: boolean;
+}) {
   const entry = SCHOOLS[school];
   const Icon = entry?.icon ?? Shield;
   return (
     <span
       title={school}
       className={cn(
-        'flex shrink-0 items-center justify-center rounded-full text-white',
-        small ? 'h-4 w-4' : 'h-9 w-9 ring-2 ring-surface',
+        'flex shrink-0 items-center justify-center text-white',
+        square ? 'h-7 w-7 rounded-md' : 'rounded-full',
+        square ? '' : small ? 'h-4 w-4' : 'h-9 w-9 ring-2 ring-surface',
         entry?.className ?? 'bg-border-strong',
       )}
     >

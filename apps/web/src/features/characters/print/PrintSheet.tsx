@@ -1,23 +1,35 @@
-import { castingTime, spellRange } from '@boh/data5e/format';
+import { components } from '@boh/data5e/format';
 import { ABILITIES, abilityName, type Ability } from '@boh/rules';
 import { cn } from '@boh/ui';
+import {
+  Brain,
+  Check,
+  Dumbbell,
+  Eye,
+  Heart,
+  Sparkles,
+  Target,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { CharacterFile } from '../../../app/characters/model';
 import { PackedPages } from '../../../app/cards/PackedPages';
 import type { CharacterView } from '../../../app/data/protocol';
-import { ORDINAL, pageRows, sourceLabel } from './printText';
-import type { PrintData } from './usePrintData';
+import { signed, titleWords as title } from '../../../app/format';
 import { SchoolIcon } from '../../../app/lists/cells';
 import { PortraitImage } from '../Portrait';
 import { pickName } from '../steps';
+import { ORDINAL, pageRows, shortCast, shortRange, sourceLabel } from './printText';
 import type { PrintSection } from './sections';
-import { signed, titleWords as title } from '../../../app/format';
+import type { PrintData } from './usePrintData';
 
 /**
- * The character sheet on paper, in the layout of the owner's own sheets: a main page (portrait,
- * identity, combat, abilities, skills, attacks), spellcasting, equipment, features,
- * personality and backstory, then cards for every spell, feature and item. Each `.sheet-page`
- * is an A4 page; the whole thing is light, whatever the app theme (`.paper`).
+ * The character sheet on paper, in the layout of the owner's earlier app: a main page (portrait,
+ * identity, combat, hit points, abilities, skills, senses, proficiencies, attacks), then
+ * spellcasting, equipment, features, personality and backstory, then cards for every spell,
+ * feature and item. Each `.sheet-page` is an A4 page; the whole thing is light, whatever the app
+ * theme (`.paper`). Tables run on with empty lines to write in.
  */
 
 const SCHOOLS: Record<string, string> = {
@@ -32,6 +44,27 @@ const ABBR: Record<Ability, string> = {
   wis: 'WIS',
   cha: 'CHA',
 };
+const ABILITY_ICONS: Record<Ability, LucideIcon> = {
+  str: Dumbbell,
+  dex: Target,
+  con: Heart,
+  int: Brain,
+  wis: Eye,
+  cha: Sparkles,
+};
+const PROPERTIES: Record<string, string> = {
+  L: 'light', F: 'finesse', T: 'thrown', V: 'versatile', H: 'heavy', '2H': 'two-handed', R: 'reach',
+  A: 'ammunition', LD: 'loading',
+}; // prettier-ignore
+const propertyName = (p: string) => PROPERTIES[p] ?? p;
+const isAbility = (v: unknown): v is Ability => typeof v === 'string' && v in ABBR;
+
+/** Rows per page of the long tables (the first page of each has a header above the table). */
+const SPELL_ROWS = [34, 40] as const;
+const ITEM_ROWS = [36, 40] as const;
+const FEATURE_ROWS = [38, 40] as const;
+/** Lines of the attacks table, written-in ones included. */
+const ATTACK_ROWS = 12;
 
 export function PrintSheet({
   character,
@@ -59,388 +92,329 @@ export function PrintSheet({
   const species = nameOf(character.decisions.species ?? '') ?? '';
   const background = nameOf(character.decisions.background ?? '') ?? '';
   const caster = sheet.spellcasting[0];
+  const prof = sheet.proficiencies;
 
   return (
     <div className="paper text-text">
-      {/* Page 1: the main sheet, filling the A4 page top to bottom. */}
+      {/* Page 1: the main sheet. */}
       {shown('main') && (
-        <Page className="py-[14mm]">
-          <div className="flex h-full flex-col gap-2.5">
-            <div className="grid grid-cols-[34%_1fr] gap-2.5">
-              <div className="flex aspect-[4/5] items-center justify-center overflow-hidden rounded-md border-2 border-border-strong bg-surface-2">
-                {character.portrait ? (
-                  <PortraitImage character={character} size={260} className="h-full w-full" />
-                ) : (
-                  <span className="text-sm text-faint">Portrait</span>
-                )}
-              </div>
-              <div className="flex flex-col gap-2">
-                <div className="grid grid-cols-2 gap-1.5">
-                  <Field label="Character name" value={character.name} strong />
-                  <Field label="Class & level" value={classLine} strong />
-                  <Field label="Species" value={species} />
-                  <Field label="Background" value={background} />
-                </div>
-                <div className="grid grid-cols-6 gap-1.5">
-                  <Stat label="Armor class" value={String(sheet.ac.value)} big />
-                  <Stat label="Initiative" value={signed(sheet.initiative.value)} />
-                  <Stat label="Speed" value={`${String(sheet.speed.walk ?? 30)} ft.`} />
-                  <Stat label="Proficiency" value={signed(sheet.proficiencyBonus)} />
-                  {caster ? (
-                    <Stat label="Spell save DC" value={String(caster.dc.value)} />
+        <Page>
+          <div className="flex h-full gap-2">
+            {/* Left: the portrait, then abilities beside skills. */}
+            <div className="flex w-[41%] flex-col gap-2">
+              <div className="h-[104mm] shrink-0 rounded-lg border border-border-strong bg-surface-2 p-1.5">
+                <div className="flex h-full items-center justify-center overflow-hidden rounded-md border border-border bg-sunken">
+                  {character.portrait ? (
+                    <PortraitImage character={character} size={420} className="h-full w-full" />
                   ) : (
-                    <Stat label="Passive perc." value={String(sheet.passive.perception.value)} />
+                    <span className="text-sm text-faint">Portrait</span>
                   )}
-                  <Stat label="Inspiration" value="" />
                 </div>
-                <div className="grid grid-cols-[1fr_0.8fr_auto] gap-1.5">
-                  <Box title="Hit points">
-                    <div className="grid grid-cols-3 gap-1">
-                      <Stat label="Current" value="" />
-                      <Stat label="Max" value={String(sheet.hp.value)} big />
-                      <Stat label="Temp" value="" />
-                    </div>
-                  </Box>
-                  <Box title="Hit dice">
-                    <div className="grid grid-cols-2 gap-1">
-                      <Stat
-                        label="Total"
-                        value={sheet.hitDice
-                          .map((h) => `${String(h.count)}d${String(h.faces)}`)
-                          .join(' + ')}
-                      />
-                      <Stat label="Spent" value="" />
-                    </div>
-                  </Box>
-                  <Box title="Death saves">
-                    <div className="space-y-1.5 px-1 pt-1">
-                      <Bubbles count={3} label="✓" />
-                      <Bubbles count={3} label="✗" />
-                    </div>
-                  </Box>
-                </div>
-                <Box title="Proficiencies" grow>
-                  <div className="grid grid-cols-2 gap-x-3">
-                    <ProfLine
-                      label="Armor"
-                      items={sheet.proficiencies.armor.map((a) =>
-                        `${title(a)} Armor`.replace('Shield Armor', 'Shields'),
-                      )}
-                    />
-                    <ProfLine
-                      label="Weapons"
-                      items={sheet.proficiencies.weapons.map((w) =>
-                        w.includes(':') ? pickName(w) : `${title(w)} Weapons`,
-                      )}
-                    />
-                    <ProfLine label="Tools" items={sheet.proficiencies.tools.map(title)} />
-                    <ProfLine label="Languages" items={sheet.proficiencies.languages.map(title)} />
-                  </div>
-                </Box>
               </div>
-            </div>
-
-            <div className="grid min-h-0 flex-1 grid-cols-[34%_1fr] gap-2.5">
-              <div className="grid min-h-0 grid-cols-[32%_1fr] gap-2">
-                <div className="flex flex-col justify-between gap-1.5">
-                  {ABILITIES.map((a) => {
-                    const line = sheet.abilities[a];
-                    return (
-                      <div
-                        key={a}
-                        className="overflow-hidden rounded-md border-2 bg-surface text-center"
-                        style={{ borderColor: `var(--boh-${a})` }}
-                      >
-                        <p
-                          className="py-0.5 text-[9px] font-bold text-white uppercase"
-                          style={{ background: `var(--boh-${a})` }}
-                        >
-                          {ABBR[a]}
-                        </p>
-                        <p className="text-xl leading-tight font-bold">{signed(line.modifier)}</p>
-                        <p className="text-xs text-muted">{line.score.value}</p>
-                        <p
-                          className={cn(
-                            'border-t border-border py-0.5 text-[9px] text-muted',
-                            line.save.proficient && 'font-bold text-text',
-                          )}
-                        >
-                          Save {signed(line.save.value)}
-                        </p>
-                      </div>
-                    );
-                  })}
+              <div className="flex min-h-0 flex-1 gap-2">
+                <div className="flex w-[21%] flex-col justify-between">
+                  {ABILITIES.map((a) => (
+                    <AbilityBox key={a} ability={a} line={sheet.abilities[a]} />
+                  ))}
                 </div>
-                <Box title="Skills" grow>
-                  <ul className="flex h-full flex-col justify-between text-[10px]">
-                    {Object.entries(sheet.skills).map(([skill, line]) => (
-                      <li key={skill} className="flex items-center gap-1">
+                <Box title="Skills" className="flex-1" bodyClass="p-0">
+                  <ul className="flex h-full flex-col text-[10.5px]">
+                    {Object.entries(sheet.skills).map(([skill, line], i) => (
+                      <li
+                        key={skill}
+                        className={cn(
+                          'flex flex-1 items-center gap-1.5 px-1.5',
+                          i % 2 === 1 && 'bg-sunken',
+                        )}
+                      >
                         <ProfDot level={line.proficiency} />
-                        <span className="w-6 text-right font-semibold">{signed(line.value)}</span>
-                        <span className="flex-1 truncate">{title(skill)}</span>
+                        <span className="w-6 text-right font-bold">{signed(line.value)}</span>
+                        <span className="flex-1 truncate">
+                          {title(skill).replace(/ (Of|And) /, (m) => m.toLowerCase())}
+                        </span>
                         <AbilityBadge ability={line.ability} />
                       </li>
                     ))}
                   </ul>
                 </Box>
               </div>
-              <div className="flex min-h-0 flex-col gap-2">
-                <Box title="Senses">
-                  <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs">
-                    <span>
-                      Passive Perception <strong>{sheet.passive.perception.value}</strong>
-                    </span>
-                    <span>
-                      Insight <strong>{sheet.passive.insight.value}</strong>
-                    </span>
-                    <span>
-                      Investigation <strong>{sheet.passive.investigation.value}</strong>
-                    </span>
+            </div>
+
+            {/* Right: identity, then two columns, then attacks to the foot of the page. */}
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              <Box title="Character" bodyClass="grid grid-cols-2 gap-1.5">
+                <Field label="Character name" value={character.name} />
+                <Field label="Class & level" value={classLine} />
+                <Field label="Species" value={species} />
+                <Field label="Background" value={background} />
+              </Box>
+              <div className="flex gap-2">
+                <div className="flex w-[33%] flex-col gap-2">
+                  <Box title="Combat" bodyClass="grid grid-cols-2 gap-1.5">
+                    <StatBox value={String(sheet.ac.value)} label="AC" />
+                    <StatBox
+                      value={signed(sheet.initiative.value)}
+                      label="Init"
+                      badge={<AbilityBadge ability="dex" />}
+                    />
+                  </Box>
+                  <Box title="Inspiration" bodyClass="flex justify-center py-1.5">
+                    <span className="h-7 w-7 rounded border-2 border-border-strong bg-surface" />
+                  </Box>
+                  {caster ? (
+                    <Box title="Spell DC" bodyClass="text-center text-lg font-bold">
+                      {caster.dc.value}
+                    </Box>
+                  ) : (
+                    <Box title="Passive perc." bodyClass="text-center text-lg font-bold">
+                      {sheet.passive.perception.value}
+                    </Box>
+                  )}
+                  <div className="grid grid-cols-2 gap-2">
+                    <Box title="PB" bodyClass="text-center text-lg font-bold">
+                      {signed(sheet.proficiencyBonus)}
+                    </Box>
+                    <Box title="Speed" bodyClass="text-center text-lg font-bold">
+                      {sheet.speed.walk ?? 30} ft.
+                    </Box>
+                  </div>
+                  <Box title="Senses" className="flex-1" bodyClass="space-y-1 text-[11px]">
+                    <SenseLine label="Perception" value={sheet.passive.perception.value} />
+                    <SenseLine label="Insight" value={sheet.passive.insight.value} />
+                    <SenseLine label="Investigation" value={sheet.passive.investigation.value} />
                     {Object.entries(sheet.senses).map(([k, v]) => (
-                      <span key={k}>
-                        {title(k)} <strong>{v} ft.</strong>
-                      </span>
+                      <SenseLine key={k} label={title(k)} value={`${String(v)} ft.`} />
                     ))}
-                  </div>
-                </Box>
-                <Box title="Attacks & cantrips" grow>
-                  <div className="flex h-full flex-col">
-                    <table className="w-full text-[10px]">
-                      <thead>
-                        <tr className="text-[9px] text-muted uppercase">
-                          <th className="py-0.5 text-left">Name</th>
-                          <th>Abi</th>
-                          <th>Hit / DC</th>
-                          <th>Damage / type</th>
-                          <th className="text-left">Notes</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {sheet.attacks.map((atk) => {
-                          const ability =
-                            atk.save?.ability ??
-                            atk.toHit?.parts[0]?.label.slice(0, 3).toLowerCase();
-                          return (
-                            <tr key={atk.key} className="border-t border-border">
-                              <td className="py-1 font-semibold">{atk.name}</td>
-                              <td className="text-center">
-                                {ability && (ability as Ability) in ABBR ? (
-                                  <AbilityBadge ability={ability as Ability} />
-                                ) : (
-                                  ''
-                                )}
-                              </td>
-                              <td className="text-center font-semibold">
-                                {atk.toHit
-                                  ? signed(atk.toHit.value)
-                                  : atk.save
-                                    ? `DC ${String(atk.save.dc.value)}`
-                                    : ''}
-                              </td>
-                              <td className="text-center">{atk.damage ?? ''}</td>
-                              <td>
-                                {atk.save
-                                  ? `${ABBR[atk.save.ability]} save`
-                                  : atk.properties.map(propertyName).join(', ')}
-                                {atk.range ? ` (${atk.range})` : ''}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                    {/* Ruled lines for what is written in by hand, down to the foot of the page. */}
-                    <div aria-hidden className="ruled min-h-0 flex-1 border-t border-border" />
-                  </div>
-                </Box>
+                  </Box>
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <Box title="Hit points" bodyClass="space-y-1.5">
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <WriteBox label="Current HP" />
+                      <WriteBox label="Max HP" value={String(sheet.hp.value)} />
+                      <WriteBox label="Temp HP" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <div className="rounded-md border border-border bg-surface px-1 py-1 text-center">
+                        <p className="text-[8px] font-semibold tracking-wide text-muted uppercase">
+                          Hit dice
+                        </p>
+                        <p className="text-sm font-bold">
+                          {sheet.hitDice
+                            .map((h) => `${String(h.count)}d${String(h.faces)}`)
+                            .join(' + ')}
+                        </p>
+                      </div>
+                      <div className="rounded-md border border-border bg-surface px-1 py-1 text-center">
+                        <p className="text-[8px] font-semibold tracking-wide text-muted uppercase">
+                          Death saves
+                        </p>
+                        <DeathSaves />
+                      </div>
+                    </div>
+                  </Box>
+                  <Box title="Proficiencies" className="flex-1" bodyClass="space-y-1">
+                    <ProfSection
+                      label="Armor"
+                      items={prof.armor.map((a) =>
+                        `${title(a)} Armor`.replace('Shield Armor', 'Shields'),
+                      )}
+                    />
+                    <ProfSection
+                      label="Weapons"
+                      shaded
+                      items={prof.weapons.map((w) =>
+                        w.includes(':') ? pickName(w) : `${title(w)} Weapons`,
+                      )}
+                    />
+                    <ProfSection label="Tools" items={prof.tools.map(title)} />
+                    <ProfSection label="Languages" shaded items={prof.languages.map(title)} />
+                  </Box>
+                </div>
               </div>
+              <Box title="Attacks & cantrips" className="min-h-0 flex-1" bodyClass="h-full">
+                <Grid
+                  columns={['Name', 'Abi', 'Hit', 'Damage/type', 'Notes']}
+                  widths={['24%', '12%', '12%', '22%', '30%']}
+                  center={[1, 2]}
+                  rows={sheet.attacks.map((atk) => {
+                    const ability =
+                      atk.save?.ability ?? atk.toHit?.parts[0]?.label.slice(0, 3).toLowerCase();
+                    return [
+                      atk.name,
+                      isAbility(ability) ? <AbilityBadge ability={ability} /> : '',
+                      atk.toHit
+                        ? signed(atk.toHit.value)
+                        : atk.save
+                          ? `DC ${String(atk.save.dc.value)}`
+                          : '',
+                      atk.damage ?? '',
+                      `${
+                        atk.save
+                          ? `${ABBR[atk.save.ability]} save`
+                          : atk.properties.map(propertyName).join(', ')
+                      }${atk.range ? ` (${atk.range})` : ''}`,
+                    ];
+                  })}
+                  lines={ATTACK_ROWS}
+                />
+              </Box>
             </div>
           </div>
         </Page>
       )}
 
-      {/* Page 2: spellcasting. */}
+      {/* Spellcasting. */}
       {caster &&
         shown('spellcasting') &&
-        pageRows(spells, 38, 46).map((part, page) => (
+        pageRows(spells, SPELL_ROWS[0], SPELL_ROWS[1]).map((part, page, all) => (
           <Page key={`spells-${String(page)}`}>
-            <Box title={page === 0 ? 'Spellcasting' : 'Spellcasting (continued)'}>
+            <Box
+              title={page === 0 ? 'Spellcasting' : 'Spellcasting (continued)'}
+              className="h-full"
+              bodyClass="space-y-2"
+            >
               {page === 0 && (
                 <>
                   <div className="grid grid-cols-4 gap-2">
-                    <Stat label="Spell abil." value={ABBR[caster.ability]} />
-                    <Stat
-                      label="Spell mod"
+                    <StatBox value={ABBR[caster.ability]} label="Spell abil." />
+                    <StatBox
                       value={signed(sheet.abilities[caster.ability].modifier)}
+                      label="Spell mod"
                     />
-                    <Stat label="Spell DC" value={String(caster.dc.value)} />
-                    <Stat label="Spell atk" value={signed(caster.attack.value)} />
+                    <StatBox value={String(caster.dc.value)} label="Spell DC" />
+                    <StatBox value={signed(caster.attack.value)} label="Spell atk" />
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {sheet.slots.slice(1).map((n, i) =>
-                      n > 0 ? (
-                        <span
-                          key={i}
-                          className="flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs font-bold"
-                        >
-                          {ORDINAL(i + 1)} <Bubbles count={n} />
-                        </span>
-                      ) : null,
-                    )}
+                  <div className="flex flex-wrap gap-2">
+                    {sheet.slots
+                      .slice(1)
+                      .map((n, i) =>
+                        n > 0 ? <SlotPill key={i} label={ORDINAL(i + 1)} count={n} /> : null,
+                      )}
                     {sheet.pact && (
-                      <span className="flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs font-bold">
-                        Pact ({ORDINAL(sheet.pact.level)}) <Bubbles count={sheet.pact.slots} />
-                      </span>
+                      <SlotPill
+                        label={`Pact (${ORDINAL(sheet.pact.level)})`}
+                        count={sheet.pact.slots}
+                      />
                     )}
                   </div>
                 </>
               )}
-              <table className="mt-2 w-full text-[10px]">
-                <thead>
-                  <tr className="text-[9px] text-muted uppercase">
-                    <th className="py-0.5">Lvl</th>
-                    <th />
-                    <th className="text-left">Name</th>
-                    <th>Comp</th>
-                    <th>Cast</th>
-                    <th>Range</th>
-                    <th>C</th>
-                    <th>R</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {part.map((s) => {
-                    const d = s.data;
-                    const lvl = typeof d.level === 'number' ? d.level : 0;
-                    const comps =
-                      typeof d.components === 'object' && d.components !== null
-                        ? Object.keys(d.components)
-                            .filter((k) => ['v', 's', 'm'].includes(k))
-                            .map((k) => k.toUpperCase())
-                            .join(',')
-                        : '';
-                    const conc =
-                      Array.isArray(d.duration) &&
-                      d.duration.some(
-                        (x: unknown) => typeof x === 'object' && x !== null && 'concentration' in x,
-                      );
-                    const ritual =
-                      typeof d.meta === 'object' && d.meta !== null && 'ritual' in d.meta;
-                    return (
-                      <tr key={s.key} className="border-t border-border">
-                        <td className="py-1 text-center font-bold">{lvl === 0 ? 'C' : lvl}</td>
-                        <td className="w-5">
-                          <SchoolIcon small school={SCHOOLS[String(d.school)] ?? ''} />
-                        </td>
-                        <td className={cn(lvl === 0 && 'italic')}>{s.name}</td>
-                        <td className="text-center">{comps}</td>
-                        <td className="text-center">{castingTime(d)}</td>
-                        <td className="text-center">{spellRange(d)}</td>
-                        <td className="text-center">{conc ? '●' : ''}</td>
-                        <td className="text-center">{ritual ? '●' : ''}</td>
-                      </tr>
+              <Grid
+                columns={['Lvl', 'Icon', 'Name', 'Comp', 'Cast', 'Range', 'C', 'R']}
+                widths={['7%', '7%', '27%', '10%', '17%', '18%', '7%', '7%']}
+                center={[0, 1, 3, 4, 5, 6, 7]}
+                rows={part.map((s) => {
+                  const d = s.data;
+                  const lvl = typeof d.level === 'number' ? d.level : 0;
+                  const conc =
+                    Array.isArray(d.duration) &&
+                    d.duration.some(
+                      (x: unknown) => typeof x === 'object' && x !== null && 'concentration' in x,
                     );
-                  })}
-                </tbody>
-              </table>
+                  const ritual =
+                    typeof d.meta === 'object' && d.meta !== null && 'ritual' in d.meta;
+                  return [
+                    <strong key="l" className={cn(lvl === 0 && 'italic')}>
+                      {lvl === 0 ? 'C' : lvl}
+                    </strong>,
+                    <span key="i" className="flex justify-center">
+                      <SchoolIcon small school={SCHOOLS[String(d.school)] ?? ''} />
+                    </span>,
+                    <span key="n" className={cn(lvl === 0 && 'italic')}>
+                      {s.name}
+                    </span>,
+                    components(d)
+                      .replace(/ \(.*$/, '')
+                      .replace(/, /g, ','),
+                    shortCast(d),
+                    shortRange(d),
+                    conc ? '•' : '',
+                    ritual ? '•' : '',
+                  ];
+                })}
+                lines={page === all.length - 1 ? (page === 0 ? SPELL_ROWS[0] : SPELL_ROWS[1]) : 0}
+              />
             </Box>
           </Page>
         ))}
 
-      {/* Page 3: equipment. */}
+      {/* Equipment. */}
       {shown('equipment') &&
-        pageRows(character.decisions.inventory ?? [], 44, 46).map((part, page, all) => (
-          <Page key={`equipment-${String(page)}`}>
-            <Box title={page === 0 ? 'Equipment' : 'Equipment (continued)'}>
-              {page === 0 && (
-                <p className="mb-2 text-sm">
-                  {(['pp', 'gp', 'ep', 'sp', 'cp'] as const)
-                    .map((k) => `${k.toUpperCase()}: ${String(character.coins[k] || '___')}`)
-                    .join('   ')}
-                </p>
-              )}
-              <table className="w-full text-[10px]">
-                <thead>
-                  <tr className="text-[9px] text-muted uppercase">
-                    <th className="w-10 py-0.5">Qty</th>
-                    <th className="text-left">Item</th>
-                    <th className="w-16">Wt.</th>
-                    <th className="text-left">Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {part.map((it, i) => {
+        pageRows(character.decisions.inventory ?? [], ITEM_ROWS[0], ITEM_ROWS[1]).map(
+          (part, page, all) => (
+            <Page key={`equipment-${String(page)}`}>
+              <Box
+                title={page === 0 ? 'Equipment' : 'Equipment (continued)'}
+                className="h-full"
+                bodyClass="space-y-2"
+              >
+                {page === 0 && (
+                  <p className="text-base">
+                    {(['pp', 'gp', 'ep', 'sp', 'cp'] as const).map((k) => (
+                      <span key={k} className="mr-5">
+                        {k.toUpperCase()}:{' '}
+                        <span className="inline-block min-w-8 border-b border-text text-center">
+                          {character.coins[k] || ''}
+                        </span>
+                      </span>
+                    ))}
+                  </p>
+                )}
+                <Grid
+                  columns={['Qty', 'Item', 'Wt.', 'Notes']}
+                  widths={['10%', '34%', '16%', '40%']}
+                  center={[0, 2]}
+                  rows={part.map((it) => {
                     const e = entities.get(it.key);
-                    const weight =
-                      typeof e?.data.weight === 'number' ? `${String(e.data.weight)} lb` : '';
-                    return (
-                      <tr key={`${it.key}-${String(i)}`} className="border-t border-border">
-                        <td className="py-1 text-center">{it.quantity}</td>
-                        <td>{it.name ?? e?.name ?? pickName(it.key)}</td>
-                        <td className="text-center">{weight}</td>
-                        <td>
-                          {[it.equipped ? 'Equipped' : '', it.attuned ? 'Attuned' : '']
-                            .filter(Boolean)
-                            .join(', ') || '—'}
-                        </td>
-                      </tr>
-                    );
+                    return [
+                      it.quantity,
+                      it.name ?? e?.name ?? pickName(it.key),
+                      typeof e?.data.weight === 'number' ? `${String(e.data.weight)} lb` : '',
+                      [it.equipped ? 'Equipped' : '', it.attuned ? 'Attuned' : '']
+                        .filter(Boolean)
+                        .join(', ') || '—',
+                    ];
                   })}
-                  {/* Empty lines to the foot of the last page, to write in. */}
-                  {page === all.length - 1 &&
-                    Array.from(
-                      { length: Math.max(0, (page === 0 ? 44 : 46) - part.length) },
-                      (_, i) => (
-                        <tr key={`empty-${String(i)}`} className="h-5 border-t border-border">
-                          <td colSpan={4} />
-                        </tr>
-                      ),
-                    )}
-                </tbody>
-              </table>
-            </Box>
-          </Page>
-        ))}
+                  lines={page === all.length - 1 ? (page === 0 ? ITEM_ROWS[0] : ITEM_ROWS[1]) : 0}
+                />
+              </Box>
+            </Page>
+          ),
+        )}
 
-      {/* Page 4: features. */}
+      {/* Features. */}
       {shown('features') &&
-        pageRows(data.features, 44, 46).map((part, page) => (
+        pageRows(data.features, FEATURE_ROWS[0], FEATURE_ROWS[1]).map((part, page, all) => (
           <Page key={`features-${String(page)}`}>
-            <Box title={page === 0 ? 'Features' : 'Features (continued)'}>
-              {page === 0 && (
-                <p className="mb-2 text-xs">
-                  {Object.entries(sheet.senses)
-                    .map(([k, v]) => `${title(k)} ${String(v)} ft.`)
-                    .join(', ')}
-                </p>
-              )}
-              <table className="w-full text-[10px]">
-                <thead>
-                  <tr className="text-[9px] text-muted uppercase">
-                    <th className="py-0.5 text-left">Source</th>
-                    <th className="text-left">Name</th>
-                    <th className="w-10">Lvl</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {part.map((f) => (
-                    <tr key={f.key} className="border-t border-border">
-                      <td className="py-1 font-semibold">{sourceLabel(f.from, view)}</td>
-                      <td>{f.name}</td>
-                      <td className="text-center font-bold">{f.level ?? '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <Box
+              title={page === 0 ? 'Features' : 'Features (continued)'}
+              className="h-full"
+              bodyClass="space-y-2"
+            >
+              <Grid
+                columns={['Source', 'Name', 'Lvl']}
+                widths={['48%', '38%', '14%']}
+                center={[2]}
+                stripes={part.map((f) => sourceColor(f.from))}
+                rows={part.map((f) => [
+                  <strong key="s">{sourceLabel(f.from, view)}</strong>,
+                  f.name,
+                  <strong key="l">{f.level ?? '—'}</strong>,
+                ])}
+                lines={
+                  page === all.length - 1 ? (page === 0 ? FEATURE_ROWS[0] : FEATURE_ROWS[1]) : 0
+                }
+              />
             </Box>
           </Page>
         ))}
 
-      {/* Page 5: personality and backstory. */}
+      {/* Personality and backstory. */}
       {shown('story') && (
         <Page>
-          <Box title="Personality">
-            <div className="grid grid-cols-2 gap-2">
+          <div className="flex h-full flex-col gap-3">
+            <Box title="Personality" bodyClass="grid grid-cols-2 gap-x-2 gap-y-1.5">
               {(
                 [
                   ['Personality traits', character.details.personality],
@@ -450,17 +424,17 @@ export function PrintSheet({
                 ] as const
               ).map(([label, text]) => (
                 <div key={label}>
-                  <p className="text-[9px] font-bold text-muted uppercase">{label}</p>
-                  <p className="min-h-20 rounded border border-border p-2 text-xs whitespace-pre-wrap">
+                  <p className="mb-0.5 text-[9px] font-bold tracking-wide text-muted uppercase">
+                    {label}
+                  </p>
+                  <p className="h-[26mm] overflow-hidden rounded-md border border-border bg-surface px-3 py-2 text-[11px] whitespace-pre-wrap">
                     {text ?? ''}
                   </p>
                 </div>
               ))}
-            </div>
-          </Box>
-          <div className="mt-3">
-            <Box title="Backstory">
-              <p className="min-h-[150mm] text-[11px] leading-relaxed whitespace-pre-wrap">
+            </Box>
+            <Box title="Backstory" className="min-h-0 flex-1" bodyClass="h-full">
+              <p className="h-full overflow-hidden rounded-md border border-border bg-surface px-3 py-2 text-justify text-[11px] leading-relaxed whitespace-pre-wrap">
                 {character.details.backstory ?? ''}
               </p>
             </Box>
@@ -474,108 +448,155 @@ export function PrintSheet({
   );
 }
 
-const PROPERTIES: Record<string, string> = {
-  L: 'light', F: 'finesse', T: 'thrown', V: 'versatile', H: 'heavy', '2H': 'two-handed', R: 'reach',
-  A: 'ammunition', LD: 'loading',
-}; // prettier-ignore
-const propertyName = (p: string) => PROPERTIES[p] ?? p;
+/** Species purple, background slate, feats orange, class and subclass features cyan. */
+function sourceColor(from: string): string {
+  if (/^(race|subrace):/.test(from)) return 'var(--boh-wis)';
+  if (from.startsWith('background:')) return 'var(--boh-text-muted)';
+  if (from.startsWith('feat:')) return 'var(--boh-con)';
+  return 'var(--boh-int)';
+}
 
 /** One A4 page: exactly 210 × 297 mm on screen and on paper; what does not fit is cut. */
-function Page({ children, className }: { children: ReactNode; className?: string }) {
+function Page({ children }: { children: ReactNode }) {
   return (
-    <section
-      className={cn(
-        'sheet-page mx-auto mb-6 box-border h-[297mm] w-[210mm] overflow-hidden bg-surface p-[8mm] shadow-card',
-        className,
-      )}
-    >
+    <section className="sheet-page mx-auto mb-6 box-border h-[297mm] w-[210mm] overflow-hidden bg-surface px-[8mm] py-[16mm] shadow-card">
       {children}
     </section>
   );
 }
 
+/** A panel with a dark title bar, as on the earlier app's sheet. */
 function Box({
   title: heading,
-  grow = false,
+  className,
+  bodyClass,
   children,
 }: {
   title: string;
-  /** Takes the height left in its column. */
-  grow?: boolean;
+  className?: string;
+  bodyClass?: string;
   children: ReactNode;
 }) {
   return (
     <div
       className={cn(
-        'overflow-hidden rounded-md border border-border-strong bg-surface',
-        grow && 'flex min-h-0 flex-1 flex-col',
+        'flex flex-col overflow-hidden rounded-lg border border-border-strong bg-surface-2',
+        className,
       )}
     >
-      <h3 className="bg-header px-2 py-0.5 font-serif text-[11px] font-bold tracking-wide text-header-fg uppercase">
+      <h3 className="bg-header px-2 py-0.5 font-serif text-[12px] font-bold tracking-wide text-header-fg uppercase">
         {heading}
       </h3>
-      <div className={cn('p-1.5', grow && 'min-h-0 flex-1')}>{children}</div>
+      <div className={cn('min-h-0 flex-1 p-1.5', bodyClass)}>{children}</div>
     </div>
   );
 }
 
-function Field({
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border bg-surface px-1.5 py-1">
+      <p className="text-[8px] font-semibold tracking-wide text-muted uppercase">{label}</p>
+      <p className="min-h-5 text-[13px] leading-tight font-semibold">{value}</p>
+    </div>
+  );
+}
+
+/** A number with its label below it. */
+function StatBox({ value, label, badge }: { value: string; label: string; badge?: ReactNode }) {
+  return (
+    <div className="flex min-h-12 flex-col items-center justify-center rounded-md border border-border bg-surface px-1 py-1 text-center">
+      <p className="text-lg leading-tight font-bold">{value}</p>
+      <p className="text-[8px] font-semibold tracking-wide text-muted uppercase">{label}</p>
+      {badge}
+    </div>
+  );
+}
+
+/** A box written in by hand: its label at the top, room below. */
+function WriteBox({ label, value }: { label: string; value?: string }) {
+  return (
+    <div className="flex h-[21mm] flex-col rounded-md border border-border bg-surface px-1 py-1">
+      <p className="text-[8px] font-semibold tracking-wide text-muted uppercase">{label}</p>
+      {value && (
+        <p className="flex flex-1 items-center justify-center text-2xl font-bold">{value}</p>
+      )}
+    </div>
+  );
+}
+
+function SenseLine({ label, value }: { label: string; value: number | string }) {
+  return (
+    <p className="flex justify-between gap-2">
+      <span className="font-medium text-muted">{label}</span>
+      <strong className="text-[12px]">{value}</strong>
+    </p>
+  );
+}
+
+function ProfSection({
   label,
-  value,
-  strong = false,
+  items,
+  shaded = false,
 }: {
   label: string;
-  value: string;
-  strong?: boolean;
+  items: string[];
+  shaded?: boolean;
 }) {
   return (
-    <div className="rounded border border-border-strong px-1.5 py-1">
-      <p className="text-[8px] font-semibold tracking-wide text-muted uppercase">{label}</p>
-      <p className={cn('min-h-5 font-bold', strong ? 'font-serif text-base' : 'text-sm')}>
-        {value}
+    <div className={cn('rounded px-1.5 py-1', shaded && 'bg-sunken')}>
+      <p className="text-[11px] font-bold tracking-wide uppercase">{label}</p>
+      <p className="text-[10.5px]">{items.join(', ') || '—'}</p>
+    </div>
+  );
+}
+
+function AbilityBox({
+  ability,
+  line,
+}: {
+  ability: Ability;
+  line: CharacterView['sheet']['abilities'][Ability];
+}) {
+  const Icon = ABILITY_ICONS[ability];
+  return (
+    <div
+      className="overflow-hidden rounded-md border-2 bg-surface text-center"
+      style={{ borderColor: `var(--boh-${ability})` }}
+    >
+      <p
+        className="flex items-center justify-center gap-0.5 py-px text-[9px] font-bold text-white uppercase"
+        style={{ background: `var(--boh-${ability})` }}
+      >
+        <Icon className="h-2.5 w-2.5" aria-hidden /> {ABBR[ability]}
+      </p>
+      <p className="text-lg leading-tight font-bold">{line.score.value}</p>
+      <p className="text-[10px] text-muted">
+        {signed(line.modifier)}
+        {/* An item adding to checks (Stone of Good Luck): the check, beside the modifier. */}
+        {line.check.value !== line.modifier && ` · check ${signed(line.check.value)}`}
+      </p>
+      <p
+        className={cn(
+          'border-t border-border py-px text-[8px] text-muted',
+          line.save.proficient && 'font-bold text-text',
+        )}
+      >
+        Save {signed(line.save.value)}
       </p>
     </div>
   );
 }
 
-function Stat({ label, value, big = false }: { label: string; value: string; big?: boolean }) {
-  // Boxes written in by hand keep their label at the foot, leaving the space above to write.
+function AbilityBadge({ ability }: { ability: Ability }) {
+  const Icon = ABILITY_ICONS[ability];
   return (
-    <div
-      className={cn(
-        'flex min-h-12 flex-col items-center rounded border border-border-strong px-1 py-1 text-center',
-        value ? 'justify-center' : 'justify-end',
-      )}
+    <span
+      className="inline-flex items-center gap-0.5 rounded px-1 text-[8px] leading-[13px] font-bold text-white"
+      style={{ background: `var(--boh-${ability})` }}
+      title={abilityName(ability)}
     >
-      {value && <p className={cn('font-bold', big ? 'text-2xl' : 'text-lg')}>{value}</p>}
-      <p className="text-[8px] font-semibold tracking-wide text-muted uppercase">{label}</p>
-    </div>
-  );
-}
-
-function ProfLine({ label, items }: { label: string; items: string[] }) {
-  return (
-    <div className="mb-1.5">
-      <p className="text-[10px] font-bold uppercase">{label}</p>
-      <p className="text-[11px]">{items.join(', ') || '—'}</p>
-    </div>
-  );
-}
-
-function Bubbles({ count, label }: { count: number; label?: string }) {
-  return (
-    <span className="flex items-center gap-0.5">
-      {label && (
-        <span
-          className="w-3 text-[11px] font-bold"
-          style={{ color: label === '✓' ? 'var(--boh-dex)' : 'var(--boh-str)' }}
-        >
-          {label}
-        </span>
-      )}
-      {Array.from({ length: count }, (_, i) => (
-        <span key={i} className="inline-block h-3 w-3 rounded-full border border-text" />
-      ))}
+      <Icon className="h-2 w-2" aria-hidden />
+      {ABBR[ability]}
     </span>
   );
 }
@@ -584,23 +605,139 @@ function ProfDot({ level }: { level: 0 | 0.5 | 1 | 2 }) {
   return (
     <span
       className={cn(
-        'inline-block h-2.5 w-2.5 shrink-0 rounded-full border border-text',
-        level >= 1 && 'bg-text',
-        level === 0.5 && 'bg-gradient-to-r from-text from-50% to-transparent to-50%',
-        level === 2 && 'ring-2 ring-text ring-offset-1',
+        'inline-block h-2.5 w-2.5 shrink-0 rounded-full border',
+        level === 2 && 'ring-1 ring-offset-1',
       )}
+      style={{
+        borderColor: level > 0 ? 'var(--boh-paper-mark)' : 'var(--boh-border-strong)',
+        background:
+          level >= 1
+            ? 'var(--boh-paper-mark)'
+            : level === 0.5
+              ? 'linear-gradient(to right, var(--boh-paper-mark) 50%, transparent 50%)'
+              : 'transparent',
+        ...(level === 2 ? { ['--tw-ring-color' as string]: 'var(--boh-paper-mark)' } : {}),
+      }}
     />
   );
 }
 
-function AbilityBadge({ ability }: { ability: Ability }) {
+function Ring() {
   return (
     <span
-      className="rounded px-1 text-[8px] font-bold text-white"
-      style={{ background: `var(--boh-${ability})` }}
-      title={abilityName(ability)}
+      className="inline-block h-3.5 w-3.5 rounded-full border-2"
+      style={{ borderColor: 'var(--boh-paper-mark)' }}
+    />
+  );
+}
+
+function SlotPill({ label, count }: { label: string; count: number }) {
+  return (
+    <span
+      className="flex items-center gap-1.5 rounded-full border bg-surface px-3 py-1 text-[12px] font-bold"
+      style={{ borderColor: 'var(--boh-paper-mark)', color: 'var(--boh-paper-mark)' }}
     >
-      {ABBR[ability]}
+      {label}
+      {Array.from({ length: count }, (_, i) => (
+        <Ring key={i} />
+      ))}
     </span>
+  );
+}
+
+function DeathSaves() {
+  const row = (Icon: LucideIcon, color: string) => (
+    <span className="flex items-center justify-center gap-1">
+      <Icon className="h-3.5 w-3.5" style={{ color }} aria-hidden />
+      {[0, 1, 2].map((i) => (
+        <span key={i} className="inline-block h-3 w-3 rounded-full border border-text" />
+      ))}
+    </span>
+  );
+  return (
+    <div className="space-y-0.5">
+      {row(Check, 'var(--boh-dex)')}
+      {row(X, 'var(--boh-str)')}
+    </div>
+  );
+}
+
+/**
+ * A table as on the earlier sheet: a light header, striped rows with cell borders, and empty
+ * rows up to `lines` to write in. `stripes` colours the left edge of each filled row.
+ */
+function Grid({
+  columns,
+  widths,
+  rows,
+  lines,
+  center = [],
+  stripes,
+}: {
+  columns: string[];
+  widths: string[];
+  rows: ReactNode[][];
+  lines: number;
+  /** Columns centred, heading and cells (by index). */
+  center?: readonly number[];
+  stripes?: string[];
+}) {
+  const empty = Math.max(0, lines - rows.length);
+  return (
+    <div className="overflow-hidden rounded-md border border-border bg-surface">
+      <table className="w-full table-fixed border-collapse text-[10px]">
+        <colgroup>
+          {widths.map((w, i) => (
+            <col key={i} style={{ width: w }} />
+          ))}
+        </colgroup>
+        <thead>
+          <tr className="bg-surface-2 text-[8.5px] tracking-wide text-muted uppercase">
+            {columns.map((c, i) => (
+              <th
+                key={c}
+                className={cn(
+                  'border-b border-border px-1.5 py-1 font-semibold',
+                  i > 0 && 'border-l',
+                  center.includes(i) ? 'text-center' : 'text-left',
+                )}
+              >
+                {c}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((cells, r) => (
+            <tr key={r} className={cn('h-[6mm]', r % 2 === 1 && 'bg-sunken')}>
+              {cells.map((cell, i) => (
+                <td
+                  key={i}
+                  className={cn(
+                    'border-b border-border px-1.5 py-0.5 leading-tight',
+                    i > 0 && 'border-l',
+                    center.includes(i) && 'text-center',
+                    i === 0 && stripes?.[r] && 'border-l-4',
+                  )}
+                  style={i === 0 && stripes?.[r] ? { borderLeftColor: stripes[r] } : undefined}
+                >
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+          {Array.from({ length: empty }, (_, r) => (
+            <tr
+              key={`empty-${String(r)}`}
+              className={cn('h-[6mm]', (rows.length + r) % 2 === 1 && 'bg-sunken')}
+            >
+              {columns.map((c, i) => (
+                <td key={c} className={cn('border-b border-border', i > 0 && 'border-l')} />
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

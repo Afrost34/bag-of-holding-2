@@ -1,5 +1,6 @@
 import type { EntityDetail } from '@boh/data5e';
 import type { ReactNode } from 'react';
+import { CardFrame } from '../../../app/cards/PrintCard';
 
 /** A feature or trait has no entity of its own to hand a PrintCard; same look. */
 export function FeatureCard({
@@ -15,16 +16,9 @@ export function FeatureCard({
   children: ReactNode;
 }) {
   return (
-    <article
-      className="break-inside-avoid rounded-md border border-l-4 border-border bg-surface p-2.5 text-[11px] leading-snug"
-      style={{ borderLeftColor: edgeColor(from) }}
-    >
-      <h4 className="font-serif text-sm font-bold">{title}</h4>
-      <p className="mb-1 text-[10px] text-muted">{subtitle}</p>
-      <div className="[&_p]:my-1 [&_h2]:mt-1.5 [&_h2]:text-[11px] [&_h3]:mt-1.5 [&_h3]:text-[11px] [&_h4]:mt-1.5 [&_h4]:text-[11px] [&_h5]:text-[11px]">
-        {children}
-      </div>
-    </article>
+    <CardFrame accent={edgeColor(from)} title={title} subtitle={subtitle}>
+      {children}
+    </CardFrame>
   );
 }
 
@@ -41,8 +35,11 @@ export function SaveLine({ spell, dc }: { spell: EntityDetail; dc: number | unde
   const save = spell.data.savingThrow;
   if (dc === undefined || !Array.isArray(save) || typeof save[0] !== 'string') return null;
   return (
-    <p className="text-[10px] font-bold">
-      {save[0].slice(0, 3).toUpperCase()} save · DC {dc}
+    <p className="flex items-center gap-2 text-[10.5px] font-bold">
+      <span className="rounded bg-sunken px-1.5 py-0.5 tracking-wide">
+        {save[0].slice(0, 3).toUpperCase()}
+      </span>
+      DC {dc}
     </p>
   );
 }

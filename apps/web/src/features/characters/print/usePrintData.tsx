@@ -176,7 +176,7 @@ export function usePrintData(
           id: `heading:${g.title}`,
           keepWithNext: true,
           node: (
-            <h2 className="border-b border-border pb-0.5 font-serif text-xs font-bold tracking-widest text-header uppercase">
+            <h2 className="border-b border-border pb-1 text-center font-serif text-[13px] font-bold tracking-widest text-header uppercase">
               {g.title}
             </h2>
           ),
