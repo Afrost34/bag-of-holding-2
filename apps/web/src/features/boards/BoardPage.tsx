@@ -9,6 +9,7 @@ import {
   type NodeChange,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { alignCards, SNAP_GRID, useBoardSnap } from '../../app/boards/align';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   absolutePosition,
@@ -41,6 +42,7 @@ import { useAppNavigate } from '../../app/navigation';
 import { EntitySearch } from '../../app/search/EntitySearch';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 import { useTheme } from '../../app/theme';
+import { AlignBar, SnapButton } from './AlignBar';
 import { PANEL_TITLES, useAddOptions, type PanelKind } from './addOptions';
 import { CharacterPicker, MapPicker, NotePicker, Panel } from './BoardPickers';
 import { ContextAddMenu, Toolbar } from './BoardToolbar';
@@ -282,6 +284,8 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
       window.removeEventListener('keydown', onKey);
     };
   }, [actions]);
+  const snap = useBoardSnap((s) => s.snap);
+  const selectedCount = nodes.filter((n) => n.selected).length;
   const onNodesChange = useCallback((changes: NodeChange<CardNodeType>[]) => {
     setNodes((ns) => applyNodeChanges(changes, ns));
   }, []);
@@ -573,6 +577,8 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
               return Promise.resolve(false);
             }}
             nodesConnectable={false}
+            snapToGrid={snap}
+            snapGrid={[SNAP_GRID, SNAP_GRID]}
             zoomOnDoubleClick={false}
             onPaneContextMenu={(e) => {
               e.preventDefault();
@@ -591,7 +597,16 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
             aria-label="Board canvas"
           >
             <Background gap={24} />
-            <Controls showInteractive={false} />
+            <Controls showInteractive={false}>
+              <SnapButton />
+            </Controls>
+            <AlignBar
+              count={selectedCount}
+              onAlign={(mode) => {
+                const ids = nodes.filter((n) => n.selected).map((n) => n.id);
+                commit((b) => alignCards(b, ids, mode));
+              }}
+            />
           </ReactFlow>
         </div>
       </PlayersBoardContext.Provider>
