@@ -462,37 +462,89 @@ const PIXEL = Buffer.from(
   'base64',
 );
 
-test('picture layers (a night version) are shown and hidden over the picture', async ({ page }) => {
+test('picture layers and variants: a night version, switched in the Viewer', async ({ page }) => {
   await installData(page);
   await newMap(page, 'Abandoned Mine');
   if (isPhone(page)) await page.getByRole('button', { name: 'Panels' }).click();
-  await page.getByRole('tab', { name: 'Map' }).click();
-  const pick = async (label: string, name: string) => {
-    await page.getByLabel(label).setInputFiles({ name, mimeType: 'image/png', buffer: PIXEL });
+  await page.getByRole('tab', { name: 'Layers' }).click();
+  const pick = async (name: string) => {
+    await page
+      .getByLabel('Add a picture layer')
+      .setInputFiles({ name, mimeType: 'image/png', buffer: PIXEL });
   };
-  await pick('Choose a picture', 'Mine_Day.png');
-  await expect(page.getByLabel('Replace the picture')).toBeAttached();
-  await pick('Add a picture layer', 'Mine_Night.png');
-  const layers = page.getByRole('list', { name: 'Picture layers' });
-  await expect(layers.getByLabel('Picture layer name')).toHaveValue('Mine Night');
-  await layers.getByRole('button', { name: 'Hide Mine Night' }).click();
-  await expect(layers.getByRole('button', { name: 'Show Mine Night' })).toHaveAttribute(
-    'aria-pressed',
-    'false',
-  );
-  await waitForSaved(page, 'maps', '"visible":false');
+  await pick('Mine_Day.png');
+  await expect(page.getByLabel('Layer name').first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Hide Mine Day' })).toBeVisible();
+  await pick('Mine_Night.png');
+  await expect(page.getByRole('button', { name: 'Hide Mine Night' })).toBeVisible();
+  // Two variants: the day (night hidden) and the night.
+  await page.getByRole('button', { name: 'Hide Mine Night' }).click();
+  await page.getByRole('button', { name: 'New variant' }).click();
+  await page.getByLabel('Variant name').nth(0).fill('Day');
+  await page.getByRole('button', { name: 'New variant' }).click();
+  await page.getByLabel('Variant name').nth(1).fill('Night');
+  await page.getByRole('button', { name: 'Show Mine Night' }).click();
+  await waitForSaved(page, 'maps', '"name":"Night"');
+  // The Viewer switches between them.
+  await page.getByRole('link', { name: /View map/ }).click();
+  const variant = page.getByLabel('Variant', { exact: true });
+  await expect(variant).toHaveValue(/.+/);
+  await variant.selectOption({ label: 'Day' });
+  await waitForSaved(page, 'maps', '"activeVariant"');
   await page.reload();
-  await expect(page.getByRole('application', { name: 'Map canvas' }).locator('canvas')).toHaveCount(
-    1,
+  await expect(page.getByLabel('Variant', { exact: true })).toHaveValue(/.+/);
+  await expect(page.getByLabel('Variant', { exact: true }).locator('option:checked')).toHaveText(
+    'Day',
   );
-  if (isPhone(page)) await page.getByRole('button', { name: 'Panels' }).click();
-  await page.getByRole('tab', { name: 'Map' }).click();
-  await expect(page.getByRole('tab', { name: 'Map' })).toHaveAttribute('aria-selected', 'true');
-  await expect(
-    page
-      .getByRole('list', { name: 'Picture layers' })
-      .getByRole('button', { name: 'Show Mine Night' }),
-  ).toBeVisible();
+});
+
+test('a map of the first version is converted when opened: pictures become layers and variants', async ({
+  page,
+}) => {
+  await installData(page);
+  await page.goto('./#/maps');
+  const id = 'abc123';
+  await page.evaluate(async (mapId) => {
+    const root = await navigator.storage.getDirectory();
+    const dir = await (
+      await root.getDirectoryHandle('user-data', { create: true })
+    ).getDirectoryHandle('maps', { create: true });
+    const file = await dir.getFileHandle(mapId + '.json', { create: true });
+    const w = await file.createWritable();
+    await w.write(
+      JSON.stringify({
+        version: 1,
+        id: mapId,
+        name: 'Old Crypt',
+        createdAt: '2026-01-01',
+        updatedAt: '2026-01-01',
+        width: 100,
+        height: 100,
+        background: { path: 'maps/assets/day.png', width: 800, height: 600 },
+        pictures: [{ name: 'Night', path: 'maps/assets/night.png', visible: true }],
+        grid: { type: 'square', size: 70, offsetX: 0, offsetY: 0, feet: 5, opacity: 0.35 },
+        layers: [
+          {
+            id: 'l1',
+            name: 'Pins',
+            visible: true,
+            locked: false,
+            items: [{ kind: 'pin', id: 'p1', x: 50, y: 50, label: 'Altar' }],
+          },
+        ],
+      }),
+    );
+    await w.close();
+  }, id);
+  await page.reload();
+  await page.goto('./#/maps/' + id);
+  await expect(page.getByLabel('Variant', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Variant', { exact: true }).locator('option:checked')).toHaveText(
+    'As it was',
+  );
+  // Saved again in the new format.
+  await waitForSaved(page, 'maps', '"version":2');
+  await waitForSaved(page, 'maps', '"label":"Altar"');
 });
 
 test('the maps list finds maps by name, folder and tag, with their thumbnails', async ({
@@ -501,11 +553,12 @@ test('the maps list finds maps by name, folder and tag, with their thumbnails', 
   await installData(page);
   await newMap(page, 'Pirate Tavern');
   if (isPhone(page)) await page.getByRole('button', { name: 'Panels' }).click();
-  await page.getByRole('tab', { name: 'Map' }).click();
+  await page.getByRole('tab', { name: 'Layers' }).click();
   await page
-    .getByLabel('Choose a picture')
+    .getByLabel('Add a picture layer')
     .setInputFiles({ name: 'tavern.png', mimeType: 'image/png', buffer: PIXEL });
-  await expect(page.getByLabel('Replace the picture')).toBeAttached();
+  await expect(page.getByRole('button', { name: 'Hide tavern' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Map' }).click();
   const filing = page.getByRole('region', { name: 'Filed under' });
   await filing.getByLabel('Folder').fill('Battle maps/Taverns');
   await filing.getByLabel('Tags').fill('Tavern, night');

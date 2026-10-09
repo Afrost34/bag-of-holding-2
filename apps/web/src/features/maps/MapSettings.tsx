@@ -1,20 +1,12 @@
 /** The Map panel of the map maker: kind, picture, filing, scale and travel or grid, encounter. */
 import { Button } from '@boh/ui';
-import { Eye, EyeOff, Plus, Trash2, X } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import { useEncounters } from '../../app/encounters/store';
-import { importBackground, saveThumbnail } from '../../app/maps/assets';
-import {
-  addPicture,
-  mapFolders,
-  mapKind,
-  removePicture,
-  updatePicture,
-  type MapDoc,
-} from '../../app/maps/model';
+import { mapFolders, mapKind, type MapDoc } from '../../app/maps/model';
 import { useMaps } from '../../app/maps/store';
 import { DEFAULT_SPEEDS, scaleForWidth, type DistanceUnit } from '../../app/maps/travel';
-import { NumberField, PictureFile, Section } from './PanelParts';
+import { NumberField, Section } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
 import { CALIBRATE_ICON } from './tools';
 
@@ -217,23 +209,10 @@ function Filing({ doc, commit }: Pick<MapPanelsProps, 'doc' | 'commit'>) {
 
 export function MapSettings({ doc, commit, setTool, snap, setSnap }: MapPanelsProps) {
   const encounters = useEncounters((s) => s.encounters);
-  const [importing, setImporting] = useState(false);
   const world = mapKind(doc) === 'world';
   const g = doc.grid;
   const setGrid = (change: Partial<MapDoc['grid']>) => {
     commit((d) => ({ ...d, grid: { ...d.grid, ...change } }));
-  };
-  const pickBackground = (file: File) => {
-    setImporting(true);
-    void importBackground(file, doc.campaign)
-      .then((bg) => {
-        commit((d) => ({ ...d, background: bg, width: bg.width, height: bg.height }));
-        // The maps list shows it small.
-        void saveThumbnail(file, doc.id, doc.campaign);
-      })
-      .finally(() => {
-        setImporting(false);
-      });
   };
   return (
     <>
@@ -289,50 +268,27 @@ export function MapSettings({ doc, commit, setTool, snap, setSnap }: MapPanelsPr
           <p className="text-xs text-muted">Give the map its real size (Scale and travel) first.</p>
         )}
       </Section>
-      <Section title="Picture">
-        <PictureFile
-          label={doc.background ? 'Replace the picture' : 'Choose a picture'}
-          busy={importing}
-          onFile={pickBackground}
-        />
-        {doc.background ? (
-          <p className="text-xs text-muted">
-            {doc.background.width} × {doc.background.height} px.
-            <button
-              type="button"
-              className="ml-2 text-link hover:underline"
-              onClick={() => {
-                commit((d) => {
-                  const { background: _b, ...rest } = d;
-                  return rest;
-                });
-              }}
-            >
-              Remove
-            </button>
-          </p>
-        ) : (
-          <div className="grid grid-cols-2 gap-2">
-            <NumberField
-              label="Width (px)"
-              value={doc.width}
-              min={200}
-              onChange={(v) => {
-                commit((d) => ({ ...d, width: Math.min(16384, Math.max(200, v)) }));
-              }}
-            />
-            <NumberField
-              label="Height (px)"
-              value={doc.height}
-              min={200}
-              onChange={(v) => {
-                commit((d) => ({ ...d, height: Math.min(16384, Math.max(200, v)) }));
-              }}
-            />
-          </div>
-        )}
+      <Section title="Size">
+        <div className="grid grid-cols-2 gap-2">
+          <NumberField
+            label="Width (px)"
+            value={doc.width}
+            min={200}
+            onChange={(v) => {
+              commit((d) => ({ ...d, width: Math.min(16384, Math.max(200, v)) }));
+            }}
+          />
+          <NumberField
+            label="Height (px)"
+            value={doc.height}
+            min={200}
+            onChange={(v) => {
+              commit((d) => ({ ...d, height: Math.min(16384, Math.max(200, v)) }));
+            }}
+          />
+        </div>
+        <p className="text-xs text-muted">Adding the first picture (Layers) sizes the map to it.</p>
       </Section>
-      {doc.background && <PictureLayers doc={doc} commit={commit} />}
       <Filing key={doc.id} doc={doc} commit={commit} />
       {world ? (
         <ScaleAndTravel key={'scale-' + doc.id} doc={doc} commit={commit} />
@@ -444,72 +400,5 @@ export function MapSettings({ doc, commit, setTool, snap, setSnap }: MapPanelsPr
         </label>
       </Section>
     </>
-  );
-}
-
-/**
- * Pictures of the same place over the background (night, snow, an overlay), each shown or
- * hidden with a click: what the players see changes with it.
- */
-function PictureLayers({ doc, commit }: Pick<MapPanelsProps, 'doc' | 'commit'>) {
-  const [importing, setImporting] = useState(false);
-  const pictures = doc.pictures ?? [];
-  const add = (file: File) => {
-    setImporting(true);
-    void importBackground(file, doc.campaign)
-      .then((pic) => {
-        const name = file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ');
-        commit((d) => addPicture(d, { name, path: pic.path, visible: true }));
-      })
-      .finally(() => {
-        setImporting(false);
-      });
-  };
-  return (
-    <Section title="Picture layers">
-      <p className="text-xs text-muted">
-        Other versions of the picture (night, snow) or overlays, shown over it or hidden.
-      </p>
-      <ul aria-label="Picture layers" className="space-y-1">
-        {pictures.map((p, i) => (
-          <li key={p.path} className="flex items-center gap-1.5 text-sm">
-            <button
-              type="button"
-              aria-pressed={p.visible}
-              aria-label={(p.visible ? 'Hide ' : 'Show ') + p.name}
-              onClick={() => {
-                commit((d) => updatePicture(d, i, { visible: !p.visible }));
-              }}
-              className="rounded p-1 text-muted hover:bg-sunken"
-            >
-              {p.visible ? (
-                <Eye className="h-4 w-4" aria-hidden />
-              ) : (
-                <EyeOff className="h-4 w-4" aria-hidden />
-              )}
-            </button>
-            <input
-              value={p.name}
-              aria-label="Picture layer name"
-              onChange={(e) => {
-                commit((d) => updatePicture(d, i, { name: e.target.value }));
-              }}
-              className="min-w-0 flex-1 rounded border border-border bg-surface px-1.5 py-0.5"
-            />
-            <button
-              type="button"
-              aria-label={'Remove ' + p.name}
-              onClick={() => {
-                commit((d) => removePicture(d, i));
-              }}
-              className="rounded p-1 text-muted hover:bg-sunken"
-            >
-              <Trash2 className="h-4 w-4" aria-hidden />
-            </button>
-          </li>
-        ))}
-      </ul>
-      <PictureFile label="Add a picture layer" busy={importing} onFile={add} />
-    </Section>
   );
 }

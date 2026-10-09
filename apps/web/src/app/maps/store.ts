@@ -3,6 +3,7 @@ import { docStore, inCampaign } from '../docStore';
 import {
   newMap,
   parseMap,
+  mapIsStale,
   serializeMap,
   mapDir,
   mapPath,
@@ -33,6 +34,7 @@ export const useMaps = create<MapsStore>()((set, get) => {
       path: mapPath,
       parse: parseMap,
       serialize: serializeMap,
+      stale: mapIsStale,
       // Its thumbnail goes with it.
       alongside: (m) => [mapThumbPath(m.id, m.campaign)],
     },

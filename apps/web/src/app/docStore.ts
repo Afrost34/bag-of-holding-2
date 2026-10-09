@@ -28,6 +28,8 @@ export interface DocFiles<D extends Doc> {
   path: (id: string, campaign?: string) => string;
   parse: (text: string | null, id: string, campaign?: string) => D | null;
   serialize: (doc: D) => string;
+  /** True for a stored file in an older format: it is written again once read (converted in place). */
+  stale?: (text: string | null) => boolean;
   /** Other files that go with a document and are removed with it (a map's thumbnail). */
   alongside?: (doc: D) => string[];
 }
@@ -50,14 +52,19 @@ export function docStore<D extends Doc>(files: DocFiles<D>, list: DocList<D>) {
   const pending = new Map<string, D>();
   let writing: Promise<void> = Promise.resolve();
   let loading: Promise<void> | null = null;
+  /** Documents read from an older format, to be written back once loaded. */
+  const converted: D[] = [];
 
   async function readDir(campaign?: string): Promise<D[]> {
     const store = await userStore();
     const out: D[] = [];
     for (const entry of await store.list(files.dir(campaign))) {
       if (entry.kind !== 'file' || !entry.name.endsWith('.json')) continue;
-      const doc = files.parse(await store.readText(entry.path), entry.name.slice(0, -5), campaign);
-      if (doc) out.push(doc);
+      const text = await store.readText(entry.path);
+      const doc = files.parse(text, entry.name.slice(0, -5), campaign);
+      if (!doc) continue;
+      out.push(doc);
+      if (files.stale?.(text)) converted.push(doc);
     }
     return out;
   }
@@ -101,6 +108,9 @@ export function docStore<D extends Doc>(files: DocFiles<D>, list: DocList<D>) {
     loading ??= readAll()
       .then((docs) => {
         list.set(docs, true);
+        // Old files are converted in place.
+        for (const d of converted.splice(0)) pending.set(d.id, d);
+        if (pending.size > 0) void writeNow();
       })
       .catch((error: unknown) => {
         console.warn(`Could not load ${files.many}`, error);

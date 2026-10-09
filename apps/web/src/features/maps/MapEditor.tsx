@@ -26,9 +26,11 @@ import { snapToCell, snapToCorner, templateOutline, type Point } from '../../app
 import {
   addItem,
   findItem,
+  isDrawable,
   itemId,
   mapKind,
   removeItem,
+  setActiveVariant,
   updateItem,
   type MapDoc,
   type MapItem,
@@ -107,7 +109,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   if (tool !== 'select' && tool !== 'calibrate' && !tools.some((t) => t.id === tool))
     setTool('select');
   const [selected, setSelected] = useState<string | null>(null);
-  const [layerId, setLayerId] = useState(doc.layers.at(-2)?.id ?? doc.layers[0]?.id ?? '');
+  const drawable = doc.layers.filter(isDrawable);
+  const [layerId, setLayerId] = useState(drawable.at(-2)?.id ?? drawable[0]?.id ?? '');
   const [stamp, setStamp] = useState<string | null>(null);
   const [stampAspect, setStampAspect] = useState(1);
   const [brush, setBrush] = useState<BrushSettings>({ color: '#111111', width: 6, opacity: 1 });
@@ -204,7 +207,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     s.save(done.value);
   }, [docId]);
 
-  const layer = doc.layers.find((l) => l.id === layerId) ?? doc.layers[0];
+  const layer = drawable.find((l) => l.id === layerId) ?? drawable[0];
   const canDraw = layer !== undefined && !layer.locked;
   const grid = doc.grid;
   const snapCell = (p: Point) => (snap ? snapToCell(p, grid) : p);
@@ -743,6 +746,23 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           >
             <Expand className="h-4 w-4" aria-hidden />
           </Button>
+          {(doc.variants?.length ?? 0) > 0 && (
+            <select
+              aria-label="Variant"
+              value={doc.activeVariant ?? ''}
+              onChange={(e) => {
+                commit((d) => setActiveVariant(d, e.target.value || undefined));
+              }}
+              className="rounded-md border border-border bg-surface px-2 py-1.5 text-sm"
+            >
+              <option value="">Layers as set</option>
+              {doc.variants?.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
+          )}
           {!creator && encounter && (
             <Button
               variant="ghost"
