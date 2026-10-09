@@ -512,3 +512,18 @@ test('the wheel zooms the board over a card that fits, and scrolls one that does
   await page.waitForTimeout(500);
   expect(await viewport.getAttribute('style')).toBe(still);
 });
+
+test('a unit converter card turns feet into metres and squares, and back', async ({ page }) => {
+  await page.goto('./#/boards?list=1');
+  await page.getByRole('button', { name: 'New board' }).click();
+  await page.getByRole('button', { name: 'Create' }).click();
+  await addCard(page, 'Unit converter');
+  const converted = page.getByRole('definition').locator('xpath=..').locator('xpath=..');
+  const out = page.getByLabel('Converted');
+  await expect(out).toContainText('Squares6');
+  await expect(out).toContainText('Metres9');
+  await page.getByLabel('Unit', { exact: true }).selectOption('m');
+  await page.getByLabel('Distance', { exact: true }).fill('4.5');
+  await expect(out).toContainText('Squares3');
+  await expect(out).toContainText('Feet15');
+});

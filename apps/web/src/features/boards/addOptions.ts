@@ -112,6 +112,10 @@ export function useAddOptions(
       ...simple('names', 'names', () => ({ kind: 'names', names: generateNames(20, species) })),
       label: 'Name generator',
     },
+    {
+      ...simple('converter', 'converter', () => ({ kind: 'converter', value: 30, unit: 'ft' })),
+      label: 'Unit converter',
+    },
     simple('text', 'text', () => ({ kind: 'text', text: '' })),
     simple('dice', 'dice', () => ({ kind: 'dice', formulas: [] })),
     simple('timer', 'timer', () => ({ kind: 'timer', seconds: 600, elapsed: 0 })),
