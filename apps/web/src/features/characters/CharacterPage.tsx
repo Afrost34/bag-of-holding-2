@@ -71,6 +71,23 @@ export function CharacterPage({ id, step }: { id: string; step: StepId }) {
     if (latest && line !== latest.summary) save({ ...latest, summary: line });
   }, [view, character, save]);
 
+  // Picks the engine carried to a renamed choice are stored under their new ids.
+  useEffect(() => {
+    if (!character || !view || Object.keys(view.carried).length === 0) return;
+    const latest = useCharacters.getState().characters.find((c) => c.id === character.id);
+    if (!latest) return;
+    const choices = { ...latest.decisions.choices };
+    let moved = false;
+    for (const [to, from] of Object.entries(view.carried)) {
+      const picks = choices[from];
+      if (!picks || choices[to]) continue;
+      choices[to] = picks;
+      Reflect.deleteProperty(choices, from);
+      moved = true;
+    }
+    if (moved) save({ ...latest, decisions: { ...latest.decisions, choices } });
+  }, [view, character, save]);
+
   if (!loaded) return <p className="p-8 text-muted">Loading…</p>;
   if (!character)
     return (

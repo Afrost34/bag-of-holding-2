@@ -112,6 +112,28 @@ describe('buildCharacter', () => {
     expect(decisions.choices[asi]).toEqual(['plus2']);
   });
 
+  it('carries picks stored under an old id to the choice that replaced it', () => {
+    const old = 'classfeature:ability score improvement|fighter|xphb|4@xphb/asi';
+    const asi = 'classfeature:ability score improvement|fighter|phb|4@phb/asi';
+    const skill = 'class:fighter@phb/level:1/skill';
+    const decisions = fighter(4, {
+      [old]: ['plus2'],
+      'class:fighter@xphb/level:1/skill': ['athletics'],
+    });
+    const built = buildCharacter(data, decisions);
+    expect(built.carried).toEqual({ [asi]: old, [skill]: 'class:fighter@xphb/level:1/skill' });
+    expect(built.choices.find((c) => c.id === asi)?.picks).toEqual(['plus2']);
+    expect(built.decisions.choices[skill]).toEqual(['athletics']);
+    expect(built.warnings.filter((w) => w.kind === 'orphan')).toEqual([]);
+  });
+
+  it('leaves an old pick as an orphan when the new choice no longer offers it', () => {
+    const old = 'class:fighter@xphb/level:1/skill';
+    const built = buildCharacter(data, fighter(1, { [old]: ['arcana'] }));
+    expect(built.carried).toEqual({});
+    expect(built.warnings).toEqual([expect.objectContaining({ kind: 'orphan', ref: old })]);
+  });
+
   it('remembers, without reporting, the choices of a feat that is no longer picked', () => {
     const old = 'feat:ability score improvement@xphb/ability';
     const decisions = fighter(3, { [old]: ['1'], [`${old}/1`]: ['str', 'dex'] });

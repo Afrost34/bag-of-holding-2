@@ -138,6 +138,10 @@ export interface HeldFeature {
 }
 
 export interface BuiltCharacter {
+  /** The decisions it was built from, with carried picks under their new ids (see below). */
+  decisions: CharacterDecisions;
+  /** Picks moved from an id the data no longer asks to the choice that replaced it: new → old. */
+  carried: Record<string, string>;
   level: number;
   classes: { key: string; name: string; levels: number; subclass?: string }[];
   /** Every entity the character is built from, with its data. */
@@ -504,6 +508,76 @@ export function buildCharacter(
   decisions: CharacterDecisions,
   rules: CampaignRules = {},
 ): BuiltCharacter {
+  // Picks stored under ids the data no longer asks (a new 5etools release renamed a source or a
+  // feature) move to the choice that replaced them; each move can open more choices, so again.
+  let built = buildOnce(data, decisions, rules);
+  const carried: Record<string, string> = {};
+  for (let round = 0; round < 5; round++) {
+    const moves = carriedChoices(built);
+    if (Object.keys(moves).length === 0) break;
+    Object.assign(carried, moves);
+    built = buildOnce(data, withCarried(built.decisions, moves), rules);
+  }
+  return { ...built, carried };
+}
+
+/** `class:druid@phb/level:2/subclass` → `class:druid/level:2/subclass`: the id without sources. */
+export function looseChoiceId(id: string): string {
+  const [owner = '', ...rest] = id.split('/');
+  return [owner.replace(/[|@].*$/, '').toLowerCase(), ...rest].join('/');
+}
+
+/**
+ * Orphaned decisions (see the warnings) that answer a choice still unanswered: the same choice
+ * of an owner with the same name, the only one on each side, with picks the choice still offers.
+ * New id → old id.
+ */
+export function carriedChoices(
+  built: Pick<BuiltCharacter, 'decisions' | 'choices' | 'warnings'>,
+): Record<string, string> {
+  const group = <T>(items: T[], id: (t: T) => string) => {
+    const out = new Map<string, T[]>();
+    for (const t of items)
+      out.set(looseChoiceId(id(t)), [...(out.get(looseChoiceId(id(t))) ?? []), t]);
+    return out;
+  };
+  const orphans = group(
+    built.warnings.filter((w) => w.kind === 'orphan').map((w) => w.ref),
+    (id) => id,
+  );
+  const open = group(
+    built.choices.filter((c) => (built.decisions.choices[c.id]?.length ?? 0) === 0),
+    (c) => c.id,
+  );
+  const moves: Record<string, string> = {};
+  for (const [loose, [old, ...more]] of orphans) {
+    const [choice, ...others] = open.get(loose) ?? [];
+    if (!old || !choice || more.length > 0 || others.length > 0) continue;
+    const picks = built.decisions.choices[old] ?? [];
+    const offered = !choice.options || picks.every((p) => choice.options?.includes(p));
+    if (offered && picks.length <= choice.count) moves[choice.id] = old;
+  }
+  return moves;
+}
+
+/** The decisions with each carried pick stored under its new id. */
+function withCarried(
+  decisions: CharacterDecisions,
+  moves: Readonly<Record<string, string>>,
+): CharacterDecisions {
+  const choices = { ...decisions.choices };
+  for (const [to, from] of Object.entries(moves)) {
+    choices[to] = choices[from] ?? [];
+    Reflect.deleteProperty(choices, from);
+  }
+  return { ...decisions, choices };
+}
+
+function buildOnce(
+  data: RulesData,
+  decisions: CharacterDecisions,
+  rules: CampaignRules,
+): BuiltCharacter {
   const level = decisions.classes.reduce((n, c) => n + c.levels, 0);
   const b = new Builder(data, decisions, Math.max(1, level), rules);
   const classes: BuiltCharacter['classes'] = [];
@@ -657,6 +731,8 @@ export function buildCharacter(
       b.warn('orphan', `A decision no longer matches anything in the character: ${id}`, id);
 
   return {
+    decisions,
+    carried: {},
     level,
     classes,
     entities: b.entities,
