@@ -526,6 +526,33 @@ test('a unit converter card turns feet into metres and squares, and back', async
   await expect(out).toContainText('Feet15');
 });
 
+test('selected cards line up and space out; moves can snap to the grid', async ({ page }) => {
+  await page.goto('./#/boards?list=1');
+  await page.getByRole('button', { name: 'New board' }).click();
+  await page.getByRole('button', { name: 'Create' }).click();
+  for (const kind of ['Text', 'Timer', 'Dice']) await addCard(page, kind);
+  const cards = ['Text', 'Timer', 'Dice'].map((name) => card(page, name));
+  const bar = page.getByRole('toolbar', { name: 'Align cards' });
+  await expect(bar).toHaveCount(0);
+  await cards[0]?.locator('header').first().click();
+  for (const c of cards.slice(1))
+    await c
+      .locator('header')
+      .first()
+      .click({ modifiers: ['ControlOrMeta'] });
+  await expect(bar).toContainText('3 cards');
+  await bar.getByRole('button', { name: 'Align top edges' }).click();
+  await expect(async () => {
+    const tops = await Promise.all(cards.map(async (c) => (await c.boundingBox())?.y));
+    expect(new Set(tops).size).toBe(1);
+  }).toPass();
+
+  const snap = page.getByRole('button', { name: 'Snap to grid' });
+  await expect(snap).toHaveAttribute('aria-pressed', 'false');
+  await snap.click();
+  await expect(snap).toHaveAttribute('aria-pressed', 'true');
+});
+
 test('a DM screen card has the quick-reference tables, with dice to roll', async ({ page }) => {
   // 3D dice off: the result shows at once.
   await page.evaluate(() => {
