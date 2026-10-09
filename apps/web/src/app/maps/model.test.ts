@@ -6,9 +6,20 @@ import {
   mapFolders,
   mapTags,
   type MapFilter,
-  addPicture,
-  removePicture,
-  updatePicture,
+  addFog,
+  addPictureLayer,
+  addVariant,
+  itemShown,
+  layerShown,
+  mapIsStale,
+  rectPoints,
+  removeFog,
+  removeVariant,
+  setActiveVariant,
+  setFogRevealed,
+  setItemShown,
+  setLayerShown,
+  stepVariant,
   addPinCategory,
   PIN_COLOR,
   pinStyle,
@@ -109,15 +120,122 @@ describe('maps', () => {
 });
 
 describe('picture layers', () => {
-  it('are shown or hidden over the background, kept, and let go when removed', () => {
+  it('go above the other pictures and below what is drawn; the first sizes the map', () => {
     let doc = newMap('Mine', [], 'now');
-    doc = addPicture(doc, { name: 'Night', path: 'maps/assets/night.webp', visible: false });
-    doc = addPicture(doc, { name: 'Fog', path: 'maps/assets/fog.webp', visible: true });
-    doc = updatePicture(doc, 0, { visible: true });
-    expect(doc.pictures?.map((p) => p.visible)).toEqual([true, true]);
-    expect(parseMap(serializeMap(doc), doc.id)?.pictures).toEqual(doc.pictures);
-    doc = removePicture(removePicture(doc, 1), 0);
-    expect(doc.pictures).toBeUndefined();
+    doc = addPictureLayer(doc, 'Day', { path: 'maps/assets/day.webp', width: 4000, height: 3000 });
+    doc = addPictureLayer(doc, 'Night', {
+      path: 'maps/assets/night.webp',
+      width: 4000,
+      height: 3000,
+    });
+    expect(doc.layers.slice(0, 2).map((l) => l.name)).toEqual(['Day', 'Night']);
+    expect(doc.layers.slice(2).every((l) => !l.picture)).toBe(true);
+    expect([doc.width, doc.height]).toEqual([4000, 3000]);
+    expect(parseMap(serializeMap(doc), doc.id)).toEqual(doc);
+  });
+});
+
+describe('maps of version 1', () => {
+  const old = {
+    version: 1,
+    name: 'Old',
+    width: 100,
+    height: 100,
+    background: { path: 'maps/assets/day.webp', width: 3000, height: 2000 },
+    pictures: [
+      { name: 'Night', path: 'maps/assets/night.webp', visible: true },
+      { name: 'Snow', path: 'maps/assets/snow.webp', visible: false },
+    ],
+    layers: [{ id: 'l1', name: 'Pins', visible: true, locked: false, items: [] }],
+  };
+
+  it('become picture layers and variants, and are saved again once read', () => {
+    const text = JSON.stringify(old);
+    expect(mapIsStale(text)).toBe(true);
+    const doc = parseMap(text, 'x');
+    expect(doc?.version).toBe(2);
+    expect([doc?.width, doc?.height]).toEqual([3000, 2000]);
+    expect(doc?.layers.map((l) => l.name)).toEqual(['Background', 'Night', 'Snow', 'Pins']);
+    expect(doc?.layers.slice(0, 3).every((l) => l.picture && l.locked)).toBe(true);
+    expect(doc?.variants?.map((v) => v.name)).toEqual(['As it was', 'Night', 'Snow']);
+    // "As it was": the background and the night picture were shown.
+    const was = doc?.variants?.[0];
+    const shown = doc?.layers.filter((l) => was?.layers[l.id]).map((l) => l.name);
+    expect(shown).toEqual(['Background', 'Night', 'Pins'].filter((n) => n !== 'Pins'));
+    expect(doc?.activeVariant).toBe(was?.id);
+    const again = doc ? parseMap(serializeMap(doc), 'x') : null;
+    expect(again).toEqual(doc);
+    expect(mapIsStale(doc ? serializeMap(doc) : null)).toBe(false);
+  });
+
+  it('with a background alone get a picture layer and no variants', () => {
+    const doc = parseMap(JSON.stringify({ ...old, pictures: undefined }), 'x');
+    expect(doc?.layers.map((l) => l.name)).toEqual(['Background', 'Pins']);
+    expect(doc?.variants).toBeUndefined();
+  });
+});
+
+describe('variants', () => {
+  const base = () => {
+    let doc = newMap('Inn', [], 'now');
+    doc = addPictureLayer(doc, 'Ground floor', { path: 'a.webp', width: 900, height: 600 });
+    doc = addPictureLayer(doc, 'Upstairs', { path: 'b.webp', width: 900, height: 600 });
+    return doc;
+  };
+
+  it('remember which layers are shown, and showing a layer changes the active one only', () => {
+    let doc = base();
+    const [ground, up] = doc.layers;
+    if (!ground || !up) throw new Error('layers');
+    doc = setLayerShown(doc, up.id, false);
+    doc = addVariant(doc, 'Ground');
+    const ground1 = doc.activeVariant;
+    doc = addVariant(doc, 'Upstairs');
+    doc = setLayerShown(doc, up.id, true);
+    doc = setLayerShown(doc, ground.id, false);
+    // Back on the first one: the upstairs picture is hidden again.
+    doc = setActiveVariant(doc, ground1);
+    expect(layerShown(doc, up)).toBe(false);
+    expect(layerShown(doc, ground)).toBe(true);
+    // The layer's own flag is untouched by variant changes.
+    expect(doc.layers.find((l) => l.id === up.id)?.visible).toBe(false);
+    expect(parseMap(serializeMap(doc), doc.id)).toEqual(doc);
+  });
+
+  it('hide items, step round, and are removed with their activity', () => {
+    let doc = base();
+    doc = addVariant(doc, 'A');
+    doc = addVariant(doc, 'B');
+    const [a, b] = doc.variants ?? [];
+    expect(doc.activeVariant).toBe(b?.id);
+    doc = setItemShown(doc, 'pin1', false);
+    expect(itemShown(doc, 'pin1')).toBe(false);
+    expect(itemShown(doc, 'other')).toBe(true);
+    doc = stepVariant(doc, 1);
+    expect(doc.activeVariant).toBe(a?.id);
+    expect(itemShown(doc, 'pin1')).toBe(true);
+    doc = removeVariant(doc, a?.id ?? '');
+    expect(doc.activeVariant).toBeUndefined();
+    doc = removeVariant(doc, b?.id ?? '');
+    expect(doc.variants).toBeUndefined();
+  });
+});
+
+describe('fog', () => {
+  it('hides areas until they are revealed, and lets them go', () => {
+    let doc = newMap('Cave', [], 'now');
+    doc = addFog(doc, rectPoints(0, 0, 100, 50));
+    const id = doc.reveal?.[0]?.id ?? '';
+    expect(doc.reveal?.[0]).toEqual({
+      id,
+      points: [0, 0, 100, 0, 100, 50, 0, 50],
+      revealed: false,
+    });
+    doc = setFogRevealed(doc, id, true);
+    expect(doc.reveal?.[0]?.revealed).toBe(true);
+    expect(parseMap(serializeMap(doc), doc.id)?.reveal).toEqual(doc.reveal);
+    doc = removeFog(doc, id);
+    expect(doc.reveal).toBeUndefined();
   });
 });
 

@@ -17,7 +17,7 @@ import { arcLayout, dashSegments, dotsAlong, type RouteDash } from './lettering'
 import { hexCorners, templateOutline, type Point } from './geometry';
 import { resizedView, type ViewBase } from './view';
 import { hiddenFromPlayers } from './pinLink';
-import { pinStyle, type Grid, type MapDoc, type MapItem } from './model';
+import { itemShown, layerShown, pinStyle, type Grid, type MapDoc, type MapItem } from './model';
 import { pinIconSvg } from './pinIcons';
 import { terrainTile, type TerrainId } from './terrain';
 
@@ -432,6 +432,7 @@ export class MapScene {
     this.drawScaleBar(doc);
     // Layers, bottom first.
     const seen = new Set<string>();
+    const pictureKeys = new Set<string>();
     doc.layers.forEach((layer, index) => {
       let view = this.layerViews.get(layer.id);
       if (!view) {
@@ -439,8 +440,19 @@ export class MapScene {
         this.layerViews.set(layer.id, view);
         this.layers.addChild(view);
       }
-      view.visible = layer.visible;
+      view.visible = layerShown(doc, layer);
       this.layers.setChildIndex(view, index);
+      if (layer.picture) {
+        // A picture layer: loaded once and kept, so showing and hiding it is instant.
+        const key = layer.id + '|' + layer.picture.path;
+        pictureKeys.add(key);
+        if (!this.pictureViews.has(key)) {
+          const pic = new Container();
+          this.pictureViews.set(key, pic);
+          view.addChildAt(pic, 0);
+          this.loadPicture(key, layer.picture.path, pic);
+        }
+      }
       layer.items.forEach((item, i) => {
         seen.add(item.id);
         const node = this.nodes.get(item.id);
@@ -466,6 +478,12 @@ export class MapScene {
           view.setChildIndex(n.view, Math.min(i, view.children.length - 1));
       });
     });
+    for (const [key, pic] of this.pictureViews)
+      if (!pictureKeys.has(key)) {
+        pic.destroy({ children: true });
+        this.pictureViews.delete(key);
+      }
+    this.applyVisibility(doc);
     this.scalePins();
     for (const [id, node] of this.nodes)
       if (!seen.has(id)) {
@@ -480,44 +498,43 @@ export class MapScene {
     this.requestRender();
   }
 
-  /**
-   * The paper, the background picture, and the picture layers shown, bottom first. Each picture
-   * is loaded once and kept, so showing and hiding one (day and night) is instant.
-   */
+  /** The paper the map is on; pictures are layers of their own. */
   private drawBackground(doc: MapDoc): void {
-    const paths = [
-      doc.background?.path,
-      ...(doc.pictures ?? []).filter((p) => p.visible).map((p) => p.path),
-    ].filter((p): p is string => typeof p === 'string');
-    const key = String(doc.width) + 'x' + String(doc.height) + '|' + paths.join('|');
+    const key = String(doc.width) + 'x' + String(doc.height);
     if (key === this.backgroundKey) return;
     this.backgroundKey = key;
     this.background.removeChildren();
     this.paper?.destroy();
     this.paper = new Graphics().rect(0, 0, doc.width, doc.height).fill({ color: 0xf3efe6 });
     this.background.addChild(this.paper);
-    for (const path of paths) {
-      let view = this.pictureViews.get(path);
-      if (!view) {
-        view = new Container();
-        this.pictureViews.set(path, view);
-        this.loadPicture(path, view);
-      }
-      this.background.addChild(view);
-    }
     this.requestRender();
   }
 
-  /** The scene was destroyed while a picture loaded, or the picture was let go. */
-  private dropped(path: string, view: Container): boolean {
-    return this.destroyed || this.pictureViews.get(path) !== view;
+  /**
+   * What shows: the active variant's items, the Creator's no pins or routes, the players' no
+   * secret pins, and no pin in a hidden category.
+   */
+  private applyVisibility(doc: MapDoc): void {
+    for (const [id, node] of this.nodes) {
+      const item = node.item;
+      let shown = itemShown(doc, id);
+      if (this.hideAnnotations && (item.kind === 'pin' || item.kind === 'route')) shown = false;
+      if (item.kind === 'pin')
+        shown &&= !pinStyle(doc, item).hidden && !(this.forPlayers && item.secret === true);
+      node.view.visible = shown;
+    }
   }
 
-  private loadPicture(path: string, view: Container): void {
+  /** The scene was destroyed while a picture loaded, or the picture was let go. */
+  private dropped(key: string, view: Container): boolean {
+    return this.destroyed || this.pictureViews.get(key) !== view;
+  }
+
+  private loadPicture(key: string, path: string, view: Container): void {
     this.onLoading(true);
     void fileUrl(path)
       .then(async (url) => {
-        if (!url || this.dropped(path, view)) return;
+        if (!url || this.dropped(key, view)) return;
         const blob = await (await fetch(url)).blob();
         const bitmap = await createImageBitmap(blob);
         for (let y = 0; y < bitmap.height; y += TILE)
@@ -525,7 +542,7 @@ export class MapScene {
             const w = Math.min(TILE, bitmap.width - x);
             const h = Math.min(TILE, bitmap.height - y);
             const tile = await createImageBitmap(bitmap, x, y, w, h);
-            if (this.dropped(path, view)) return;
+            if (this.dropped(key, view)) return;
             const sprite = new Sprite(Texture.from(tile));
             sprite.position.set(x, y);
             sprite.cullable = true;
@@ -790,10 +807,11 @@ export class MapScene {
   hit(p: Point): MapItem | null {
     if (!this.doc) return null;
     for (const layer of [...this.doc.layers].reverse()) {
-      if (!layer.visible || layer.locked) continue;
+      if (!layerShown(this.doc, layer) || layer.locked) continue;
       for (const item of [...layer.items].reverse()) {
         if (this.forPlayers && hiddenFromPlayers(item)) continue;
         if (this.hideAnnotations && (item.kind === 'pin' || item.kind === 'route')) continue;
+        if (!itemShown(this.doc, item.id)) continue;
         if (item.kind === 'stroke' || item.kind === 'wall' || item.kind === 'route') {
           const width =
             item.kind === 'wall'

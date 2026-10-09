@@ -12,9 +12,10 @@ import type { MapScale, TravelSpeed } from './travel';
  *   stamps/<category>/…/<file>            the stamp library, shared by every map
  *   stamps/library.json                   stamp tags
  *
- * A map is a background picture (or a blank canvas), a grid, and layers of items drawn bottom to
- * top: stamps, brush strokes, walls, text, spell templates and pins. Positions are in map pixels
- * (the background's own pixels).
+ * A map is a canvas, a grid, and layers drawn bottom to top. A layer is a picture or holds items:
+ * stamps, brush strokes, walls, text, routes and pins. Positions are in map pixels. Variants are
+ * named sets of what is shown (a night version, another floor). Version 2 turned the background
+ * and the extra pictures of version 1 into picture layers (see `upgradeV1`).
  */
 
 export const MAPS_DIR = 'maps';
@@ -140,19 +141,38 @@ export interface PinCategory {
 
 export type MapItemKind = MapItem['kind'];
 
+/** A picture in the map assets; the layer shows it from the map's top-left corner. */
+export interface LayerPicture {
+  path: string;
+  width: number;
+  height: number;
+}
+
 export interface Layer {
   id: string;
   name: string;
   visible: boolean;
   locked: boolean;
   items: MapItem[];
+  /** A picture layer shows this picture and holds no items. */
+  picture?: LayerPicture;
 }
 
-export interface MapPicture {
+/** What a variant of the map shows: a layer or an item not listed follows its own flag. */
+export interface Variant {
+  id: string;
   name: string;
-  /** In the map assets, like the background. */
-  path: string;
-  visible: boolean;
+  layers: Record<string, boolean>;
+  /** Pins, routes and other items shown (true) or hidden (false). */
+  items: Record<string, boolean>;
+}
+
+/** A part of the map the players cannot see yet: a polygon, x0, y0, x1, y1… */
+export interface RevealShape {
+  id: string;
+  points: number[];
+  /** True once the DM has shown it to the players. */
+  revealed: boolean;
 }
 
 /**
@@ -162,25 +182,24 @@ export interface MapPicture {
 export type MapKind = 'battle' | 'world';
 
 export interface MapDoc {
-  version: 1;
+  version: 2;
   id: string;
   name: string;
   /** Absent in older maps: see `mapKind`. */
   kind?: MapKind;
   createdAt: string;
   updatedAt: string;
-  /** A picture in the map assets; its size is the map's size. */
-  background?: { path: string; width: number; height: number };
-  /**
-   * More pictures of the same place, drawn over the background bottom first and each shown or
-   * hidden: a night version, snow, an overlay with a transparent background.
-   */
-  pictures?: MapPicture[];
   width: number;
   height: number;
   grid: Grid;
   /** Bottom first. */
   layers: Layer[];
+  /** Named sets of what is shown (a night version, a floor). */
+  variants?: Variant[];
+  /** The variant shown now (absent: each layer's own flag). */
+  activeVariant?: string;
+  /** Hidden areas the players have not seen yet (the Viewer's fog); absent: nothing hidden. */
+  reveal?: RevealShape[];
   /** The encounter fought here. */
   encounter?: string;
   /** Kinds of pins, with the icon and colour their pins take. */
@@ -244,7 +263,7 @@ export function newMap(
     return { id, name: n, visible: true, locked: false, items: [] };
   };
   return {
-    version: 1,
+    version: 2,
     id: newId(existingIds),
     name: name.trim() || 'Map',
     createdAt: now,
@@ -341,7 +360,89 @@ export function moveItemToLayer(doc: MapDoc, id: string, layerId: string): MapDo
 const isObj = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+const boolMap = (v: unknown): Record<string, boolean> =>
+  isObj(v)
+    ? Object.fromEntries(
+        Object.entries(v).filter((e): e is [string, boolean] => typeof e[1] === 'boolean'),
+      )
+    : {};
 const KINDS = new Set(['stamp', 'stroke', 'wall', 'route', 'text', 'template', 'pin']);
+
+/** True when a stored map is older than this build's format (it is saved again once read). */
+export function mapIsStale(text: string | null): boolean {
+  if (!text) return false;
+  try {
+    const json: unknown = JSON.parse(text);
+    return isObj(json) && num(json.version, 1) < 2;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Version 1 had a `background` picture and `pictures` over it, shown or hidden. They become
+ * picture layers at the bottom. With extra pictures, what was shown becomes the variant "As it
+ * was", and each extra picture gets a variant of its own (the background and that picture).
+ */
+export function upgradeV1(
+  json: Record<string, unknown>,
+  used: readonly string[],
+): { layers: Layer[]; variants: Variant[]; active?: string } {
+  const taken = [...used];
+  const fresh = () => {
+    const id = newId(taken);
+    taken.push(id);
+    return id;
+  };
+  const bg =
+    isObj(json.background) && typeof json.background.path === 'string' ? json.background : null;
+  const size = { width: num(bg?.width, 1000), height: num(bg?.height, 1000) };
+  const layers: Layer[] = [];
+  if (bg)
+    layers.push({
+      id: fresh(),
+      name: 'Background',
+      visible: true,
+      locked: true,
+      items: [],
+      picture: { path: String(bg.path), ...size },
+    });
+  const extra = (Array.isArray(json.pictures) ? json.pictures : []).flatMap((p) =>
+    isObj(p) && typeof p.path === 'string'
+      ? [
+          {
+            name: typeof p.name === 'string' ? p.name : 'Picture',
+            path: p.path,
+            shown: p.visible === true,
+          },
+        ]
+      : [],
+  );
+  for (const p of extra)
+    layers.push({
+      id: fresh(),
+      name: p.name,
+      visible: p.shown,
+      locked: true,
+      items: [],
+      picture: { path: p.path, ...size },
+    });
+  const base = layers[0];
+  if (!bg || !base || extra.length === 0) return { layers, variants: [] };
+  const asWas: Variant = {
+    id: fresh(),
+    name: 'As it was',
+    layers: Object.fromEntries(layers.map((l) => [l.id, l.visible])),
+    items: {},
+  };
+  const each = layers.slice(1).map((l): Variant => ({
+    id: fresh(),
+    name: l.name,
+    layers: Object.fromEntries(layers.map((x) => [x.id, x.id === base.id || x.id === l.id])),
+    items: {},
+  }));
+  return { layers, variants: [asWas, ...each], active: asWas.id };
+}
 
 export function parseMap(text: string | null, id: string, campaign?: string): MapDoc | null {
   if (!text) return null;
@@ -354,7 +455,7 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
   if (!isObj(json)) return null;
   const g = isObj(json.grid) ? json.grid : {};
   const type: GridType = g.type === 'hex' || g.type === 'none' ? g.type : 'square';
-  const layers = (Array.isArray(json.layers) ? json.layers : []).flatMap((l): Layer[] =>
+  const drawn = (Array.isArray(json.layers) ? json.layers : []).flatMap((l): Layer[] =>
     isObj(l) && typeof l.id === 'string'
       ? [
           {
@@ -362,6 +463,15 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
             name: typeof l.name === 'string' ? l.name : 'Layer',
             visible: l.visible !== false,
             locked: l.locked === true,
+            ...(isObj(l.picture) && typeof l.picture.path === 'string'
+              ? {
+                  picture: {
+                    path: l.picture.path,
+                    width: num(l.picture.width, 1000),
+                    height: num(l.picture.height, 1000),
+                  },
+                }
+              : {}),
             items: (Array.isArray(l.items) ? l.items : []).filter(
               (i): i is MapItem =>
                 isObj(i) &&
@@ -373,10 +483,32 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
         ]
       : [],
   );
+  const v1 =
+    num(json.version, 1) < 2
+      ? upgradeV1(
+          json,
+          drawn.map((l) => l.id),
+        )
+      : null;
+  const layers = [...(v1?.layers ?? []), ...drawn];
   const bg =
-    isObj(json.background) && typeof json.background.path === 'string' ? json.background : null;
+    v1 && isObj(json.background) && typeof json.background.path === 'string'
+      ? json.background
+      : null;
+  const variants = [
+    ...(v1?.variants ?? []),
+    ...(Array.isArray(json.variants) ? json.variants : []).flatMap((v): Variant[] =>
+      isObj(v) && typeof v.id === 'string' && typeof v.name === 'string'
+        ? [{ id: v.id, name: v.name, layers: boolMap(v.layers), items: boolMap(v.items) }]
+        : [],
+    ),
+  ];
+  const active =
+    typeof json.activeVariant === 'string' && variants.some((v) => v.id === json.activeVariant)
+      ? json.activeVariant
+      : v1?.active;
   return {
-    version: 1,
+    version: 2,
     id,
     name: typeof json.name === 'string' ? json.name : 'Map',
     ...(json.kind === 'battle' || json.kind === 'world' ? { kind: json.kind } : {}),
@@ -386,15 +518,6 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
       : {}),
     createdAt: typeof json.createdAt === 'string' ? json.createdAt : '',
     updatedAt: typeof json.updatedAt === 'string' ? json.updatedAt : '',
-    ...(bg
-      ? {
-          background: {
-            path: String(bg.path),
-            width: num(bg.width, 1000),
-            height: num(bg.height, 1000),
-          },
-        }
-      : {}),
     ...(typeof json.folder === 'string' && json.folder.trim()
       ? { folder: json.folder.trim() }
       : {}),
@@ -415,8 +538,8 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
           ),
         }
       : {}),
-    width: num(json.width, 2800),
-    height: num(json.height, 2100),
+    width: bg ? num(bg.width, 2800) : num(json.width, 2800),
+    height: bg ? num(bg.height, 2100) : num(json.height, 2100),
     grid: {
       type,
       size: Math.max(4, num(g.size, DEFAULT_GRID.size)),
@@ -426,6 +549,21 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
       opacity: num(g.opacity, DEFAULT_GRID.opacity),
     },
     layers: layers.length ? layers : newMap('', [], '').layers,
+    ...(variants.length ? { variants } : {}),
+    ...(active ? { activeVariant: active } : {}),
+    ...(Array.isArray(json.reveal)
+      ? {
+          reveal: json.reveal.flatMap((r): RevealShape[] =>
+            isObj(r) &&
+            typeof r.id === 'string' &&
+            Array.isArray(r.points) &&
+            r.points.length >= 4 &&
+            r.points.every((v) => typeof v === 'number')
+              ? [{ id: r.id, points: r.points, revealed: r.revealed === true }]
+              : [],
+          ),
+        }
+      : {}),
     ...(typeof json.encounter === 'string' ? { encounter: json.encounter } : {}),
     ...(Array.isArray(json.pinCategories)
       ? {
@@ -444,43 +582,149 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
           ),
         }
       : {}),
-    ...(Array.isArray(json.pictures)
-      ? {
-          pictures: json.pictures.flatMap((p) =>
-            isObj(p) && typeof p.path === 'string'
-              ? [
-                  {
-                    name: typeof p.name === 'string' ? p.name : 'Picture',
-                    path: p.path,
-                    visible: p.visible === true,
-                  },
-                ]
-              : [],
-          ),
-        }
-      : {}),
     ...(campaign ? { campaign } : {}),
   };
 }
 
-/** Adds a picture layer over the background (hidden or shown). */
-export function addPicture(doc: MapDoc, picture: MapPicture): MapDoc {
-  return { ...doc, pictures: [...(doc.pictures ?? []), picture] };
+/**
+ * Adds a picture layer above the other pictures and below everything drawn, so a night version
+ * or an overlay lies over the first picture. The map takes the size of the first picture.
+ */
+export function addPictureLayer(doc: MapDoc, name: string, picture: LayerPicture): MapDoc {
+  const layer: Layer = {
+    id: newId(allIds(doc)),
+    name,
+    visible: true,
+    locked: true,
+    items: [],
+    picture,
+  };
+  const first = !doc.layers.some((l) => l.picture);
+  const at = doc.layers.reduce((n, l, i) => (l.picture ? i + 1 : n), 0);
+  const layers = [...doc.layers.slice(0, at), layer, ...doc.layers.slice(at)];
+  return first
+    ? { ...doc, layers, width: picture.width, height: picture.height }
+    : { ...doc, layers };
 }
 
-export function updatePicture(doc: MapDoc, index: number, change: Partial<MapPicture>): MapDoc {
+/** A layer that holds items (not a picture): where things can be drawn. */
+export const isDrawable = (layer: Layer): boolean => layer.picture === undefined;
+
+// region Variants
+
+/** The variant shown now, if any. */
+export function activeVariant(doc: MapDoc): Variant | undefined {
+  return doc.variants?.find((v) => v.id === doc.activeVariant);
+}
+
+/** Whether a layer is shown: the active variant's say, otherwise the layer's own flag. */
+export function layerShown(doc: MapDoc, layer: Layer): boolean {
+  return activeVariant(doc)?.layers[layer.id] ?? layer.visible;
+}
+
+/** Whether an item is shown (hidden only when the active variant says so). */
+export function itemShown(doc: MapDoc, itemId: string): boolean {
+  return activeVariant(doc)?.items[itemId] ?? true;
+}
+
+/** Shows or hides a layer: in the active variant when there is one, else on the layer. */
+export function setLayerShown(doc: MapDoc, layerId: string, shown: boolean): MapDoc {
+  const v = activeVariant(doc);
+  if (!v) return updateLayer(doc, layerId, { visible: shown });
+  return updateVariant(doc, v.id, (x) => ({ ...x, layers: { ...x.layers, [layerId]: shown } }));
+}
+
+/** Shows or hides one item (a pin, a route) in the active variant; without one, hiding does nothing. */
+export function setItemShown(doc: MapDoc, itemId: string, shown: boolean): MapDoc {
+  const v = activeVariant(doc);
+  if (!v) return doc;
+  return updateVariant(doc, v.id, (x) => ({ ...x, items: { ...x.items, [itemId]: shown } }));
+}
+
+export function updateVariant(doc: MapDoc, id: string, change: (v: Variant) => Variant): MapDoc {
+  return { ...doc, variants: (doc.variants ?? []).map((v) => (v.id === id ? change(v) : v)) };
+}
+
+/** A new variant remembering what is shown now (layers and hidden items); it becomes active. */
+export function addVariant(doc: MapDoc, name: string): MapDoc {
+  const id = newId([...allIds(doc), ...(doc.variants ?? []).map((v) => v.id)]);
+  const now = activeVariant(doc);
+  const variant: Variant = {
+    id,
+    name: name.trim() || `Variant ${String((doc.variants?.length ?? 0) + 1)}`,
+    layers: Object.fromEntries(doc.layers.map((l) => [l.id, layerShown(doc, l)])),
+    items: { ...(now?.items ?? {}) },
+  };
+  return { ...doc, variants: [...(doc.variants ?? []), variant], activeVariant: id };
+}
+
+/** Switches to a variant; `undefined` goes back to each layer's own flag. */
+export function setActiveVariant(doc: MapDoc, id: string | undefined): MapDoc {
+  if (id === undefined) {
+    const { activeVariant: _a, ...rest } = doc;
+    return rest;
+  }
+  return doc.variants?.some((v) => v.id === id) ? { ...doc, activeVariant: id } : doc;
+}
+
+/** Steps to the next (+1) or previous (-1) variant, wrapping round. */
+export function stepVariant(doc: MapDoc, by: 1 | -1): MapDoc {
+  const list = doc.variants ?? [];
+  if (list.length === 0) return doc;
+  const i = list.findIndex((v) => v.id === doc.activeVariant);
+  const next = list[(i + by + list.length) % list.length];
+  return next ? { ...doc, activeVariant: next.id } : doc;
+}
+
+export function removeVariant(doc: MapDoc, id: string): MapDoc {
+  const variants = (doc.variants ?? []).filter((v) => v.id !== id);
+  const { variants: _v, activeVariant: _a, ...rest } = doc;
   return {
-    ...doc,
-    pictures: (doc.pictures ?? []).map((p, i) => (i === index ? { ...p, ...change } : p)),
+    ...rest,
+    ...(variants.length ? { variants } : {}),
+    ...(doc.activeVariant && doc.activeVariant !== id && variants.length
+      ? { activeVariant: doc.activeVariant }
+      : {}),
   };
 }
 
-export function removePicture(doc: MapDoc, index: number): MapDoc {
-  const pictures = (doc.pictures ?? []).filter((_, i) => i !== index);
-  if (pictures.length > 0) return { ...doc, pictures };
-  const { pictures: _p, ...rest } = doc;
+// endregion
+
+// region Fog (areas the players cannot see until revealed)
+
+/** Hides an area from the players (a polygon, or a rectangle from two corners). */
+export function addFog(doc: MapDoc, points: number[]): MapDoc {
+  const id = newId([...allIds(doc), ...(doc.reveal ?? []).map((r) => r.id)]);
+  return { ...doc, reveal: [...(doc.reveal ?? []), { id, points, revealed: false }] };
+}
+
+export function setFogRevealed(doc: MapDoc, id: string, revealed: boolean): MapDoc {
+  return {
+    ...doc,
+    reveal: (doc.reveal ?? []).map((r) => (r.id === id ? { ...r, revealed } : r)),
+  };
+}
+
+export function removeFog(doc: MapDoc, id: string): MapDoc {
+  const reveal = (doc.reveal ?? []).filter((r) => r.id !== id);
+  if (reveal.length > 0) return { ...doc, reveal };
+  const { reveal: _r, ...rest } = doc;
   return rest;
 }
+
+/** A rectangle's corners as a polygon. */
+export const rectPoints = (x0: number, y0: number, x1: number, y1: number): number[] => [
+  x0,
+  y0,
+  x1,
+  y0,
+  x1,
+  y1,
+  x0,
+  y1,
+];
+
+// endregion
 
 export function serializeMap(doc: MapDoc): string {
   const { campaign: _campaign, ...rest } = doc;
