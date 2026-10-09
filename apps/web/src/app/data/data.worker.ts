@@ -334,7 +334,7 @@ const api: DataWorkerApi = {
   async character(decisions, campaignRules) {
     const { data } = await rules();
     const built = buildCharacter(data, decisions, campaignRules);
-    const sheet = computeSheet(data, decisions, built);
+    const sheet = computeSheet(data, built.decisions, built);
     const { entities, ...rest } = built;
     return {
       ...rest,
