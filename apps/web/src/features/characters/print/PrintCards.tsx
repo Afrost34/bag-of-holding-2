@@ -1,22 +1,26 @@
 import type { EntityDetail } from '@boh/data5e';
 import type { ReactNode } from 'react';
 import { CardFrame } from '../../../app/cards/PrintCard';
+import type { FeatureUses } from './featureUses';
 
 /** A feature or trait has no entity of its own to hand a PrintCard; same look. */
 export function FeatureCard({
   title,
   subtitle,
   from,
+  uses,
   children,
 }: {
   title: string;
   subtitle: string;
+  /** Boxes to tick off its uses. */
+  uses?: FeatureUses | null;
   /** The entity it comes from: the card's edge takes its colour (species, background…). */
   from: string;
   children: ReactNode;
 }) {
   return (
-    <CardFrame accent={edgeColor(from)} title={title} subtitle={subtitle}>
+    <CardFrame accent={edgeColor(from)} title={title} subtitle={subtitle} uses={uses}>
       {children}
     </CardFrame>
   );

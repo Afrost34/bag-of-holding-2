@@ -7,7 +7,9 @@ import { PrintCard } from '../../../app/cards/PrintCard';
 import { loadEntity } from '../../../app/data/entities';
 import type { CharacterView } from '../../../app/data/protocol';
 import { FeatureCard, SaveLine } from './PrintCards';
+import { ABILITIES, abilityName } from '@boh/rules';
 import { inOrder, plainText } from './cardEdits';
+import { featureUses, type UsesContext } from './featureUses';
 import { asksOnly, lineageTrait, withoutReferences } from './featureCards';
 import { ORDINAL, sourceLabel } from './printText';
 import type { PrintSection } from './sections';
@@ -130,6 +132,14 @@ export function usePrintData(
     const order = orderId ? orderId.split('\n') : [];
     const edits = JSON.parse(editsId) as Record<string, string>;
     const shown = (s: PrintSection) => !off.has(s);
+    const sheet = view.sheet;
+    const usesContext: UsesContext = {
+      proficiencyBonus: sheet.proficiencyBonus,
+      modifiers: Object.fromEntries(
+        ABILITIES.map((a) => [abilityName(a).toLowerCase(), sheet.abilities[a].modifier]),
+      ),
+      classTable: sheet.classTable,
+    };
     const groups: {
       title: string;
       section: PrintSection;
@@ -164,6 +174,11 @@ export function usePrintData(
                 node: (
                   <FeatureCard
                     from={f.from}
+                    uses={featureUses(
+                      f.name,
+                      edits[`feature:${f.key}`] ?? plainText(text),
+                      usesContext,
+                    )}
                     title={f.name}
                     subtitle={`${sourceLabel(f.from, view)}${f.level ? ` — Level ${String(f.level)}` : ''}`}
                   >
