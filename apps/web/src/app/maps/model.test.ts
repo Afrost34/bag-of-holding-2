@@ -7,6 +7,7 @@ import {
   mapTags,
   type MapFilter,
   addFog,
+  fogHides,
   addPictureLayer,
   addVariant,
   itemShown,
@@ -236,6 +237,18 @@ describe('fog', () => {
     expect(parseMap(serializeMap(doc), doc.id)?.reveal).toEqual(doc.reveal);
     doc = removeFog(doc, id);
     expect(doc.reveal).toBeUndefined();
+  });
+
+  it('applies shapes in order: a later reveal cuts a hole, a later fog covers it again', () => {
+    let doc = addFog(newMap('Cave', [], 'now'), rectPoints(0, 0, 100, 100));
+    expect(fogHides(doc, 50, 50)).toBe(true);
+    expect(fogHides(doc, 150, 50)).toBe(false);
+    doc = addFog(doc, rectPoints(40, 40, 60, 60), true);
+    expect(fogHides(doc, 50, 50)).toBe(false);
+    expect(fogHides(doc, 10, 10)).toBe(true);
+    doc = addFog(doc, rectPoints(45, 45, 55, 55));
+    expect(fogHides(doc, 50, 50)).toBe(true);
+    expect(fogHides(doc, 42, 42)).toBe(false);
   });
 });
 

@@ -97,7 +97,8 @@ test('a map is drawn with stamps, brushes, walls, text, templates and pins, then
   await page.mouse.down();
   await page.mouse.move(at(550, 300).x, at(550, 300).y, { steps: 5 });
   await page.mouse.up();
-  await expect(page.getByRole('region', { name: 'Spell template' })).toBeVisible();
+  // A range to measure: shown while it is dragged, never kept on the map.
+  await expect(page.getByRole('region', { name: 'Template to draw' })).toBeVisible();
   await tool(page, 'Pin').click();
   await page.mouse.click(at(500, 150).x, at(500, 150).y);
   await page.getByLabel('Pin label').fill('Cave mouth');
@@ -126,13 +127,13 @@ test('a map is drawn with stamps, brushes, walls, text, templates and pins, then
       );
     return counts.reduce((a, b) => a + b, 0);
   };
-  await expect.poll(countOf).toBe(6);
-  await page.getByRole('button', { name: 'Undo' }).click();
-  await expect.poll(countOf).toBe(6); // the pin's label change is undone first
-  await page.getByRole('button', { name: 'Undo' }).click();
   await expect.poll(countOf).toBe(5);
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect.poll(countOf).toBe(5); // the pin's label change is undone first
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect.poll(countOf).toBe(4);
   await page.getByRole('button', { name: 'Redo' }).click();
-  await expect.poll(countOf).toBe(6);
+  await expect.poll(countOf).toBe(5);
 
   // Hex grid, then back.
   await page.getByRole('tab', { name: 'Map' }).click();
@@ -160,7 +161,7 @@ test('a map is drawn with stamps, brushes, walls, text, templates and pins, then
   // Kept after a reload.
   await page.reload();
   await page.getByRole('tab', { name: 'Layers' }).click();
-  await expect.poll(countOf).toBe(6);
+  await expect.poll(countOf).toBe(5);
 });
 
 test('an 8k map with 1,000 stamps edits smoothly and exports as PNG', async ({
@@ -815,4 +816,31 @@ test('the Creator draws the map and the Viewer uses it', async ({ page }) => {
   await switchMode(page, 'Edit map');
   await expect(page).toHaveURL(/#\/maps\/[^/]+\/edit$/);
   await expect(tool(page, 'Stamp')).toBeVisible();
+});
+
+test('fog hides areas from the players until they are revealed', async ({ page }) => {
+  test.skip(isPhone(page), 'Dragged on the desktop.');
+  await newMap(page, 'Fogged Crypt');
+  await switchMode(page, 'View map');
+  const box = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
+  if (!box) throw new Error('no canvas');
+  await tool(page, 'Fog').click();
+  await expect(page.getByRole('region', { name: 'Fog' })).toBeVisible();
+  // Everything is covered, then a hole is cut where the party stands.
+  await page.getByRole('button', { name: 'Cover the whole map' }).click();
+  await expect(page.getByRole('list', { name: 'Fog areas' }).getByRole('listitem')).toHaveCount(1);
+  await page.getByRole('radio', { name: 'Reveal' }).click();
+  await page.mouse.move(box.x + 200, box.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 400, box.y + 350, { steps: 6 });
+  await page.mouse.up();
+  const areas = page.getByRole('list', { name: 'Fog areas' }).getByRole('listitem');
+  await expect(areas).toHaveCount(2);
+  await expect(areas.nth(1)).toContainText('Revealed');
+  await waitForSaved(page, 'maps', '"revealed":true');
+  // Hidden again, then removed.
+  await page.getByRole('button', { name: 'Hide fog area 2' }).click();
+  await expect(areas.nth(1)).toContainText('Hidden');
+  await page.getByRole('button', { name: 'Clear all fog' }).click();
+  await expect(areas).toHaveCount(0);
 });

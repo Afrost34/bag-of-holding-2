@@ -1,5 +1,6 @@
 import {
   Brush,
+  CloudFog,
   Crosshair,
   Eraser,
   Hand,
@@ -30,6 +31,7 @@ export type Tool =
   | 'measure'
   | 'template'
   | 'pin'
+  | 'fog'
   | 'calibrate';
 
 /** The tool bar, in order; calibrate lives in the grid panel. */
@@ -46,6 +48,7 @@ export const TOOLS: { id: Tool; label: string; icon: LucideIcon; key: string }[]
   { id: 'template', label: 'Spell template', icon: Triangle, key: 'a' },
   { id: 'pin', label: 'Pin', icon: MapPin, key: 'p' },
   { id: 'route', label: 'Route', icon: Route, key: 'o' },
+  { id: 'fog', label: 'Fog', icon: CloudFog, key: 'f' },
 ];
 
 /** The Creator draws the map; the Viewer uses it (pins, routes, ranges). Both can measure. */
@@ -62,7 +65,7 @@ const CREATOR_TOOLS = new Set<Tool>([
   'text',
   'measure',
 ]);
-const VIEWER_TOOLS = new Set<Tool>(['pan', 'select', 'pin', 'route', 'measure', 'template']);
+const VIEWER_TOOLS = new Set<Tool>(['pan', 'select', 'pin', 'route', 'measure', 'template', 'fog']);
 
 /** The tools a mode shows, in tool bar order. Routes are for world maps, templates for battle maps. */
 export function toolsFor(kind: MapKind, mode: MapMode): typeof TOOLS {
@@ -87,7 +90,14 @@ export interface BrushSettings {
 }
 
 /** Tools that have settings in the side panel. */
-export const TOOLS_WITH_SETTINGS = new Set<Tool>(['stamp', 'pen', 'terrain', 'eraser', 'template']);
+export const TOOLS_WITH_SETTINGS = new Set<Tool>([
+  'stamp',
+  'pen',
+  'terrain',
+  'eraser',
+  'template',
+  'fog',
+]);
 
 export interface TemplateSettings {
   shape: TemplateShape;
@@ -96,3 +106,9 @@ export interface TemplateSettings {
 }
 
 export const PEN_COLORS = ['#111111', '#b91c1c', '#1d4ed8', '#15803d', '#7c3aed', '#ffffff'];
+
+/** The fog tool: lay fog over an area, or cut a hole in it; a rectangle or a polygon. */
+export interface FogSettings {
+  mode: 'hide' | 'reveal';
+  shape: 'rect' | 'polygon';
+}

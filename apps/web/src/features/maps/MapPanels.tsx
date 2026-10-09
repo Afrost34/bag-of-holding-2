@@ -2,6 +2,7 @@ import { cn } from '@boh/ui';
 import { X } from 'lucide-react';
 import { useState } from 'react';
 import { ItemSettings } from './ItemSettings';
+import { FogPanel } from './FogPanel';
 import { Layers } from './LayersPanel';
 import { MapSettings } from './MapSettings';
 import { type MapPanelsProps, type Tab } from './panelTypes';
@@ -70,6 +71,7 @@ export function MapPanels(props: MapPanelsProps) {
         {(tool === 'pen' || tool === 'terrain' || tool === 'eraser' || tool === 'template') && (
           <ToolSettings {...props} />
         )}
+        {tool === 'fog' && <FogPanel {...props} />}
         {tab === 'stamps' && <StampLibrary selected={props.stamp} onPick={props.setStamp} />}
         {tab === 'layers' && <Layers {...props} />}
         {tab === 'pins' && <PinCategories doc={props.doc} commit={props.commit} />}

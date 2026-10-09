@@ -4,6 +4,7 @@ import {
   Download,
   Expand,
   Maximize,
+  Cast,
   Paintbrush,
   Eye,
   PanelRight,
@@ -16,6 +17,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
 import { useCampaigns } from '../../app/campaigns/store';
 import { entityPath } from '../../app/data/entities';
+import { sendToPlayers } from '../../app/boards/player';
 import { runOnBoard } from '../../app/encounters/run';
 import { useEncounters } from '../../app/encounters/store';
 import { emptyHistory, record, redo as redoStep, undo as undoStep } from '../../app/history';
@@ -24,11 +26,13 @@ import { useJournal } from '../../app/journal/store';
 import { useStamps } from '../../app/maps/assets';
 import { snapToCell, snapToCorner, templateOutline, type Point } from '../../app/maps/geometry';
 import {
+  addFog,
   addItem,
   findItem,
   isDrawable,
   itemId,
   mapKind,
+  rectPoints,
   removeItem,
   setActiveVariant,
   updateItem,
@@ -56,6 +60,7 @@ import {
   TOOLS_WITH_SETTINGS,
   toolsFor,
   type BrushSettings,
+  type FogSettings,
   type MapMode,
   type TemplateSettings,
   type Tool,
@@ -126,6 +131,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     feet: 15,
     color: '#dc2626',
   });
+  const [fog, setFog] = useState<FogSettings>({ mode: 'hide', shape: 'rect' });
   const [snap, setSnap] = useState(true);
   const [viewing, setViewing] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
@@ -250,6 +256,12 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   };
 
   const finishWall = () => {
+    if (wall && tool === 'fog') {
+      if (wall.length >= 6) commit((d) => addFog(d, wall, fog.mode === 'reveal'));
+      setWall(null);
+      scene?.clearPreview();
+      return;
+    }
     if (wall && wall.length >= 4 && layer) {
       const item: MapItem =
         tool === 'route'
@@ -363,6 +375,10 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       case 'template':
         drag.current = { mode: 'template', ...base, start: snap ? snapPoint(p) : p };
         return;
+      case 'fog':
+        if (fog.shape === 'polygon') setWall((w) => [...(w ?? []), p.x, p.y]);
+        else drag.current = { mode: 'fog', ...base };
+        return;
       case 'calibrate':
         drag.current = { mode: 'calibrate', ...base };
         return;
@@ -389,6 +405,14 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     if (wall && tool === 'route')
       scene.drawPreview((g) => {
         drawRoute(g, [...wall, p.x, p.y], ROUTE_COLOR, routeWidth(doc));
+      });
+    if (wall && tool === 'fog')
+      scene.drawPreview((g) => {
+        g.poly([...wall, p.x, p.y]).fill({
+          color: fog.mode === 'reveal' ? 0xffffff : 0x111111,
+          alpha: 0.35,
+        });
+        g.poly([...wall, p.x, p.y], false).stroke({ color: 0x3b82f6, width: 2 / scene.zoom });
       });
     if (wall && tool === 'wall') {
       const at = snapPoint(p);
@@ -454,6 +478,19 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         d.last = p;
         return;
       }
+      case 'fog':
+        scene.drawPreview((g) => {
+          g.rect(
+            Math.min(d.start.x, p.x),
+            Math.min(d.start.y, p.y),
+            Math.abs(p.x - d.start.x),
+            Math.abs(p.y - d.start.y),
+          )
+            .fill({ color: fog.mode === 'reveal' ? 0xffffff : 0x111111, alpha: 0.35 })
+            .stroke({ color: 0x3b82f6, width: 2 / scene.zoom });
+        });
+        d.last = p;
+        return;
       case 'calibrate':
         scene.drawPreview((g) => {
           g.rect(
@@ -563,20 +600,19 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         drawMeasured(next);
         return;
       }
-      case 'template': {
+      case 'template':
+        // A range to measure, never kept on the map: the preview stays until the next one.
+        return;
+      case 'fog': {
         scene.clearPreview();
-        const angle =
-          (Math.round((Math.atan2(p.y - d.start.y, p.x - d.start.x) * 180) / Math.PI) + 360) % 360;
-        place({
-          kind: 'template',
-          id: itemId(doc),
-          shape: template.shape,
-          x: Math.round(d.start.x),
-          y: Math.round(d.start.y),
-          feet: template.feet,
-          angle,
-          color: template.color,
-        });
+        if (Math.abs(p.x - d.start.x) < 6 || Math.abs(p.y - d.start.y) < 6) return;
+        const points = rectPoints(
+          Math.round(Math.min(d.start.x, p.x)),
+          Math.round(Math.min(d.start.y, p.y)),
+          Math.round(Math.max(d.start.x, p.x)),
+          Math.round(Math.max(d.start.y, p.y)),
+        );
+        commit((d2) => addFog(d2, points, fog.mode === 'reveal'));
         return;
       }
       case 'calibrate': {
@@ -777,6 +813,18 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
               <span className="sr-only sm:hidden">Run {encounter.name}</span>
             </Button>
           )}
+          {!creator && (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                void sendToPlayers([{ kind: 'map', map: doc.id }], doc.campaign);
+              }}
+            >
+              <Cast className="h-4 w-4" aria-hidden />
+              <span className="hidden sm:inline">Show to players</span>
+              <span className="sr-only sm:hidden">Show to players</span>
+            </Button>
+          )}
           {creator ? (
             <AppLink
               to={`/maps/${doc.id}`}
@@ -909,7 +957,9 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
                 : wall && tool === 'route'
                   ? routeStatus(wall, doc)
                   : wall
-                    ? 'Click to add corners; double-click or Enter to finish the wall.'
+                    ? tool === 'fog'
+                      ? 'Click the corners; double-click or Enter to finish the area.'
+                      : 'Click to add corners; double-click or Enter to finish the wall.'
                     : measure
                       ? `Distance: ${measure} (Escape to clear)`
                       : 'Click the next point.'}
@@ -963,6 +1013,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             setEraser={setEraser}
             template={template}
             setTemplate={setTemplate}
+            fog={fog}
+            setFog={setFog}
             snap={snap}
             setSnap={setSnap}
           />
