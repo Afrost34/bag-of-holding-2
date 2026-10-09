@@ -16,6 +16,7 @@ import {
   COLLAPSED_H,
   contentOf,
   dropCard,
+  findCardShowing,
   duplicateCards,
   moveBoardCards,
   removeBoardCard,
@@ -185,6 +186,8 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
     };
   }, [step]);
 
+  /** Brings a card into view (set below, once the canvas's nodes exist). */
+  const reveal = useRef<(current: Board, card: BoardCard) => void>(() => undefined);
   /** Cards to select once the board shows them (the copies Ctrl+D just made). */
   const [selectAfter, setSelectAfter] = useState<string[] | null>(null);
   const actions = useMemo<BoardActions>(
@@ -211,6 +214,15 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
         setSelectAfter(copies);
       },
       addBeside: (id, contents) => {
+        // Already on the board (the note a link leads to…): brought into view, not added again.
+        const current = useBoards.getState().boards.find((b) => b.id === boardId);
+        const [only] = contents;
+        const existing =
+          current && contents.length === 1 && only ? findCardShowing(current, only) : undefined;
+        if (current && existing) {
+          reveal.current(current, existing);
+          return;
+        }
         commit((b) => {
           const card = b.cards.find((c) => c.id === id);
           if (!card) return b;
@@ -317,6 +329,38 @@ function BoardEditor({ board, focus }: { board: Board; focus?: string }) {
         },
       );
   };
+
+  /**
+   * Brings a card into view: centred, selected and flashed; in a stack, the stack on its tab.
+   */
+  function revealCard(current: Board, card: BoardCard) {
+    const stack = card.inStack
+      ? current.cards.find((c) => c.id === card.inStack && c.kind === 'stack')
+      : undefined;
+    if (stack?.kind === 'stack') {
+      const active = stack.items.indexOf(card.id);
+      if (active >= 0 && active !== stack.active)
+        commit((b) =>
+          updateBoardCard(b, stack.id, (c) => (c.kind === 'stack' ? { ...c, active } : c)),
+        );
+    }
+    const shown = stack ?? card;
+    const at = absolutePosition(current, shown);
+    void flow.setCenter(at.x + shown.w / 2, at.y + Math.min(shown.h, 400) / 2, {
+      zoom: Math.max(flow.getZoom(), 0.6),
+      duration: 300,
+    });
+    setNodes((ns) => ns.map((n) => ({ ...n, selected: n.id === shown.id })));
+    const el = document.querySelector(`.react-flow__node[data-id="${shown.id}"]`);
+    el?.classList.add('boh-flash');
+    setTimeout(() => {
+      el?.classList.remove('boh-flash');
+    }, 1600);
+  }
+
+  useEffect(() => {
+    reveal.current = revealCard;
+  });
 
   // A card asked for in the URL is brought into view once the canvas is ready.
   const [focused, setFocused] = useState<string | null>(null);

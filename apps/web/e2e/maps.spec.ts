@@ -655,4 +655,29 @@ test('a pin leads to a note: clicked on a board, the note opens beside the map',
   await tools.getByRole('button', { name: 'Look around' }).click();
   // The note card is added beside the map (off screen on a phone: the board file says so).
   await waitForSaved(page, 'campaigns/rust-and-sunfire/boards', '"path": "Gull’s Rest.md"');
+  if (testInfo.project.name !== 'desktop') return;
+  const noteCards = page
+    .locator('.react-flow__node')
+    .filter({ has: page.getByRole('heading', { name: 'Gull’s Rest', exact: true }) });
+  await expect(noteCards).toHaveCount(1);
+  // Locked, the map stays put and a drag over it moves the board.
+  await page.getByRole('button', { name: 'Lock the map' }).click();
+  await expect(
+    page.getByRole('toolbar', { name: 'Map tools' }).getByRole('button', { name: 'Zoom in' }),
+  ).toBeDisabled();
+  const viewport = page.locator('.react-flow__viewport');
+  const before = await viewport.getAttribute('style');
+  const locked = await map.boundingBox();
+  if (!locked) throw new Error('no map card');
+  await page.mouse.move(locked.x + 40, locked.y + 40);
+  await page.mouse.down();
+  await page.mouse.move(locked.x + 140, locked.y + 90, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(() => viewport.getAttribute('style')).not.toBe(before);
+  // Following the pin again brings that card into view; no second one.
+  const again = await map.boundingBox();
+  if (!again) throw new Error('no map card');
+  await page.mouse.click(again.x + again.width / 2, again.y + again.height / 2);
+  await page.waitForTimeout(600);
+  await expect(noteCards).toHaveCount(1);
 });

@@ -14,6 +14,7 @@ import {
   SIZES,
   stackOnto,
   duplicateCards,
+  findCardShowing,
   timerLeft,
   unstack,
   type Board,
@@ -211,5 +212,17 @@ describe('the players board', () => {
     const members = copy.board.cards.filter((c) => c.inStack === newStack?.id);
     expect(members.map((c) => c.kind === 'text' && c.text)).toEqual(['a', 'b']);
     expect(copy.board.cards).toHaveLength(stacked.cards.length + 4);
+  });
+
+  it('finds the card already showing a note, an entry or a map', () => {
+    const { board } = addBoardCards(empty(), [
+      { kind: 'note', path: 'People/Ana.md' },
+      { kind: 'entity', key: 'spell:fireball@xphb' },
+    ]);
+    expect(findCardShowing(board, { kind: 'note', path: 'People/Ana.md' })?.kind).toBe('note');
+    expect(findCardShowing(board, { kind: 'entity', key: 'spell:fireball@xphb' })?.kind).toBe(
+      'entity',
+    );
+    expect(findCardShowing(board, { kind: 'note', path: 'People/Bo.md' })).toBeUndefined();
   });
 });

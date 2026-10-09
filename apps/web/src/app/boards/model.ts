@@ -38,7 +38,8 @@ export type CardContent =
   /** An encounter of the campaign, with its difficulty and a button to start the fight. */
   | { kind: 'encounter'; encounter: string }
   /** A map from the Maps module, viewed (not edited) on the board. */
-  | { kind: 'map'; map: string }
+  /** `locked`: the map stays put in its card; dragging over it moves the board. */
+  | { kind: 'map'; map: string; locked?: true }
   /** A character of the campaign at a glance; the sections shown are the DM's choice. */
   | {
       kind: 'character';
@@ -518,4 +519,17 @@ export function duplicateCards(
     } else copies.push({ ...card, id: id2, x: card.x + COPY_OFFSET, y: card.y + COPY_OFFSET });
   }
   return { board: { ...board, cards: [...board.cards, ...copies] }, ids: top };
+}
+
+/**
+ * The card already showing what a link leads to (the same journal note, compendium entry or
+ * map), so following the link can bring it into view instead of adding a second one.
+ */
+export function findCardShowing(board: Board, content: CardContent): BoardCard | undefined {
+  return board.cards.find(
+    (c) =>
+      (c.kind === 'note' && content.kind === 'note' && c.path === content.path) ||
+      (c.kind === 'entity' && content.kind === 'entity' && c.key === content.key) ||
+      (c.kind === 'map' && content.kind === 'map' && c.map === content.map),
+  );
 }
