@@ -11,7 +11,7 @@ describe('scale bar', () => {
   });
 
   it('measures a world map in its unit', () => {
-    const doc = { ...newMap('W', [], '', 'world'), scale: { unit: 'mi' as const, perPixel: 0.5 } };
+    const doc = { ...newMap('W', [], ''), scale: { unit: 'mi' as const, perPixel: 0.5 } };
     // 2800 px wide: about 0.3 of it is 840 px = 420 miles → 200 miles, 400 px, four blocks.
     const spec = scaleBarSpec(doc);
     expect(spec).toEqual({ length: 400, distance: 200, unit: 'mi', segments: 4 });

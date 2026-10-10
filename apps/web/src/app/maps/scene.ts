@@ -883,12 +883,12 @@ export class MapScene {
 
   private drawGrid(doc: MapDoc): void {
     const g = doc.grid;
-    const key = `${g.type}|${String(g.size)}|${String(g.offsetX)}|${String(g.offsetY)}|${String(g.opacity)}|${String(doc.width)}|${String(doc.height)}`;
+    const key = `${String(g.visible)}|${g.type}|${String(g.size)}|${String(g.offsetX)}|${String(g.offsetY)}|${String(g.opacity)}|${String(doc.width)}|${String(doc.height)}`;
     if (key === this.gridKey) return;
     this.gridKey = key;
     for (const c of this.gridLines.removeChildren())
       c.destroy({ texture: true, textureSource: true });
-    if (g.type === 'none' || g.opacity <= 0) return;
+    if (!g.visible || g.opacity <= 0) return;
     const lines = gridGraphics(g, doc.width, doc.height);
     lines.alpha = g.opacity;
     this.gridLines.addChild(lines);

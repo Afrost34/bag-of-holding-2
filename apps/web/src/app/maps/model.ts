@@ -25,7 +25,7 @@ export const MAPS_DIR = 'maps';
 export const MAP_ASSETS = 'assets';
 export const STAMPS_DIR = 'stamps';
 
-export type GridType = 'square' | 'hex' | 'none';
+export type GridType = 'square' | 'hex';
 
 export interface Grid {
   type: GridType;
@@ -37,6 +37,8 @@ export interface Grid {
   feet: number;
   /** 0–1. */
   opacity: number;
+  /** Drawn or hidden; hidden it still snaps and measures. */
+  visible: boolean;
 }
 
 export type TemplateShape = 'cone' | 'sphere' | 'cube' | 'line';
@@ -321,18 +323,10 @@ export interface RevealShape {
   revealed: boolean;
 }
 
-/**
- * A battle map (a grid, walls, spell templates) or a world or city map (a real scale, travel
- * times, routes). Each kind shows only its own tools.
- */
-export type MapKind = 'battle' | 'world';
-
 export interface MapDoc {
   version: 2;
   id: string;
   name: string;
-  /** Absent in older maps: see `mapKind`. */
-  kind?: MapKind;
   createdAt: string;
   updatedAt: string;
   width: number;
@@ -450,17 +444,21 @@ export const DEFAULT_GRID: Grid = {
   offsetY: 0,
   feet: 5,
   opacity: 0.35,
+  visible: true,
 };
 
-/** A map's kind; older maps without one are world maps when they have a real scale. */
-export const mapKind = (doc: Pick<MapDoc, 'kind' | 'scale'>): MapKind =>
-  doc.kind ?? (doc.scale ? 'world' : 'battle');
+/** The largest side of a map, in squares. */
+export const MAX_SQUARES = 200;
+
+/** A side in pixels for a number of squares of the default grid (1–200 squares). */
+export const sizeInSquares = (n: number): number =>
+  Math.round(Math.min(MAX_SQUARES, Math.max(1, n))) * DEFAULT_GRID.size;
 
 export function newMap(
   name: string,
   existingIds: readonly string[],
   now: string,
-  kind: MapKind = 'battle',
+  squares?: { w: number; h: number },
 ): MapDoc {
   const ids: string[] = [];
   const layer = (n: string): Layer => {
@@ -474,14 +472,10 @@ export function newMap(
     name: name.trim() || 'Map',
     createdAt: now,
     updatedAt: now,
-    width: 2800,
-    height: 2100,
-    kind,
-    grid: kind === 'world' ? { ...DEFAULT_GRID, type: 'none' } : { ...DEFAULT_GRID },
-    layers:
-      kind === 'world'
-        ? [layer('Land'), layer('Routes'), layer('Places and labels')]
-        : [layer('Ground'), layer('Objects'), layer('Walls and notes')],
+    width: sizeInSquares(squares?.w ?? 40),
+    height: sizeInSquares(squares?.h ?? 30),
+    grid: { ...DEFAULT_GRID },
+    layers: [layer('Ground'), layer('Objects'), layer('Walls and notes')],
   };
 }
 
@@ -674,7 +668,7 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
   }
   if (!isObj(json)) return null;
   const g = isObj(json.grid) ? json.grid : {};
-  const type: GridType = g.type === 'hex' || g.type === 'none' ? g.type : 'square';
+  const type: GridType = g.type === 'hex' ? 'hex' : 'square';
   const drawn = (Array.isArray(json.layers) ? json.layers : []).flatMap((l): Layer[] =>
     isObj(l) && typeof l.id === 'string'
       ? [
@@ -731,7 +725,6 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
     version: 2,
     id,
     name: typeof json.name === 'string' ? json.name : 'Map',
-    ...(json.kind === 'battle' || json.kind === 'world' ? { kind: json.kind } : {}),
     ...(json.pinStyle === 'fantasy' ? { pinStyle: 'fantasy' as const } : {}),
     ...(PAPERS.some((p) => p.id === json.paper) ? { paper: json.paper as MapPaper } : {}),
     ...(isObj(json.elevation) &&
@@ -785,6 +778,8 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
       offsetY: num(g.offsetY, 0),
       feet: num(g.feet, 5),
       opacity: num(g.opacity, DEFAULT_GRID.opacity),
+      // Older maps without a grid (world maps) had type 'none': the grid stays hidden.
+      visible: g.type === 'none' ? false : g.visible !== false,
     },
     layers: layers.length ? layers : newMap('', [], '').layers,
     ...(variants.length ? { variants } : {}),
@@ -1112,13 +1107,11 @@ export interface MapFilter {
   folder: string;
   /** Tags a map must all have. */
   tags: readonly string[];
-  /** Only battle maps or only world and city maps. */
-  kind?: MapKind;
 }
 
 const words = (s: string) => s.toLowerCase().split(/\s+/).filter(Boolean);
 
-export function filterMaps<M extends Pick<MapDoc, 'name' | 'folder' | 'tags' | 'kind' | 'scale'>>(
+export function filterMaps<M extends Pick<MapDoc, 'name' | 'folder' | 'tags'>>(
   maps: readonly M[],
   filter: MapFilter,
 ): M[] {
@@ -1127,7 +1120,6 @@ export function filterMaps<M extends Pick<MapDoc, 'name' | 'folder' | 'tags' | '
     const inFolder = m.folder === filter.folder || m.folder?.startsWith(`${filter.folder}/`);
     if (filter.folder && !inFolder) return false;
     if (filter.tags.some((t) => !(m.tags ?? []).includes(t))) return false;
-    if (filter.kind && mapKind(m) !== filter.kind) return false;
     const text = [m.name, m.folder ?? '', ...(m.tags ?? [])].join(' ').toLowerCase();
     return wanted.every((w) => text.includes(w));
   });

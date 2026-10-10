@@ -4,7 +4,7 @@ import { Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import { useCampaigns } from '../../app/campaigns/store';
 import { useEncounters } from '../../app/encounters/store';
-import { mapFolders, mapKind, PAPERS, type MapDoc, type MapPaper } from '../../app/maps/model';
+import { mapFolders, PAPERS, type MapDoc, type MapPaper } from '../../app/maps/model';
 import { useMaps } from '../../app/maps/store';
 import { DEFAULT_SPEEDS, scaleForWidth, type DistanceUnit } from '../../app/maps/travel';
 import { NumberField, Section } from './PanelParts';
@@ -40,7 +40,8 @@ function ScaleAndTravel({ doc, commit }: Pick<MapPanelsProps, 'doc' | 'commit'>)
   return (
     <Section title="Scale and travel">
       <p className="text-xs text-muted">
-        For a world or region map: the measure tool then gives distances and travel times.
+        For a world or region map (optional): the measure tool then gives distances and travel
+        times.
       </p>
       <div className="grid grid-cols-[1fr_auto] gap-2">
         <label className="block text-sm">
@@ -239,27 +240,12 @@ function Filing({ doc, commit }: Pick<MapPanelsProps, 'doc' | 'commit'>) {
 
 export function MapSettings({ doc, commit, setTool, snap, setSnap }: MapPanelsProps) {
   const encounters = useEncounters((s) => s.encounters);
-  const world = mapKind(doc) === 'world';
   const g = doc.grid;
   const setGrid = (change: Partial<MapDoc['grid']>) => {
     commit((d) => ({ ...d, grid: { ...d.grid, ...change } }));
   };
   return (
     <>
-      <Section title="Kind of map">
-        <select
-          value={mapKind(doc)}
-          aria-label="Kind of map"
-          onChange={(e) => {
-            const kind = e.target.value === 'world' ? 'world' : 'battle';
-            commit((d) => ({ ...d, kind }));
-          }}
-          className={field}
-        >
-          <option value="battle">Battle map</option>
-          <option value="world">World or city map</option>
-        </select>
-      </Section>
       <Section title="Paper">
         <select
           value={doc.paper ?? 'parchment'}
@@ -314,115 +300,131 @@ export function MapSettings({ doc, commit, setTool, snap, setSnap }: MapPanelsPr
           <option value="plain">Plain</option>
           <option value="fantasy">Fantasy map: inked, old lettering</option>
         </select>
-        {doc.scaleBar && !doc.scale && mapKind(doc) === 'world' && (
-          <p className="text-xs text-muted">Give the map its real size (Scale and travel) first.</p>
+        {doc.scaleBar && !doc.scale && !doc.grid.visible && (
+          <p className="text-xs text-muted">
+            Show the grid or give the map its real size (Scale and travel) first.
+          </p>
         )}
       </Section>
       <Section title="Size">
         <div className="grid grid-cols-2 gap-2">
           <NumberField
-            label="Width (px)"
-            value={doc.width}
-            min={200}
+            label="Width (squares)"
+            value={Math.round(doc.width / doc.grid.size)}
+            min={1}
             onChange={(v) => {
-              commit((d) => ({ ...d, width: Math.min(16384, Math.max(200, v)) }));
+              commit((d) => ({
+                ...d,
+                width: Math.min(16384, Math.max(200, Math.round(v) * d.grid.size)),
+              }));
             }}
           />
           <NumberField
-            label="Height (px)"
-            value={doc.height}
-            min={200}
+            label="Height (squares)"
+            value={Math.round(doc.height / doc.grid.size)}
+            min={1}
             onChange={(v) => {
-              commit((d) => ({ ...d, height: Math.min(16384, Math.max(200, v)) }));
+              commit((d) => ({
+                ...d,
+                height: Math.min(16384, Math.max(200, Math.round(v) * d.grid.size)),
+              }));
             }}
           />
         </div>
-        <p className="text-xs text-muted">Adding the first picture (Layers) sizes the map to it.</p>
+        <p className="text-xs text-muted">
+          {doc.width} × {doc.height} px. Adding the first picture (Layers) sizes the map to it.
+        </p>
       </Section>
       <Filing key={doc.id} doc={doc} commit={commit} />
-      {world ? (
-        <ScaleAndTravel key={'scale-' + doc.id} doc={doc} commit={commit} />
-      ) : (
-        <Section title="Grid">
-          <label className="block text-sm">
-            Type
-            <select
-              value={g.type}
-              onChange={(e) => {
-                setGrid({ type: e.target.value as MapDoc['grid']['type'] });
-              }}
-              className={field}
-            >
-              <option value="square">Squares</option>
-              <option value="hex">Hexes</option>
-              <option value="none">No grid</option>
-            </select>
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            <NumberField
-              label="Cell size (px)"
-              value={g.size}
-              min={4}
-              onChange={(v) => {
-                setGrid({ size: Math.max(4, v) });
-              }}
-            />
-            <NumberField
-              label="Feet per cell"
-              value={g.feet}
-              min={1}
-              onChange={(v) => {
-                setGrid({ feet: Math.max(1, v) });
-              }}
-            />
-            <NumberField
-              label="Offset X"
-              value={g.offsetX}
-              onChange={(v) => {
-                setGrid({ offsetX: v });
-              }}
-            />
-            <NumberField
-              label="Offset Y"
-              value={g.offsetY}
-              onChange={(v) => {
-                setGrid({ offsetY: v });
-              }}
-            />
-          </div>
-          <label className="block text-sm">
-            Grid lines: {Math.round(g.opacity * 100)}%
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={Math.round(g.opacity * 100)}
-              onChange={(e) => {
-                setGrid({ opacity: Number(e.target.value) / 100 });
-              }}
-              className="w-full"
-            />
-          </label>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setTool('calibrate');
+      <Section title="Grid">
+        <label className="block text-sm">
+          Type
+          <select
+            value={g.type}
+            onChange={(e) => {
+              setGrid({ type: e.target.value as MapDoc['grid']['type'] });
             }}
+            className={field}
           >
-            <CALIBRATE_ICON className="h-4 w-4" aria-hidden /> Fit the grid to the picture
-          </Button>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={snap}
-              onChange={(e) => {
-                setSnap(e.target.checked);
-              }}
-            />
-            Snap to the grid
-          </label>
-        </Section>
-      )}
+            <option value="square">Squares</option>
+            <option value="hex">Hexes</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={g.visible}
+            onChange={(e) => {
+              setGrid({ visible: e.target.checked });
+            }}
+          />
+          Show the grid
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <NumberField
+            label="Cell size (px)"
+            value={g.size}
+            min={4}
+            onChange={(v) => {
+              setGrid({ size: Math.max(4, v) });
+            }}
+          />
+          <NumberField
+            label="Feet per cell"
+            value={g.feet}
+            min={1}
+            onChange={(v) => {
+              setGrid({ feet: Math.max(1, v) });
+            }}
+          />
+          <NumberField
+            label="Offset X"
+            value={g.offsetX}
+            onChange={(v) => {
+              setGrid({ offsetX: v });
+            }}
+          />
+          <NumberField
+            label="Offset Y"
+            value={g.offsetY}
+            onChange={(v) => {
+              setGrid({ offsetY: v });
+            }}
+          />
+        </div>
+        <label className="block text-sm">
+          Grid lines: {Math.round(g.opacity * 100)}%
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={Math.round(g.opacity * 100)}
+            onChange={(e) => {
+              setGrid({ opacity: Number(e.target.value) / 100 });
+            }}
+            className="w-full"
+          />
+        </label>
+        <Button
+          variant="ghost"
+          onClick={() => {
+            setTool('calibrate');
+          }}
+        >
+          <CALIBRATE_ICON className="h-4 w-4" aria-hidden /> Fit the grid to the picture
+        </Button>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={snap}
+            onChange={(e) => {
+              setSnap(e.target.checked);
+            }}
+          />
+          Snap to the grid
+        </label>
+      </Section>
+      <ScaleAndTravel key={'scale-' + doc.id} doc={doc} commit={commit} />
       <Section title="Encounter">
         <label className="block text-sm">
           Fought here

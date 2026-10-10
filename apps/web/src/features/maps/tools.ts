@@ -23,7 +23,7 @@ import {
   Type,
   type LucideIcon,
 } from 'lucide-react';
-import type { MapKind, TemplateShape } from '../../app/maps/model';
+import type { TemplateShape } from '../../app/maps/model';
 import type { RoofStyle } from '../../app/maps/cityDoc';
 import type { BrushMode } from '../../app/maps/elevation';
 import type { DoorKind } from '../../app/maps/rooms';
@@ -129,15 +129,10 @@ const CREATOR_TOOLS = new Set<Tool>([
 ]);
 const VIEWER_TOOLS = new Set<Tool>(['pan', 'select', 'pin', 'route', 'measure', 'template', 'fog']);
 
-/** The tools a mode shows, in tool bar order. Routes are for world maps, templates for battle maps. */
-export function toolsFor(kind: MapKind, mode: MapMode): typeof TOOLS {
+/** The tools a mode shows, in tool bar order. A map has no type: every tool is always there. */
+export function toolsFor(mode: MapMode): typeof TOOLS {
   const set = mode === 'creator' ? CREATOR_TOOLS : VIEWER_TOOLS;
-  return TOOLS.filter((t) => {
-    if (!set.has(t.id)) return false;
-    if (t.id === 'route') return kind === 'world';
-    if (t.id === 'template') return kind === 'battle';
-    return true;
-  });
+  return TOOLS.filter((t) => set.has(t.id));
 }
 
 export const CALIBRATE_ICON = Crosshair;

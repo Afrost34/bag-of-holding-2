@@ -2,7 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { measurePath, measurePoint } from './measure';
 import type { Grid } from './model';
 
-const grid: Grid = { type: 'square', size: 50, offsetX: 0, offsetY: 0, feet: 5, opacity: 1 };
+const grid: Grid = {
+  type: 'square',
+  size: 50,
+  offsetX: 0,
+  offsetY: 0,
+  feet: 5,
+  opacity: 1,
+  visible: true,
+};
 
 describe('measuring a path', () => {
   it('adds up every leg, in feet on a grid', () => {
@@ -15,7 +23,7 @@ describe('measuring a path', () => {
 
   it('says how far and how long on a map with a scale', () => {
     const basis = {
-      grid: { ...grid, type: 'none' as const },
+      grid: { ...grid, visible: false },
       scale: { unit: 'km' as const, perPixel: 10 },
       travel: [{ name: 'Skiff', perDay: 100 }],
     };
