@@ -420,6 +420,19 @@ test('asset packs are imported as zips, browsed with previews, and their stamps 
   await waitForSaved(page, 'maps', '"stamp":"pack:');
   await waitForSaved(page, 'maps', '"w":140,"h":140');
   await canvas.screenshot({ path: testInfo.outputPath('pack-stamp.png') });
+  // The pictures the map uses have a view of their own; a fuzzy search finds letters in order.
+  await page.getByRole('tab', { name: 'Stamps', exact: true }).click();
+  await page.getByLabel('Find a pack picture').fill('');
+  await page.getByRole('button', { name: /^Used on this map \(1\)/ }).click();
+  await expect(pictures.getByRole('button')).toHaveCount(1);
+  await expect(pictures.getByRole('button', { name: 'Well Stone A1' })).toBeVisible();
+  await page.getByRole('button', { name: 'All', exact: true }).click();
+  await page.getByLabel('Find a pack picture').fill('wll');
+  await expect(pictures.getByRole('button')).toHaveCount(0);
+  await page.getByLabel('Fuzzy search').check();
+  await expect(pictures.getByRole('button')).toHaveCount(1);
+  await page.getByLabel('Fuzzy search').uncheck();
+  await page.getByLabel('Find a pack picture').fill('');
   // Importing the same zip again adds nothing.
   await page.getByRole('tab', { name: 'Stamps', exact: true }).click();
   const again = page.waitForEvent('filechooser');

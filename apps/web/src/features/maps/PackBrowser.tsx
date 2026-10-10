@@ -59,11 +59,14 @@ export function PackBrowser({
   selected,
   onPick,
   onUseAsMix,
+  used,
 }: {
   selected: string | null;
   onPick: (ref: string, aspect: number, squares?: { w: number; h: number }) => void;
   /** Scatter these pictures (a folder, or a search): trees, rocks, a whole set. */
   onUseAsMix?: ((refs: string[]) => void) | undefined;
+  /** The pack pictures the map uses: a view of just those. */
+  used?: ReadonlySet<string> | undefined;
 }) {
   const { metas, entries, loaded, load, importFiles, remove } = usePacks();
   const [prefix, setPrefix] = useState('');
@@ -72,15 +75,24 @@ export function PackBrowser({
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [managing, setManaging] = useState(false);
+  const [view, setView] = useState<'all' | 'used'>('all');
+  const [fuzzy, setFuzzy] = useState(false);
   const search = useDeferredValue(query);
   useEffect(() => {
     if (!loaded) void load();
   }, [loaded, load]);
 
   const folders = useMemo(() => foldersUnder(entries, prefix), [entries, prefix]);
+  const options = useMemo(
+    () => ({
+      fuzzy,
+      ...(view === 'used' && used ? { only: (e: PackEntry) => used.has(entryRef(e)) } : {}),
+    }),
+    [fuzzy, view, used],
+  );
   const found = useMemo(
-    () => findPackEntries(entries, prefix, search, limit),
-    [entries, prefix, search, limit],
+    () => findPackEntries(entries, prefix, search, limit, options),
+    [entries, prefix, search, limit, options],
   );
   const crumbs = prefix ? prefix.split('/') : [];
 
@@ -211,6 +223,44 @@ export function PackBrowser({
               className="w-full rounded-md border border-border bg-surface py-1.5 pr-2 pl-8 text-sm"
             />
           </label>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <div role="group" aria-label="Pictures shown" className="flex gap-1">
+              {(
+                [
+                  ['all', 'All'],
+                  ['used', `Used on this map${used ? ` (${String(used.size)})` : ''}`],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  aria-pressed={view === id}
+                  disabled={id === 'used' && !used}
+                  onClick={() => {
+                    setView(id);
+                    setLimit(PAGE);
+                  }}
+                  className={cn(
+                    'rounded-md border px-2 py-1',
+                    view === id ? 'border-accent bg-accent-soft font-medium' : 'border-border',
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <label className="flex items-center gap-1">
+              <input
+                type="checkbox"
+                checked={fuzzy}
+                onChange={(e) => {
+                  setFuzzy(e.target.checked);
+                  setLimit(PAGE);
+                }}
+              />
+              Fuzzy search
+            </label>
+          </div>
           <nav aria-label="Pack folders" className="flex flex-wrap items-center gap-0.5 text-xs">
             <button
               type="button"
@@ -266,7 +316,7 @@ export function PackBrowser({
               variant="ghost"
               onClick={() => {
                 // Up to 40, spread over the whole set when there are more.
-                const all = findPackEntries(entries, prefix, search, 400).list;
+                const all = findPackEntries(entries, prefix, search, 400, options).list;
                 const stride = Math.max(1, Math.ceil(all.length / 40));
                 onUseAsMix(all.filter((_, i) => i % stride === 0).map(entryRef));
               }}

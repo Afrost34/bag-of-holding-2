@@ -1,6 +1,7 @@
 import { cn } from '@boh/ui';
 import { X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { usedPackRefs } from '../../app/maps/packUse';
 import { ArrangePanel } from './ArrangePanel';
 import { ItemSettings } from './ItemSettings';
 import { ElevationPanel } from './ElevationPanel';
@@ -21,6 +22,7 @@ import { ToolSettings } from './ToolSettings';
 export function MapPanels(props: MapPanelsProps) {
   const { open, onClose, selected, tool, mode } = props;
   const creator = mode === 'creator';
+  const used = useMemo(() => usedPackRefs(props.doc), [props.doc]);
   const [tab, setTab] = useState<Tab>(creator ? 'stamps' : 'pins');
   // Another tool or tab shows from its top, not from where the last one was scrolled to.
   const scroller = useRef<HTMLDivElement>(null);
@@ -110,6 +112,7 @@ export function MapPanels(props: MapPanelsProps) {
             selected={props.stamp}
             onPick={props.setStamp}
             onUseAsMix={props.onScatterMix}
+            used={used}
           />
         )}
         {tab === 'stamps' && ownsPanel && (

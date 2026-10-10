@@ -83,6 +83,38 @@ const words = (s: string) =>
     .filter(Boolean);
 
 /**
+ * Whether the letters of `word` appear in `hay` in order, not far apart: "oakt" finds "oak_tree",
+ * "tre" finds "tree" and "forst" finds "forest".
+ */
+export function fuzzyIncludes(hay: string, word: string): boolean {
+  if (hay.includes(word)) return true;
+  if (word.length === 0) return true;
+  for (
+    let start = hay.indexOf(word[0] ?? '');
+    start >= 0;
+    start = hay.indexOf(word[0] ?? '', start + 1)
+  ) {
+    let at = start;
+    let ok = true;
+    for (let i = 1; i < word.length && ok; i++) {
+      // Letters of one word stay close: a gap of more than 3 is another word.
+      const next = hay.indexOf(word[i] ?? '', at + 1);
+      if (next < 0 || next - at > 4) ok = false;
+      else at = next;
+    }
+    if (ok) return true;
+  }
+  return false;
+}
+
+export interface FindOptions<E> {
+  /** Letters in order rather than the exact word. */
+  fuzzy?: boolean;
+  /** Only these (the pictures the map uses). */
+  only?: (entry: E) => boolean;
+}
+
+/**
  * Pictures under a folder (and below it) whose path has every word of the search. With no search,
  * only the pictures directly in the folder.
  */
@@ -91,6 +123,7 @@ export function findPackEntries<E extends Pick<PackEntry, 'path'>>(
   prefix: string,
   query: string,
   limit: number,
+  options: FindOptions<E> = {},
 ): { list: E[]; total: number } {
   const lead = prefix ? `${prefix}/` : '';
   const wanted = words(query);
@@ -98,11 +131,14 @@ export function findPackEntries<E extends Pick<PackEntry, 'path'>>(
   let total = 0;
   for (const e of entries) {
     if (!e.path.startsWith(lead)) continue;
+    if (options.only && !options.only(e)) continue;
     if (wanted.length === 0) {
-      if (e.path.slice(lead.length).includes('/')) continue;
+      // A folder shows what is directly in it; the pictures a map uses show wherever they are.
+      if (!options.only && e.path.slice(lead.length).includes('/')) continue;
     } else {
       const hay = e.path.slice(lead.length).toLowerCase();
-      if (!wanted.every((w) => hay.includes(w))) continue;
+      const match = options.fuzzy ? fuzzyIncludes : (h: string, w: string) => h.includes(w);
+      if (!wanted.every((w) => match(hay, w))) continue;
     }
     total++;
     if (list.length < limit) list.push(e);

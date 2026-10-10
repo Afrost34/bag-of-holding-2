@@ -14,10 +14,13 @@ export function StampLibrary({
   selected,
   onPick,
   onUseAsMix,
+  used,
 }: {
   selected: string | null;
   onPick: Pick;
   onUseAsMix?: ((refs: string[]) => void) | undefined;
+  /** The pack pictures the map uses. */
+  used?: ReadonlySet<string> | undefined;
 }) {
   const [source, setSource] = useState<'packs' | 'mine'>('packs');
   return (
@@ -49,7 +52,7 @@ export function StampLibrary({
         ))}
       </div>
       {source === 'packs' ? (
-        <PackBrowser selected={selected} onPick={onPick} onUseAsMix={onUseAsMix} />
+        <PackBrowser selected={selected} onPick={onPick} onUseAsMix={onUseAsMix} used={used} />
       ) : (
         <MyStamps selected={selected} onPick={onPick} />
       )}
