@@ -33,6 +33,7 @@ import {
 import { pinIconSvg } from './pinIcons';
 import { glyphAspect, glyphIdOf, glyphTexture, isGlyphRef } from './glyphs';
 import { itemBox } from './arrange';
+import { heightsOf, shadeImage, type Elevation } from './elevation';
 import { alongLayout, targetLine } from './labels';
 import { buildingView, districtView } from './cityView';
 import { roomDoorsView, roomFloorView, roomWallView } from './roomView';
@@ -308,6 +309,8 @@ export class MapScene {
   private renderActive = false;
   /** Pictures and stamps still loading (see `settled`). */
   private loading = 0;
+  private readonly elevationView = new Container();
+  private elevationKey = '';
   private readonly fog = new Container();
   private fogKey = '';
   private readonly overlay = new Container();
@@ -365,6 +368,7 @@ export class MapScene {
       this.background,
       this.renderView,
       this.layers,
+      this.elevationView,
       this.fog,
       this.gridLines,
       this.scaleBarView,
@@ -590,6 +594,7 @@ export class MapScene {
         this.pictureViews.delete(key);
       }
     this.drawFog(doc);
+    this.drawElevation(doc.elevation);
     this.drawRender(doc);
     this.applyVisibility(doc);
     this.scalePins();
@@ -656,6 +661,35 @@ export class MapScene {
     sprite.scale.set(1 / k);
     sprite.alpha = this.forPlayers ? 1 : 0.5;
     this.fog.addChild(sprite);
+  }
+
+  /** Hill shading over the layers: one small picture, stretched over the map. */
+  private drawElevation(e: Elevation | undefined, heights?: Uint8Array): void {
+    const key = e
+      ? [e.data.length, e.data.slice(0, 64), e.data.slice(-64), e.sea, e.strength, e.tint].join('|')
+      : '';
+    if (!heights && key === this.elevationKey) return;
+    this.elevationKey = heights ? '' : key;
+    for (const c of this.elevationView.removeChildren()) c.destroy({ children: true });
+    if (!e || typeof document === 'undefined') return;
+    const canvas = document.createElement('canvas');
+    canvas.width = e.w;
+    canvas.height = e.h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const pixels = shadeImage(e, heights ?? heightsOf(e));
+    ctx.putImageData(new ImageData(pixels, e.w, e.h), 0, 0);
+    const texture = Texture.from(canvas);
+    texture.source.scaleMode = 'linear';
+    const sprite = new Sprite(texture);
+    sprite.scale.set(e.cell);
+    this.elevationView.addChild(sprite);
+    this.requestRender();
+  }
+
+  /** Shows heights as they are being painted, before they are kept. */
+  previewElevation(e: Elevation, heights: Uint8Array): void {
+    this.drawElevation(e, heights);
   }
 
   /**

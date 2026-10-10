@@ -1188,3 +1188,27 @@ test('a label runs along a river, and the paper can be changed', async ({ page }
   await page.waitForTimeout(600);
   await canvas.screenshot({ path: testInfo.outputPath('silverrun.png') });
 });
+
+test('elevation is made, painted and shown as hill shading', async ({ page }, testInfo) => {
+  test.skip(isPhone(page), 'Painted on the desktop.');
+  test.setTimeout(60_000);
+  await newMap(page, 'The Spine', 'World or city map');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  await tool(page, 'Elevation').click();
+  await page.getByRole('button', { name: 'Generate terrain' }).click();
+  await waitForSaved(page, 'maps', '"elevation"');
+  await expect(page.getByRole('radio', { name: /Raise/ })).toBeChecked();
+  // A ridge painted on top.
+  await page.mouse.move(box.x + 150, box.y + 250);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 400, box.y + 200, { steps: 10 });
+  await page.mouse.up();
+  await page.waitForTimeout(500);
+  await canvas.screenshot({ path: testInfo.outputPath('spine.png') });
+  // Hidden by taking the shading to nothing; gone with Remove.
+  await page.getByRole('slider', { name: /^How much it shows/ }).fill('0');
+  await page.getByRole('button', { name: 'Remove the elevation' }).click();
+  await expect(page.getByRole('button', { name: 'Start with flat land' })).toBeVisible();
+});

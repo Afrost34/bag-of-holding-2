@@ -6,6 +6,7 @@ import { type ScatterSettings } from '../../app/maps/scatterDoc';
 import {
   type BrushSettings,
   type BuildingSettings,
+  type ElevationBrush,
   type AreaSettings,
   type FogSettings,
   type IslandRequest,
@@ -46,6 +47,8 @@ export interface MapPanelsProps {
   setTemplate: (t: TemplateSettings) => void;
   fog: FogSettings;
   setFog: (f: FogSettings) => void;
+  elev: ElevationBrush;
+  setElev: (b: ElevationBrush) => void;
   roomSet: RoomSettings;
   setRoomSet: (s: RoomSettings) => void;
   /** A dungeon of this many rooms, filling the view. */

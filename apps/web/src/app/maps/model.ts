@@ -1,4 +1,5 @@
 import { newId } from '../cards/model';
+import type { Elevation } from './elevation';
 import { pointInPolygon } from './polygon';
 import type { RouteDash } from './lettering';
 import type { Door } from './rooms';
@@ -353,6 +354,8 @@ export interface MapDoc {
   pinStyle?: 'fantasy';
   /** A scale bar in the bottom-left corner: plain, or as on an old map (absent: none). */
   scaleBar?: 'plain' | 'fantasy';
+  /** Heights under the map, shown as hill shading (absent: flat). */
+  elevation?: Elevation;
   /** The paper under the map (absent: parchment). */
   paper?: MapPaper;
   /** Where it is filed in the maps list ('Battle maps/Dungeons'). */
@@ -680,6 +683,23 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
     ...(json.kind === 'battle' || json.kind === 'world' ? { kind: json.kind } : {}),
     ...(json.pinStyle === 'fantasy' ? { pinStyle: 'fantasy' as const } : {}),
     ...(PAPERS.some((p) => p.id === json.paper) ? { paper: json.paper as MapPaper } : {}),
+    ...(isObj(json.elevation) &&
+    typeof json.elevation.data === 'string' &&
+    num(json.elevation.w, 0) > 0 &&
+    num(json.elevation.h, 0) > 0 &&
+    num(json.elevation.cell, 0) > 0
+      ? {
+          elevation: {
+            w: num(json.elevation.w, 1),
+            h: num(json.elevation.h, 1),
+            cell: num(json.elevation.cell, 8),
+            data: json.elevation.data,
+            sea: num(json.elevation.sea, 90),
+            strength: num(json.elevation.strength, 0.6),
+            tint: json.elevation.tint === true,
+          },
+        }
+      : {}),
     ...(json.scaleBar === 'plain' || json.scaleBar === 'fantasy'
       ? { scaleBar: json.scaleBar }
       : {}),
@@ -800,6 +820,7 @@ export function artHash(doc: MapDoc): string {
     doc.width,
     doc.height,
     doc.paper ?? '',
+    doc.elevation ?? null,
     doc.layers.map((l) => [l.id, l.visible, l.picture ?? null, l.items.filter(isArt)]),
     (doc.variants ?? []).map((v) => [v.id, v.layers]),
   ]);
@@ -810,6 +831,7 @@ export function artHash(doc: MapDoc): string {
 
 /** Whether the map has anything to draw (a blank map needs no flat picture). */
 export const hasArt = (doc: MapDoc): boolean =>
+  doc.elevation !== undefined ||
   doc.layers.some((l) => l.picture !== undefined || l.items.some(isArt));
 
 /** A layer that holds items (not a picture): where things can be drawn. */

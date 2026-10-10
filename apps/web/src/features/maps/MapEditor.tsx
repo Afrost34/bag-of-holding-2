@@ -47,6 +47,7 @@ import {
   translateItem,
   type Mirror,
 } from '../../app/maps/arrange';
+import { encodeHeights, heightAt, heightsOf, paintHeights } from '../../app/maps/elevation';
 import { generateArchipelago } from '../../app/maps/islandgen';
 import { defaultLabelText, targetLine } from '../../app/maps/labels';
 import { doorOnWall, generateCave, generateDungeon, roomOutline } from '../../app/maps/rooms';
@@ -116,6 +117,7 @@ import {
   type AreaSettings,
   type BrushSettings,
   type BuildingSettings,
+  type ElevationBrush,
   type FogSettings,
   type IslandRequest,
   type PathSettings,
@@ -222,6 +224,9 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   });
   const [snap, setSnap] = useState(true);
   const [mirror, setMirror] = useState<Mirror>('off');
+  const [elev, setElev] = useState<ElevationBrush>({ mode: 'raise', radius: 160, strength: 0.5 });
+  /** The heights being painted, before the stroke is kept. */
+  const elevWork = useRef<Uint8Array | null>(null);
   /** Items picked besides `selected` (Shift+click). */
   const [group, setGroup] = useState<string[]>([]);
   const [viewing, setViewing] = useState(false);
@@ -838,6 +843,18 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       case 'template':
         drag.current = { mode: 'template', ...base, start: snap ? snapPoint(p) : p };
         return;
+      case 'elevation': {
+        const e = doc.elevation;
+        if (!e) return;
+        const work = heightsOf(e);
+        elevWork.current = work;
+        // Flatten pulls towards the height where the stroke began.
+        const target = heightAt(e, work, p.x, p.y);
+        paintHeights(work, e, p, elev.radius, elev.strength, elev.mode, target);
+        scene.previewElevation(e, work);
+        drag.current = { mode: 'elevation', ...base, index: target };
+        return;
+      }
       case 'room':
         if (!canDraw) return;
         if (roomSet.shape === 'rect') drag.current = { mode: 'room', ...base, start: snapPoint(p) };
@@ -1041,6 +1058,32 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         d.last = p;
         return;
       }
+      case 'elevation': {
+        const e = doc.elevation;
+        const work = elevWork.current;
+        if (!e || !work) return;
+        // Dabs all along the way since the last event, so a fast drag leaves no gaps.
+        const steps = Math.max(
+          1,
+          Math.ceil(Math.hypot(p.x - d.last.x, p.y - d.last.y) / (elev.radius / 4)),
+        );
+        for (let k = 1; k <= steps; k++)
+          paintHeights(
+            work,
+            e,
+            {
+              x: d.last.x + ((p.x - d.last.x) * k) / steps,
+              y: d.last.y + ((p.y - d.last.y) * k) / steps,
+            },
+            elev.radius,
+            elev.strength / 2,
+            elev.mode,
+            d.index,
+          );
+        scene.previewElevation(e, work);
+        d.last = p;
+        return;
+      }
       case 'room': {
         const end = snapPoint(p);
         scene.drawPreview((g) => {
@@ -1208,6 +1251,15 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         const next = [...measured, d.start];
         setMeasured(next);
         drawMeasured(next);
+        return;
+      }
+      case 'elevation': {
+        const work = elevWork.current;
+        elevWork.current = null;
+        if (!work) return;
+        commit((d2) =>
+          d2.elevation ? { ...d2, elevation: { ...d2.elevation, data: encodeHeights(work) } } : d2,
+        );
         return;
       }
       case 'room': {
@@ -1749,6 +1801,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             buildingSet={buildingSet}
             setBuildingSet={setBuildingSet}
             onGenerateTown={generateTownHere}
+            elev={elev}
+            setElev={setElev}
             roomSet={roomSet}
             setRoomSet={setRoomSet}
             onGenerateDungeon={generateDungeonHere}
