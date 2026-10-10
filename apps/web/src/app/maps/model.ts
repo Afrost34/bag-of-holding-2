@@ -168,6 +168,19 @@ export interface Variant {
   items: Record<string, boolean>;
 }
 
+/**
+ * A flat picture of the map's art, made on the device that draws it (the Creator), so devices
+ * without the stamp packs (a phone) see the map as it was drawn: one picture for each variant
+ * (`-` when there are none). It is only used while `hash` still matches the art.
+ */
+export interface MapRender {
+  hash: string;
+  width: number;
+  height: number;
+  /** Variant id (or `-`) → picture in the map assets. */
+  images: Record<string, string>;
+}
+
 /** A part of the map the players cannot see yet: a polygon, x0, y0, x1, y1… */
 export interface RevealShape {
   id: string;
@@ -199,6 +212,8 @@ export interface MapDoc {
   variants?: Variant[];
   /** The variant shown now (absent: each layer's own flag). */
   activeVariant?: string;
+  /** The flat picture of the art for devices without the packs (see `MapRender`). */
+  render?: MapRender;
   /** Hidden areas the players have not seen yet (the Viewer's fog); absent: nothing hidden. */
   reveal?: RevealShape[];
   /** The encounter fought here. */
@@ -232,6 +247,11 @@ export function mapThumbPath(id: string, campaign?: string): string {
 
 export function mapPath(id: string, campaign?: string): string {
   return `${mapDir(campaign)}/${id}.json`;
+}
+
+/** A flat picture of a map (`key`: a variant's id, or `-`). */
+export function mapRenderPath(id: string, key: string, campaign?: string): string {
+  return `${mapDir(campaign)}/${MAP_ASSETS}/render-${id}-${key}.webp`;
 }
 
 export function mapAssetPath(name: string, campaign?: string): string {
@@ -552,6 +572,20 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
     layers: layers.length ? layers : newMap('', [], '').layers,
     ...(variants.length ? { variants } : {}),
     ...(active ? { activeVariant: active } : {}),
+    ...(isObj(json.render) && typeof json.render.hash === 'string' && isObj(json.render.images)
+      ? {
+          render: {
+            hash: json.render.hash,
+            width: num(json.render.width, 1),
+            height: num(json.render.height, 1),
+            images: Object.fromEntries(
+              Object.entries(json.render.images).filter(
+                (e): e is [string, string] => typeof e[1] === 'string',
+              ),
+            ),
+          },
+        }
+      : {}),
     ...(Array.isArray(json.reveal)
       ? {
           reveal: json.reveal.flatMap((r): RevealShape[] =>
@@ -607,6 +641,29 @@ export function addPictureLayer(doc: MapDoc, name: string, picture: LayerPicture
     ? { ...doc, layers, width: picture.width, height: picture.height }
     : { ...doc, layers };
 }
+
+/** Pins and routes are the Viewer's; everything else is the map's art. */
+export const isArt = (item: MapItem): boolean => item.kind !== 'pin' && item.kind !== 'route';
+
+/**
+ * A short fingerprint of what the art is: sizes, picture layers, art items, which layers each
+ * variant shows. Pins, routes, fog and names do not change it.
+ */
+export function artHash(doc: MapDoc): string {
+  const text = JSON.stringify([
+    doc.width,
+    doc.height,
+    doc.layers.map((l) => [l.id, l.visible, l.picture ?? null, l.items.filter(isArt)]),
+    (doc.variants ?? []).map((v) => [v.id, v.layers]),
+  ]);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0;
+  return `${h.toString(36)}-${text.length.toString(36)}`;
+}
+
+/** Whether the map has anything to draw (a blank map needs no flat picture). */
+export const hasArt = (doc: MapDoc): boolean =>
+  doc.layers.some((l) => l.picture !== undefined || l.items.some(isArt));
 
 /** A layer that holds items (not a picture): where things can be drawn. */
 export const isDrawable = (layer: Layer): boolean => layer.picture === undefined;

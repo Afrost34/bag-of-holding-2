@@ -856,3 +856,40 @@ test('fog hides areas from the players until they are revealed', async ({ page }
   await page.getByRole('button', { name: 'Clear all fog' }).click();
   await expect(areas).toHaveCount(0);
 });
+
+test('the Creator makes a flat picture of the art that the Viewer shows', async ({ page }) => {
+  test.skip(isPhone(page), 'Drawn on the desktop.');
+  test.setTimeout(90_000);
+  await newMap(page, 'Flat Fort');
+  const box = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
+  if (!box) throw new Error('no canvas');
+  await tool(page, 'Brush').click();
+  await page.mouse.move(box.x + 100, box.y + 100);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 400, box.y + 300, { steps: 8 });
+  await page.mouse.up();
+  // A few seconds later the picture is made and kept with the map.
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async () => {
+          try {
+            const root = await navigator.storage.getDirectory();
+            const assets = await (
+              await (await root.getDirectoryHandle('user-data')).getDirectoryHandle('maps')
+            ).getDirectoryHandle('assets');
+            for await (const [name] of assets.entries())
+              if (name.startsWith('render-') && name.endsWith('.webp')) return true;
+          } catch {
+            // The folder is not there yet.
+          }
+          return false;
+        }),
+      { timeout: 45_000 },
+    )
+    .toBe(true);
+  await switchMode(page, 'View map');
+  await expect(page.getByRole('application', { name: 'Map canvas' }).locator('canvas')).toHaveCount(
+    1,
+  );
+});

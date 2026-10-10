@@ -7,6 +7,8 @@ import {
   mapTags,
   type MapFilter,
   addFog,
+  artHash,
+  hasArt,
   fogHides,
   addPictureLayer,
   addVariant,
@@ -356,5 +358,36 @@ describe('kinds of map', () => {
     expect(
       filterMaps(maps, { q: '', folder: '', tags: [], kind: 'world' }).map((m) => m.name),
     ).toEqual(['Continent']);
+  });
+});
+
+describe('the fingerprint of the art', () => {
+  it('changes with the art, not with pins, routes or fog', () => {
+    const doc = newMap('Keep', [], 'now');
+    const layer = doc.layers[0]?.id ?? '';
+    const base = artHash(doc);
+    expect(hasArt(doc)).toBe(false);
+    const withPin = addItem(doc, layer, { kind: 'pin', id: 'p', x: 1, y: 2, label: 'Inn' });
+    const withRoute = addItem(withPin, layer, {
+      kind: 'route',
+      id: 'r',
+      points: [0, 0, 5, 5],
+      label: 'Road',
+      color: '#000',
+    });
+    expect(artHash(addFog(withRoute, rectPoints(0, 0, 9, 9)))).toBe(base);
+    const stroked = addItem(doc, layer, {
+      kind: 'stroke',
+      id: 's',
+      points: [0, 0, 9, 9],
+      color: '#111',
+      width: 4,
+      brush: 'pen',
+      opacity: 1,
+    });
+    expect(hasArt(stroked)).toBe(true);
+    expect(artHash(stroked)).not.toBe(base);
+    expect(artHash(setLayerShown(doc, layer, false))).not.toBe(base);
+    expect(artHash({ ...doc, width: doc.width + 1 })).not.toBe(base);
   });
 });

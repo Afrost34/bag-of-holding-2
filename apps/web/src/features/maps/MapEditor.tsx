@@ -24,11 +24,14 @@ import { emptyHistory, record, redo as redoStep, undo as undoStep } from '../../
 import { journalPath } from '../../app/journal/paths';
 import { useJournal } from '../../app/journal/store';
 import { useStamps } from '../../app/maps/assets';
+import { bakeMap } from '../../app/maps/render';
 import { snapToCell, snapToCorner, templateOutline, type Point } from '../../app/maps/geometry';
 import {
   addFog,
   addItem,
+  artHash,
   findItem,
+  hasArt,
   isDrawable,
   itemId,
   mapKind,
@@ -159,6 +162,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     if (!el) return;
     const s = new MapScene();
     s.hideAnnotations = creator;
+    s.useRender = !creator;
     s.onLoading = setLoadingPicture;
     let live = true;
     void s.init(el).then(() => {
@@ -179,6 +183,33 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     const found = selected ? findItem(doc, selected) : undefined;
     scene?.select(found?.item ?? null);
   }, [scene, doc, selected]);
+
+  // A few seconds after the art last changed, the Creator makes the flat picture other devices
+  // (a phone without the packs) show instead of drawing it.
+  const hash = artHash(doc);
+  const baked = doc.render?.hash;
+  const artful = hasArt(doc);
+  useEffect(() => {
+    if (!creator || !scene || !artful || baked === hash) return;
+    let live = true;
+    const timer = setTimeout(() => {
+      const current = useMaps.getState().maps.find((x) => x.id === docId);
+      if (!current || artHash(current) !== hash) return;
+      void bakeMap(current)
+        .then((render) => {
+          const latest = useMaps.getState().maps.find((x) => x.id === docId);
+          if (live && latest && artHash(latest) === hash)
+            useMaps.getState().save({ ...latest, render });
+        })
+        .catch((error: unknown) => {
+          console.warn('Could not make the flat picture of the map', error);
+        });
+    }, 4000);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [creator, scene, artful, baked, hash, docId]);
 
   /** Changes the map as stored now, keeping the change for undo. */
   const commit = useCallback(

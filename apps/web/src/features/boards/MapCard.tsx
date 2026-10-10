@@ -81,6 +81,7 @@ export function MapBody({ card }: { card: Extract<BoardCard, { kind: 'map' }> })
     const s = new MapScene();
     s.followResize = true;
     s.forPlayers = forPlayers;
+    s.useRender = true;
     let live = true;
     void s.init(el).then(() => {
       if (!live) return;

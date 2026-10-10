@@ -37,7 +37,7 @@ export const useMaps = create<MapsStore>()((set, get) => {
       serialize: serializeMap,
       stale: mapIsStale,
       // Its thumbnail goes with it.
-      alongside: (m) => [mapThumbPath(m.id, m.campaign)],
+      alongside: (m) => [mapThumbPath(m.id, m.campaign), ...Object.values(m.render?.images ?? {})],
     },
     {
       get: () => get().maps,
