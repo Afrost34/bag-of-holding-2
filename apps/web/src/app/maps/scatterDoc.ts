@@ -132,6 +132,8 @@ export function scatterSetup(
       sizeMax: item.sizeMax,
       weights: item.pieces.map((p) => p.weight),
       rotation: item.rotation,
+      rotMin: item.rotMin,
+      rotMax: item.rotMax,
       cluster: item.cluster,
       offset: item.offset,
       sides: item.sides,
@@ -431,6 +433,8 @@ export interface ScatterSettings {
   sizeMin: number;
   sizeMax: number;
   rotation: 'none' | 'random' | 'along' | 'quarter';
+  rotMin?: number | undefined;
+  rotMax?: number | undefined;
   cluster: number;
   offset: number;
   sides: 'center' | 'both' | 'left' | 'right';
@@ -479,6 +483,8 @@ export function makeScatter(
     sizeMin: Math.round(s.sizeMin * s.scale),
     sizeMax: Math.round(s.sizeMax * s.scale),
     rotation: s.rotation,
+    ...(s.rotMin !== undefined ? { rotMin: s.rotMin } : {}),
+    ...(s.rotMax !== undefined ? { rotMax: s.rotMax } : {}),
     cluster: s.cluster,
     offset: Math.round(s.offset * s.scale),
     sides: s.sides,

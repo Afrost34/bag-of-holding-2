@@ -22,6 +22,8 @@ interface Controls {
   sizeMin: number;
   sizeMax: number;
   rotation: 'none' | 'random' | 'along' | 'quarter';
+  rotMin?: number | undefined;
+  rotMax?: number | undefined;
   cluster: number;
   offset: number;
   sides: 'center' | 'both' | 'left' | 'right';
@@ -266,6 +268,32 @@ function ScatterControls({
           {value.mode === 'along' && <option value="along">Along the line</option>}
         </select>
       </label>
+      {value.rotation === 'random' && (
+        <>
+          <Slider
+            label="Turn from"
+            value={value.rotMin ?? 0}
+            min={0}
+            max={360}
+            step={5}
+            display={`${String(value.rotMin ?? 0)}°`}
+            onChange={(rotMin) => {
+              onChange({ rotMin, rotMax: Math.max(rotMin, value.rotMax ?? 360) });
+            }}
+          />
+          <Slider
+            label="Turn to"
+            value={value.rotMax ?? 360}
+            min={0}
+            max={360}
+            step={5}
+            display={`${String(value.rotMax ?? 360)}°`}
+            onChange={(rotMax) => {
+              onChange({ rotMax, rotMin: Math.min(rotMax, value.rotMin ?? 0) });
+            }}
+          />
+        </>
+      )}
       <label className="block text-sm">
         Only on
         <select

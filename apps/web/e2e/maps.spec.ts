@@ -1589,3 +1589,18 @@ test('the terrain brush has a soft edge, and [ ] size it', async ({ page }) => {
   await expect.poll(async () => (await savedStrokes(page)).length).toBe(2);
   expect((await savedStrokes(page)).map((x) => x.soft ?? 0).sort()).toEqual([0, 0.8]);
 });
+
+test('scatter turns its pieces within a range', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Turns');
+  await tool(page, 'Scatter').click();
+  await page.getByLabel('Rotation of pieces').selectOption('random');
+  const from = page.getByText(/^Turn from:/);
+  const to = page.getByText(/^Turn to:/);
+  await expect(from).toBeVisible();
+  await expect(to).toContainText('360°');
+  await to.getByRole('slider').fill('90');
+  await expect(to).toContainText('90°');
+  await page.getByLabel('Rotation of pieces').selectOption('none');
+  await expect(from).toHaveCount(0);
+});

@@ -127,6 +127,9 @@ type MapItemBody =
       sizeMin: number;
       sizeMax: number;
       rotation: 'none' | 'random' | 'along' | 'quarter';
+      /** Random turning between these (degrees); all the way round when absent. */
+      rotMin?: number;
+      rotMax?: number;
       /** 0 even, 1 groves with clearings. */
       cluster: number;
       offset: number;

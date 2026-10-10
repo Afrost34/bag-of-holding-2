@@ -116,3 +116,22 @@ describe('noise', () => {
     expect(Math.abs(noise2(2, 2, 1) - noise2(2.01, 2, 1))).toBeLessThan(0.1);
   });
 });
+
+describe('turning pieces within a range', () => {
+  it('keeps random angles between the least and most turn', () => {
+    const list = scatterInstances({ ...base, rotMin: -20, rotMax: 20 }, none);
+    expect(list.length).toBeGreaterThan(40);
+    for (const p of list) {
+      const deg = (p.angle * 180) / Math.PI;
+      expect(deg).toBeGreaterThanOrEqual(-20);
+      expect(deg).toBeLessThanOrEqual(20);
+    }
+  });
+
+  it('turns all the way round without a range, and not at all when the ends are the same', () => {
+    const wide = scatterInstances(base, none).map((p) => p.angle);
+    expect(Math.max(...wide)).toBeGreaterThan(Math.PI);
+    const still = scatterInstances({ ...base, rotMin: 90, rotMax: 90 }, none);
+    expect(still.every((p) => Math.abs(p.angle - Math.PI / 2) < 1e-9)).toBe(true);
+  });
+});
