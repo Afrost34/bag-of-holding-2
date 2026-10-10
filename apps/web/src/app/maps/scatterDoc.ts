@@ -489,6 +489,58 @@ export function makeScatter(
   };
 }
 
+/**
+ * How big a piece is: a glyph is as wide as its size says. A pack picture whose name gives its
+ * size in squares (`Oak_2x2.webp`) keeps that size on the map's grid and the size range only varies
+ * it (0.8–1.2 times, say), so a mix of big and small trees keeps each one's proportions. Anything
+ * else is as wide as its size says, with the aspect given (or square).
+ */
+export function pieceBox(
+  doc: MapDoc,
+  item: ScatterItem,
+  inst: Instance,
+  aspect = 1,
+): { w: number; h: number; base: boolean } {
+  const ref = item.pieces[inst.piece]?.ref ?? '';
+  if (isGlyphRef(ref)) return { w: inst.size, h: inst.size / glyphAspect(ref), base: true };
+  const parsed = parsePackRef(ref);
+  const squares = parsed ? squaresOf(parsed.path) : null;
+  if (squares) {
+    const middle = Math.max(1, (item.sizeMin + item.sizeMax) / 2);
+    const w = squares.w * doc.grid.size * (inst.size / middle);
+    return { w, h: (w * squares.h) / squares.w, base: false };
+  }
+  return { w: inst.size, h: inst.size / aspect, base: false };
+}
+
+/**
+ * Settings that scatter a whole set of pack pictures: spacing from how big they are on the grid,
+ * the size range as a variation around each picture's own size, turned any way (top-down art).
+ */
+export function mixSettings(
+  refs: readonly string[],
+  base: ScatterSettings,
+  gridSize: number,
+): ScatterSettings {
+  const widths = refs
+    .map((r) => {
+      const parsed = parsePackRef(r);
+      return parsed ? (squaresOf(parsed.path)?.w ?? 1) : 1;
+    })
+    .sort((a, b) => a - b);
+  const typical = widths[Math.floor(widths.length / 2)] ?? 1;
+  return {
+    ...base,
+    preset: 'mix',
+    pieces: refs.map((ref) => ({ ref, weight: 1 })),
+    spacing: Math.round(Math.max(typical, 1) * gridSize * 1.1),
+    sizeMin: 80,
+    sizeMax: 120,
+    rotation: 'random',
+    scale: 1,
+  };
+}
+
 /** The scatter turned into loose stamps, one for each piece, where it stands now. */
 export function bakeScatter(doc: MapDoc, id: string): MapDoc {
   const item = allItems(doc).find((i): i is ScatterItem => i.kind === 'scatter' && i.id === id);
@@ -503,20 +555,16 @@ export function bakeScatter(doc: MapDoc, id: string): MapDoc {
   };
   const stamps: MapItem[] = scatterOf(doc, item).map((inst) => {
     const ref = item.pieces[inst.piece]?.ref ?? '';
-    const glyph = isGlyphRef(ref);
-    const parsed = parsePackRef(ref);
-    const squares = parsed ? squaresOf(parsed.path) : null;
-    const aspect = glyph ? glyphAspect(ref) : squares ? squares.w / squares.h : 1;
-    const h = inst.size / aspect;
+    const box = pieceBox(doc, item, inst);
     return {
       kind: 'stamp',
       id: fresh(),
       stamp: ref,
       x: Math.round(inst.x),
       // A glyph stands on its base: its centre is above where it stands.
-      y: Math.round(glyph ? inst.y - h * 0.42 : inst.y),
-      w: Math.round(inst.size),
-      h: Math.round(h),
+      y: Math.round(box.base ? inst.y - box.h * 0.42 : inst.y),
+      w: Math.round(box.w),
+      h: Math.round(box.h),
       rotation: Math.round((inst.angle * 180) / Math.PI) % 360,
     };
   });

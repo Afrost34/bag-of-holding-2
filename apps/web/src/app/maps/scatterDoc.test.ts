@@ -4,6 +4,8 @@ import {
   bakeScatter,
   FURNISH_PRESETS,
   makeScatter,
+  mixSettings,
+  pieceBox,
   obstacleSignature,
   SCATTER_PRESETS,
   scatterOf,
@@ -215,5 +217,52 @@ describe('furnishing a room', () => {
       i.kind === 'room' ? { ...i, points: square(700, 700, 400) } : i,
     );
     expect(scatterOf(moved, furniture).every((p) => p.x > 700 && p.y > 700)).toBe(true);
+  });
+});
+
+const firstFurnish = FURNISH_PRESETS[0];
+if (!firstFurnish) throw new Error('preset');
+
+describe('scatter with pack pictures', () => {
+  const refs = [
+    'pack:p1:Forest/Oak_A1_2x2.webp',
+    'pack:p1:Forest/Bush_B1_1x1.webp',
+    'pack:p1:Forest/Pine_C1_3x3.webp',
+  ];
+  const square900 = [0, 0, 900, 0, 900, 900, 0, 900];
+
+  it('takes its spacing from the pictures and gives each its own proportions', () => {
+    const mix = mixSettings(refs, settingsFromPreset(firstFurnish), 70);
+    expect(mix.pieces.map((p) => p.ref)).toEqual(refs);
+    // The middle of the widths is 2 squares: 2 x 70 x 1.1.
+    expect(mix.spacing).toBe(154);
+    expect(mix.rotation).toBe('random');
+    const start = newMap('Wood', [], 'now');
+    const layer = start.layers[0]?.id ?? '';
+    const item = makeScatter('w', mix, { points: square900 }, 2);
+    const doc = addItem(start, layer, item);
+    const inst = { x: 0, y: 0, angle: 0, size: 100, piece: 0 };
+    // An oak of 2 x 2 squares at the middle of the size range: 140 wide, square.
+    expect(pieceBox(doc, item, inst)).toEqual({ w: 140, h: 140, base: false });
+    expect(pieceBox(doc, item, { ...inst, piece: 1 }).w).toBe(70);
+    expect(pieceBox(doc, item, { ...inst, piece: 2 }).w).toBe(210);
+    // The size range varies it: 120 is 1.2 times the natural size.
+    expect(pieceBox(doc, item, { ...inst, size: 120 }).w).toBe(168);
+    // A glyph is as wide as asked, standing on its base.
+    const glyph = makeScatter('g', settingsFromPreset(firstFurnish), { points: [] }, 1);
+    expect(pieceBox(doc, glyph, { ...inst, size: 50 }).base).toBe(true);
+  });
+
+  it('bakes into stamps of the pictures own sizes', () => {
+    const mix = mixSettings(refs.slice(0, 1), settingsFromPreset(firstFurnish), 70);
+    const start = newMap('Wood', [], 'now');
+    const layer = start.layers[0]?.id ?? '';
+    const doc = addItem(start, layer, makeScatter('w', mix, { points: square900 }, 2));
+    const stamps = bakeScatter(doc, 'w')
+      .layers.flatMap((l) => l.items)
+      .filter((i) => i.kind === 'stamp');
+    expect(stamps.length).toBeGreaterThan(4);
+    // 2 x 2 squares on a grid of 70, within the 0.8 to 1.2 variation.
+    expect(stamps.every((s) => s.w >= 110 && s.w <= 170 && s.w === s.h)).toBe(true);
   });
 });

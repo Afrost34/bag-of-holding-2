@@ -55,6 +55,7 @@ import {
   DEFAULT_SCATTER,
   FURNISH_PRESETS,
   makeScatter,
+  mixSettings,
   SCATTER_PRESETS,
   settingsFromPreset,
   type ScatterSettings,
@@ -631,6 +632,14 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         }),
       ),
     );
+  };
+
+  /** The Scatter tool takes a set of pack pictures as its mix (trees, rocks, a whole folder). */
+  const scatterWithPictures = (refs: string[]) => {
+    if (refs.length === 0) return;
+    setScatter(mixSettings(refs, scatter, doc.grid.size));
+    setTool('scatter');
+    setPanelOpen(true);
   };
 
   /** A room furnished: a scatter of furniture tied to it, so it follows when the room changes. */
@@ -1837,6 +1846,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             scatter={scatter}
             setScatter={setScatter}
             onScatterOn={scatterOn}
+            onScatterMix={scatterWithPictures}
             onFurnish={furnishRoom}
             area={area}
             setArea={setArea}

@@ -10,7 +10,15 @@ type Pick = (path: string, aspect: number, squares?: { w: number; h: number }) =
  * The stamp library: asset packs imported as zips, and your own pictures (folders whose
  * sub-folders become categories). Picking one starts the stamp tool with it.
  */
-export function StampLibrary({ selected, onPick }: { selected: string | null; onPick: Pick }) {
+export function StampLibrary({
+  selected,
+  onPick,
+  onUseAsMix,
+}: {
+  selected: string | null;
+  onPick: Pick;
+  onUseAsMix?: ((refs: string[]) => void) | undefined;
+}) {
   const [source, setSource] = useState<'packs' | 'mine'>('packs');
   return (
     <section aria-label="Stamps" className="space-y-2">
@@ -41,7 +49,7 @@ export function StampLibrary({ selected, onPick }: { selected: string | null; on
         ))}
       </div>
       {source === 'packs' ? (
-        <PackBrowser selected={selected} onPick={onPick} />
+        <PackBrowser selected={selected} onPick={onPick} onUseAsMix={onUseAsMix} />
       ) : (
         <MyStamps selected={selected} onPick={onPick} />
       )}

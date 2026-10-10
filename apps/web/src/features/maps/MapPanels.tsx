@@ -104,7 +104,11 @@ export function MapPanels(props: MapPanelsProps) {
         {(tool === 'room' || tool === 'door') && <RoomPanel {...props} />}
         {tool === 'building' && <BuildingPanel {...props} />}
         {tab === 'stamps' && !ownsPanel && (
-          <StampLibrary selected={props.stamp} onPick={props.setStamp} />
+          <StampLibrary
+            selected={props.stamp}
+            onPick={props.setStamp}
+            onUseAsMix={props.onScatterMix}
+          />
         )}
         {tab === 'stamps' && ownsPanel && (
           <p className="text-xs text-muted">The stamp library is here when the Stamp tool is on.</p>

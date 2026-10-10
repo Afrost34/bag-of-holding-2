@@ -65,6 +65,8 @@ export interface MapPanelsProps {
   setScatter: (s: ScatterSettings) => void;
   /** Scatter inside the picked shape, or along the picked path. */
   onScatterOn: (item: MapItem) => void;
+  /** Scatter with a set of pack pictures: the Scatter tool takes them as its mix. */
+  onScatterMix: (refs: string[]) => void;
   /** Furnish a room as a tavern, a storeroom… */
   onFurnish: (roomId: string, preset: string) => void;
   area: AreaSettings;

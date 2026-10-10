@@ -31,7 +31,7 @@ import {
   type MapItem,
 } from './model';
 import { pinIconSvg } from './pinIcons';
-import { glyphAspect, glyphIdOf, glyphTexture, isGlyphRef } from './glyphs';
+import { glyphIdOf, glyphTexture, isGlyphRef } from './glyphs';
 import { itemBox } from './arrange';
 import { heightsOf, shadeImage, type Elevation } from './elevation';
 import { alongLayout, targetLine } from './labels';
@@ -39,7 +39,7 @@ import { buildingView, districtView } from './cityView';
 import { roomDoorsView, roomFloorView, roomWallView } from './roomView';
 import { roomOutline } from './rooms';
 import { districtGeo, districtOutline } from './cityDoc';
-import { isTied, obstacleSignature, scatterLine, scatterOf } from './scatterDoc';
+import { isTied, obstacleSignature, pieceBox, scatterLine, scatterOf } from './scatterDoc';
 import { pathLine, pathView, shapeOutline, shapeView } from './shapes';
 import { pointInPolygon } from './polygon';
 import { TERRAINS, terrainTile, type TerrainId } from './terrain';
@@ -762,15 +762,13 @@ export class MapScene {
       if (holder.destroyed) return;
       for (const inst of list) {
         const texture = textures[inst.piece];
-        const ref = item.pieces[inst.piece]?.ref ?? '';
         if (!texture) continue;
         const sprite = new Sprite(texture);
-        const glyph = isGlyphRef(ref);
+        const box = pieceBox(doc, item, inst, texture.width / Math.max(1, texture.height));
         // Glyphs stand on their base; pictures are centred.
-        sprite.anchor.set(0.5, glyph ? 0.92 : 0.5);
-        const aspect = glyph ? glyphAspect(ref) : texture.width / Math.max(1, texture.height);
-        sprite.width = inst.size;
-        sprite.height = inst.size / aspect;
+        sprite.anchor.set(0.5, box.base ? 0.92 : 0.5);
+        sprite.width = box.w;
+        sprite.height = box.h;
         sprite.rotation = inst.angle;
         sprite.position.set(inst.x, inst.y);
         holder.addChild(sprite);

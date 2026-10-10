@@ -35,9 +35,11 @@ async function newMap(page: Page, name: string, kind?: 'World or city map') {
 /** The Creator draws the map, the Viewer uses it: this goes from one to the other. */
 async function switchMode(page: Page, to: 'View map' | 'Edit map') {
   await page.getByRole('link', { name: to }).click();
-  await expect(page.getByRole('application', { name: 'Map canvas' }).locator('canvas')).toHaveCount(
-    1,
-  );
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  await expect(canvas.locator('canvas')).toHaveCount(1);
+  // The page is laid out before anything measures it.
+  await expect(canvas).toBeVisible();
+  await page.waitForTimeout(200);
 }
 
 const tool = (page: Page, name: string) =>
@@ -1287,4 +1289,52 @@ test('a map moves between the library and a campaign with its pictures', async (
   // And back into the campaign.
   await page.getByLabel('Where the map lives').selectOption({ label: 'Rust and Sunfire' });
   await expect(page.getByLabel('Where the map lives')).not.toHaveValue('');
+});
+
+test('a folder of a pack becomes the mix of a scatter', async ({ page }, testInfo) => {
+  test.skip(isPhone(page), 'Drawn on the desktop.');
+  test.setTimeout(90_000);
+  await installData(page);
+  await newMap(page, 'Pack Woods');
+  const zip = Buffer.from(
+    zipSync({
+      'FA_Assets_Webp/Forest/Trees/Oak_A1_2x2.png': [PIXEL, { level: 0 }],
+      'FA_Assets_Webp/Forest/Trees/Oak_B1_2x2.png': [PIXEL, { level: 0 }],
+      'FA_Assets_Webp/Forest/Trees/Bush_A1_1x1.png': [PIXEL, { level: 0 }],
+      'FA_Assets_Webp/Forest/Rocks/Rock_A1_1x1.png': [PIXEL, { level: 0 }],
+    }),
+  );
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Import packs (zip)' }).click();
+  await (
+    await chooser
+  ).setFiles({ name: 'Forest_Pack.zip', mimeType: 'application/zip', buffer: zip });
+  await expect(page.getByRole('status').filter({ hasText: '1 added' })).toBeVisible();
+  const folders = page.getByRole('list', { name: 'Folders' });
+  await folders.getByRole('button', { name: /Forest/ }).click();
+  await page.getByRole('list', { name: 'Folders' }).getByRole('button', { name: /Trees/ }).click();
+  await page.getByRole('button', { name: /Scatter these \(3\)/ }).click();
+  await expect(tool(page, 'Scatter')).toHaveAttribute('aria-pressed', 'true');
+  // The mix now holds the three pictures.
+  await expect(
+    page.getByRole('list', { name: 'Stamps in the mix' }).getByRole('listitem'),
+  ).toHaveCount(3);
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  for (const [x, y] of [
+    [150, 150],
+    [450, 160],
+    [460, 380],
+    [140, 360],
+  ] as const)
+    await page.mouse.click(box.x + x, box.y + y);
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'maps', '"kind":"scatter"');
+  await waitForSaved(page, 'maps', '"ref":"pack:');
+  // Baked, the pictures keep their own sizes on the grid.
+  await page.getByRole('button', { name: 'Bake into stamps' }).click();
+  await waitForSaved(page, 'maps', '"stamp":"pack:');
+  await page.waitForTimeout(500);
+  await canvas.screenshot({ path: testInfo.outputPath('pack-woods.png') });
 });
