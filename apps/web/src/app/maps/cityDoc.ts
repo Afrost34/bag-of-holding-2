@@ -2,6 +2,7 @@ import { generateDistrict, type DistrictGeo, type DistrictSpec } from './city';
 import { generateIsland } from './islandgen';
 import { addItem, type MapDoc, type MapItem } from './model';
 import { centroid } from './polyclip';
+import { pointInPolygon } from './polygon';
 import { placementRules } from './scatterDoc';
 import { nearestOnPolyline, splinePoints } from './spline';
 
@@ -209,10 +210,29 @@ export function districtSetup(
   };
 }
 
-/** The district as generated now, without the buildings erased. */
+/** The rounded outlines of the holes cut in a district. */
+export const districtHoles = (item: DistrictItem): number[][] =>
+  (item.holes ?? []).filter((h) => h.length >= 6).map((h) => splinePoints(h, true, item.smooth));
+
+/** The district as generated now, without the buildings erased or what stands in a hole. */
 export function districtGeo(doc: MapDoc, item: DistrictItem): DistrictGeo {
   const { spec, rules } = districtSetup(doc, item);
-  const geo = generateDistrict(spec, rules.obstacles, rules.allowed);
+  let geo = generateDistrict(spec, rules.obstacles, rules.allowed);
+  const holes = districtHoles(item);
+  if (holes.length > 0) {
+    const inHole = (poly: readonly number[]) => {
+      const c = centroid(poly);
+      return holes.some((h) => pointInPolygon(c, h));
+    };
+    const { plaza, ...rest } = geo;
+    const keepPlaza = plaza && !holes.some((h) => pointInPolygon(plaza, h));
+    geo = {
+      ...rest,
+      blocks: geo.blocks.filter((b) => !inHole(b)),
+      buildings: geo.buildings.filter((b) => !inHole(b.poly)),
+      ...(keepPlaza ? { plaza } : {}),
+    };
+  }
   const removed = new Set(item.removed ?? []);
   return removed.size === 0
     ? geo

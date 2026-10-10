@@ -158,7 +158,16 @@ export function ItemSettings({
           }}
         />
       )}
-      {item.kind === 'district' && <DistrictItemSettings item={item} set={set} commit={commit} />}
+      {item.kind === 'district' && (
+        <DistrictItemSettings
+          item={item}
+          set={set}
+          commit={commit}
+          onCutHole={() => {
+            onCutHole(item.id);
+          }}
+        />
+      )}
       {item.kind === 'building' && <BuildingItemSettings item={item} set={set} />}
       {item.kind === 'room' && (
         <RoomItemSettings

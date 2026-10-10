@@ -494,7 +494,9 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       if (points.length >= 6)
         commit((d) =>
           updateItem(d, holeOf, (i) =>
-            i.kind === 'shape' ? { ...i, holes: [...(i.holes ?? []), points] } : i,
+            i.kind === 'shape' || i.kind === 'district'
+              ? { ...i, holes: [...(i.holes ?? []), points] }
+              : i,
           ),
         );
       setHoleOf(null);

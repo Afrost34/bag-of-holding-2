@@ -1854,3 +1854,27 @@ test('dragging over empty ground with Select picks what it goes over', async ({ 
   await page.mouse.click(box.x + 500, box.y + 450);
   await expect(page.getByRole('region', { name: 'Selection' })).toHaveCount(0);
 });
+
+test('a hole is cut out of a district', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  test.setTimeout(90_000);
+  await newMap(page, 'Park');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  await tool(page, 'District').click();
+  await page.getByRole('button', { name: 'Generate a walled town' }).click();
+  await waitForSaved(page, 'maps', '"wall":true');
+  await tool(page, 'Select and move').click();
+  await page.mouse.click(cx + 60, cy + 60);
+  await page.getByRole('button', { name: 'Cut a hole' }).click();
+  await page.keyboard.press('s');
+  await page.mouse.click(cx - 40, cy - 40);
+  await page.mouse.click(cx + 20, cy - 40);
+  await page.mouse.click(cx + 20, cy + 20);
+  await page.mouse.click(cx - 40, cy + 20);
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'maps', '"holes":[[');
+});

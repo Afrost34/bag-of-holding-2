@@ -2,6 +2,7 @@ import { Container, Graphics } from 'pixi.js';
 import type { DistrictGeo } from './city';
 import {
   DISTRICT_STYLES,
+  districtHoles,
   districtOutline,
   roofColorOf,
   shadedHalf,
@@ -75,6 +76,7 @@ export function districtView(item: DistrictItem, geo: DistrictGeo, look: RoofLoo
   const ground = new Graphics();
   if (outline.length >= 6) {
     ground.poly(outline).fill({ color: color(style.street) });
+    for (const hole of districtHoles(item)) ground.poly(hole).cut();
     for (const block of geo.blocks) {
       ground.poly(block).fill({ color: color(style.yard) });
       ground.poly(block).stroke({ color: INK, width: 0.8, alpha: 0.25, join: 'round' });

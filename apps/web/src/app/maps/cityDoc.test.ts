@@ -34,6 +34,21 @@ describe('districts in a map', () => {
     expect(big.lotArea).toBe(small.lotArea * 16);
   });
 
+  it('leave a hole free of buildings', () => {
+    const { doc, district } = withDistrict();
+    const plain = districtGeo(doc, district);
+    const hole = [300, 300, 600, 300, 600, 600, 300, 600];
+    const holed = districtGeo(doc, { ...district, holes: [hole] });
+    expect(holed.buildings.length).toBeLessThan(plain.buildings.length);
+    expect(
+      holed.buildings.some((b) => {
+        const c = centroid(b.poly);
+        return c.x > 300 && c.x < 600 && c.y > 300 && c.y < 600;
+      }),
+    ).toBe(false);
+    expect(holed.buildings.some((b) => centroid(b.poly).x < 300)).toBe(true);
+  });
+
   it('keep clear of roads and hand-made buildings', () => {
     const { doc, layer, district } = withDistrict();
     const plain = districtGeo(doc, district).buildings.length;

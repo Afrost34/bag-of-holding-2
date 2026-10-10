@@ -179,6 +179,8 @@ type MapItemBody =
       wall: boolean;
       avoid: 'auto' | 'none';
       removed?: string[];
+      /** Areas cut out of it (a park, a pond): control points of each, as the outline's. */
+      holes?: number[][];
     }
   /** A building drawn by hand (or baked from a district): its footprint and roof. */
   | {

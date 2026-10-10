@@ -1,6 +1,6 @@
 /** Town building: districts that generate streets and houses, and buildings drawn or saved by hand. */
 import { Button, cn } from '@boh/ui';
-import { Castle, Dices, Hammer, Save, Trash2 } from 'lucide-react';
+import { Castle, Dices, Hammer, Save, Scissors, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useBuildings } from '../../app/maps/buildings';
 import {
@@ -393,10 +393,13 @@ export function DistrictItemSettings({
   item,
   set,
   commit,
+  onCutHole,
 }: {
   item: DistrictItem;
   set: (change: (i: MapItem) => MapItem) => void;
   commit: MapPanelsProps['commit'];
+  /** Draw an area to cut out of this district. */
+  onCutHole: () => void;
 }) {
   const change = (patch: Partial<DistrictControlsValue>) => {
     set((i) => (i.kind === 'district' ? { ...i, ...patch } : i));
@@ -429,6 +432,23 @@ export function DistrictItemSettings({
         </p>
       )}
       <div className="flex flex-wrap gap-2">
+        <Button variant="ghost" onClick={onCutHole}>
+          <Scissors className="h-4 w-4" aria-hidden /> Cut a hole
+        </Button>
+        {(item.holes?.length ?? 0) > 0 && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              set((i) => {
+                if (i.kind !== 'district') return i;
+                const { holes: _h, ...rest } = i;
+                return rest;
+              });
+            }}
+          >
+            Fill the {item.holes?.length} {item.holes?.length === 1 ? 'hole' : 'holes'}
+          </Button>
+        )}
         <Button
           variant="ghost"
           onClick={() => {
