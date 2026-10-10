@@ -188,6 +188,23 @@ export function ItemSettings({
               <FlipVertical2 className="h-4 w-4" aria-hidden /> Flip up
             </Button>
           </div>
+          {(['shadow', 'blockLight'] as const).map((flag) => (
+            <label key={flag} className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={item[flag] === true}
+                onChange={(e) => {
+                  const on = e.target.checked;
+                  set((i) => {
+                    if (i.kind !== 'stamp') return i;
+                    const { [flag]: _old, ...rest } = i;
+                    return on ? { ...rest, [flag]: true } : rest;
+                  });
+                }}
+              />
+              {flag === 'shadow' ? 'Drop shadow' : 'Blocks light'}
+            </label>
+          ))}
           <p className="text-xs text-muted">Keys: R turns, [ and ] resize, Delete removes.</p>
         </>
       )}

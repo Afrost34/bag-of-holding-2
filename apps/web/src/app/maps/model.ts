@@ -68,6 +68,10 @@ type MapItemBody =
       rotation: number;
       flipX?: boolean;
       flipY?: boolean;
+      /** A soft shadow under it. */
+      shadow?: boolean;
+      /** Walls of light: it casts shadows from lights. */
+      blockLight?: boolean;
     }
   | {
       kind: 'stroke';

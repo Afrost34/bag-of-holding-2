@@ -75,7 +75,24 @@ export function lightSegments(doc: MapDoc): Segment[] {
   for (const layer of doc.layers) {
     if (!layerShown(doc, layer) || layer.picture) continue;
     for (const item of layer.items) {
-      if (item.kind === 'wall') out.push(...pairsOf(item.points, false));
+      if (item.kind === 'stamp' && item.blockLight) {
+        // Its outline: the picture's box, turned.
+        const a = (item.rotation * Math.PI) / 180;
+        const corner = (sx: number, sy: number) => {
+          const dx = (sx * item.w) / 2;
+          const dy = (sy * item.h) / 2;
+          return [
+            item.x + dx * Math.cos(a) - dy * Math.sin(a),
+            item.y + dx * Math.sin(a) + dy * Math.cos(a),
+          ];
+        };
+        out.push(
+          ...pairsOf(
+            [...corner(-1, -1), ...corner(1, -1), ...corner(1, 1), ...corner(-1, 1)],
+            true,
+          ),
+        );
+      } else if (item.kind === 'wall') out.push(...pairsOf(item.points, false));
       else if (item.kind === 'building') out.push(...pairsOf(item.points, true));
       else if (item.kind === 'room') {
         let segs = pairsOf(roomOutline(item.points, item.smooth), true);

@@ -1221,6 +1221,25 @@ export class MapScene {
           sprite.height = item.h;
           if (item.flipX) sprite.scale.x *= -1;
           if (item.flipY) sprite.scale.y *= -1;
+          if (item.shadow) {
+            // A soft dark copy, a little to the south-east, under the picture.
+            const shade = new Sprite(texture);
+            shade.anchor.set(0.5);
+            shade.width = item.w;
+            shade.height = item.h;
+            shade.scale.x = sprite.scale.x;
+            shade.scale.y = sprite.scale.y;
+            shade.tint = 0x000000;
+            shade.alpha = 0.4;
+            shade.position.set(item.w * 0.04, item.h * 0.05);
+            shade.filters = [
+              new BlurFilter({
+                strength: Math.max(1, Math.min(item.w, item.h) * 0.04),
+                quality: 3,
+              }),
+            ];
+            holder.addChild(shade);
+          }
           holder.addChild(sprite);
           this.requestRender();
         });

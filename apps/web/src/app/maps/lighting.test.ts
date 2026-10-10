@@ -67,6 +67,37 @@ describe('what blocks light', () => {
     expect(lightSegments(open)).toHaveLength(2 + 5);
   });
 
+  it('takes the outline of a stamp that blocks light, turned with it', () => {
+    let doc = newMap('Pillars', [], '');
+    const layer = doc.layers[0]?.id ?? '';
+    const stamp = {
+      kind: 'stamp' as const,
+      id: 's',
+      stamp: 'glyph:tree',
+      x: 100,
+      y: 100,
+      w: 40,
+      h: 20,
+      rotation: 0,
+    };
+    doc = addItem(doc, layer, stamp);
+    expect(lightSegments(doc)).toHaveLength(0);
+    const withStamp = (extra: object) => {
+      const blank = newMap('P', [], '');
+      return addItem(blank, blank.layers[0]?.id ?? '', { ...stamp, ...extra });
+    };
+    const blocking = withStamp({ blockLight: true });
+    const segs = lightSegments(blocking);
+    expect(segs).toHaveLength(4);
+    const xs = segs.flatMap((g) => [g.ax, g.bx]);
+    expect(Math.min(...xs)).toBeCloseTo(80);
+    expect(Math.max(...xs)).toBeCloseTo(120);
+    // Turned a quarter, its long side stands upright.
+    const turned = withStamp({ blockLight: true, rotation: 90 });
+    const ys = lightSegments(turned).flatMap((g) => [g.ay, g.by]);
+    expect(Math.max(...ys) - Math.min(...ys)).toBeCloseTo(40);
+  });
+
   it('leaves out hidden layers', () => {
     let doc = newMap('Hidden', [], '');
     const layer = doc.layers[0]?.id ?? '';
