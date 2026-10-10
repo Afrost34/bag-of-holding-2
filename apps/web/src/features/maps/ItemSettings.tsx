@@ -22,6 +22,7 @@ import { RouteSettings } from './RouteSettings';
 import { BuildingItemSettings, DistrictItemSettings } from './CityPanel';
 import { RoomItemSettings } from './RoomPanel';
 import { ScatterItemSettings } from './ScatterPanel';
+import { LightItemSettings } from './LightPanel';
 import { ShapeItemSettings } from './ShapePanel';
 import { TextLettering } from './TextLettering';
 
@@ -104,6 +105,7 @@ export function ItemSettings({
         />
       )}
       {item.kind === 'route' && <RouteSettings item={item} doc={doc} set={set} />}
+      {item.kind === 'light' && <LightItemSettings item={item} grid={doc.grid.size} set={set} />}
       {(item.kind === 'shape' || item.kind === 'path') && (
         <ShapeItemSettings
           item={item}

@@ -260,6 +260,20 @@ type MapItemBody =
       angle: number;
       color: string;
     }
+  /** A light: it lights the map where the ambient light is dark (see `lighting.ts`). */
+  | {
+      kind: 'light';
+      id: string;
+      x: number;
+      y: number;
+      /** How far it reaches, in map pixels. */
+      range: number;
+      color: string;
+      /** 0–1: how bright it is at its centre. */
+      intensity: number;
+      /** Walls and closed doors cast shadows. */
+      shadows: boolean;
+    }
   | {
       kind: 'pin';
       id: string;
@@ -380,6 +394,8 @@ export interface MapDoc {
   scaleBar?: 'plain' | 'fantasy';
   /** Roofs left off, showing the floors of the buildings (the Viewer shows what is inside). */
   hideRoofs?: boolean;
+  /** The light everywhere before lights are added: a colour (dark blue for night); absent: daylight. */
+  ambient?: string;
   /** Where the sun is (degrees: 0 east, 90 south, 180 west, 270 north) and how dark the shade is (0–1). */
   sun?: { angle: number; strength: number };
   /** Heights under the map, shown as hill shading (absent: flat). */
@@ -612,6 +628,7 @@ const KINDS = new Set([
   'text',
   'template',
   'pin',
+  'light',
 ]);
 
 /** True when a stored map is older than this build's format (it is saved again once read). */
@@ -780,6 +797,9 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
       ? { scaleBar: json.scaleBar }
       : {}),
     ...(json.hideRoofs === true ? { hideRoofs: true } : {}),
+    ...(typeof json.ambient === 'string' && /^#[0-9a-fA-F]{6}$/.test(json.ambient)
+      ? { ambient: json.ambient }
+      : {}),
     ...(isObj(json.sun)
       ? { sun: { angle: num(json.sun.angle, 180), strength: num(json.sun.strength, 1) } }
       : {}),
@@ -903,6 +923,9 @@ export function artHash(doc: MapDoc): string {
     doc.height,
     doc.paper ?? '',
     doc.elevation ?? null,
+    doc.ambient ?? '',
+    doc.hideRoofs ?? false,
+    doc.sun ?? null,
     doc.layers.map((l) => [l.id, l.visible, l.picture ?? null, l.items.filter(isArt)]),
     (doc.variants ?? []).map((v) => [v.id, v.layers]),
   ]);

@@ -10,6 +10,7 @@ import {
   type AreaSettings,
   type FogSettings,
   type IslandRequest,
+  type LightSettings,
   type PathSettings,
   type RoomSettings,
   type MapMode,
@@ -47,6 +48,8 @@ export interface MapPanelsProps {
   setTemplate: (t: TemplateSettings) => void;
   fog: FogSettings;
   setFog: (f: FogSettings) => void;
+  light: LightSettings;
+  setLight: (l: LightSettings) => void;
   elev: ElevationBrush;
   setElev: (b: ElevationBrush) => void;
   roomSet: RoomSettings;

@@ -7,6 +7,7 @@ import { ItemSettings } from './ItemSettings';
 import { ElevationPanel } from './ElevationPanel';
 import { FogPanel } from './FogPanel';
 import { Layers } from './LayersPanel';
+import { LightPanel } from './LightPanel';
 import { MapSettings } from './MapSettings';
 import { type MapPanelsProps, type Tab } from './panelTypes';
 import { PinCategories } from './PinPanels';
@@ -100,6 +101,7 @@ export function MapPanels(props: MapPanelsProps) {
           <ToolSettings {...props} />
         )}
         {tool === 'fog' && <FogPanel {...props} />}
+        {tool === 'light' && <LightPanel {...props} />}
         {(tool === 'area' || tool === 'path') && <ShapePanel {...props} />}
         {tool === 'scatter' && <ScatterPanel {...props} />}
         {tool === 'elevation' && <ElevationPanel {...props} />}

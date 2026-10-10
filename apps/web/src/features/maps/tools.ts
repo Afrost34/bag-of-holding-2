@@ -7,6 +7,7 @@ import {
   Eraser,
   Hand,
   House,
+  Lightbulb,
   Mountain,
   MapPin,
   MousePointer2,
@@ -53,6 +54,7 @@ export type Tool =
   | 'room'
   | 'door'
   | 'elevation'
+  | 'light'
   | 'calibrate';
 
 /** The tool bar, in order; calibrate lives in the grid panel. */
@@ -72,6 +74,7 @@ export const TOOLS: { id: Tool; label: string; icon: LucideIcon; key: string }[]
   { id: 'room', label: 'Room', icon: Square, key: 'r' },
   { id: 'door', label: 'Door', icon: DoorOpen, key: 'd' },
   { id: 'wall', label: 'Wall', icon: Spline, key: 'w' },
+  { id: 'light', label: 'Light', icon: Lightbulb, key: 'k' },
   { id: 'text', label: 'Text', icon: Type, key: 't' },
   { id: 'measure', label: 'Measure', icon: Ruler, key: 'm' },
   { id: 'template', label: 'Spell template', icon: Triangle, key: 'y' },
@@ -97,17 +100,26 @@ export const TOOL_GROUP: Record<Tool, number> = {
   wall: 2,
   stamp: 3,
   scatter: 3,
-  text: 4,
-  measure: 4,
-  calibrate: 4,
-  template: 5,
-  pin: 5,
-  route: 5,
-  fog: 5,
+  light: 4,
+  text: 5,
+  measure: 5,
+  calibrate: 5,
+  template: 6,
+  pin: 6,
+  route: 6,
+  fog: 6,
 };
 
 /** The heading above each group of the tool bar. */
-export const GROUP_LABELS = ['Move', 'Terrain', 'Design', 'Objects', 'Notes', 'Play'] as const;
+export const GROUP_LABELS = [
+  'Move',
+  'Terrain',
+  'Design',
+  'Objects',
+  'Effects',
+  'Notes',
+  'Play',
+] as const;
 
 /** What a tool does and how to use it: shown in the bar under the map. */
 export const TOOL_HINTS: Record<Tool, string> = {
@@ -121,6 +133,7 @@ export const TOOL_HINTS: Record<Tool, string> = {
   path: 'Click to place points; double-click or Enter to finish the road or river.',
   elevation: 'Drag to raise or lower the ground.',
   scatter: 'Drag to scatter the chosen pictures along the stroke.',
+  light: 'Click to place a light. Drag it to move it.',
   district: 'Click the corners of the district; double-click or Enter to finish.',
   building: 'Click the corners of the building; double-click or Enter to finish.',
   room: 'Click the corners of the room; double-click or Enter to finish.',
@@ -154,6 +167,7 @@ const CREATOR_TOOLS = new Set<Tool>([
   'room',
   'door',
   'wall',
+  'light',
   'text',
   'measure',
 ]);
@@ -194,6 +208,7 @@ export const TOOLS_WITH_SETTINGS = new Set<Tool>([
   'room',
   'door',
   'elevation',
+  'light',
 ]);
 
 export interface TemplateSettings {
@@ -217,6 +232,15 @@ export interface AreaSettings {
   /** 0 straight corners, 1 fully rounded. */
   smooth: number;
   opacity: number;
+}
+
+/** The light tool: what the next light is like. */
+export interface LightSettings {
+  /** Range in grid squares. */
+  squares: number;
+  color: string;
+  intensity: number;
+  shadows: boolean;
 }
 
 /** The road and river tool. */

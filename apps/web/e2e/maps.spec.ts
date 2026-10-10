@@ -1675,3 +1675,32 @@ test('roofs can be hidden, and the sun moves their shade', async ({ page }, test
   await page.waitForTimeout(800);
   await canvas.screenshot({ path: testInfo.outputPath('hidden.png') });
 });
+
+test('lights light a dark map, and walls cast their shadows', async ({ page }, testInfo) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Torches');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  const click = async (x: number, y: number) => {
+    await page.mouse.click(box.x + x, box.y + y);
+  };
+  await page.keyboard.press('s');
+  // A wall, and the night.
+  await tool(page, 'Wall').click();
+  await click(330, 120);
+  await click(330, 420);
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'maps', '"kind":"wall"');
+  await tool(page, 'Light').click();
+  await page.getByLabel('Ambient preset').selectOption('night');
+  await waitForSaved(page, 'maps', '"ambient":"#2b3157"');
+  await click(250, 270);
+  await waitForSaved(page, 'maps', '"kind":"light"');
+  await page.waitForTimeout(800);
+  await canvas.screenshot({ path: testInfo.outputPath('night.png') });
+  // The light is picked: its range and colour are on its panel.
+  await expect(page.getByLabel('Light range').first()).toBeVisible();
+  await page.getByLabel('Light range').last().fill('12');
+  await waitForSaved(page, 'maps', '"range":840');
+});

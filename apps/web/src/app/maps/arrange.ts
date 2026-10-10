@@ -31,6 +31,7 @@ export function itemBox(item: MapItem): Box {
       };
     }
     case 'pin':
+    case 'light':
     case 'text':
     case 'template':
       return { x0: item.x - 10, y0: item.y - 10, x1: item.x + 10, y1: item.y + 10 };
@@ -53,6 +54,7 @@ export function translateItem(item: MapItem, dx: number, dy: number): MapItem {
   switch (item.kind) {
     case 'stamp':
     case 'pin':
+    case 'light':
     case 'text':
     case 'template':
       return { ...item, x: Math.round(item.x + dx), y: Math.round(item.y + dy) };
@@ -211,6 +213,13 @@ export function reflectItem(
     case 'text':
     case 'template':
       return item;
+    case 'light':
+      return {
+        ...item,
+        id,
+        x: across === 'x' ? fx(item.x) : item.x,
+        y: across === 'y' ? fy(item.y) : item.y,
+      };
     case 'room':
       return {
         ...item,

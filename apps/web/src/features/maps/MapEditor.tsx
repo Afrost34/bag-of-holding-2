@@ -128,6 +128,7 @@ import {
   type BuildingSettings,
   type ElevationBrush,
   type FogSettings,
+  type LightSettings,
   type IslandRequest,
   type PathSettings,
   type RoomSettings,
@@ -213,6 +214,12 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     shape: 'cone',
     feet: 15,
     color: '#dc2626',
+  });
+  const [light, setLight] = useState<LightSettings>({
+    squares: 6,
+    color: '#ffd9a0',
+    intensity: 0.9,
+    shadows: true,
   });
   const [fog, setFog] = useState<FogSettings>({ mode: 'hide', shape: 'rect' });
   const [scatter, setScatter] = useState<ScatterSettings>(DEFAULT_SCATTER);
@@ -931,6 +938,20 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         return;
       }
 
+      case 'light':
+        if (!canDraw) return;
+        place({
+          kind: 'light',
+          id: itemId(doc),
+          x: Math.round(p.x),
+          y: Math.round(p.y),
+          range: Math.round(light.squares * grid.size),
+          color: light.color,
+          intensity: light.intensity,
+          shadows: light.shadows,
+        });
+        setPanelOpen(true);
+        return;
       case 'pin':
         place({ kind: 'pin', id: itemId(doc), x: p.x, y: p.y, label: 'Pin' });
         setPanelOpen(true);
@@ -2024,6 +2045,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             setTemplate={setTemplate}
             fog={fog}
             setFog={setFog}
+            light={light}
+            setLight={setLight}
             district={district}
             setDistrict={setDistrict}
             buildingSet={buildingSet}

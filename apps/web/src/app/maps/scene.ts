@@ -36,6 +36,7 @@ import {
 import { pinIconSvg } from './pinIcons';
 import { glyphIdOf, glyphTexture, isGlyphRef } from './glyphs';
 import { itemBox } from './arrange';
+import { lightSegments, visibilityPolygon } from './lighting';
 import { heightsOf, shadeImage, type Elevation } from './elevation';
 import { alongLayout, targetLine } from './labels';
 import { buildingView, districtView } from './cityView';
@@ -400,6 +401,9 @@ export class MapScene {
   /** Pictures and stamps still loading (see `settled`). */
   private loading = 0;
   private readonly elevationView = new Container();
+  /** Ambient light and lights: one picture over the layers (see `drawLighting`). */
+  private readonly lightingView = new Container();
+  private lightingKey = '';
   private elevationKey = '';
   private readonly fog = new Container();
   private fogKey = '';
@@ -461,6 +465,7 @@ export class MapScene {
       this.renderView,
       this.layers,
       this.elevationView,
+      this.lightingView,
       this.fog,
       this.gridLines,
       this.scaleBarView,
@@ -725,6 +730,7 @@ export class MapScene {
       }
     this.drawFog(doc);
     this.drawElevation(doc.elevation);
+    this.drawLighting(doc);
     this.drawRender(doc);
     this.applyVisibility(doc);
     this.scalePins();
@@ -814,6 +820,94 @@ export class MapScene {
     const sprite = new Sprite(texture);
     sprite.scale.set(e.cell);
     this.elevationView.addChild(sprite);
+    this.requestRender();
+  }
+
+  /**
+   * The light of the map: the ambient colour with each light added, drawn into one picture (on a
+   * canvas, shadows cut by the walls) that darkens the layers by multiplying, or (in daylight)
+   * adds a glow.
+   */
+  private drawLighting(doc: MapDoc): void {
+    const lights = doc.layers.flatMap((l) =>
+      layerShown(doc, l) ? l.items.filter((i) => i.kind === 'light') : [],
+    );
+    const walls = lights.some((l) => l.shadows) ? lightSegments(doc) : [];
+    const key = JSON.stringify([
+      doc.ambient ?? '',
+      lights.map((l) => [l.x, l.y, l.range, l.color, l.intensity, l.shadows]),
+      walls.map((s) => [s.ax, s.ay, s.bx, s.by].map(Math.round)),
+      doc.width,
+      doc.height,
+    ]);
+    if (key === this.lightingKey) return;
+    this.lightingKey = key;
+    for (const c of this.lightingView.removeChildren()) c.destroy({ children: true });
+    if ((!doc.ambient && lights.length === 0) || typeof document === 'undefined') {
+      this.requestRender();
+      return;
+    }
+    // Drawn at most about 2k pixels wide, then stretched: light is soft.
+    const k = Math.min(1, 2048 / Math.max(doc.width, doc.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(doc.width * k));
+    canvas.height = Math.max(1, Math.round(doc.height * k));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    if (doc.ambient) {
+      ctx.fillStyle = doc.ambient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    ctx.globalCompositeOperation = 'lighter';
+    for (const light of lights) {
+      const rgb = Number.parseInt(light.color.replace('#', ''), 16) || 0xffffff;
+      const [r, g, b] = [(rgb >> 16) & 255, (rgb >> 8) & 255, rgb & 255];
+      const gradient = ctx.createRadialGradient(
+        light.x * k,
+        light.y * k,
+        0,
+        light.x * k,
+        light.y * k,
+        light.range * k,
+      );
+      // In daylight a light is only a faint glow; in the dark it is what lights the map.
+      const top = light.intensity * (doc.ambient ? 1 : 0.45);
+      gradient.addColorStop(0, `rgba(${String(r)},${String(g)},${String(b)},${String(top)})`);
+      gradient.addColorStop(
+        0.5,
+        `rgba(${String(r)},${String(g)},${String(b)},${String(top * 0.5)})`,
+      );
+      gradient.addColorStop(1, `rgba(${String(r)},${String(g)},${String(b)},0)`);
+      ctx.save();
+      if (light.shadows) {
+        const poly = visibilityPolygon(light.x, light.y, light.range, walls);
+        if (poly.length >= 6) {
+          ctx.beginPath();
+          for (let i = 0; i + 1 < poly.length; i += 2) {
+            const px = (poly[i] ?? 0) * k;
+            const py = (poly[i + 1] ?? 0) * k;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.clip();
+        }
+      }
+      ctx.fillStyle = gradient;
+      ctx.fillRect(
+        (light.x - light.range) * k,
+        (light.y - light.range) * k,
+        light.range * 2 * k,
+        light.range * 2 * k,
+      );
+      ctx.restore();
+    }
+    const texture = Texture.from(canvas);
+    texture.source.scaleMode = 'linear';
+    const sprite = new Sprite(texture);
+    sprite.scale.set(1 / k);
+    sprite.blendMode = doc.ambient ? 'multiply' : 'add';
+    this.lightingView.addChild(sprite);
     this.requestRender();
   }
 
@@ -1058,6 +1152,30 @@ export class MapScene {
         return districtView(item, districtGeo(doc, item), { hide: doc.hideRoofs, sun: doc.sun });
       case 'building':
         return buildingView(item, { hide: doc.hideRoofs, sun: doc.sun });
+      case 'light': {
+        // A small sun with a ring at its range: for placing and moving it, not for the picture.
+        const holder = new Container();
+        holder.position.set(item.x, item.y);
+        holder.visible = this.hideAnnotations;
+        const g = new Graphics();
+        const rays = 8;
+        for (let i = 0; i < rays; i++) {
+          const a = (i * Math.PI * 2) / rays;
+          g.moveTo(Math.cos(a) * 11, Math.sin(a) * 11)
+            .lineTo(Math.cos(a) * 17, Math.sin(a) * 17)
+            .stroke({ color: INK, width: 2.5, cap: 'round' });
+        }
+        g.circle(0, 0, 8)
+          .fill({ color: colorOf(item.color) })
+          .stroke({ color: INK, width: 2 });
+        holder.addChild(g);
+        const ring = new Graphics();
+        ring
+          .circle(0, 0, item.range)
+          .stroke({ color: colorOf(item.color), width: 1.5, alpha: 0.5 });
+        holder.addChild(ring);
+        return holder;
+      }
       case 'scatter':
         return this.scatterView(item, doc);
       case 'shape':
@@ -1218,6 +1336,10 @@ export class MapScene {
         if (this.hideAnnotations && (item.kind === 'pin' || item.kind === 'route')) continue;
         if (!itemShown(this.doc, item.id)) continue;
         if (this.forPlayers && item.kind === 'pin' && fogHides(this.doc, item.x, item.y)) continue;
+        if (item.kind === 'light') {
+          if (Math.hypot(p.x - item.x, p.y - item.y) <= 16 + 6 / this.zoom) return item;
+          continue;
+        }
         if (item.kind === 'stroke' || item.kind === 'wall' || item.kind === 'route') {
           const width =
             item.kind === 'wall'
@@ -1301,6 +1423,12 @@ export class MapScene {
         ];
       });
       g.poly(corners.flat()).stroke({ color: SELECT_COLOR, width: w * 1.5 });
+      return;
+    }
+    if (item.kind === 'light') {
+      // The marker, and how far the light reaches (the ring is not part of what is picked).
+      g.circle(item.x, item.y, 20).stroke({ color: SELECT_COLOR, width: w * 1.5 });
+      g.circle(item.x, item.y, item.range).stroke({ color: SELECT_COLOR, width: w, alpha: 0.6 });
       return;
     }
     if (item.kind === 'district' || item.kind === 'building' || item.kind === 'room') {
@@ -1469,6 +1597,10 @@ export class MapScene {
       n.view.alpha = 1;
       if (!withSecretPins) n.view.visible = false;
     }
+    // The markers of lights are for placing them, not for the picture.
+    const markers = [...this.nodes.values()].filter((n) => n.item.kind === 'light');
+    const markerShown = markers.map((n) => n.view.visible);
+    for (const n of markers) n.view.visible = false;
     // Everything is drawn, on screen or not.
     uncull(this.world);
     try {
@@ -1483,6 +1615,9 @@ export class MapScene {
           ctx.drawImage(tile as HTMLCanvasElement, Math.round(x * scale), Math.round(y * scale));
         }
     } finally {
+      markers.forEach((n, i) => {
+        n.view.visible = markerShown[i] ?? true;
+      });
       this.overlay.visible = true;
       this.gridLines.visible = true;
       // Pins back to screen size, the secret ones faint again.

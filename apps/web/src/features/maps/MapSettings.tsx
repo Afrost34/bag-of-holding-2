@@ -7,6 +7,7 @@ import { useEncounters } from '../../app/encounters/store';
 import { mapFolders, PAPERS, type MapDoc, type MapPaper } from '../../app/maps/model';
 import { useMaps } from '../../app/maps/store';
 import { DEFAULT_SPEEDS, scaleForWidth, type DistanceUnit } from '../../app/maps/travel';
+import { AmbientSettings } from './LightPanel';
 import { NumberField, Section } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
 import { CALIBRATE_ICON } from './tools';
@@ -266,6 +267,7 @@ export function MapSettings({ doc, commit, setTool, snap, setSnap }: MapPanelsPr
           ))}
         </select>
       </Section>
+      <AmbientSettings doc={doc} commit={commit} />
       <Section title="Roofs and sun">
         <label className="flex items-center gap-2 text-sm">
           <input

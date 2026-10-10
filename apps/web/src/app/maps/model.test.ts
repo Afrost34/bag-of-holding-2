@@ -382,6 +382,10 @@ describe('the fingerprint of the art', () => {
     });
     expect(hasArt(stroked)).toBe(true);
     expect(artHash(stroked)).not.toBe(base);
+    // The light and the roofs are part of the picture too.
+    expect(artHash({ ...doc, ambient: '#2b3157' })).not.toBe(base);
+    expect(artHash({ ...doc, hideRoofs: true })).not.toBe(base);
+    expect(artHash({ ...doc, sun: { angle: 90, strength: 1 } })).not.toBe(base);
     expect(artHash(setLayerShown(doc, layer, false))).not.toBe(base);
     expect(artHash({ ...doc, width: doc.width + 1 })).not.toBe(base);
   });

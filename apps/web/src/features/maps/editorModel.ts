@@ -239,6 +239,7 @@ export const ITEM_TITLES: Record<MapItem['kind'], string> = {
   district: 'District',
   building: 'Building',
   room: 'Room',
+  light: 'Light',
 };
 
 /** The selected item in the bar under the map: its kind, and its text or pin name. */
