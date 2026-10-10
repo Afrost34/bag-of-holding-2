@@ -1338,3 +1338,26 @@ test('a folder of a pack becomes the mix of a scatter', async ({ page }, testInf
   await page.waitForTimeout(500);
   await canvas.screenshot({ path: testInfo.outputPath('pack-woods.png') });
 });
+
+test('a pin leads to a board of the campaign', async ({ page }) => {
+  test.skip(isPhone(page), 'Pins are placed on the desktop.');
+  test.setTimeout(60_000);
+  await installData(page);
+  await createCampaign(page, 'Rust and Sunfire');
+  await page.goto('./#/boards?list=1');
+  await page.getByRole('button', { name: 'New board' }).click();
+  await page.getByLabel('Name').fill('Session One');
+  await page.getByRole('button', { name: 'Create' }).click();
+  await expect(page.getByRole('button', { name: 'Add', exact: true })).toBeVisible();
+  await newMap(page, 'Gateway');
+  await switchMode(page, 'View map');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  await tool(page, 'Pin').click();
+  await page.mouse.click(box.x + 200, box.y + 200);
+  await page.getByLabel('Pin leads to').selectOption({ label: 'A character, board, encounter…' });
+  await page.getByLabel('Kind of page').selectOption('boards');
+  await page.getByLabel('Page', { exact: true }).selectOption({ label: 'Session One' });
+  await waitForSaved(page, 'campaigns/rust-and-sunfire/maps', '"page":"/boards/');
+});

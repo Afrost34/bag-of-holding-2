@@ -20,7 +20,9 @@ import { useLiveMaps } from '../../app/maps/useLiveMaps';
 import { measurePath, measurePoint } from '../../app/maps/measure';
 import type { TemplateShape } from '../../app/maps/model';
 import { PinHover } from '../../app/maps/PinHover';
+import { parsePagePath } from '../../app/maps/pages';
 import { pinLink } from '../../app/maps/pinLink';
+import { useAppNavigate } from '../../app/navigation';
 import { MapScene } from '../../app/maps/scene';
 import { useMaps } from '../../app/maps/store';
 import { useBoardActions, useIsPlayersBoard } from './context';
@@ -61,6 +63,7 @@ export function MapBody({ card }: { card: Extract<BoardCard, { kind: 'map' }> })
   const drag = useRef<{ x: number; y: number } | null>(null);
   const downAt = useRef<{ x: number; y: number } | null>(null);
   const actions = useBoardActions();
+  const navigate = useAppNavigate();
   const flow = useReactFlow();
   const locked = card.locked === true;
   const forPlayers = useIsPlayersBoard();
@@ -289,6 +292,22 @@ export function MapBody({ card }: { card: Extract<BoardCard, { kind: 'map' }> })
           const hit = scene.hit(p);
           const link = hit?.kind === 'pin' ? pinLink(hit) : null;
           if (!link) return;
+          if (link.kind === 'page') {
+            // A character or an encounter opens as a card beside the map; the other pages open in the app.
+            const page = parsePagePath(link.path);
+            if (page?.kind === 'characters')
+              actions.addBeside(card.id, [
+                {
+                  kind: 'character',
+                  character: page.id,
+                  show: { spells: true, features: true, inventory: false },
+                },
+              ]);
+            else if (page?.kind === 'encounters')
+              actions.addBeside(card.id, [{ kind: 'encounter', encounter: page.id }]);
+            else navigate(link.path);
+            return;
+          }
           const content: CardContent =
             link.kind === 'note'
               ? { kind: 'note', path: link.path }

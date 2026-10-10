@@ -242,6 +242,8 @@ export type MapItem =
       map?: string;
       /** A compendium entry ("Send to → Map"): its key. */
       entity?: string;
+      /** A page of the app (a character, a board, an encounter…): its route. */
+      page?: string;
       /** Its own icon (see `pinIcons.ts`); otherwise its category's, otherwise a plain pin. */
       icon?: string;
       /** A pin category's id. */
