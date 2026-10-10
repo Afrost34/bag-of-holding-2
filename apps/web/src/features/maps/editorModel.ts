@@ -199,7 +199,7 @@ export const isPointItem = (i: MapItem | null | undefined): i is PointItem =>
 
 /** A closed outline (a shape, a scatter over an area) rather than an open line. */
 export const isClosedItem = (i: PointItem): boolean =>
-  i.kind !== 'path' &&
+  (i.kind !== 'path' || i.loop === true) &&
   i.kind !== 'wall' &&
   i.kind !== 'route' &&
   (i.kind !== 'scatter' || i.mode === 'area');

@@ -2,6 +2,7 @@ import { newId } from '../cards/model';
 import type { Elevation } from './elevation';
 import { pointInPolygon } from './polygon';
 import type { RouteDash } from './lettering';
+import type { PathEnd } from './pathEnds';
 import type { Door } from './rooms';
 import type { TerrainRef } from './terrain';
 import type { MapScale, TravelSpeed } from './travel';
@@ -200,6 +201,11 @@ type MapItemBody =
       taper?: boolean;
       /** The path this one flows into. */
       into?: string;
+      /** How it begins and ends; hard when absent. */
+      start?: PathEnd;
+      end?: PathEnd;
+      /** The last point joins the first: a ring road, a moat. */
+      loop?: boolean;
     }
   /** A way across a world or city map, stop by stop: its length says how long the journey is. */
   | {

@@ -3,6 +3,7 @@ import { Button, cn } from '@boh/ui';
 import { Dices, PaintBucket, Trees } from 'lucide-react';
 import { useState } from 'react';
 import { type MapItem } from '../../app/maps/model';
+import { PATH_ENDS, type PathEnd } from '../../app/maps/pathEnds';
 import { PATH_STYLES, type PathStyle } from '../../app/maps/shapes';
 import { TERRAINS, type TerrainRef } from '../../app/maps/terrain';
 import { Section } from './PanelParts';
@@ -15,6 +16,55 @@ const EDGES = [
   ['ink', 'Ink line', 'a thin dark outline'],
   ['none', 'None', 'no outline'],
 ] as const;
+
+/** How a path begins and ends, and whether it closes into a ring (Dungeondraft's In, Out and loop). */
+function PathEndsFields({
+  start,
+  end,
+  loop,
+  onChange,
+}: {
+  start: PathEnd;
+  end: PathEnd;
+  loop: boolean;
+  onChange: (change: { start?: PathEnd; end?: PathEnd; loop?: boolean }) => void;
+}) {
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-2">
+        {(['start', 'end'] as const).map((which) => (
+          <label key={which} className="block text-sm">
+            {which === 'start' ? 'Begins' : 'Ends'}
+            <select
+              aria-label={which === 'start' ? 'Path begins' : 'Path ends'}
+              value={which === 'start' ? start : end}
+              onChange={(e) => {
+                onChange({ [which]: e.target.value as PathEnd });
+              }}
+              className={field}
+            >
+              {PATH_ENDS.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ))}
+      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={loop}
+          onChange={(e) => {
+            onChange({ loop: e.target.checked });
+          }}
+        />
+        Close the loop
+      </label>
+    </>
+  );
+}
 
 export function TerrainPicker({
   value,
@@ -206,6 +256,14 @@ export function ShapePanel(props: MapPanelsProps) {
             Widens downstream (draw from the source to the sea)
           </label>
         )}
+        <PathEndsFields
+          start={pathSet.start}
+          end={pathSet.end}
+          loop={pathSet.loop}
+          onChange={(change) => {
+            setPathSet({ ...pathSet, ...change });
+          }}
+        />
         <p className="text-xs text-muted">
           Click to place points; double-click or Enter finishes, Escape cancels.
           {pathSet.style === 'river' ? ' End next to another river to join it.' : ''} Pick it with
@@ -393,6 +451,21 @@ export function ShapeItemSettings({
           Widens downstream
         </label>
       )}
+      <PathEndsFields
+        start={item.start ?? 'hard'}
+        end={item.end ?? 'hard'}
+        loop={item.loop === true}
+        onChange={(change) => {
+          set((i) => {
+            if (i.kind !== 'path') return i;
+            const next = { ...i, ...change };
+            if (next.start === 'hard') delete next.start;
+            if (next.end === 'hard') delete next.end;
+            if (!next.loop) delete next.loop;
+            return next;
+          });
+        }}
+      />
       <Button variant="ghost" onClick={onScatter}>
         <Trees className="h-4 w-4" aria-hidden /> Scatter along this
       </Button>

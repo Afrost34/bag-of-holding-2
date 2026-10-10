@@ -26,6 +26,7 @@ import {
 import type { TemplateShape } from '../../app/maps/model';
 import type { RoofStyle } from '../../app/maps/cityDoc';
 import type { BrushMode } from '../../app/maps/elevation';
+import type { PathEnd } from '../../app/maps/pathEnds';
 import type { DoorKind } from '../../app/maps/rooms';
 import type { PathStyle } from '../../app/maps/shapes';
 import type { TerrainRef } from '../../app/maps/terrain';
@@ -223,6 +224,10 @@ export interface PathSettings {
   smooth: number;
   /** Rivers widen along their way. */
   taper: boolean;
+  start: PathEnd;
+  end: PathEnd;
+  /** The last point joins the first. */
+  loop: boolean;
 }
 
 /** A random island or archipelago, placed in the middle of the view. */

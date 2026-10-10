@@ -1,6 +1,7 @@
 import { type Container, Graphics, type FillPattern } from 'pixi.js';
 import { dashSegments, dotsAlong } from './lettering';
 import type { MapItem } from './model';
+import { endFactor, hasSoftEnds, piecesAlong } from './pathEnds';
 import { bounds, growPolygon, polygonArea, ribbon, splinePoints } from './spline';
 
 /**
@@ -26,7 +27,11 @@ const color = (hex: string): number => Number.parseInt(hex.replace('#', ''), 16)
 export const shapeOutline = (item: Shape): number[] => splinePoints(item.points, true, item.smooth);
 
 /** The rounded line of a path. */
-export const pathLine = (item: Path): number[] => splinePoints(item.points, false, item.smooth);
+export const pathLine = (item: Path): number[] => {
+  if (!item.loop || item.points.length < 6) return splinePoints(item.points, false, item.smooth);
+  const ring = splinePoints(item.points, true, item.smooth);
+  return [...ring, ring[0] ?? 0, ring[1] ?? 0];
+};
 
 /** How wide the glow and waves of a coast are: in proportion to the shape, within limits. */
 const shoreStep = (outline: readonly number[]): number => {
@@ -77,6 +82,50 @@ export function pathView(item: Path): Container {
     trace(line);
     g.stroke({ color: c, width, alpha, cap: 'round', join: 'round' });
   };
+  // Soft ends (faded or growing): drawn piece by piece, each with its own width and opacity.
+  if (item.style !== 'river' && hasSoftEnds(item.start, item.end) && !item.loop) {
+    const start = item.start ?? 'hard';
+    const end = item.end ?? 'hard';
+    const pieces = piecesAlong(line, Math.max(6, item.width * 0.6));
+    const draw = (width: number, c: number, alpha: number, only?: (t: number) => boolean) => {
+      for (const piece of pieces) {
+        if (only && !only(piece.t)) continue;
+        const f = endFactor(piece.t, start, end);
+        g.moveTo(piece.points[0] ?? 0, piece.points[1] ?? 0);
+        for (let i = 2; i + 1 < piece.points.length; i += 2)
+          g.lineTo(piece.points[i] ?? 0, piece.points[i + 1] ?? 0);
+        g.stroke({ color: c, width: width * f.width, alpha: alpha * f.alpha, cap: 'round' });
+      }
+    };
+    switch (item.style) {
+      case 'road':
+        draw(item.width + 5, 0x3b2d1f, 0.55);
+        draw(item.width, color(item.color), 1);
+        break;
+      case 'trail': {
+        // Every other piece, so the trail stays dashed.
+        let n = 0;
+        for (const piece of pieces) {
+          if (n++ % 2 === 1) continue;
+          const f = endFactor(piece.t, start, end);
+          g.moveTo(piece.points[0] ?? 0, piece.points[1] ?? 0);
+          for (let i = 2; i + 1 < piece.points.length; i += 2)
+            g.lineTo(piece.points[i] ?? 0, piece.points[i + 1] ?? 0);
+          g.stroke({
+            color: color(item.color),
+            width: item.width * f.width,
+            alpha: f.alpha,
+            cap: 'round',
+          });
+        }
+        break;
+      }
+      case 'fence':
+        draw(Math.max(1.5, item.width * 0.25), color(item.color), 0.9);
+        break;
+    }
+    return g;
+  }
   switch (item.style) {
     case 'road':
       stroke(item.width + 5, 0x3b2d1f, 0.55);
@@ -90,7 +139,14 @@ export function pathView(item: Path): Container {
       break;
     case 'river': {
       const w = item.width;
-      const rib = ribbon(line, (t) => (item.taper === false ? w : w * (0.3 + 0.7 * t)));
+      const start = item.start ?? 'hard';
+      const end = item.end ?? 'hard';
+      const rib = ribbon(line, (t) => {
+        const f = endFactor(t, start, end);
+        // A faded river end narrows too: one fill cannot change its opacity along the way.
+        const soft = f.width * (start === 'fade' || end === 'fade' ? 0.15 + 0.85 * f.alpha : 1);
+        return (item.taper === false ? w : w * (0.3 + 0.7 * t)) * soft;
+      });
       if (rib.length >= 6) {
         g.poly(rib).fill({ color: color(item.color) });
         g.poly(rib).stroke({ color: 0x2a5f87, width: 1.6, alpha: 0.8, join: 'round' });

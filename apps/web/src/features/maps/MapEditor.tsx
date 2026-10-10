@@ -235,6 +235,9 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     width: 24,
     smooth: 0.6,
     taper: true,
+    start: 'hard',
+    end: 'hard',
+    loop: false,
   });
   const [snap, setSnapState] = useState(() => {
     try {
@@ -537,6 +540,9 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             color,
             ...(pathSet.style === 'river' ? { taper: pathSet.taper } : {}),
             ...(joined?.into ? { into: joined.into } : {}),
+            ...(pathSet.start !== 'hard' ? { start: pathSet.start } : {}),
+            ...(pathSet.end !== 'hard' ? { end: pathSet.end } : {}),
+            ...(pathSet.loop ? { loop: true } : {}),
           }),
         );
       }

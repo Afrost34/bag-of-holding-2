@@ -1517,3 +1517,28 @@ test('Backspace takes the last point back while drawing, and Delete over a point
     .poll(async () => (await savedWalls(page)).map((w) => w.length).sort())
     .toEqual([4, 4]);
 });
+
+test('a road fades in and out and can close into a ring', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Ends');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  await tool(page, 'Road or river').click();
+  await page.getByLabel('Path begins').selectOption('grow');
+  await page.getByLabel('Path ends').selectOption('fade');
+  await page.getByRole('checkbox', { name: 'Close the loop' }).check();
+  await page.mouse.click(box.x + 200, box.y + 200);
+  await page.mouse.click(box.x + 360, box.y + 220);
+  await page.mouse.click(box.x + 300, box.y + 360);
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'maps', '"start":"grow"');
+  await waitForSaved(page, 'maps', '"end":"fade"');
+  await waitForSaved(page, 'maps', '"loop":true');
+  // Picked, the same choices are on the road itself.
+  await tool(page, 'Select and move').click();
+  await page.mouse.click(box.x + 360, box.y + 220);
+  await page.getByLabel('Path ends').selectOption('hard');
+  await expect(page.getByLabel('Path ends')).toHaveValue('hard');
+  await expect(page.getByLabel('Path begins')).toHaveValue('grow');
+});
