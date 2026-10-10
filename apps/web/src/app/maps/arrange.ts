@@ -1,5 +1,5 @@
 import { newId } from '../cards/model';
-import { addItem, type MapDoc, type MapItem } from './model';
+import { addItem, itemId, type MapDoc, type MapItem } from './model';
 import { bounds } from './spline';
 
 /**
@@ -309,3 +309,41 @@ export function addMirrored(doc: MapDoc, layerId: string, item: MapItem, mirror:
   for (const copy of copies) next = addItem(next, layerId, copy);
   return next;
 }
+
+// region Copy, paste, order
+
+/**
+ * Copies of items put on a layer, moved by (dx, dy), each with a new id. Returns the new map and the
+ * ids of the copies, so they can be picked.
+ */
+export function pasteItems(
+  doc: MapDoc,
+  layerId: string,
+  items: readonly MapItem[],
+  dx: number,
+  dy: number,
+): { doc: MapDoc; ids: string[] } {
+  let next = doc;
+  const ids: string[] = [];
+  for (const item of items) {
+    const copy = { ...translateItem(item, dx, dy), id: itemId(next) };
+    next = addItem(next, layerId, copy);
+    ids.push(copy.id);
+  }
+  return { doc: next, ids };
+}
+
+/** An item moved to the front or the back of its layer. */
+export function orderItem(doc: MapDoc, id: string, to: 'front' | 'back'): MapDoc {
+  return {
+    ...doc,
+    layers: doc.layers.map((l) => {
+      const item = l.items.find((i) => i.id === id);
+      if (!item) return l;
+      const rest = l.items.filter((i) => i.id !== id);
+      return { ...l, items: to === 'front' ? [...rest, item] : [item, ...rest] };
+    }),
+  };
+}
+
+// endregion

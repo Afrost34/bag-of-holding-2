@@ -9,6 +9,8 @@ import {
   mirrorCopies,
   moveItems,
   nearestVertex,
+  orderItem,
+  pasteItems,
   reflectItem,
   removeItems,
   translateItem,
@@ -198,5 +200,25 @@ describe('drawing aids', () => {
     expect(nearestVertex(doc, { x: 104, y: 97 }, 10)).toEqual({ x: 100, y: 100 });
     expect(nearestVertex(doc, { x: 200, y: 100 }, 10)).toBeNull();
     expect(nearestVertex(doc, { x: 104, y: 97 }, 10, 'w')).toBeNull();
+  });
+});
+
+describe('copying and ordering', () => {
+  it('pastes copies with new ids, moved', () => {
+    const doc = docWith([stamp('a', 10, 10), stamp('b', 50, 50)]);
+    const layer = doc.layers[0]?.id ?? '';
+    const { doc: next, ids } = pasteItems(doc, layer, itemsWithIds(doc, ['a', 'b']), 70, 70);
+    expect(ids).toHaveLength(2);
+    expect(new Set(all(next).map((i) => i.id)).size).toBe(4);
+    expect(itemsWithIds(next, ids).map((i) => (i.kind === 'stamp' ? [i.x, i.y] : []))).toEqual([
+      [80, 80],
+      [120, 120],
+    ]);
+  });
+
+  it('moves an item to the front or the back of its layer', () => {
+    const doc = docWith([stamp('a', 0, 0), stamp('b', 0, 0), stamp('c', 0, 0)]);
+    expect(all(orderItem(doc, 'a', 'front')).map((i) => i.id)).toEqual(['b', 'c', 'a']);
+    expect(all(orderItem(doc, 'c', 'back')).map((i) => i.id)).toEqual(['c', 'a', 'b']);
   });
 });

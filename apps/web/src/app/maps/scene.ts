@@ -566,7 +566,8 @@ export class MapScene {
                 : item.kind === 'text' && item.font === 'fantasy'
                   ? String(fantasyFontReady)
                   : '';
-        if (node?.item === item && node.look === look && node.view.parent === view) return;
+        const home = item.under === true && walls ? walls : view;
+        if (node?.item === item && node.look === look && node.view.parent === home) return;
         if (node) {
           node.view.destroy({ children: true });
           for (const e of node.extras ?? []) e.destroy({ children: true });
@@ -586,8 +587,10 @@ export class MapScene {
           extras.push(wallView, doorView);
         }
         this.nodes.set(item.id, { item, view: fresh, look, ...(extras.length ? { extras } : {}) });
-        // Index 0 of a layer is its walls (or its picture); the items follow.
-        view.addChildAt(fresh, Math.min(i + 1, view.children.length));
+        // Index 0 of a layer is its walls (or its picture); the items follow. Items put under the
+        // others share the walls' holder, below them.
+        if (home === view) view.addChildAt(fresh, Math.min(i + 1, view.children.length));
+        else home.addChildAt(fresh, 0);
       });
       // Keep the items in their order within the layer.
       layer.items.forEach((item, i) => {

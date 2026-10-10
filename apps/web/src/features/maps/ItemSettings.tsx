@@ -2,6 +2,7 @@
 import { Button } from '@boh/ui';
 import { FlipHorizontal2, FlipVertical2, Ruler, Trash2 } from 'lucide-react';
 import { useMemo } from 'react';
+import { orderItem } from '../../app/maps/arrange';
 import { useJournal } from '../../app/journal/store';
 import {
   moveItemToLayer,
@@ -66,6 +67,42 @@ export function ItemSettings({
   };
   return (
     <Section title={titles[item.kind]}>
+      {item.kind !== 'route' && item.kind !== 'pin' && item.kind !== 'template' && (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={item.under === true}
+            onChange={(e) => {
+              const under = e.target.checked;
+              set((i) => {
+                const { under: _u, ...rest } = i;
+                return under ? { ...rest, under: true } : rest;
+              });
+            }}
+          />
+          Under the layer's other items
+        </label>
+      )}
+      {item.kind !== 'pin' && item.kind !== 'template' && (
+        <div className="flex gap-1">
+          <Button
+            variant="ghost"
+            onClick={() => {
+              commit((d) => orderItem(d, item.id, 'front'));
+            }}
+          >
+            Bring to front
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              commit((d) => orderItem(d, item.id, 'back'));
+            }}
+          >
+            Send to back
+          </Button>
+        </div>
+      )}
       {item.kind === 'route' && <RouteSettings item={item} doc={doc} set={set} />}
       {(item.kind === 'shape' || item.kind === 'path') && (
         <ShapeItemSettings

@@ -43,7 +43,14 @@ export interface Grid {
 
 export type TemplateShape = 'cone' | 'sphere' | 'cube' | 'line';
 
-export type MapItem =
+/** What every item can be: drawn under the other items of its layer (Dungeondraft's Over/Under). */
+export interface ItemOrder {
+  under?: boolean;
+}
+
+export type MapItem = ItemOrder & MapItemBody;
+
+type MapItemBody =
   | {
       kind: 'stamp';
       id: string;

@@ -8,315 +8,315 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as BoardsRouteImport } from './routes/boards'
-import { Route as CalendarRouteImport } from './routes/calendar'
-import { Route as CampaignsRouteImport } from './routes/campaigns'
-import { Route as CardsRouteImport } from './routes/cards'
-import { Route as CharactersRouteImport } from './routes/characters'
-import { Route as CompendiumRouteImport } from './routes/compendium'
-import { Route as EncountersRouteImport } from './routes/encounters'
-import { Route as HomebrewRouteImport } from './routes/homebrew'
-import { Route as JournalRouteImport } from './routes/journal'
-import { Route as MapsRouteImport } from './routes/maps'
-import { Route as PlayerRouteImport } from './routes/player'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as TablesRouteImport } from './routes/tables'
-import { Route as BoardsIdRouteImport } from './routes/boards_.$id'
-import { Route as CampaignsIdRouteImport } from './routes/campaigns_.$id'
-import { Route as CardsIdRouteImport } from './routes/cards_.$id'
-import { Route as CharactersIdRouteImport } from './routes/characters_.$id'
-import { Route as CompendiumKeyRouteImport } from './routes/compendium_.$key'
-import { Route as EncountersIdRouteImport } from './routes/encounters_.$id'
-import { Route as HomebrewPackRouteImport } from './routes/homebrew_.$pack'
-import { Route as SettingsDataRouteImport } from './routes/settings_.data'
-import { Route as SettingsSyncRouteImport } from './routes/settings_.sync'
-import { Route as TablesIdRouteImport } from './routes/tables_.$id'
-import { Route as CharactersIdPrintRouteImport } from './routes/characters_.$id_.print'
-import { Route as CompendiumAdventureIdRouteImport } from './routes/compendium_.adventure.$id'
-import { Route as CompendiumBookIdRouteImport } from './routes/compendium_.book.$id'
-import { Route as CompendiumLibraryKindRouteImport } from './routes/compendium_.library.$kind'
-import { Route as CompendiumListCategoryRouteImport } from './routes/compendium_.list.$category'
-import { Route as CompendiumNotesTypeRouteImport } from './routes/compendium_.notes.$type'
-import { Route as CompendiumQuickrefIdRouteImport } from './routes/compendium_.quickref.$id'
-import { Route as MapsIdIndexRouteImport } from './routes/maps_.$id.index'
-import { Route as MapsIdEditRouteImport } from './routes/maps_.$id.edit'
+import { Route as rootRouteImport } from './routes/__root';
+import { Route as IndexRouteImport } from './routes/index';
+import { Route as BoardsRouteImport } from './routes/boards';
+import { Route as CalendarRouteImport } from './routes/calendar';
+import { Route as CampaignsRouteImport } from './routes/campaigns';
+import { Route as CardsRouteImport } from './routes/cards';
+import { Route as CharactersRouteImport } from './routes/characters';
+import { Route as CompendiumRouteImport } from './routes/compendium';
+import { Route as EncountersRouteImport } from './routes/encounters';
+import { Route as HomebrewRouteImport } from './routes/homebrew';
+import { Route as JournalRouteImport } from './routes/journal';
+import { Route as MapsRouteImport } from './routes/maps';
+import { Route as PlayerRouteImport } from './routes/player';
+import { Route as SettingsRouteImport } from './routes/settings';
+import { Route as TablesRouteImport } from './routes/tables';
+import { Route as BoardsIdRouteImport } from './routes/boards_.$id';
+import { Route as CampaignsIdRouteImport } from './routes/campaigns_.$id';
+import { Route as CardsIdRouteImport } from './routes/cards_.$id';
+import { Route as CharactersIdRouteImport } from './routes/characters_.$id';
+import { Route as CompendiumKeyRouteImport } from './routes/compendium_.$key';
+import { Route as EncountersIdRouteImport } from './routes/encounters_.$id';
+import { Route as HomebrewPackRouteImport } from './routes/homebrew_.$pack';
+import { Route as SettingsDataRouteImport } from './routes/settings_.data';
+import { Route as SettingsSyncRouteImport } from './routes/settings_.sync';
+import { Route as TablesIdRouteImport } from './routes/tables_.$id';
+import { Route as CharactersIdPrintRouteImport } from './routes/characters_.$id_.print';
+import { Route as CompendiumAdventureIdRouteImport } from './routes/compendium_.adventure.$id';
+import { Route as CompendiumBookIdRouteImport } from './routes/compendium_.book.$id';
+import { Route as CompendiumLibraryKindRouteImport } from './routes/compendium_.library.$kind';
+import { Route as CompendiumListCategoryRouteImport } from './routes/compendium_.list.$category';
+import { Route as CompendiumNotesTypeRouteImport } from './routes/compendium_.notes.$type';
+import { Route as CompendiumQuickrefIdRouteImport } from './routes/compendium_.quickref.$id';
+import { Route as MapsIdIndexRouteImport } from './routes/maps_.$id.index';
+import { Route as MapsIdEditRouteImport } from './routes/maps_.$id.edit';
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const BoardsRoute = BoardsRouteImport.update({
   id: '/boards',
   path: '/boards',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const CalendarRoute = CalendarRouteImport.update({
   id: '/calendar',
   path: '/calendar',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const CampaignsRoute = CampaignsRouteImport.update({
   id: '/campaigns',
   path: '/campaigns',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const CardsRoute = CardsRouteImport.update({
   id: '/cards',
   path: '/cards',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const CharactersRoute = CharactersRouteImport.update({
   id: '/characters',
   path: '/characters',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const CompendiumRoute = CompendiumRouteImport.update({
   id: '/compendium',
   path: '/compendium',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const EncountersRoute = EncountersRouteImport.update({
   id: '/encounters',
   path: '/encounters',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const HomebrewRoute = HomebrewRouteImport.update({
   id: '/homebrew',
   path: '/homebrew',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const JournalRoute = JournalRouteImport.update({
   id: '/journal',
   path: '/journal',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const MapsRoute = MapsRouteImport.update({
   id: '/maps',
   path: '/maps',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const PlayerRoute = PlayerRouteImport.update({
   id: '/player',
   path: '/player',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const TablesRoute = TablesRouteImport.update({
   id: '/tables',
   path: '/tables',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const BoardsIdRoute = BoardsIdRouteImport.update({
   id: '/boards_/$id',
   path: '/boards/$id',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const CampaignsIdRoute = CampaignsIdRouteImport.update({
   id: '/campaigns_/$id',
   path: '/campaigns/$id',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const CardsIdRoute = CardsIdRouteImport.update({
   id: '/cards_/$id',
   path: '/cards/$id',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const CharactersIdRoute = CharactersIdRouteImport.update({
   id: '/characters_/$id',
   path: '/characters/$id',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const CompendiumKeyRoute = CompendiumKeyRouteImport.update({
   id: '/compendium_/$key',
   path: '/compendium/$key',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const EncountersIdRoute = EncountersIdRouteImport.update({
   id: '/encounters_/$id',
   path: '/encounters/$id',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const HomebrewPackRoute = HomebrewPackRouteImport.update({
   id: '/homebrew_/$pack',
   path: '/homebrew/$pack',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const SettingsDataRoute = SettingsDataRouteImport.update({
   id: '/settings_/data',
   path: '/settings/data',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const SettingsSyncRoute = SettingsSyncRouteImport.update({
   id: '/settings_/sync',
   path: '/settings/sync',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const TablesIdRoute = TablesIdRouteImport.update({
   id: '/tables_/$id',
   path: '/tables/$id',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const CharactersIdPrintRoute = CharactersIdPrintRouteImport.update({
   id: '/characters_/$id_/print',
   path: '/characters/$id/print',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const CompendiumAdventureIdRoute = CompendiumAdventureIdRouteImport.update({
   id: '/compendium_/adventure/$id',
   path: '/compendium/adventure/$id',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const CompendiumBookIdRoute = CompendiumBookIdRouteImport.update({
   id: '/compendium_/book/$id',
   path: '/compendium/book/$id',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const CompendiumLibraryKindRoute = CompendiumLibraryKindRouteImport.update({
   id: '/compendium_/library/$kind',
   path: '/compendium/library/$kind',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const CompendiumListCategoryRoute = CompendiumListCategoryRouteImport.update({
   id: '/compendium_/list/$category',
   path: '/compendium/list/$category',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const CompendiumNotesTypeRoute = CompendiumNotesTypeRouteImport.update({
   id: '/compendium_/notes/$type',
   path: '/compendium/notes/$type',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const CompendiumQuickrefIdRoute = CompendiumQuickrefIdRouteImport.update({
   id: '/compendium_/quickref/$id',
   path: '/compendium/quickref/$id',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const MapsIdIndexRoute = MapsIdIndexRouteImport.update({
   id: '/maps_/$id/',
   path: '/maps/$id/',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const MapsIdEditRoute = MapsIdEditRouteImport.update({
   id: '/maps_/$id/edit',
   path: '/maps/$id/edit',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/boards': typeof BoardsRoute
-  '/calendar': typeof CalendarRoute
-  '/campaigns': typeof CampaignsRoute
-  '/cards': typeof CardsRoute
-  '/characters': typeof CharactersRoute
-  '/compendium': typeof CompendiumRoute
-  '/encounters': typeof EncountersRoute
-  '/homebrew': typeof HomebrewRoute
-  '/journal': typeof JournalRoute
-  '/maps': typeof MapsRoute
-  '/player': typeof PlayerRoute
-  '/settings': typeof SettingsRoute
-  '/tables': typeof TablesRoute
-  '/boards/$id': typeof BoardsIdRoute
-  '/campaigns/$id': typeof CampaignsIdRoute
-  '/cards/$id': typeof CardsIdRoute
-  '/characters/$id': typeof CharactersIdRoute
-  '/compendium/$key': typeof CompendiumKeyRoute
-  '/encounters/$id': typeof EncountersIdRoute
-  '/homebrew/$pack': typeof HomebrewPackRoute
-  '/settings/data': typeof SettingsDataRoute
-  '/settings/sync': typeof SettingsSyncRoute
-  '/tables/$id': typeof TablesIdRoute
-  '/characters/$id/print': typeof CharactersIdPrintRoute
-  '/compendium/adventure/$id': typeof CompendiumAdventureIdRoute
-  '/compendium/book/$id': typeof CompendiumBookIdRoute
-  '/compendium/library/$kind': typeof CompendiumLibraryKindRoute
-  '/compendium/list/$category': typeof CompendiumListCategoryRoute
-  '/compendium/notes/$type': typeof CompendiumNotesTypeRoute
-  '/compendium/quickref/$id': typeof CompendiumQuickrefIdRoute
-  '/maps/$id/edit': typeof MapsIdEditRoute
-  '/maps/$id/': typeof MapsIdIndexRoute
+  '/': typeof IndexRoute;
+  '/boards': typeof BoardsRoute;
+  '/calendar': typeof CalendarRoute;
+  '/campaigns': typeof CampaignsRoute;
+  '/cards': typeof CardsRoute;
+  '/characters': typeof CharactersRoute;
+  '/compendium': typeof CompendiumRoute;
+  '/encounters': typeof EncountersRoute;
+  '/homebrew': typeof HomebrewRoute;
+  '/journal': typeof JournalRoute;
+  '/maps': typeof MapsRoute;
+  '/player': typeof PlayerRoute;
+  '/settings': typeof SettingsRoute;
+  '/tables': typeof TablesRoute;
+  '/boards/$id': typeof BoardsIdRoute;
+  '/campaigns/$id': typeof CampaignsIdRoute;
+  '/cards/$id': typeof CardsIdRoute;
+  '/characters/$id': typeof CharactersIdRoute;
+  '/compendium/$key': typeof CompendiumKeyRoute;
+  '/encounters/$id': typeof EncountersIdRoute;
+  '/homebrew/$pack': typeof HomebrewPackRoute;
+  '/settings/data': typeof SettingsDataRoute;
+  '/settings/sync': typeof SettingsSyncRoute;
+  '/tables/$id': typeof TablesIdRoute;
+  '/characters/$id/print': typeof CharactersIdPrintRoute;
+  '/compendium/adventure/$id': typeof CompendiumAdventureIdRoute;
+  '/compendium/book/$id': typeof CompendiumBookIdRoute;
+  '/compendium/library/$kind': typeof CompendiumLibraryKindRoute;
+  '/compendium/list/$category': typeof CompendiumListCategoryRoute;
+  '/compendium/notes/$type': typeof CompendiumNotesTypeRoute;
+  '/compendium/quickref/$id': typeof CompendiumQuickrefIdRoute;
+  '/maps/$id/edit': typeof MapsIdEditRoute;
+  '/maps/$id/': typeof MapsIdIndexRoute;
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/boards': typeof BoardsRoute
-  '/calendar': typeof CalendarRoute
-  '/campaigns': typeof CampaignsRoute
-  '/cards': typeof CardsRoute
-  '/characters': typeof CharactersRoute
-  '/compendium': typeof CompendiumRoute
-  '/encounters': typeof EncountersRoute
-  '/homebrew': typeof HomebrewRoute
-  '/journal': typeof JournalRoute
-  '/maps': typeof MapsRoute
-  '/player': typeof PlayerRoute
-  '/settings': typeof SettingsRoute
-  '/tables': typeof TablesRoute
-  '/boards/$id': typeof BoardsIdRoute
-  '/campaigns/$id': typeof CampaignsIdRoute
-  '/cards/$id': typeof CardsIdRoute
-  '/characters/$id': typeof CharactersIdRoute
-  '/compendium/$key': typeof CompendiumKeyRoute
-  '/encounters/$id': typeof EncountersIdRoute
-  '/homebrew/$pack': typeof HomebrewPackRoute
-  '/settings/data': typeof SettingsDataRoute
-  '/settings/sync': typeof SettingsSyncRoute
-  '/tables/$id': typeof TablesIdRoute
-  '/characters/$id/print': typeof CharactersIdPrintRoute
-  '/compendium/adventure/$id': typeof CompendiumAdventureIdRoute
-  '/compendium/book/$id': typeof CompendiumBookIdRoute
-  '/compendium/library/$kind': typeof CompendiumLibraryKindRoute
-  '/compendium/list/$category': typeof CompendiumListCategoryRoute
-  '/compendium/notes/$type': typeof CompendiumNotesTypeRoute
-  '/compendium/quickref/$id': typeof CompendiumQuickrefIdRoute
-  '/maps/$id/edit': typeof MapsIdEditRoute
-  '/maps/$id': typeof MapsIdIndexRoute
+  '/': typeof IndexRoute;
+  '/boards': typeof BoardsRoute;
+  '/calendar': typeof CalendarRoute;
+  '/campaigns': typeof CampaignsRoute;
+  '/cards': typeof CardsRoute;
+  '/characters': typeof CharactersRoute;
+  '/compendium': typeof CompendiumRoute;
+  '/encounters': typeof EncountersRoute;
+  '/homebrew': typeof HomebrewRoute;
+  '/journal': typeof JournalRoute;
+  '/maps': typeof MapsRoute;
+  '/player': typeof PlayerRoute;
+  '/settings': typeof SettingsRoute;
+  '/tables': typeof TablesRoute;
+  '/boards/$id': typeof BoardsIdRoute;
+  '/campaigns/$id': typeof CampaignsIdRoute;
+  '/cards/$id': typeof CardsIdRoute;
+  '/characters/$id': typeof CharactersIdRoute;
+  '/compendium/$key': typeof CompendiumKeyRoute;
+  '/encounters/$id': typeof EncountersIdRoute;
+  '/homebrew/$pack': typeof HomebrewPackRoute;
+  '/settings/data': typeof SettingsDataRoute;
+  '/settings/sync': typeof SettingsSyncRoute;
+  '/tables/$id': typeof TablesIdRoute;
+  '/characters/$id/print': typeof CharactersIdPrintRoute;
+  '/compendium/adventure/$id': typeof CompendiumAdventureIdRoute;
+  '/compendium/book/$id': typeof CompendiumBookIdRoute;
+  '/compendium/library/$kind': typeof CompendiumLibraryKindRoute;
+  '/compendium/list/$category': typeof CompendiumListCategoryRoute;
+  '/compendium/notes/$type': typeof CompendiumNotesTypeRoute;
+  '/compendium/quickref/$id': typeof CompendiumQuickrefIdRoute;
+  '/maps/$id/edit': typeof MapsIdEditRoute;
+  '/maps/$id': typeof MapsIdIndexRoute;
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/boards': typeof BoardsRoute
-  '/calendar': typeof CalendarRoute
-  '/campaigns': typeof CampaignsRoute
-  '/cards': typeof CardsRoute
-  '/characters': typeof CharactersRoute
-  '/compendium': typeof CompendiumRoute
-  '/encounters': typeof EncountersRoute
-  '/homebrew': typeof HomebrewRoute
-  '/journal': typeof JournalRoute
-  '/maps': typeof MapsRoute
-  '/player': typeof PlayerRoute
-  '/settings': typeof SettingsRoute
-  '/tables': typeof TablesRoute
-  '/boards_/$id': typeof BoardsIdRoute
-  '/campaigns_/$id': typeof CampaignsIdRoute
-  '/cards_/$id': typeof CardsIdRoute
-  '/characters_/$id': typeof CharactersIdRoute
-  '/compendium_/$key': typeof CompendiumKeyRoute
-  '/encounters_/$id': typeof EncountersIdRoute
-  '/homebrew_/$pack': typeof HomebrewPackRoute
-  '/settings_/data': typeof SettingsDataRoute
-  '/settings_/sync': typeof SettingsSyncRoute
-  '/tables_/$id': typeof TablesIdRoute
-  '/characters_/$id_/print': typeof CharactersIdPrintRoute
-  '/compendium_/adventure/$id': typeof CompendiumAdventureIdRoute
-  '/compendium_/book/$id': typeof CompendiumBookIdRoute
-  '/compendium_/library/$kind': typeof CompendiumLibraryKindRoute
-  '/compendium_/list/$category': typeof CompendiumListCategoryRoute
-  '/compendium_/notes/$type': typeof CompendiumNotesTypeRoute
-  '/compendium_/quickref/$id': typeof CompendiumQuickrefIdRoute
-  '/maps_/$id/edit': typeof MapsIdEditRoute
-  '/maps_/$id/': typeof MapsIdIndexRoute
+  __root__: typeof rootRouteImport;
+  '/': typeof IndexRoute;
+  '/boards': typeof BoardsRoute;
+  '/calendar': typeof CalendarRoute;
+  '/campaigns': typeof CampaignsRoute;
+  '/cards': typeof CardsRoute;
+  '/characters': typeof CharactersRoute;
+  '/compendium': typeof CompendiumRoute;
+  '/encounters': typeof EncountersRoute;
+  '/homebrew': typeof HomebrewRoute;
+  '/journal': typeof JournalRoute;
+  '/maps': typeof MapsRoute;
+  '/player': typeof PlayerRoute;
+  '/settings': typeof SettingsRoute;
+  '/tables': typeof TablesRoute;
+  '/boards_/$id': typeof BoardsIdRoute;
+  '/campaigns_/$id': typeof CampaignsIdRoute;
+  '/cards_/$id': typeof CardsIdRoute;
+  '/characters_/$id': typeof CharactersIdRoute;
+  '/compendium_/$key': typeof CompendiumKeyRoute;
+  '/encounters_/$id': typeof EncountersIdRoute;
+  '/homebrew_/$pack': typeof HomebrewPackRoute;
+  '/settings_/data': typeof SettingsDataRoute;
+  '/settings_/sync': typeof SettingsSyncRoute;
+  '/tables_/$id': typeof TablesIdRoute;
+  '/characters_/$id_/print': typeof CharactersIdPrintRoute;
+  '/compendium_/adventure/$id': typeof CompendiumAdventureIdRoute;
+  '/compendium_/book/$id': typeof CompendiumBookIdRoute;
+  '/compendium_/library/$kind': typeof CompendiumLibraryKindRoute;
+  '/compendium_/list/$category': typeof CompendiumListCategoryRoute;
+  '/compendium_/notes/$type': typeof CompendiumNotesTypeRoute;
+  '/compendium_/quickref/$id': typeof CompendiumQuickrefIdRoute;
+  '/maps_/$id/edit': typeof MapsIdEditRoute;
+  '/maps_/$id/': typeof MapsIdIndexRoute;
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
+  fileRoutesByFullPath: FileRoutesByFullPath;
   fullPaths:
     | '/'
     | '/boards'
@@ -350,8 +350,8 @@ export interface FileRouteTypes {
     | '/compendium/notes/$type'
     | '/compendium/quickref/$id'
     | '/maps/$id/edit'
-    | '/maps/$id/'
-  fileRoutesByTo: FileRoutesByTo
+    | '/maps/$id/';
+  fileRoutesByTo: FileRoutesByTo;
   to:
     | '/'
     | '/boards'
@@ -385,7 +385,7 @@ export interface FileRouteTypes {
     | '/compendium/notes/$type'
     | '/compendium/quickref/$id'
     | '/maps/$id/edit'
-    | '/maps/$id'
+    | '/maps/$id';
   id:
     | '__root__'
     | '/'
@@ -420,278 +420,278 @@ export interface FileRouteTypes {
     | '/compendium_/notes/$type'
     | '/compendium_/quickref/$id'
     | '/maps_/$id/edit'
-    | '/maps_/$id/'
-  fileRoutesById: FileRoutesById
+    | '/maps_/$id/';
+  fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  BoardsRoute: typeof BoardsRoute
-  CalendarRoute: typeof CalendarRoute
-  CampaignsRoute: typeof CampaignsRoute
-  CardsRoute: typeof CardsRoute
-  CharactersRoute: typeof CharactersRoute
-  CompendiumRoute: typeof CompendiumRoute
-  EncountersRoute: typeof EncountersRoute
-  HomebrewRoute: typeof HomebrewRoute
-  JournalRoute: typeof JournalRoute
-  MapsRoute: typeof MapsRoute
-  PlayerRoute: typeof PlayerRoute
-  SettingsRoute: typeof SettingsRoute
-  TablesRoute: typeof TablesRoute
-  BoardsIdRoute: typeof BoardsIdRoute
-  CampaignsIdRoute: typeof CampaignsIdRoute
-  CardsIdRoute: typeof CardsIdRoute
-  CharactersIdRoute: typeof CharactersIdRoute
-  CompendiumKeyRoute: typeof CompendiumKeyRoute
-  EncountersIdRoute: typeof EncountersIdRoute
-  HomebrewPackRoute: typeof HomebrewPackRoute
-  SettingsDataRoute: typeof SettingsDataRoute
-  SettingsSyncRoute: typeof SettingsSyncRoute
-  TablesIdRoute: typeof TablesIdRoute
-  CharactersIdPrintRoute: typeof CharactersIdPrintRoute
-  CompendiumAdventureIdRoute: typeof CompendiumAdventureIdRoute
-  CompendiumBookIdRoute: typeof CompendiumBookIdRoute
-  CompendiumLibraryKindRoute: typeof CompendiumLibraryKindRoute
-  CompendiumListCategoryRoute: typeof CompendiumListCategoryRoute
-  CompendiumNotesTypeRoute: typeof CompendiumNotesTypeRoute
-  CompendiumQuickrefIdRoute: typeof CompendiumQuickrefIdRoute
-  MapsIdEditRoute: typeof MapsIdEditRoute
-  MapsIdIndexRoute: typeof MapsIdIndexRoute
+  IndexRoute: typeof IndexRoute;
+  BoardsRoute: typeof BoardsRoute;
+  CalendarRoute: typeof CalendarRoute;
+  CampaignsRoute: typeof CampaignsRoute;
+  CardsRoute: typeof CardsRoute;
+  CharactersRoute: typeof CharactersRoute;
+  CompendiumRoute: typeof CompendiumRoute;
+  EncountersRoute: typeof EncountersRoute;
+  HomebrewRoute: typeof HomebrewRoute;
+  JournalRoute: typeof JournalRoute;
+  MapsRoute: typeof MapsRoute;
+  PlayerRoute: typeof PlayerRoute;
+  SettingsRoute: typeof SettingsRoute;
+  TablesRoute: typeof TablesRoute;
+  BoardsIdRoute: typeof BoardsIdRoute;
+  CampaignsIdRoute: typeof CampaignsIdRoute;
+  CardsIdRoute: typeof CardsIdRoute;
+  CharactersIdRoute: typeof CharactersIdRoute;
+  CompendiumKeyRoute: typeof CompendiumKeyRoute;
+  EncountersIdRoute: typeof EncountersIdRoute;
+  HomebrewPackRoute: typeof HomebrewPackRoute;
+  SettingsDataRoute: typeof SettingsDataRoute;
+  SettingsSyncRoute: typeof SettingsSyncRoute;
+  TablesIdRoute: typeof TablesIdRoute;
+  CharactersIdPrintRoute: typeof CharactersIdPrintRoute;
+  CompendiumAdventureIdRoute: typeof CompendiumAdventureIdRoute;
+  CompendiumBookIdRoute: typeof CompendiumBookIdRoute;
+  CompendiumLibraryKindRoute: typeof CompendiumLibraryKindRoute;
+  CompendiumListCategoryRoute: typeof CompendiumListCategoryRoute;
+  CompendiumNotesTypeRoute: typeof CompendiumNotesTypeRoute;
+  CompendiumQuickrefIdRoute: typeof CompendiumQuickrefIdRoute;
+  MapsIdEditRoute: typeof MapsIdEditRoute;
+  MapsIdIndexRoute: typeof MapsIdIndexRoute;
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
     '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/';
+      path: '/';
+      fullPath: '/';
+      preLoaderRoute: typeof IndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/boards': {
-      id: '/boards'
-      path: '/boards'
-      fullPath: '/boards'
-      preLoaderRoute: typeof BoardsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/boards';
+      path: '/boards';
+      fullPath: '/boards';
+      preLoaderRoute: typeof BoardsRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/calendar': {
-      id: '/calendar'
-      path: '/calendar'
-      fullPath: '/calendar'
-      preLoaderRoute: typeof CalendarRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/calendar';
+      path: '/calendar';
+      fullPath: '/calendar';
+      preLoaderRoute: typeof CalendarRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/campaigns': {
-      id: '/campaigns'
-      path: '/campaigns'
-      fullPath: '/campaigns'
-      preLoaderRoute: typeof CampaignsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/campaigns';
+      path: '/campaigns';
+      fullPath: '/campaigns';
+      preLoaderRoute: typeof CampaignsRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/cards': {
-      id: '/cards'
-      path: '/cards'
-      fullPath: '/cards'
-      preLoaderRoute: typeof CardsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/cards';
+      path: '/cards';
+      fullPath: '/cards';
+      preLoaderRoute: typeof CardsRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/characters': {
-      id: '/characters'
-      path: '/characters'
-      fullPath: '/characters'
-      preLoaderRoute: typeof CharactersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/characters';
+      path: '/characters';
+      fullPath: '/characters';
+      preLoaderRoute: typeof CharactersRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/compendium': {
-      id: '/compendium'
-      path: '/compendium'
-      fullPath: '/compendium'
-      preLoaderRoute: typeof CompendiumRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/compendium';
+      path: '/compendium';
+      fullPath: '/compendium';
+      preLoaderRoute: typeof CompendiumRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/encounters': {
-      id: '/encounters'
-      path: '/encounters'
-      fullPath: '/encounters'
-      preLoaderRoute: typeof EncountersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/encounters';
+      path: '/encounters';
+      fullPath: '/encounters';
+      preLoaderRoute: typeof EncountersRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/homebrew': {
-      id: '/homebrew'
-      path: '/homebrew'
-      fullPath: '/homebrew'
-      preLoaderRoute: typeof HomebrewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/homebrew';
+      path: '/homebrew';
+      fullPath: '/homebrew';
+      preLoaderRoute: typeof HomebrewRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/journal': {
-      id: '/journal'
-      path: '/journal'
-      fullPath: '/journal'
-      preLoaderRoute: typeof JournalRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/journal';
+      path: '/journal';
+      fullPath: '/journal';
+      preLoaderRoute: typeof JournalRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/maps': {
-      id: '/maps'
-      path: '/maps'
-      fullPath: '/maps'
-      preLoaderRoute: typeof MapsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/maps';
+      path: '/maps';
+      fullPath: '/maps';
+      preLoaderRoute: typeof MapsRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/player': {
-      id: '/player'
-      path: '/player'
-      fullPath: '/player'
-      preLoaderRoute: typeof PlayerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/player';
+      path: '/player';
+      fullPath: '/player';
+      preLoaderRoute: typeof PlayerRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/settings';
+      path: '/settings';
+      fullPath: '/settings';
+      preLoaderRoute: typeof SettingsRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/tables': {
-      id: '/tables'
-      path: '/tables'
-      fullPath: '/tables'
-      preLoaderRoute: typeof TablesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/tables';
+      path: '/tables';
+      fullPath: '/tables';
+      preLoaderRoute: typeof TablesRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/boards_/$id': {
-      id: '/boards_/$id'
-      path: '/boards/$id'
-      fullPath: '/boards/$id'
-      preLoaderRoute: typeof BoardsIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/boards_/$id';
+      path: '/boards/$id';
+      fullPath: '/boards/$id';
+      preLoaderRoute: typeof BoardsIdRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/campaigns_/$id': {
-      id: '/campaigns_/$id'
-      path: '/campaigns/$id'
-      fullPath: '/campaigns/$id'
-      preLoaderRoute: typeof CampaignsIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/campaigns_/$id';
+      path: '/campaigns/$id';
+      fullPath: '/campaigns/$id';
+      preLoaderRoute: typeof CampaignsIdRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/cards_/$id': {
-      id: '/cards_/$id'
-      path: '/cards/$id'
-      fullPath: '/cards/$id'
-      preLoaderRoute: typeof CardsIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/cards_/$id';
+      path: '/cards/$id';
+      fullPath: '/cards/$id';
+      preLoaderRoute: typeof CardsIdRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/characters_/$id': {
-      id: '/characters_/$id'
-      path: '/characters/$id'
-      fullPath: '/characters/$id'
-      preLoaderRoute: typeof CharactersIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/characters_/$id';
+      path: '/characters/$id';
+      fullPath: '/characters/$id';
+      preLoaderRoute: typeof CharactersIdRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/compendium_/$key': {
-      id: '/compendium_/$key'
-      path: '/compendium/$key'
-      fullPath: '/compendium/$key'
-      preLoaderRoute: typeof CompendiumKeyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/compendium_/$key';
+      path: '/compendium/$key';
+      fullPath: '/compendium/$key';
+      preLoaderRoute: typeof CompendiumKeyRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/encounters_/$id': {
-      id: '/encounters_/$id'
-      path: '/encounters/$id'
-      fullPath: '/encounters/$id'
-      preLoaderRoute: typeof EncountersIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/encounters_/$id';
+      path: '/encounters/$id';
+      fullPath: '/encounters/$id';
+      preLoaderRoute: typeof EncountersIdRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/homebrew_/$pack': {
-      id: '/homebrew_/$pack'
-      path: '/homebrew/$pack'
-      fullPath: '/homebrew/$pack'
-      preLoaderRoute: typeof HomebrewPackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/homebrew_/$pack';
+      path: '/homebrew/$pack';
+      fullPath: '/homebrew/$pack';
+      preLoaderRoute: typeof HomebrewPackRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/settings_/data': {
-      id: '/settings_/data'
-      path: '/settings/data'
-      fullPath: '/settings/data'
-      preLoaderRoute: typeof SettingsDataRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/settings_/data';
+      path: '/settings/data';
+      fullPath: '/settings/data';
+      preLoaderRoute: typeof SettingsDataRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/settings_/sync': {
-      id: '/settings_/sync'
-      path: '/settings/sync'
-      fullPath: '/settings/sync'
-      preLoaderRoute: typeof SettingsSyncRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/settings_/sync';
+      path: '/settings/sync';
+      fullPath: '/settings/sync';
+      preLoaderRoute: typeof SettingsSyncRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/tables_/$id': {
-      id: '/tables_/$id'
-      path: '/tables/$id'
-      fullPath: '/tables/$id'
-      preLoaderRoute: typeof TablesIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/tables_/$id';
+      path: '/tables/$id';
+      fullPath: '/tables/$id';
+      preLoaderRoute: typeof TablesIdRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/characters_/$id_/print': {
-      id: '/characters_/$id_/print'
-      path: '/characters/$id/print'
-      fullPath: '/characters/$id/print'
-      preLoaderRoute: typeof CharactersIdPrintRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/characters_/$id_/print';
+      path: '/characters/$id/print';
+      fullPath: '/characters/$id/print';
+      preLoaderRoute: typeof CharactersIdPrintRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/compendium_/adventure/$id': {
-      id: '/compendium_/adventure/$id'
-      path: '/compendium/adventure/$id'
-      fullPath: '/compendium/adventure/$id'
-      preLoaderRoute: typeof CompendiumAdventureIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/compendium_/adventure/$id';
+      path: '/compendium/adventure/$id';
+      fullPath: '/compendium/adventure/$id';
+      preLoaderRoute: typeof CompendiumAdventureIdRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/compendium_/book/$id': {
-      id: '/compendium_/book/$id'
-      path: '/compendium/book/$id'
-      fullPath: '/compendium/book/$id'
-      preLoaderRoute: typeof CompendiumBookIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/compendium_/book/$id';
+      path: '/compendium/book/$id';
+      fullPath: '/compendium/book/$id';
+      preLoaderRoute: typeof CompendiumBookIdRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/compendium_/library/$kind': {
-      id: '/compendium_/library/$kind'
-      path: '/compendium/library/$kind'
-      fullPath: '/compendium/library/$kind'
-      preLoaderRoute: typeof CompendiumLibraryKindRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/compendium_/library/$kind';
+      path: '/compendium/library/$kind';
+      fullPath: '/compendium/library/$kind';
+      preLoaderRoute: typeof CompendiumLibraryKindRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/compendium_/list/$category': {
-      id: '/compendium_/list/$category'
-      path: '/compendium/list/$category'
-      fullPath: '/compendium/list/$category'
-      preLoaderRoute: typeof CompendiumListCategoryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/compendium_/list/$category';
+      path: '/compendium/list/$category';
+      fullPath: '/compendium/list/$category';
+      preLoaderRoute: typeof CompendiumListCategoryRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/compendium_/notes/$type': {
-      id: '/compendium_/notes/$type'
-      path: '/compendium/notes/$type'
-      fullPath: '/compendium/notes/$type'
-      preLoaderRoute: typeof CompendiumNotesTypeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/compendium_/notes/$type';
+      path: '/compendium/notes/$type';
+      fullPath: '/compendium/notes/$type';
+      preLoaderRoute: typeof CompendiumNotesTypeRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/compendium_/quickref/$id': {
-      id: '/compendium_/quickref/$id'
-      path: '/compendium/quickref/$id'
-      fullPath: '/compendium/quickref/$id'
-      preLoaderRoute: typeof CompendiumQuickrefIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/compendium_/quickref/$id';
+      path: '/compendium/quickref/$id';
+      fullPath: '/compendium/quickref/$id';
+      preLoaderRoute: typeof CompendiumQuickrefIdRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/maps_/$id/': {
-      id: '/maps_/$id/'
-      path: '/maps/$id'
-      fullPath: '/maps/$id/'
-      preLoaderRoute: typeof MapsIdIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/maps_/$id/';
+      path: '/maps/$id';
+      fullPath: '/maps/$id/';
+      preLoaderRoute: typeof MapsIdIndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/maps_/$id/edit': {
-      id: '/maps_/$id/edit'
-      path: '/maps/$id/edit'
-      fullPath: '/maps/$id/edit'
-      preLoaderRoute: typeof MapsIdEditRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/maps_/$id/edit';
+      path: '/maps/$id/edit';
+      fullPath: '/maps/$id/edit';
+      preLoaderRoute: typeof MapsIdEditRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
   }
 }
 
@@ -729,7 +729,7 @@ const rootRouteChildren: RootRouteChildren = {
   CompendiumQuickrefIdRoute: CompendiumQuickrefIdRoute,
   MapsIdEditRoute: MapsIdEditRoute,
   MapsIdIndexRoute: MapsIdIndexRoute,
-}
+};
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
+  ._addFileTypes<FileRouteTypes>();
