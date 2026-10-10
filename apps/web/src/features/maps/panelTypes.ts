@@ -10,6 +10,7 @@ import {
   type FogSettings,
   type IslandRequest,
   type PathSettings,
+  type RoomSettings,
   type MapMode,
   type TemplateSettings,
   type Tool,
@@ -43,6 +44,12 @@ export interface MapPanelsProps {
   setTemplate: (t: TemplateSettings) => void;
   fog: FogSettings;
   setFog: (f: FogSettings) => void;
+  roomSet: RoomSettings;
+  setRoomSet: (s: RoomSettings) => void;
+  /** A dungeon of this many rooms, filling the view. */
+  onGenerateDungeon: (rooms: number) => void;
+  /** A cave in the middle of the view. */
+  onGenerateCave: () => void;
   district: DistrictSettings;
   setDistrict: (s: DistrictSettings) => void;
   buildingSet: BuildingSettings;

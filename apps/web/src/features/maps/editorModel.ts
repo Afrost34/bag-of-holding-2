@@ -37,6 +37,7 @@ export interface Drag {
     | 'template'
     | 'fog'
     | 'building'
+    | 'room'
     | 'vertex'
     | 'calibrate';
   start: Point;
@@ -178,7 +179,7 @@ export function snapRiverEnd(
 /** Items drawn from control points the user can drag (a scatter tied to another item has none). */
 export type PointItem = Extract<
   MapItem,
-  { kind: 'shape' | 'path' | 'scatter' | 'district' | 'building' }
+  { kind: 'shape' | 'path' | 'scatter' | 'district' | 'building' | 'room' }
 >;
 
 export const isPointItem = (i: MapItem | null | undefined): i is PointItem =>
@@ -187,6 +188,7 @@ export const isPointItem = (i: MapItem | null | undefined): i is PointItem =>
     i.kind === 'path' ||
     i.kind === 'district' ||
     i.kind === 'building' ||
+    i.kind === 'room' ||
     (i.kind === 'scatter' && !isTied(i)));
 
 /** A closed outline (a shape, a scatter over an area) rather than an open line. */
@@ -202,7 +204,8 @@ export const withPoints = (i: MapItem, points: number[]): MapItem =>
   i.kind === 'path' ||
   i.kind === 'scatter' ||
   i.kind === 'district' ||
-  i.kind === 'building'
+  i.kind === 'building' ||
+  i.kind === 'room'
     ? { ...i, points }
     : i;
 

@@ -1,6 +1,7 @@
 import {
   Brush,
   Castle,
+  DoorOpen,
   CloudFog,
   Crosshair,
   Eraser,
@@ -12,6 +13,7 @@ import {
   Route,
   Ruler,
   Shapes,
+  Square,
   Spline,
   Waves,
   Stamp,
@@ -22,6 +24,7 @@ import {
 } from 'lucide-react';
 import type { MapKind, TemplateShape } from '../../app/maps/model';
 import type { RoofStyle } from '../../app/maps/cityDoc';
+import type { DoorKind } from '../../app/maps/rooms';
 import type { PathStyle } from '../../app/maps/shapes';
 import type { TerrainId } from '../../app/maps/terrain';
 
@@ -44,6 +47,8 @@ export type Tool =
   | 'scatter'
   | 'district'
   | 'building'
+  | 'room'
+  | 'door'
   | 'calibrate';
 
 /** The tool bar, in order; calibrate lives in the grid panel. */
@@ -59,6 +64,8 @@ export const TOOLS: { id: Tool; label: string; icon: LucideIcon; key: string }[]
   { id: 'scatter', label: 'Scatter', icon: Trees, key: 'x' },
   { id: 'district', label: 'District', icon: Castle, key: 'c' },
   { id: 'building', label: 'Building', icon: House, key: 'q' },
+  { id: 'room', label: 'Room', icon: Square, key: 'r' },
+  { id: 'door', label: 'Door', icon: DoorOpen, key: 'd' },
   { id: 'wall', label: 'Wall', icon: Spline, key: 'w' },
   { id: 'text', label: 'Text', icon: Type, key: 't' },
   { id: 'measure', label: 'Measure', icon: Ruler, key: 'm' },
@@ -83,6 +90,8 @@ const CREATOR_TOOLS = new Set<Tool>([
   'scatter',
   'district',
   'building',
+  'room',
+  'door',
   'wall',
   'text',
   'measure',
@@ -124,6 +133,8 @@ export const TOOLS_WITH_SETTINGS = new Set<Tool>([
   'scatter',
   'district',
   'building',
+  'room',
+  'door',
 ]);
 
 export interface TemplateSettings {
@@ -175,4 +186,15 @@ export interface BuildingSettings {
   color: string;
   /** A saved building to place with a click, or null to draw. */
   libraryId: string | null;
+}
+
+/** The room and door tools. */
+export interface RoomSettings {
+  shape: 'rect' | 'polygon';
+  floor: TerrainId;
+  wallStyle: 'stone' | 'cave' | 'wood';
+  /** Wall thickness in map pixels. */
+  wall: number;
+  smooth: number;
+  doorKind: DoorKind;
 }

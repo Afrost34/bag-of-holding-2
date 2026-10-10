@@ -32,11 +32,13 @@ import {
 import { pinIconSvg } from './pinIcons';
 import { glyphAspect, glyphIdOf, glyphTexture, isGlyphRef } from './glyphs';
 import { buildingView, districtView } from './cityView';
+import { roomDoorsView, roomFloorView, roomWallView } from './roomView';
+import { roomOutline } from './rooms';
 import { districtGeo, districtOutline } from './cityDoc';
 import { isTied, obstacleSignature, scatterLine, scatterOf } from './scatterDoc';
 import { pathLine, pathView, shapeOutline, shapeView } from './shapes';
 import { pointInPolygon } from './polygon';
-import { terrainTile, type TerrainId } from './terrain';
+import { TERRAINS, terrainTile, type TerrainId } from './terrain';
 
 /**
  * The map canvas (PixiJS, WebGL): background, grid, layers of items, and an overlay for what is
@@ -176,6 +178,8 @@ interface Node {
   view: Container;
   /** What else its look depends on (a pin's category). */
   look: string;
+  /** Parts drawn elsewhere (a room's walls under the layer's floors, its doors over them). */
+  extras?: Container[];
 }
 
 /** Pins keep this size on screen, whatever the zoom, so they can be found on a whole world map. */
@@ -284,6 +288,10 @@ export class MapScene {
   private readonly previewText = new Text({ text: '', style: { fontSize: 22, fill: 0xffffff } });
   private nodes = new Map<string, Node>();
   private layerViews = new Map<string, Container>();
+  /** Where the walls of a layer's rooms go: under everything else on it. */
+  private wallHolders = new Map<string, Container>();
+  /** Where the doors of a layer's rooms go: over everything else on it. */
+  private topHolders = new Map<string, Container>();
   private doc: MapDoc | null = null;
   private backgroundKey = '';
   private paper: Graphics | null = null;
@@ -488,6 +496,18 @@ export class MapScene {
           this.loadPicture(key, layer.picture.path, pic);
         }
       }
+      let walls = this.wallHolders.get(layer.id);
+      if (!layer.picture && (!walls || walls.destroyed)) {
+        walls = new Container();
+        this.wallHolders.set(layer.id, walls);
+        view.addChildAt(walls, 0);
+      }
+      let tops = this.topHolders.get(layer.id);
+      if (!layer.picture && (!tops || tops.destroyed)) {
+        tops = new Container();
+        this.topHolders.set(layer.id, tops);
+        view.addChild(tops);
+      }
       layer.items.forEach((item, i) => {
         seen.add(item.id);
         const node = this.nodes.get(item.id);
@@ -500,20 +520,36 @@ export class MapScene {
                 ? String(fantasyFontReady)
                 : '';
         if (node?.item === item && node.look === look && node.view.parent === view) return;
-        if (node) node.view.destroy({ children: true });
+        if (node) {
+          node.view.destroy({ children: true });
+          for (const e of node.extras ?? []) e.destroy({ children: true });
+        }
         const fresh = this.drawItem(item, doc);
-        fresh.cullable = !['path', 'shape', 'scatter', 'district', 'building'].includes(item.kind);
+        fresh.cullable = !['path', 'shape', 'scatter', 'district', 'building', 'room'].includes(
+          item.kind,
+        );
         if (this.hideAnnotations && (item.kind === 'pin' || item.kind === 'route'))
           fresh.visible = false;
-        this.nodes.set(item.id, { item, view: fresh, look });
-        view.addChildAt(fresh, Math.min(i, view.children.length));
+        const extras: Container[] = [];
+        if (item.kind === 'room' && walls && tops) {
+          const wallView = roomWallView(item);
+          walls.addChild(wallView);
+          const doorView = roomDoorsView(item);
+          tops.addChild(doorView);
+          extras.push(wallView, doorView);
+        }
+        this.nodes.set(item.id, { item, view: fresh, look, ...(extras.length ? { extras } : {}) });
+        // Index 0 of a layer is its walls (or its picture); the items follow.
+        view.addChildAt(fresh, Math.min(i + 1, view.children.length));
       });
       // Keep the items in their order within the layer.
       layer.items.forEach((item, i) => {
         const n = this.nodes.get(item.id);
-        if (n?.view.parent === view && view.getChildIndex(n.view) !== i)
-          view.setChildIndex(n.view, Math.min(i, view.children.length - 1));
+        if (n?.view.parent === view && view.getChildIndex(n.view) !== i + 1)
+          view.setChildIndex(n.view, Math.min(i + 1, view.children.length - 1));
       });
+      if (tops && view.getChildIndex(tops) !== view.children.length - 1)
+        view.setChildIndex(tops, view.children.length - 1);
     });
     for (const [key, pic] of this.pictureViews)
       if (!pictureKeys.has(key)) {
@@ -527,6 +563,7 @@ export class MapScene {
     for (const [id, node] of this.nodes)
       if (!seen.has(id)) {
         node.view.destroy({ children: true });
+        for (const e of node.extras ?? []) e.destroy({ children: true });
         this.nodes.delete(id);
       }
     for (const [id, view] of this.layerViews)
@@ -623,6 +660,7 @@ export class MapScene {
           !pinStyle(doc, item).hidden &&
           !(this.forPlayers && (item.secret === true || fogHides(doc, item.x, item.y)));
       node.view.visible = shown;
+      for (const e of node.extras ?? []) e.visible = shown;
     }
     for (const pic of this.pictureViews.values()) pic.visible = !this.renderActive;
   }
@@ -815,6 +853,8 @@ export class MapScene {
           opacity: item.opacity,
           texture: item.texture,
         });
+      case 'room':
+        return roomFloorView(item, terrainPattern(item.floor), floorColor(item.floor));
       case 'district':
         return districtView(item, districtGeo(doc, item));
       case 'building':
@@ -994,6 +1034,10 @@ export class MapScene {
           if (pointInPolygon(p, outline)) return item;
           continue;
         }
+        if (item.kind === 'room') {
+          if (pointInPolygon(p, roomOutline(item.points, item.smooth))) return item;
+          continue;
+        }
         if (item.kind === 'district' || item.kind === 'building') {
           const outline = item.kind === 'district' ? districtOutline(item) : item.points;
           if (pointInPolygon(p, outline)) return item;
@@ -1055,8 +1099,13 @@ export class MapScene {
       g.poly(corners.flat()).stroke({ color: SELECT_COLOR, width: w * 1.5 });
       return;
     }
-    if (item.kind === 'district' || item.kind === 'building') {
-      const outline = item.kind === 'district' ? districtOutline(item) : item.points;
+    if (item.kind === 'district' || item.kind === 'building' || item.kind === 'room') {
+      const outline =
+        item.kind === 'district'
+          ? districtOutline(item)
+          : item.kind === 'room'
+            ? roomOutline(item.points, item.smooth)
+            : item.points;
       if (outline.length >= 6) g.poly(outline).stroke({ color: SELECT_COLOR, width: w });
       for (let i = 0; i + 1 < item.points.length; i += 2)
         g.circle(item.points[i] ?? 0, item.points[i + 1] ?? 0, 5 / this.zoom)
@@ -1285,3 +1334,6 @@ function gridGraphics(grid: Grid, width: number, height: number): Graphics {
   }
   return g.stroke({ color: 0x000000, width: 1, pixelLine: true });
 }
+
+/** A terrain's base colour (the floor of a room before its texture is made). */
+const floorColor = (id: TerrainId): string => TERRAINS.find((t) => t.id === id)?.base ?? '#9a958d';

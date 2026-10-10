@@ -1077,3 +1077,37 @@ test('a town is generated from outlines, with walls, houses and a saved building
   await page.getByRole('button', { name: 'Bake into buildings' }).click();
   await waitForSaved(page, 'maps', '"density":0');
 });
+
+test('rooms with walls and doors, a generated dungeon and a cave', async ({ page }, testInfo) => {
+  test.skip(isPhone(page), 'Drawn on the desktop.');
+  test.setTimeout(90_000);
+  await newMap(page, 'Under Highmoor');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  await tool(page, 'Room').click();
+  await page.getByRole('button', { name: 'Generate a dungeon' }).click();
+  await waitForSaved(page, 'maps', '"kind":"room"');
+  await waitForSaved(page, 'maps', '"doors"');
+  await page.waitForTimeout(500);
+  await canvas.screenshot({ path: testInfo.outputPath('dungeon-generated.png') });
+  // A room of your own, dragged on the grid, and a door cut in its top wall.
+  await page
+    .getByRole('radiogroup', { name: 'Terrain' })
+    .getByRole('radio', { name: 'Wood floor' })
+    .click();
+  await page.mouse.move(box.x + 40, box.y + 60);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 140, box.y + 130, { steps: 5 });
+  await page.mouse.up();
+  await waitForSaved(page, 'maps', '"floor":"wood"');
+  await tool(page, 'Door').click();
+  await page.getByRole('radio', { name: 'Archway' }).click();
+  await page.mouse.click(box.x + 90, box.y + 61);
+  await waitForSaved(page, 'maps', '"kind":"arch"');
+  await tool(page, 'Room').click();
+  await page.getByRole('button', { name: 'Generate a cave' }).click();
+  await waitForSaved(page, 'maps', '"wallStyle":"cave"');
+  await page.waitForTimeout(800);
+  await canvas.screenshot({ path: testInfo.outputPath('dungeon.png') });
+});

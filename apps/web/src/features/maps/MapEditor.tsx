@@ -37,6 +37,7 @@ import {
   type DistrictSettings,
 } from '../../app/maps/cityDoc';
 import { generateArchipelago } from '../../app/maps/islandgen';
+import { doorOnWall, generateCave, generateDungeon, roomOutline } from '../../app/maps/rooms';
 import {
   DEFAULT_SCATTER,
   makeScatter,
@@ -107,6 +108,7 @@ import {
   type FogSettings,
   type IslandRequest,
   type PathSettings,
+  type RoomSettings,
   type MapMode,
   type TemplateSettings,
   type Tool,
@@ -186,6 +188,14 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     roof: 'tiles',
     color: '#b5543a',
     libraryId: null,
+  });
+  const [roomSet, setRoomSet] = useState<RoomSettings>({
+    shape: 'rect',
+    floor: 'stone',
+    wallStyle: 'stone',
+    wall: 12,
+    smooth: 0,
+    doorKind: 'door',
   });
   const [area, setArea] = useState<AreaSettings>({
     texture: 'grass',
@@ -378,6 +388,27 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       scene?.clearPreview();
       return;
     }
+    if (wall && tool === 'room') {
+      const points = dedupePoints(wall).map(Math.round);
+      if (points.length >= 6 && layer) {
+        const id = itemId(doc);
+        commit((d) =>
+          addItem(d, layer.id, {
+            kind: 'room',
+            id,
+            points,
+            smooth: roomSet.smooth,
+            floor: roomSet.floor,
+            wall: roomSet.wall,
+            wallStyle: roomSet.wallStyle,
+          }),
+        );
+        setSelected(id);
+      }
+      setWall(null);
+      scene?.clearPreview();
+      return;
+    }
     if (wall && tool === 'district') {
       const points = dedupePoints(wall).map(Math.round);
       if (points.length >= 6 && layer) {
@@ -478,6 +509,72 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       addItem(d, layer.id, makeScatter(id, settings, where, Math.floor(Math.random() * 1e9))),
     );
     setSelected(id);
+  };
+
+  /** A dungeon filling the view: rooms and corridors with doors, on the active layer. */
+  const generateDungeonHere = (rooms: number) => {
+    const el = host.current;
+    if (!scene || !el || !layer || layer.locked) return;
+    const tl = scene.toMap(0, 0);
+    const br = scene.toMap(el.clientWidth, el.clientHeight);
+    const x0 = Math.max(0, tl.x);
+    const y0 = Math.max(0, tl.y);
+    const x1 = Math.min(doc.width, br.x);
+    const y1 = Math.min(doc.height, br.y);
+    const margin = Math.min(x1 - x0, y1 - y0) * 0.06;
+    const plan = generateDungeon({
+      x: Math.round(x0 + margin),
+      y: Math.round(y0 + margin),
+      width: Math.max(grid.size * 8, x1 - x0 - margin * 2),
+      height: Math.max(grid.size * 8, y1 - y0 - margin * 2),
+      cell: grid.size,
+      rooms,
+      seed: Math.floor(Math.random() * 1e9),
+    });
+    commit((d) =>
+      plan.reduce(
+        (acc, room) =>
+          addItem(acc, layer.id, {
+            kind: 'room',
+            id: itemId(acc),
+            points: room.points.map(Math.round),
+            smooth: 0,
+            floor: roomSet.floor,
+            wall: roomSet.wall,
+            wallStyle: roomSet.wallStyle,
+            ...(room.doors.length
+              ? {
+                  doors: room.doors.map((door) => ({
+                    ...door,
+                    x: Math.round(door.x),
+                    y: Math.round(door.y),
+                  })),
+                }
+              : {}),
+          }),
+        d,
+      ),
+    );
+  };
+
+  /** A cave in the middle of the view. */
+  const generateCaveHere = () => {
+    const el = host.current;
+    if (!scene || !el || !layer || layer.locked) return;
+    const c = scene.toMap(el.clientWidth / 2, el.clientHeight / 2);
+    const radius = (Math.min(el.clientWidth, el.clientHeight) / scene.zoom) * 0.17;
+    const points = generateCave(c.x, c.y, radius, Math.floor(Math.random() * 1e9)).map(Math.round);
+    commit((d) =>
+      addItem(d, layer.id, {
+        kind: 'room',
+        id: itemId(d),
+        points,
+        smooth: 0.8,
+        floor: roomSet.floor === 'stone' ? 'dirt' : roomSet.floor,
+        wall: roomSet.wall,
+        wallStyle: 'cave',
+      }),
+    );
   };
 
   /** A walled town with a market quarter, in the middle of the view. */
@@ -681,6 +778,45 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       case 'template':
         drag.current = { mode: 'template', ...base, start: snap ? snapPoint(p) : p };
         return;
+      case 'room':
+        if (!canDraw) return;
+        if (roomSet.shape === 'rect') drag.current = { mode: 'room', ...base, start: snapPoint(p) };
+        else setWall((w) => [...(w ?? []), p.x, p.y]);
+        return;
+      case 'door': {
+        // A door goes on the nearest wall of any room within reach; one already there is removed.
+        let best: { id: string; x: number; y: number; angle: number; reach: number } | null = null;
+        for (const l of doc.layers)
+          for (const it of l.items) {
+            if (it.kind !== 'room') continue;
+            const hit = doorOnWall(roomOutline(it.points, it.smooth), p, 16 / scene.zoom);
+            if (!hit) continue;
+            const reach = Math.hypot(hit.x - p.x, hit.y - p.y);
+            if (!best || reach < best.reach) best = { id: it.id, ...hit, reach };
+          }
+        if (!best) return;
+        const target = best;
+        commit((d) =>
+          updateItem(d, target.id, (i) => {
+            if (i.kind !== 'room') return i;
+            const doors = i.doors ?? [];
+            const near = doors.findIndex(
+              (x) => Math.hypot(x.x - target.x, x.y - target.y) < i.wall * 3,
+            );
+            const next =
+              near >= 0
+                ? doors.filter((_, k) => k !== near)
+                : [
+                    ...doors,
+                    { x: target.x, y: target.y, angle: target.angle, kind: roomSet.doorKind },
+                  ];
+            if (next.length > 0) return { ...i, doors: next };
+            const { doors: _d, ...rest } = i;
+            return rest;
+          }),
+        );
+        return;
+      }
       case 'building': {
         if (!canDraw) return;
         const entry = buildingSet.libraryId
@@ -739,7 +875,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         tool === 'path' ||
         tool === 'scatter' ||
         tool === 'district' ||
-        tool === 'building')
+        tool === 'building' ||
+        tool === 'room')
     ) {
       const closed = tool !== 'path' && (tool !== 'scatter' || scatter.mode === 'area');
       const control = [...wall, p.x, p.y];
@@ -754,7 +891,9 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
               ? 0.25
               : tool === 'building'
                 ? 0
-                : pathSet.smooth,
+                : tool === 'room'
+                  ? roomSet.smooth
+                  : pathSet.smooth,
       );
       scene.drawPreview((g) => {
         if (closed) g.poly(line).fill({ color: 0x3b82f6, alpha: 0.18 });
@@ -834,6 +973,21 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           },
           { text: `${String(template.feet)} ft ${template.shape}`, at: p },
         );
+        d.last = p;
+        return;
+      }
+      case 'room': {
+        const end = snapPoint(p);
+        scene.drawPreview((g) => {
+          g.rect(
+            Math.min(d.start.x, end.x),
+            Math.min(d.start.y, end.y),
+            Math.abs(end.x - d.start.x),
+            Math.abs(end.y - d.start.y),
+          )
+            .fill({ color: 0x9a958d, alpha: 0.4 })
+            .stroke({ color: 0x3b82f6, width: 2 / scene.zoom });
+        });
         d.last = p;
         return;
       }
@@ -986,6 +1140,26 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         drawMeasured(next);
         return;
       }
+      case 'room': {
+        scene.clearPreview();
+        const end = snapPoint(p);
+        const x0 = Math.min(d.start.x, end.x);
+        const y0 = Math.min(d.start.y, end.y);
+        const w = Math.abs(end.x - d.start.x);
+        const h = Math.abs(end.y - d.start.y);
+        if (w < 8 || h < 8 || !layer) return;
+        const id = itemId(doc);
+        place({
+          kind: 'room',
+          id,
+          points: [x0, y0, x0 + w, y0, x0 + w, y0 + h, x0, y0 + h].map(Math.round),
+          smooth: 0,
+          floor: roomSet.floor,
+          wall: roomSet.wall,
+          wallStyle: roomSet.wallStyle,
+        });
+        return;
+      }
       case 'building': {
         scene.clearPreview();
         const w = Math.abs(p.x - d.start.x);
@@ -1102,6 +1276,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             tool === 'scatter' ||
             tool === 'district' ||
             tool === 'building' ||
+            tool === 'room' ||
             tool === 'fog')
         )
           cancelWall();
@@ -1410,7 +1585,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
                       tool === 'path' ||
                       tool === 'scatter' ||
                       tool === 'district' ||
-                      tool === 'building'
+                      tool === 'building' ||
+                      tool === 'room'
                       ? 'Click to place points; double-click or Enter to finish, Escape to cancel.'
                       : tool === 'fog'
                         ? 'Click the corners; double-click or Enter to finish the area.'
@@ -1476,6 +1652,10 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             buildingSet={buildingSet}
             setBuildingSet={setBuildingSet}
             onGenerateTown={generateTownHere}
+            roomSet={roomSet}
+            setRoomSet={setRoomSet}
+            onGenerateDungeon={generateDungeonHere}
+            onGenerateCave={generateCaveHere}
             scatter={scatter}
             setScatter={setScatter}
             onScatterOn={scatterOn}

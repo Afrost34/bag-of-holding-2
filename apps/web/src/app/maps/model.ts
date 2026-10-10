@@ -1,6 +1,7 @@
 import { newId } from '../cards/model';
 import { pointInPolygon } from './polygon';
 import type { RouteDash } from './lettering';
+import type { Door } from './rooms';
 import type { TerrainId } from './terrain';
 import type { MapScale, TravelSpeed } from './travel';
 
@@ -151,6 +152,22 @@ export type MapItem =
       roof: 'tiles' | 'thatch' | 'slate' | 'flat';
       color: string;
       name?: string;
+    }
+  /**
+   * A room for a battle map: a footprint with a floor, walls and doors. Walls of all the rooms on
+   * a layer go under all their floors, so rooms that touch join up.
+   */
+  | {
+      kind: 'room';
+      id: string;
+      points: number[];
+      /** 0 straight walls, up to 1 a rounded cave. */
+      smooth: number;
+      floor: TerrainId;
+      /** Wall thickness, in map pixels. */
+      wall: number;
+      wallStyle: 'stone' | 'cave' | 'wood';
+      doors?: Door[];
     }
   /** A road, trail, river or fence along control points. */
   | {
@@ -493,6 +510,7 @@ const KINDS = new Set([
   'scatter',
   'district',
   'building',
+  'room',
   'route',
   'text',
   'template',
