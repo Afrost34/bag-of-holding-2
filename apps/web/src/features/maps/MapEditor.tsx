@@ -95,6 +95,7 @@ import { usePageTitle } from '../../app/tabs/usePageTitle';
 import {
   dedupePoints,
   eraseStrokes,
+  dropLastPoint,
   insertVertex,
   isClosedItem,
   isPointItem,
@@ -188,6 +189,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   const [selected, setSelected] = useState<string | null>(null);
   const drawable = doc.layers.filter(isDrawable);
   const [layerId, setLayerId] = useState(drawable.at(-2)?.id ?? drawable[0]?.id ?? '');
+  /** The control point of the picked shape under the pointer (-1: none): Delete removes it. */
+  const hoverHandle = useRef(-1);
   const [stamp, setStamp] = useState<string | null>(null);
   const [stampAspect, setStampAspect] = useState(1);
   const [stampSquares, setStampSquares] = useState<{ w: number; h: number } | null>(null);
@@ -541,14 +544,16 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       scene?.clearPreview();
       return;
     }
-    if (wall && wall.length >= 4 && layer) {
+    // A double click places its point twice: one is enough.
+    const placed = wall ? dedupePoints(wall) : null;
+    if (wall && placed && placed.length >= 4 && layer) {
       const item: MapItem =
         tool === 'route'
-          ? { kind: 'route', id: itemId(doc), points: wall, label: 'Route', color: ROUTE_COLOR }
+          ? { kind: 'route', id: itemId(doc), points: placed, label: 'Route', color: ROUTE_COLOR }
           : {
               kind: 'wall',
               id: itemId(doc),
-              points: wall,
+              points: placed,
               ...(roomSet.wallTexture ? { texture: roomSet.wallTexture } : {}),
             };
       commit((d) => add(d, layer.id, item));
@@ -846,6 +851,12 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       case 'pen':
       case 'terrain':
         if (!canDraw) return;
+        // Alt erases with the same brush, as in Dungeondraft.
+        if (e.altKey) {
+          drag.current = { mode: 'erase', ...base, points: [p.x, p.y] };
+          previewEraser([p.x, p.y]);
+          return;
+        }
         drag.current = { mode: 'stroke', ...base, points: [p.x, p.y] };
         scene.previewStroke([p.x, p.y], strokeStyle());
         return;
@@ -1004,6 +1015,10 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     const row = Math.floor((p.y - grid.offsetY) / grid.size) + 1;
     setCursorSquare((c) => (c?.col === col && c.row === row ? c : { col, row }));
     setZoom(scene.zoom);
+    hoverHandle.current =
+      creator && tool === 'select' && isPointItem(selectedItem)
+        ? nearestHandle(selectedItem.points, p, 10 / scene.zoom)
+        : -1;
     if (tool === 'measure' && measured.length > 0 && !drag.current)
       drawMeasured([...measured, measureAt(p)]);
     if (wall && tool === 'route')
@@ -1505,6 +1520,30 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       }
       if (e.key === 'Enter' && wall) {
         finishWall();
+        return;
+      }
+      // Backspace while placing points takes the last one back.
+      if (e.key === 'Backspace' && wall && wall.length >= 2) {
+        e.preventDefault();
+        setWall(dropLastPoint(wall));
+        scene?.clearPreview();
+        return;
+      }
+      // Delete over a control point of the picked shape removes that point, not the shape.
+      if (
+        (e.key === 'Delete' || e.key === 'Backspace') &&
+        creator &&
+        tool === 'select' &&
+        isPointItem(selectedItem) &&
+        hoverHandle.current >= 0
+      ) {
+        const points = removeVertex(
+          selectedItem.points,
+          hoverHandle.current,
+          minPoints(selectedItem),
+        );
+        hoverHandle.current = -1;
+        commit((d) => updateItem(d, selectedItem.id, (i) => withPoints(i, points)));
         return;
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selected) {

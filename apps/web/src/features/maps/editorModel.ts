@@ -144,6 +144,9 @@ export function insertVertex(
   return out;
 }
 
+/** The last point placed taken back (Backspace while drawing). */
+export const dropLastPoint = (points: readonly number[]): number[] => points.slice(0, -2);
+
 /** A control point taken out; the line keeps at least `min` points. */
 export function removeVertex(points: readonly number[], index: number, min: number): number[] {
   if (points.length / 2 <= min) return [...points];
@@ -180,7 +183,7 @@ export function snapRiverEnd(
 /** Items drawn from control points the user can drag (a scatter tied to another item has none). */
 export type PointItem = Extract<
   MapItem,
-  { kind: 'shape' | 'path' | 'scatter' | 'district' | 'building' | 'room' }
+  { kind: 'shape' | 'path' | 'scatter' | 'district' | 'building' | 'room' | 'wall' | 'route' }
 >;
 
 export const isPointItem = (i: MapItem | null | undefined): i is PointItem =>
@@ -190,11 +193,16 @@ export const isPointItem = (i: MapItem | null | undefined): i is PointItem =>
     i.kind === 'district' ||
     i.kind === 'building' ||
     i.kind === 'room' ||
+    i.kind === 'wall' ||
+    i.kind === 'route' ||
     (i.kind === 'scatter' && !isTied(i)));
 
 /** A closed outline (a shape, a scatter over an area) rather than an open line. */
 export const isClosedItem = (i: PointItem): boolean =>
-  i.kind !== 'path' && (i.kind !== 'scatter' || i.mode === 'area');
+  i.kind !== 'path' &&
+  i.kind !== 'wall' &&
+  i.kind !== 'route' &&
+  (i.kind !== 'scatter' || i.mode === 'area');
 
 /** The least points a closed outline or an open line keeps. */
 export const minPoints = (i: PointItem): number => (isClosedItem(i) ? 3 : 2);
@@ -206,12 +214,15 @@ export const withPoints = (i: MapItem, points: number[]): MapItem =>
   i.kind === 'scatter' ||
   i.kind === 'district' ||
   i.kind === 'building' ||
-  i.kind === 'room'
+  i.kind === 'room' ||
+  i.kind === 'wall' ||
+  i.kind === 'route'
     ? { ...i, points }
     : i;
 
 /** How rounded an item's outline is (buildings are straight-sided). */
-export const smoothOf = (i: PointItem): number => (i.kind === 'building' ? 0 : i.smooth);
+export const smoothOf = (i: PointItem): number =>
+  i.kind === 'building' || i.kind === 'wall' || i.kind === 'route' ? 0 : i.smooth;
 
 /** What an item is called in the panels and the status bar. */
 export const ITEM_TITLES: Record<MapItem['kind'], string> = {

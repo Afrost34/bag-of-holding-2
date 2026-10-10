@@ -1463,3 +1463,57 @@ test('walls are made of a pack strip, and its doors snap onto them', async ({ pa
   await waitForSaved(page, 'maps', '"rotation":0');
   await canvas.screenshot({ path: testInfo.outputPath('pack-wall.png') });
 });
+
+/** The points of every wall saved in the user's maps. */
+const savedWalls = (page: Page) =>
+  page.evaluate(async () => {
+    const walls: number[][] = [];
+    try {
+      const root = await navigator.storage.getDirectory();
+      const dir = await (await root.getDirectoryHandle('user-data')).getDirectoryHandle('maps');
+      for await (const entry of dir.values()) {
+        if (entry.kind !== 'file') continue;
+        const doc = JSON.parse(await (await entry.getFile()).text()) as {
+          layers?: { items: { kind: string; points?: number[] }[] }[];
+        };
+        for (const layer of doc.layers ?? [])
+          for (const item of layer.items)
+            if (item.kind === 'wall' && item.points) walls.push(item.points);
+      }
+    } catch {
+      return walls;
+    }
+    return walls;
+  });
+
+test('Backspace takes the last point back while drawing, and Delete over a point removes it', async ({
+  page,
+}) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Points');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  // Points land where they are clicked, not on the grid.
+  await page.keyboard.press('s');
+  await tool(page, 'Wall').click();
+  await page.mouse.click(box.x + 200, box.y + 200);
+  await page.mouse.click(box.x + 300, box.y + 200);
+  // The second point is taken back; the wall ends at the third.
+  await page.keyboard.press('Backspace');
+  await page.mouse.dblclick(box.x + 400, box.y + 300);
+  await expect.poll(async () => (await savedWalls(page))[0]?.length).toBe(4);
+  // With three points, the middle one goes when the pointer is over it and Delete is pressed.
+  await tool(page, 'Wall').click();
+  await page.mouse.click(box.x + 200, box.y + 400);
+  await page.mouse.click(box.x + 300, box.y + 450);
+  await page.mouse.dblclick(box.x + 400, box.y + 400);
+  await expect.poll(async () => (await savedWalls(page)).length).toBe(2);
+  await tool(page, 'Select and move').click();
+  await page.mouse.click(box.x + 250, box.y + 425);
+  await page.mouse.move(box.x + 300, box.y + 450);
+  await page.keyboard.press('Delete');
+  await expect
+    .poll(async () => (await savedWalls(page)).map((w) => w.length).sort())
+    .toEqual([4, 4]);
+});

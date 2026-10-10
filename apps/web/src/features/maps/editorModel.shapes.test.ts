@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { addItem, newMap } from '../../app/maps/model';
 import {
   dedupePoints,
+  dropLastPoint,
   insertVertex,
   nearestHandle,
   removeVertex,
@@ -53,5 +54,13 @@ describe('rivers that meet', () => {
     expect(joined.into).toBe('main');
     expect(joined.points).toEqual([200, 0, 205, 100]);
     expect(snapRiverEnd(doc, [200, 0, 205, 40], 30)).toEqual({ points: [200, 0, 205, 40] });
+  });
+});
+
+describe('taking the last point back', () => {
+  it('drops one point and leaves the rest', () => {
+    expect(dropLastPoint([0, 0, 10, 10, 20, 5])).toEqual([0, 0, 10, 10]);
+    expect(dropLastPoint([4, 4])).toEqual([]);
+    expect(dropLastPoint([])).toEqual([]);
   });
 });

@@ -1303,9 +1303,19 @@ export class MapScene {
             .stroke({ color: SELECT_COLOR, width: w });
       return;
     }
-    if (item.kind === 'shape' || item.kind === 'path') {
+    if (
+      item.kind === 'shape' ||
+      item.kind === 'path' ||
+      item.kind === 'wall' ||
+      item.kind === 'route'
+    ) {
       // The outline, and a handle on each control point to drag.
-      const line = item.kind === 'shape' ? shapeOutline(item) : pathLine(item);
+      const line =
+        item.kind === 'shape'
+          ? shapeOutline(item)
+          : item.kind === 'path'
+            ? pathLine(item)
+            : item.points;
       if (line.length >= 4)
         g.poly(line, item.kind === 'shape').stroke({ color: SELECT_COLOR, width: w });
       for (let i = 0; i + 1 < item.points.length; i += 2)
