@@ -1629,6 +1629,14 @@ test('the terrain brush has a soft edge, and [ ] size it', async ({ page }) => {
   await page.mouse.up();
   await expect.poll(async () => (await savedStrokes(page)).length).toBe(2);
   expect((await savedStrokes(page)).map((x) => x.soft ?? 0).sort()).toEqual([0, 0.8]);
+  // A material has a border.
+  await page.getByLabel(/^Border/).check();
+  await page.getByLabel('Soft edge').fill('0');
+  await page.mouse.move(box.x + 150, box.y + 400);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 300, box.y + 420, { steps: 6 });
+  await page.mouse.up();
+  await waitForSaved(page, 'maps', '"border":true');
 });
 
 test('scatter turns its pieces within a range', async ({ page }) => {

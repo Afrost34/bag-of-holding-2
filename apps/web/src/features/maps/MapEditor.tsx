@@ -1354,6 +1354,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       opacity: s.opacity,
       texture: tool === 'terrain' ? s.texture : undefined,
       soft: tool === 'terrain' ? s.soft : undefined,
+      border: tool === 'terrain' ? s.border : undefined,
     };
   };
 
@@ -1428,6 +1429,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             opacity: s.opacity,
             ...(s.texture ? { texture: s.texture } : {}),
             ...(s.soft ? { soft: s.soft } : {}),
+            ...(s.border ? { border: true } : {}),
           }),
         );
         return;

@@ -355,6 +355,8 @@ export interface StrokeStyle {
   texture?: TerrainRef | undefined;
   /** 0–1: the edge fades out. */
   soft?: number | undefined;
+  /** A dark line round the stroke. */
+  border?: boolean | undefined;
 }
 
 /** How blurred a stroke of this width and softness is (map pixels). */
@@ -366,11 +368,24 @@ export const softBlur = (width: number, soft: number): number => Math.max(0, wid
  */
 function strokeView(points: readonly number[], style: StrokeStyle): Container {
   const line = new Graphics();
-  if (points.length >= 2) {
+  const trace = () => {
+    if (points.length < 2) return;
     line.moveTo(points[0] ?? 0, points[1] ?? 0);
     for (let i = 2; i + 1 < points.length; i += 2) line.lineTo(points[i] ?? 0, points[i + 1] ?? 0);
     if (points.length === 2) line.lineTo((points[0] ?? 0) + 0.1, points[1] ?? 0);
+  };
+  // A material's border: a darker, wider line under the fill.
+  if (style.border) {
+    trace();
+    line.stroke({
+      color: colorOf(INK),
+      width: style.width + Math.max(4, style.width * 0.06),
+      alpha: 0.65,
+      cap: 'round',
+      join: 'round',
+    });
   }
+  trace();
   line.stroke({
     ...(style.texture ? { fill: terrainPattern(style.texture) } : { color: colorOf(style.color) }),
     width: style.width,
@@ -1266,6 +1281,7 @@ export class MapScene {
           opacity: item.opacity,
           texture: item.texture,
           soft: item.soft,
+          border: item.border,
         });
       case 'room':
         return roomFloorView(item, terrainPattern(item.floor), floorColor(item.floor));

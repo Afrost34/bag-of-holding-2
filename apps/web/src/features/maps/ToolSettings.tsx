@@ -156,6 +156,19 @@ export function ToolSettings({
         />
       </label>
       {terrainTool && (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={s.border === true}
+            onChange={(e) => {
+              const { border: _b, ...rest } = s;
+              set(e.target.checked ? { ...rest, border: true } : rest);
+            }}
+          />
+          Border (a material: rock, lava, ice)
+        </label>
+      )}
+      {terrainTool && (
         <label className="block text-sm">
           Soft edge: {Math.round((s.soft ?? 0) * 100)}%
           <input

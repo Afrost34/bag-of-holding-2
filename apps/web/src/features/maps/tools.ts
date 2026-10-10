@@ -190,6 +190,8 @@ export interface BrushSettings {
   texture?: TerrainRef;
   /** 0–1: the stroke's edge fades out (the terrain brush). */
   soft?: number;
+  /** A dark line round the stroke (the terrain brush). */
+  border?: boolean;
 }
 
 /** Tools that have settings in the side panel. */

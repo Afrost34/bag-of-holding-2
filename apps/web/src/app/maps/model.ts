@@ -87,6 +87,8 @@ type MapItemBody =
       texture?: TerrainRef;
       /** 0–1: how far the edge fades into what is under it (smooth blending); hard when absent. */
       soft?: number;
+      /** A dark line round the stroke, as a material (rock, lava, ice) has. */
+      border?: boolean;
     }
   | {
       kind: 'wall';
