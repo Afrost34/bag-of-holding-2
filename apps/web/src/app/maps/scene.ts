@@ -31,6 +31,8 @@ import {
 } from './model';
 import { pinIconSvg } from './pinIcons';
 import { glyphAspect, glyphIdOf, glyphTexture, isGlyphRef } from './glyphs';
+import { buildingView, districtView } from './cityView';
+import { districtGeo, districtOutline } from './cityDoc';
 import { isTied, obstacleSignature, scatterLine, scatterOf } from './scatterDoc';
 import { pathLine, pathView, shapeOutline, shapeView } from './shapes';
 import { pointInPolygon } from './polygon';
@@ -461,7 +463,9 @@ export class MapScene {
     const seen = new Set<string>();
     const pictureKeys = new Set<string>();
     // What scatter reacts to (roads, rivers, shapes): scatter is made again when it changes.
-    const obstacles = doc.layers.some((l) => l.items.some((i) => i.kind === 'scatter'))
+    const obstacles = doc.layers.some((l) =>
+      l.items.some((i) => i.kind === 'scatter' || i.kind === 'district'),
+    )
       ? obstacleSignature(doc)
       : '';
     doc.layers.forEach((layer, index) => {
@@ -488,7 +492,7 @@ export class MapScene {
         seen.add(item.id);
         const node = this.nodes.get(item.id);
         const look =
-          item.kind === 'scatter'
+          item.kind === 'scatter' || item.kind === 'district'
             ? obstacles
             : item.kind === 'pin'
               ? JSON.stringify([pinStyle(doc, item), doc.pinStyle ?? '', fantasyFontReady])
@@ -498,7 +502,7 @@ export class MapScene {
         if (node?.item === item && node.look === look && node.view.parent === view) return;
         if (node) node.view.destroy({ children: true });
         const fresh = this.drawItem(item, doc);
-        fresh.cullable = item.kind !== 'path' && item.kind !== 'shape';
+        fresh.cullable = !['path', 'shape', 'scatter', 'district', 'building'].includes(item.kind);
         if (this.hideAnnotations && (item.kind === 'pin' || item.kind === 'route'))
           fresh.visible = false;
         this.nodes.set(item.id, { item, view: fresh, look });
@@ -811,6 +815,10 @@ export class MapScene {
           opacity: item.opacity,
           texture: item.texture,
         });
+      case 'district':
+        return districtView(item, districtGeo(doc, item));
+      case 'building':
+        return buildingView(item);
       case 'scatter':
         return this.scatterView(item, doc);
       case 'shape':
@@ -986,6 +994,11 @@ export class MapScene {
           if (pointInPolygon(p, outline)) return item;
           continue;
         }
+        if (item.kind === 'district' || item.kind === 'building') {
+          const outline = item.kind === 'district' ? districtOutline(item) : item.points;
+          if (pointInPolygon(p, outline)) return item;
+          continue;
+        }
         if (item.kind === 'scatter') {
           const line = scatterLine(this.doc, item);
           if (item.mode === 'area') {
@@ -1040,6 +1053,15 @@ export class MapScene {
         ];
       });
       g.poly(corners.flat()).stroke({ color: SELECT_COLOR, width: w * 1.5 });
+      return;
+    }
+    if (item.kind === 'district' || item.kind === 'building') {
+      const outline = item.kind === 'district' ? districtOutline(item) : item.points;
+      if (outline.length >= 6) g.poly(outline).stroke({ color: SELECT_COLOR, width: w });
+      for (let i = 0; i + 1 < item.points.length; i += 2)
+        g.circle(item.points[i] ?? 0, item.points[i + 1] ?? 0, 5 / this.zoom)
+          .fill({ color: 0xffffff })
+          .stroke({ color: SELECT_COLOR, width: w });
       return;
     }
     if (item.kind === 'scatter' && this.doc) {

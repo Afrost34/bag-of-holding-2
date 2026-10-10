@@ -16,6 +16,7 @@ import { type MapPanelsProps, field } from './panelTypes';
 import { PinLinkField } from './PinLinkField';
 import { PinLook } from './PinPanels';
 import { RouteSettings } from './RouteSettings';
+import { BuildingItemSettings, DistrictItemSettings } from './CityPanel';
 import { ScatterItemSettings } from './ScatterPanel';
 import { ShapeItemSettings } from './ShapePanel';
 import { TextLettering } from './TextLettering';
@@ -57,6 +58,8 @@ export function ItemSettings({
     shape: 'Terrain shape',
     path: 'Road or river',
     scatter: 'Scatter',
+    district: 'District',
+    building: 'Building',
   };
   return (
     <Section title={titles[item.kind]}>
@@ -70,6 +73,8 @@ export function ItemSettings({
           }}
         />
       )}
+      {item.kind === 'district' && <DistrictItemSettings item={item} set={set} commit={commit} />}
+      {item.kind === 'building' && <BuildingItemSettings item={item} set={set} />}
       {item.kind === 'scatter' && (
         <ScatterItemSettings item={item} stamp={stamp} set={set} commit={commit} />
       )}

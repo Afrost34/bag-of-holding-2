@@ -1,9 +1,11 @@
 import {
   Brush,
+  Castle,
   CloudFog,
   Crosshair,
   Eraser,
   Hand,
+  House,
   MapPin,
   MousePointer2,
   PaintRoller,
@@ -19,6 +21,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { MapKind, TemplateShape } from '../../app/maps/model';
+import type { RoofStyle } from '../../app/maps/cityDoc';
 import type { PathStyle } from '../../app/maps/shapes';
 import type { TerrainId } from '../../app/maps/terrain';
 
@@ -39,6 +42,8 @@ export type Tool =
   | 'area'
   | 'path'
   | 'scatter'
+  | 'district'
+  | 'building'
   | 'calibrate';
 
 /** The tool bar, in order; calibrate lives in the grid panel. */
@@ -52,6 +57,8 @@ export const TOOLS: { id: Tool; label: string; icon: LucideIcon; key: string }[]
   { id: 'area', label: 'Terrain shape', icon: Shapes, key: 'a' },
   { id: 'path', label: 'Road or river', icon: Waves, key: 'l' },
   { id: 'scatter', label: 'Scatter', icon: Trees, key: 'x' },
+  { id: 'district', label: 'District', icon: Castle, key: 'c' },
+  { id: 'building', label: 'Building', icon: House, key: 'q' },
   { id: 'wall', label: 'Wall', icon: Spline, key: 'w' },
   { id: 'text', label: 'Text', icon: Type, key: 't' },
   { id: 'measure', label: 'Measure', icon: Ruler, key: 'm' },
@@ -74,6 +81,8 @@ const CREATOR_TOOLS = new Set<Tool>([
   'area',
   'path',
   'scatter',
+  'district',
+  'building',
   'wall',
   'text',
   'measure',
@@ -113,6 +122,8 @@ export const TOOLS_WITH_SETTINGS = new Set<Tool>([
   'area',
   'path',
   'scatter',
+  'district',
+  'building',
 ]);
 
 export interface TemplateSettings {
@@ -155,4 +166,13 @@ export interface IslandRequest {
   elongation: number;
   count: number;
   seed: number;
+}
+
+/** The building tool: a rectangle or an outline, with a roof; or one placed from the library. */
+export interface BuildingSettings {
+  shape: 'rect' | 'polygon';
+  roof: RoofStyle;
+  color: string;
+  /** A saved building to place with a click, or null to draw. */
+  libraryId: string | null;
 }

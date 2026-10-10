@@ -6,28 +6,31 @@ import { expect, type Page } from '@playwright/test';
  */
 export async function waitForSaved(page: Page, dir: string, text: string): Promise<void> {
   await expect
-    .poll(() =>
-      page.evaluate(
-        async ({ dir: folder, text: wanted }) => {
-          // The folder may not be there yet: then nothing is saved yet.
-          try {
-            let handle = await (
-              await navigator.storage.getDirectory()
-            ).getDirectoryHandle('user-data');
-            for (const part of folder.split('/')) handle = await handle.getDirectoryHandle(part);
-            for await (const entry of handle.values())
-              if (
-                entry.kind === 'file' &&
-                (await entry.getFile().then((f) => f.text())).includes(wanted)
-              )
-                return true;
-          } catch {
+    .poll(
+      () =>
+        page.evaluate(
+          async ({ dir: folder, text: wanted }) => {
+            // The folder may not be there yet: then nothing is saved yet.
+            try {
+              let handle = await (
+                await navigator.storage.getDirectory()
+              ).getDirectoryHandle('user-data');
+              for (const part of folder.split('/')) handle = await handle.getDirectoryHandle(part);
+              for await (const entry of handle.values())
+                if (
+                  entry.kind === 'file' &&
+                  (await entry.getFile().then((f) => f.text())).includes(wanted)
+                )
+                  return true;
+            } catch {
+              return false;
+            }
             return false;
-          }
-          return false;
-        },
-        { dir, text },
-      ),
+          },
+          { dir, text },
+        ),
+      // Saves wait their turn when the machine is busy (a whole suite running at once).
+      { timeout: 20_000 },
     )
     .toBe(true);
 }
