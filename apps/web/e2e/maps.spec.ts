@@ -1754,3 +1754,27 @@ test('snapping can step by half or quarter cells', async ({ page }) => {
   await page.keyboard.press('s');
   await expect(bar.getByLabel('Snap step')).toHaveCount(0);
 });
+
+test('a wall can close into a loop and have sharp corners', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Loop');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  await tool(page, 'Wall').click();
+  await page.mouse.click(box.x + 200, box.y + 200);
+  await page.mouse.click(box.x + 400, box.y + 200);
+  await page.mouse.click(box.x + 300, box.y + 350);
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'maps', '"kind":"wall"');
+  await tool(page, 'Select and move').click();
+  await page.mouse.click(box.x + 300, box.y + 200);
+  await page.getByLabel('Close the loop').check();
+  await waitForSaved(page, 'maps', '"loop":true');
+  await page.getByLabel('Wall corners').selectOption('sharp');
+  await waitForSaved(page, 'maps', '"joint":"sharp"');
+  // The closing side can be picked too.
+  await page.keyboard.press('Escape');
+  await page.mouse.click(box.x + 250, box.y + 275);
+  await expect(page.getByLabel('Close the loop')).toBeChecked();
+});

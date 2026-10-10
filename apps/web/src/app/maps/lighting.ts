@@ -92,7 +92,7 @@ export function lightSegments(doc: MapDoc): Segment[] {
             true,
           ),
         );
-      } else if (item.kind === 'wall') out.push(...pairsOf(item.points, false));
+      } else if (item.kind === 'wall') out.push(...pairsOf(item.points, item.loop === true));
       else if (item.kind === 'building') out.push(...pairsOf(item.points, true));
       else if (item.kind === 'room') {
         let segs = pairsOf(roomOutline(item.points, item.smooth), true);

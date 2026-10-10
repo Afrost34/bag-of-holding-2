@@ -94,6 +94,10 @@ type MapItemBody =
       points: number[];
       /** A pack's wall strip (`pack:<id>:<path>`); absent: a drawn ink line. */
       texture?: string;
+      /** The last point joins the first: a closed wall. */
+      loop?: boolean;
+      /** How corners of a drawn wall look: rounded (absent) or sharp. */
+      joint?: 'sharp';
     }
   /** A closed area of terrain (land, water, a forest floor) with a rounded outline. */
   | {

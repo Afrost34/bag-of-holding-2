@@ -93,6 +93,46 @@ export function ItemSettings({
         </div>
       )}
       {item.kind === 'wall' && (
+        <>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={item.loop === true}
+              onChange={(e) => {
+                const on = e.target.checked;
+                set((i) => {
+                  if (i.kind !== 'wall') return i;
+                  const { loop: _l, ...rest } = i;
+                  return on ? { ...rest, loop: true } : rest;
+                });
+              }}
+            />
+            Close the loop
+          </label>
+          {!item.texture && (
+            <label className="block text-sm">
+              Corners
+              <select
+                aria-label="Wall corners"
+                value={item.joint ?? 'round'}
+                onChange={(e) => {
+                  const sharp = e.target.value === 'sharp';
+                  set((i) => {
+                    if (i.kind !== 'wall') return i;
+                    const { joint: _j, ...rest } = i;
+                    return sharp ? { ...rest, joint: 'sharp' } : rest;
+                  });
+                }}
+                className={field}
+              >
+                <option value="round">Rounded</option>
+                <option value="sharp">Sharp</option>
+              </select>
+            </label>
+          )}
+        </>
+      )}
+      {item.kind === 'wall' && (
         <WallStrips
           value={item.texture}
           onPick={(texture) => {

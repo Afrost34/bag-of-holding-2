@@ -1291,7 +1291,7 @@ export class MapScene {
         return pathView(item);
       case 'wall': {
         if (item.texture && isPackTexture(item.texture)) {
-          const strips = stripWallView(item.points, false, item.texture, grid.size);
+          const strips = stripWallView(item.points, item.loop === true, item.texture, grid.size);
           if (strips) return strips;
         }
         const g = new Graphics();
@@ -1300,12 +1300,13 @@ export class MapScene {
           g.moveTo(p[0] ?? 0, p[1] ?? 0);
           for (let i = 2; i + 1 < p.length; i += 2) g.lineTo(p[i] ?? 0, p[i + 1] ?? 0);
           if (p.length === 2) g.lineTo((p[0] ?? 0) + 0.1, p[1] ?? 0);
+          if (item.loop && p.length >= 6) g.closePath();
         }
         g.stroke({
           color: WALL_COLOR,
           width: Math.max(6, grid.size * 0.14),
-          cap: 'round',
-          join: 'round',
+          cap: item.joint === 'sharp' ? 'butt' : 'round',
+          join: item.joint === 'sharp' ? 'miter' : 'round',
         });
         return g;
       }
@@ -1455,7 +1456,11 @@ export class MapScene {
                 ? routeWidth(this.doc)
                 : item.width / 2;
           const tolerance = width + 6 / this.zoom;
-          if (nearPolyline(p, item.points, tolerance)) return item;
+          const line =
+            item.kind === 'wall' && item.loop && item.points.length >= 6
+              ? [...item.points, item.points[0] ?? 0, item.points[1] ?? 0]
+              : item.points;
+          if (nearPolyline(p, line, tolerance)) return item;
           continue;
         }
         if (item.kind === 'shape') {
