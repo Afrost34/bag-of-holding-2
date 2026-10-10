@@ -359,6 +359,29 @@ export function MapSettings({ doc, commit, setTool, snap, setSnap }: MapPanelsPr
           </p>
         )}
       </Section>
+      <Section title="Compass and frame">
+        {(['compass', 'frame'] as const).map((which) => (
+          <label key={which} className="block text-sm">
+            {which === 'compass' ? 'Compass rose' : 'Frame'}
+            <select
+              aria-label={which === 'compass' ? 'Compass rose' : 'Frame'}
+              value={doc[which] ?? 'none'}
+              onChange={(e) => {
+                const v = e.target.value;
+                commit((d) => {
+                  const { [which]: _old, ...rest } = d;
+                  return v === 'plain' || v === 'fantasy' ? { ...rest, [which]: v } : rest;
+                });
+              }}
+              className={field}
+            >
+              <option value="none">None</option>
+              <option value="plain">Plain</option>
+              <option value="fantasy">Fantasy map: inked on parchment</option>
+            </select>
+          </label>
+        ))}
+      </Section>
       <Section title="Size">
         <div className="grid grid-cols-2 gap-2">
           <NumberField

@@ -37,6 +37,7 @@ import { pinIconSvg } from './pinIcons';
 import { glyphIdOf, glyphTexture, isGlyphRef } from './glyphs';
 import { itemBox } from './arrange';
 import { lightSegments, visibilityPolygon } from './lighting';
+import { frameCorners, frameRects, roseShape } from './decor';
 import { heightsOf, shadeImage, type Elevation } from './elevation';
 import { alongLayout, targetLine } from './labels';
 import { buildingView, districtView } from './cityView';
@@ -133,6 +134,7 @@ const colorOf = (c: string): ColorSource => c;
 const usesFantasyFont = (doc: MapDoc) =>
   doc.pinStyle === 'fantasy' ||
   doc.scaleBar === 'fantasy' ||
+  doc.compass === 'fantasy' ||
   doc.layers.some((l) => l.items.some((i) => i.kind === 'text' && i.font === 'fantasy'));
 
 /**
@@ -392,6 +394,9 @@ export class MapScene {
   private readonly gridLines = new Container();
   /** The scale bar, over the items (kept in exports). */
   private readonly scaleBarView = new Container();
+  /** A compass rose and a frame (see `drawDecor`). */
+  private readonly decorView = new Container();
+  private decorKey = '';
   private scaleBarKey = '';
   private readonly layers = new Container();
   private readonly renderView = new Container();
@@ -469,6 +474,7 @@ export class MapScene {
       this.fog,
       this.gridLines,
       this.scaleBarView,
+      this.decorView,
       this.overlay,
     );
     this.app.stage.addChild(this.world);
@@ -615,6 +621,7 @@ export class MapScene {
     this.drawBackground(doc);
     this.drawGrid(doc);
     this.drawScaleBar(doc);
+    this.drawDecor(doc);
     // Layers, bottom first.
     const seen = new Set<string>();
     const pictureKeys = new Set<string>();
@@ -1093,6 +1100,66 @@ export class MapScene {
       holder.y -= size * 0.9;
     }
     this.scaleBarView.addChild(holder);
+  }
+
+  /** The compass rose (top-right) and the frame round the map. */
+  private drawDecor(doc: MapDoc): void {
+    const key = JSON.stringify([doc.compass, doc.frame, doc.width, doc.height, fantasyFontReady]);
+    if (key === this.decorKey) return;
+    this.decorKey = key;
+    for (const c of this.decorView.removeChildren()) c.destroy({ children: true });
+    const unit = Math.min(doc.width, doc.height);
+    if (doc.frame) {
+      const fantasy = doc.frame === 'fantasy';
+      const g = new Graphics();
+      for (const r of frameRects(doc.width, doc.height, doc.frame))
+        g.rect(r.x, r.y, r.w, r.h).stroke({ color: INK, width: r.line, join: 'miter' });
+      if (fantasy)
+        for (const c of frameCorners(doc.width, doc.height))
+          g.circle(c.x, c.y, unit * 0.014)
+            .fill({ color: PARCHMENT })
+            .stroke({ color: INK, width: Math.max(2, unit * 0.004) });
+      this.decorView.addChild(g);
+    }
+    if (doc.compass) {
+      const fantasy = doc.compass === 'fantasy';
+      const radius = unit * 0.1;
+      const holder = new Container();
+      const margin = unit * (doc.frame ? 0.09 : 0.05);
+      holder.position.set(doc.width - margin - radius, margin + radius);
+      const g = new Graphics();
+      const { long, short } = roseShape(doc.compass);
+      const scaled = (p: number[]) => p.map((v) => v * radius);
+      if (fantasy)
+        g.circle(0, 0, radius * 0.72).stroke({ color: INK, width: Math.max(1.5, radius * 0.02) });
+      for (const piece of [...short, ...long]) {
+        g.poly(scaled(piece.points)).fill({ color: PARCHMENT });
+        g.poly(scaled(piece.shaded)).fill({ color: INK });
+        g.poly(scaled(piece.points)).stroke({
+          color: INK,
+          width: Math.max(1, radius * 0.015),
+          join: 'miter',
+        });
+      }
+      holder.addChild(g);
+      const t = new Text({
+        text: 'N',
+        style: {
+          fontFamily: fantasy ? FANTASY_FONT : 'Merriweather, Georgia, serif',
+          fontStyle: fantasy ? 'italic' : 'normal',
+          fontWeight: '700',
+          fontSize: radius * 0.4,
+          fill: INK,
+          stroke: { color: PARCHMENT, width: Math.max(3, radius * 0.08) },
+        },
+        resolution: 2,
+      });
+      t.anchor.set(0.5, 1);
+      t.position.set(0, -radius * 1.05);
+      holder.addChild(t);
+      this.decorView.addChild(holder);
+    }
+    this.requestRender();
   }
 
   private drawGrid(doc: MapDoc): void {

@@ -392,6 +392,9 @@ export interface MapDoc {
   pinStyle?: 'fantasy';
   /** A scale bar in the bottom-left corner: plain, or as on an old map (absent: none). */
   scaleBar?: 'plain' | 'fantasy';
+  /** A compass rose in the top-right corner, and a frame round the map (absent: none). */
+  compass?: 'plain' | 'fantasy';
+  frame?: 'plain' | 'fantasy';
   /** Roofs left off, showing the floors of the buildings (the Viewer shows what is inside). */
   hideRoofs?: boolean;
   /** The light everywhere before lights are added: a colour (dark blue for night); absent: daylight. */
@@ -796,6 +799,8 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
     ...(json.scaleBar === 'plain' || json.scaleBar === 'fantasy'
       ? { scaleBar: json.scaleBar }
       : {}),
+    ...(json.compass === 'plain' || json.compass === 'fantasy' ? { compass: json.compass } : {}),
+    ...(json.frame === 'plain' || json.frame === 'fantasy' ? { frame: json.frame } : {}),
     ...(json.hideRoofs === true ? { hideRoofs: true } : {}),
     ...(typeof json.ambient === 'string' && /^#[0-9a-fA-F]{6}$/.test(json.ambient)
       ? { ambient: json.ambient }
@@ -924,6 +929,8 @@ export function artHash(doc: MapDoc): string {
     doc.paper ?? '',
     doc.elevation ?? null,
     doc.ambient ?? '',
+    doc.compass ?? '',
+    doc.frame ?? '',
     doc.hideRoofs ?? false,
     doc.sun ?? null,
     doc.layers.map((l) => [l.id, l.visible, l.picture ?? null, l.items.filter(isArt)]),

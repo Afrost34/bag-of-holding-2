@@ -1709,3 +1709,18 @@ test('lights light a dark map, and walls cast their shadows', async ({ page }, t
   await page.getByLabel('Light range').last().fill('12');
   await waitForSaved(page, 'maps', '"range":840');
 });
+
+test('a compass rose and a frame decorate the map', async ({ page }, testInfo) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Decor');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  await page.getByRole('tab', { name: 'Map' }).click();
+  await page.getByLabel('Compass rose', { exact: true }).selectOption('fantasy');
+  await waitForSaved(page, 'maps', '"compass":"fantasy"');
+  await page.getByLabel('Frame', { exact: true }).selectOption('fantasy');
+  await waitForSaved(page, 'maps', '"frame":"fantasy"');
+  await page.waitForTimeout(1000);
+  await canvas.screenshot({ path: testInfo.outputPath('decor.png') });
+  await page.getByLabel('Compass rose', { exact: true }).selectOption('none');
+  await expect(page.getByLabel('Compass rose', { exact: true })).toHaveValue('none');
+});
