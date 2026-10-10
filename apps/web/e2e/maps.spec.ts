@@ -1221,6 +1221,11 @@ test('elevation is made, painted and shown as hill shading', async ({ page }, te
   await page.mouse.up();
   await page.waitForTimeout(500);
   await canvas.screenshot({ path: testInfo.outputPath('spine.png') });
+  // Rivers run downhill from the high ground.
+  await page.getByRole('button', { name: 'Make rivers that run downhill' }).click();
+  await waitForSaved(page, 'maps', '"style":"river"');
+  await page.waitForTimeout(500);
+  await canvas.screenshot({ path: testInfo.outputPath('spine-rivers.png') });
   // Hidden by taking the shading to nothing; gone with Remove.
   await page.getByRole('slider', { name: /^How much it shows/ }).fill('0');
   await page.getByRole('button', { name: 'Remove the elevation' }).click();

@@ -1,14 +1,17 @@
 /** Elevation: paint hills and valleys, see them as hill shading, or make terrain from noise. */
 import { Button, cn } from '@boh/ui';
-import { Dices, Mountain, Trash2 } from 'lucide-react';
+import { Dices, Mountain, Trash2, Waves } from 'lucide-react';
 import { useState } from 'react';
 import {
   encodeHeights,
   flatElevation,
   generateHeights,
+  heightsOf,
+  riversFromHeights,
   type BrushMode,
   type Elevation,
 } from '../../app/maps/elevation';
+import { addItem, itemId } from '../../app/maps/model';
 import { Section } from './PanelParts';
 import { type MapPanelsProps } from './panelTypes';
 import { Slider } from './ShapePanel';
@@ -20,10 +23,36 @@ const MODES: { id: BrushMode; name: string; hint: string }[] = [
   { id: 'flatten', name: 'Flatten', hint: 'plains at the height you start on' },
 ];
 
-export function ElevationPanel({ doc, commit, elev, setElev }: MapPanelsProps) {
+export function ElevationPanel({ doc, commit, elev, setElev, layerId }: MapPanelsProps) {
   const e = doc.elevation;
   const [roughness, setRoughness] = useState(0.55);
   const [island, setIsland] = useState(true);
+  const [rivers, setRivers] = useState(4);
+  /** Rivers that run downhill from the heights, as paths on the layer. */
+  const makeRivers = () => {
+    commit((d) => {
+      const el = d.elevation;
+      if (!el) return d;
+      const lines = riversFromHeights(el, heightsOf(el), {
+        seed: Math.floor(Math.random() * 1e9),
+        count: rivers,
+        minLength: 10,
+      });
+      let next = d;
+      for (const points of lines)
+        next = addItem(next, layerId, {
+          kind: 'path',
+          id: itemId(next),
+          points,
+          smooth: 0.6,
+          style: 'river',
+          width: Math.max(14, Math.round(el.cell * 2.2)),
+          color: '#3d7fb0',
+          taper: true,
+        });
+      return next;
+    });
+  };
   const set = (patch: Partial<Elevation>) => {
     commit((d) => (d.elevation ? { ...d, elevation: { ...d.elevation, ...patch } } : d));
   };
@@ -130,6 +159,17 @@ export function ElevationPanel({ doc, commit, elev, setElev }: MapPanelsProps) {
           <Dices className="h-4 w-4" aria-hidden /> Generate terrain
         </Button>
       </Section>
+      {e && (
+        <Section title="Rivers">
+          <Slider label="How many" value={rivers} min={1} max={12} step={1} onChange={setRivers} />
+          <Button variant="ghost" onClick={makeRivers}>
+            <Waves className="h-4 w-4" aria-hidden /> Make rivers that run downhill
+          </Button>
+          <p className="text-xs text-muted">
+            They start on the high ground and follow the slope to the sea. Pick one to reshape it.
+          </p>
+        </Section>
+      )}
       {e && (
         <Section title="Look">
           <Slider

@@ -1,4 +1,5 @@
 import { noise2 } from './scatter';
+import { seeded } from './terrain';
 
 /**
  * Elevation: a coarse grid of heights (0–255) under the map, painted with a soft brush or made
@@ -148,6 +149,88 @@ export function generateHeights(e: Pick<Elevation, 'w' | 'h'>, req: TerrainReque
       out[y * e.w + x] = Math.max(0, Math.min(255, Math.round(40 + v * 260 - 40)));
     }
   return out;
+}
+
+export interface RiverRequest {
+  seed: number;
+  /** How many rivers to try for. */
+  count: number;
+  /** Least length, in cells, for a river to be kept. */
+  minLength: number;
+}
+
+/**
+ * Rivers that run downhill: each starts high on the land and follows the steepest way down until
+ * it reaches the sea, the map's edge or another river. Points are in map pixels, source first, so
+ * a river that widens downstream widens the right way.
+ */
+export function riversFromHeights(
+  e: Pick<Elevation, 'w' | 'h' | 'cell' | 'sea'>,
+  heights: Uint8Array,
+  req: RiverRequest,
+): number[][] {
+  const { w, h } = e;
+  const rand = seeded(req.seed);
+  const at = (x: number, y: number) => heights[y * w + x] ?? 0;
+  // Sources: cells well above the sea, the highest first (with some chance, so they vary).
+  const high = e.sea + Math.max(40, (255 - e.sea) * 0.35);
+  const candidates: { x: number; y: number; score: number }[] = [];
+  for (let y = 1; y < h - 1; y++)
+    for (let x = 1; x < w - 1; x++)
+      if (at(x, y) >= high) candidates.push({ x, y, score: at(x, y) + rand() * 60 });
+  candidates.sort((a, b) => b.score - a.score);
+  const taken = new Set<number>();
+  const rivers: number[][] = [];
+  const apart = Math.max(4, Math.round(Math.min(w, h) / 10));
+  const starts: { x: number; y: number }[] = [];
+  for (const c of candidates) {
+    if (starts.length >= req.count) break;
+    if (starts.every((s) => Math.hypot(s.x - c.x, s.y - c.y) >= apart)) starts.push(c);
+  }
+  for (const start of starts) {
+    const path: { x: number; y: number }[] = [{ x: start.x, y: start.y }];
+    const seen = new Set<number>([start.y * w + start.x]);
+    let x = start.x;
+    let y = start.y;
+    let flat = 0;
+    let joined = false;
+    for (let steps = 0; steps < w * h; steps++) {
+      if (at(x, y) <= e.sea) break;
+      let best: { x: number; y: number; v: number } | null = null;
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h || seen.has(ny * w + nx)) continue;
+          // Diagonals are a little longer: a touch of preference for straight steps.
+          const v = at(nx, ny) + (dx !== 0 && dy !== 0 ? 0.4 : 0) + rand() * 0.3;
+          if (!best || v < best.v) best = { x: nx, y: ny, v };
+        }
+      if (!best) break;
+      // A pit: a few flat steps (a lake's width) are crossed, then the river ends.
+      if (best.v > at(x, y) + 0.8) {
+        if (++flat > 6) break;
+      } else flat = 0;
+      x = best.x;
+      y = best.y;
+      seen.add(y * w + x);
+      path.push({ x, y });
+      if (taken.has(y * w + x)) {
+        joined = true;
+        break;
+      }
+    }
+    const reached = joined || at(x, y) <= e.sea || x === 0 || y === 0 || x === w - 1 || y === h - 1;
+    if (path.length < req.minLength || !reached) continue;
+    for (const p of path) taken.add(p.y * w + p.x);
+    // Every few cells is enough: the path is rounded when drawn.
+    const keep = path.filter((_, i) => i % 3 === 0 || i === path.length - 1);
+    rivers.push(
+      keep.flatMap((p) => [Math.round((p.x + 0.5) * e.cell), Math.round((p.y + 0.5) * e.cell)]),
+    );
+  }
+  return rivers;
 }
 
 /** Height 0–255 → a colour: deep water to shore, then green lowland, brown hills, white peaks. */
