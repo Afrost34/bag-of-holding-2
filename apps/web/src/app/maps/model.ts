@@ -118,6 +118,40 @@ export type MapItem =
       /** Only on these kinds of ground. */
       onlyOn?: TerrainId[];
     }
+  /**
+   * A district of a town: from its outline, streets cut it into blocks and each block is divided
+   * into lots with a building each, from the seed. Keeps clear of roads, rivers and water, and
+   * can have a wall. Buildings erased are listed in `removed`; "bake" turns the rest into
+   * buildings of their own.
+   */
+  | {
+      kind: 'district';
+      id: string;
+      points: number[];
+      smooth: number;
+      seed: number;
+      style: 'town' | 'dense' | 'noble' | 'market' | 'ward';
+      blockSize: number;
+      streetWidth: number;
+      lotArea: number;
+      gap: number;
+      density: number;
+      jitter: number;
+      angle: number;
+      plaza: number;
+      wall: boolean;
+      avoid: 'auto' | 'none';
+      removed?: string[];
+    }
+  /** A building drawn by hand (or baked from a district): its footprint and roof. */
+  | {
+      kind: 'building';
+      id: string;
+      points: number[];
+      roof: 'tiles' | 'thatch' | 'slate' | 'flat';
+      color: string;
+      name?: string;
+    }
   /** A road, trail, river or fence along control points. */
   | {
       kind: 'path';
@@ -457,6 +491,8 @@ const KINDS = new Set([
   'shape',
   'path',
   'scatter',
+  'district',
+  'building',
   'route',
   'text',
   'template',

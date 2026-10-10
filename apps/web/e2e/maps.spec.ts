@@ -1021,3 +1021,59 @@ test('scatter fills areas and lines with trees and mountains, clear of roads', a
   await page.getByRole('button', { name: 'Bake into stamps' }).click();
   await waitForSaved(page, 'maps', '"stamp":"glyph:mountain"');
 });
+
+test('a town is generated from outlines, with walls, houses and a saved building', async ({
+  page,
+}, testInfo) => {
+  test.skip(isPhone(page), 'Drawn on the desktop.');
+  test.setTimeout(120_000);
+  await newMap(page, 'Highmoor', 'World or city map');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  const cx = box.width / 2;
+  const cy = box.height / 2;
+  const click = async (x: number, y: number) => {
+    await page.mouse.click(box.x + x, box.y + y);
+  };
+  // A walled town in one click.
+  await tool(page, 'District').click();
+  await page.getByRole('button', { name: 'Generate a walled town' }).click();
+  await waitForSaved(page, 'maps', '"wall":true');
+  // A road through it: houses move out of its way.
+  await tool(page, 'Road or river').click();
+  await click(cx - 220, cy + 10);
+  await click(cx, cy - 10);
+  await click(cx + 220, cy + 20);
+  await page.keyboard.press('Enter');
+  // A district of its own, drawn: a noble quarter outside the walls.
+  await tool(page, 'District').click();
+  await page.getByRole('radio', { name: /Noble quarter/ }).click();
+  await click(cx + 130, cy - 200);
+  await click(cx + 280, cy - 200);
+  await click(cx + 280, cy - 90);
+  await click(cx + 130, cy - 90);
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'maps', '"style":"noble"');
+  // A building by hand, saved to the library, then placed again with a click.
+  await tool(page, 'Building').click();
+  await page.mouse.move(box.x + 60, box.y + 60);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 110, box.y + 90, { steps: 4 });
+  await page.mouse.up();
+  await waitForSaved(page, 'maps', '"kind":"building"');
+  await page.getByLabel('Building name').fill('Smithy');
+  await page.getByRole('button', { name: 'Save to the library' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
+  await tool(page, 'Building').click();
+  await page.getByRole('button', { name: 'Smithy', exact: true }).click();
+  await click(60, 150);
+  await page.waitForTimeout(1200);
+  await canvas.screenshot({ path: testInfo.outputPath('highmoor.png') });
+  await waitForSaved(page, 'maps', '"name":"Smithy"');
+  // Picked, a district bakes into buildings of its own.
+  await tool(page, 'Select and move').click();
+  await click(cx + 200, cy - 150);
+  await page.getByRole('button', { name: 'Bake into buildings' }).click();
+  await waitForSaved(page, 'maps', '"density":0');
+});

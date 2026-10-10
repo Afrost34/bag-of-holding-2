@@ -29,7 +29,16 @@ export function routeStatus(points: readonly number[], doc: MapDoc): string {
 
 export interface Drag {
   mode:
-    'pan' | 'move' | 'stroke' | 'erase' | 'measure' | 'template' | 'fog' | 'vertex' | 'calibrate';
+    | 'pan'
+    | 'move'
+    | 'stroke'
+    | 'erase'
+    | 'measure'
+    | 'template'
+    | 'fog'
+    | 'building'
+    | 'vertex'
+    | 'calibrate';
   start: Point;
   screen: Point;
   last: Point;
@@ -167,18 +176,35 @@ export function snapRiverEnd(
 }
 
 /** Items drawn from control points the user can drag (a scatter tied to another item has none). */
-export type PointItem = Extract<MapItem, { kind: 'shape' | 'path' | 'scatter' }>;
+export type PointItem = Extract<
+  MapItem,
+  { kind: 'shape' | 'path' | 'scatter' | 'district' | 'building' }
+>;
 
 export const isPointItem = (i: MapItem | null | undefined): i is PointItem =>
-  !!i && (i.kind === 'shape' || i.kind === 'path' || (i.kind === 'scatter' && !isTied(i)));
+  !!i &&
+  (i.kind === 'shape' ||
+    i.kind === 'path' ||
+    i.kind === 'district' ||
+    i.kind === 'building' ||
+    (i.kind === 'scatter' && !isTied(i)));
 
 /** A closed outline (a shape, a scatter over an area) rather than an open line. */
 export const isClosedItem = (i: PointItem): boolean =>
-  i.kind === 'shape' || (i.kind === 'scatter' && i.mode === 'area');
+  i.kind !== 'path' && (i.kind !== 'scatter' || i.mode === 'area');
 
 /** The least points a closed outline or an open line keeps. */
 export const minPoints = (i: PointItem): number => (isClosedItem(i) ? 3 : 2);
 
 /** The same item with other control points. */
 export const withPoints = (i: MapItem, points: number[]): MapItem =>
-  i.kind === 'shape' || i.kind === 'path' || i.kind === 'scatter' ? { ...i, points } : i;
+  i.kind === 'shape' ||
+  i.kind === 'path' ||
+  i.kind === 'scatter' ||
+  i.kind === 'district' ||
+  i.kind === 'building'
+    ? { ...i, points }
+    : i;
+
+/** How rounded an item's outline is (buildings are straight-sided). */
+export const smoothOf = (i: PointItem): number => (i.kind === 'building' ? 0 : i.smooth);

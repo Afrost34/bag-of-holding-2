@@ -24,6 +24,18 @@ import { emptyHistory, record, redo as redoStep, undo as undoStep } from '../../
 import { journalPath } from '../../app/journal/paths';
 import { useJournal } from '../../app/journal/store';
 import { useStamps } from '../../app/maps/assets';
+import { placeFootprint, useBuildings } from '../../app/maps/buildings';
+import {
+  addItems,
+  DEFAULT_DISTRICT,
+  eraseBuildings,
+  generateTown,
+  makeBuilding,
+  makeDistrict,
+  rectangleFootprint,
+  rotatePoints,
+  type DistrictSettings,
+} from '../../app/maps/cityDoc';
 import { generateArchipelago } from '../../app/maps/islandgen';
 import {
   DEFAULT_SCATTER,
@@ -77,6 +89,7 @@ import {
   ROUTE_COLOR,
   routeStatus,
   simplify,
+  smoothOf,
   snapRiverEnd,
   withPoints,
   type Drag,
@@ -90,6 +103,7 @@ import {
   toolsFor,
   type AreaSettings,
   type BrushSettings,
+  type BuildingSettings,
   type FogSettings,
   type IslandRequest,
   type PathSettings,
@@ -166,6 +180,13 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   });
   const [fog, setFog] = useState<FogSettings>({ mode: 'hide', shape: 'rect' });
   const [scatter, setScatter] = useState<ScatterSettings>(DEFAULT_SCATTER);
+  const [district, setDistrict] = useState<DistrictSettings>(DEFAULT_DISTRICT);
+  const [buildingSet, setBuildingSet] = useState<BuildingSettings>({
+    shape: 'rect',
+    roof: 'tiles',
+    color: '#b5543a',
+    libraryId: null,
+  });
   const [area, setArea] = useState<AreaSettings>({
     texture: 'grass',
     edge: 'shore',
@@ -357,6 +378,32 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       scene?.clearPreview();
       return;
     }
+    if (wall && tool === 'district') {
+      const points = dedupePoints(wall).map(Math.round);
+      if (points.length >= 6 && layer) {
+        const id = itemId(doc);
+        commit((d) =>
+          addItem(d, layer.id, makeDistrict(id, district, points, Math.floor(Math.random() * 1e9))),
+        );
+        setSelected(id);
+      }
+      setWall(null);
+      scene?.clearPreview();
+      return;
+    }
+    if (wall && tool === 'building') {
+      const points = dedupePoints(wall).map(Math.round);
+      if (points.length >= 6 && layer) {
+        const id = itemId(doc);
+        commit((d) =>
+          addItem(d, layer.id, makeBuilding(id, points, buildingSet.roof, buildingSet.color)),
+        );
+        setSelected(id);
+      }
+      setWall(null);
+      scene?.clearPreview();
+      return;
+    }
     if (wall && tool === 'scatter') {
       const points = dedupePoints(wall).map(Math.round);
       const enough = scatter.mode === 'area' ? 6 : 4;
@@ -431,6 +478,27 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       addItem(d, layer.id, makeScatter(id, settings, where, Math.floor(Math.random() * 1e9))),
     );
     setSelected(id);
+  };
+
+  /** A walled town with a market quarter, in the middle of the view. */
+  const generateTownHere = () => {
+    const el = host.current;
+    if (!scene || !el || !layer || layer.locked) return;
+    const c = scene.toMap(el.clientWidth / 2, el.clientHeight / 2);
+    const radius = Math.min(doc.width, doc.height) * 0.22 * district.scale;
+    const seed = Math.floor(Math.random() * 1e9);
+    const first = itemId(doc);
+    commit((d) =>
+      addItems(
+        d,
+        layer.id,
+        generateTown(d, c, radius, seed, district.scale, (taken) => {
+          let n = 0;
+          while (taken.includes(`town${String(n)}-${first}`)) n++;
+          return `town${String(n)}-${first}`;
+        }),
+      ),
+    );
   };
 
   /** Drops the points placed so far without making anything. */
@@ -613,9 +681,24 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       case 'template':
         drag.current = { mode: 'template', ...base, start: snap ? snapPoint(p) : p };
         return;
+      case 'building': {
+        if (!canDraw) return;
+        const entry = buildingSet.libraryId
+          ? useBuildings.getState().entries.find((e) => e.id === buildingSet.libraryId)
+          : undefined;
+        if (entry) {
+          const id = itemId(doc);
+          place(makeBuilding(id, placeFootprint(entry, p), entry.roof, entry.color, entry.name));
+          return;
+        }
+        if (buildingSet.shape === 'rect') drag.current = { mode: 'building', ...base };
+        else setWall((w) => [...(w ?? []), p.x, p.y]);
+        return;
+      }
       case 'area':
       case 'path':
       case 'scatter':
+      case 'district':
         // Organic outlines: the points are where they are clicked, not on the grid.
         if (canDraw) setWall((w) => [...(w ?? []), p.x, p.y]);
         return;
@@ -650,13 +733,28 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       scene.drawPreview((g) => {
         drawRoute(g, [...wall, p.x, p.y], ROUTE_COLOR, routeWidth(doc));
       });
-    if (wall && (tool === 'area' || tool === 'path' || tool === 'scatter')) {
-      const closed = tool === 'area' || (tool === 'scatter' && scatter.mode === 'area');
+    if (
+      wall &&
+      (tool === 'area' ||
+        tool === 'path' ||
+        tool === 'scatter' ||
+        tool === 'district' ||
+        tool === 'building')
+    ) {
+      const closed = tool !== 'path' && (tool !== 'scatter' || scatter.mode === 'area');
       const control = [...wall, p.x, p.y];
       const line = splinePoints(
         control,
         closed,
-        tool === 'area' ? area.smooth : tool === 'scatter' ? 0.7 : pathSet.smooth,
+        tool === 'area'
+          ? area.smooth
+          : tool === 'scatter'
+            ? 0.7
+            : tool === 'district'
+              ? 0.25
+              : tool === 'building'
+                ? 0
+                : pathSet.smooth,
       );
       scene.drawPreview((g) => {
         if (closed) g.poly(line).fill({ color: 0x3b82f6, alpha: 0.18 });
@@ -739,13 +837,26 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         d.last = p;
         return;
       }
+      case 'building':
+        scene.drawPreview((g) => {
+          g.rect(
+            Math.min(d.start.x, p.x),
+            Math.min(d.start.y, p.y),
+            Math.abs(p.x - d.start.x),
+            Math.abs(p.y - d.start.y),
+          )
+            .fill({ color: 0xb5543a, alpha: 0.3 })
+            .stroke({ color: 0x3b82f6, width: 2 / scene.zoom });
+        });
+        d.last = p;
+        return;
       case 'vertex': {
         const item = selectedItem;
         if (!d.points || d.index === undefined || !isPointItem(item)) return;
         d.points[d.index * 2] = p.x;
         d.points[d.index * 2 + 1] = p.y;
         const closed = isClosedItem(item);
-        const line = splinePoints(d.points, closed, item.smooth);
+        const line = splinePoints(d.points, closed, smoothOf(item));
         scene.drawPreview((g) => {
           g.poly(line, closed).stroke({ color: 0x3b82f6, width: 2 / scene.zoom });
           g.circle(p.x, p.y, 6 / scene.zoom).fill({ color: 0x3b82f6 });
@@ -863,7 +974,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       case 'erase': {
         scene.clearPreview();
         const path = d.points ?? [];
-        commit((doc2) => eraseStrokes(doc2, path, eraser / 2));
+        commit((doc2) => eraseBuildings(eraseStrokes(doc2, path, eraser / 2), path, eraser / 2));
         return;
       }
       case 'measure': {
@@ -873,6 +984,27 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         const next = [...measured, d.start];
         setMeasured(next);
         drawMeasured(next);
+        return;
+      }
+      case 'building': {
+        scene.clearPreview();
+        const w = Math.abs(p.x - d.start.x);
+        const h = Math.abs(p.y - d.start.y);
+        if (w < 6 || h < 6 || !layer) return;
+        const id = itemId(doc);
+        place(
+          makeBuilding(
+            id,
+            rectangleFootprint(
+              Math.round((p.x + d.start.x) / 2),
+              Math.round((p.y + d.start.y) / 2),
+              Math.round(w),
+              Math.round(h),
+            ),
+            buildingSet.roof,
+            buildingSet.color,
+          ),
+        );
         return;
       }
       case 'vertex': {
@@ -963,7 +1095,15 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       // Alt combinations are the app's (tabs, modules).
       if (mod || e.altKey) return;
       if (e.key === 'Escape') {
-        if (wall && (tool === 'area' || tool === 'path' || tool === 'scatter' || tool === 'fog'))
+        if (
+          wall &&
+          (tool === 'area' ||
+            tool === 'path' ||
+            tool === 'scatter' ||
+            tool === 'district' ||
+            tool === 'building' ||
+            tool === 'fog')
+        )
           cancelWall();
         else if (wall) finishWall();
         setSelected(null);
@@ -999,6 +1139,15 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           );
           return;
         }
+      }
+      if (selectedItem?.kind === 'building' && (e.key === 'r' || e.key === 'R')) {
+        const turn = e.key === 'r' ? 15 : -15;
+        commit((d) =>
+          updateItem(d, selectedItem.id, (i) =>
+            i.kind === 'building' ? { ...i, points: rotatePoints(i.points, turn) } : i,
+          ),
+        );
+        return;
       }
       const t = tools.find((x) => x.key === e.key.toLowerCase());
       if (t && !e.shiftKey) setTool(t.id);
@@ -1257,7 +1406,11 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
                 : wall && tool === 'route'
                   ? routeStatus(wall, doc)
                   : wall
-                    ? tool === 'area' || tool === 'path' || tool === 'scatter'
+                    ? tool === 'area' ||
+                      tool === 'path' ||
+                      tool === 'scatter' ||
+                      tool === 'district' ||
+                      tool === 'building'
                       ? 'Click to place points; double-click or Enter to finish, Escape to cancel.'
                       : tool === 'fog'
                         ? 'Click the corners; double-click or Enter to finish the area.'
@@ -1318,6 +1471,11 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             setTemplate={setTemplate}
             fog={fog}
             setFog={setFog}
+            district={district}
+            setDistrict={setDistrict}
+            buildingSet={buildingSet}
+            setBuildingSet={setBuildingSet}
+            onGenerateTown={generateTownHere}
             scatter={scatter}
             setScatter={setScatter}
             onScatterOn={scatterOn}

@@ -68,15 +68,46 @@ function terrainAt(list: readonly Ground[], x: number, y: number): TerrainId | u
   return found;
 }
 
-/** What a scatter keeps clear of: roads, trails and rivers (and, below, water ground). */
-function obstaclesOf(doc: MapDoc, item: ScatterItem): Obstacles {
-  if (item.avoid === 'none') return { lines: [], polygons: [] };
-  const lines = allItems(doc).flatMap((i) =>
-    i.kind === 'path' && i.style !== 'fence' && i.id !== item.follow
-      ? [{ points: splinePoints(i.points, false, i.smooth), half: i.width / 2 }]
-      : [],
-  );
-  return { lines, polygons: [] };
+/** Where things may stand on a map: clear of roads, rivers and buildings, off water. */
+export interface PlacementOptions {
+  /** Keep clear of paths, buildings and water (auto), or not. */
+  avoid: 'auto' | 'none';
+  /** Only on these kinds of ground. */
+  onlyOn?: readonly TerrainId[] | undefined;
+  /** A path to ignore (the one a scatter follows). */
+  skipPath?: string | undefined;
+}
+
+export function placementRules(
+  doc: MapDoc,
+  options: PlacementOptions,
+): { obstacles: Obstacles; allowed: (x: number, y: number) => boolean } {
+  const onlyOn = options.onlyOn;
+  const list = options.avoid === 'none' && !onlyOn?.length ? [] : grounds(doc);
+  const lines =
+    options.avoid === 'none'
+      ? []
+      : allItems(doc).flatMap((i) =>
+          i.kind === 'path' && i.style !== 'fence' && i.id !== options.skipPath
+            ? [{ points: splinePoints(i.points, false, i.smooth), half: i.width / 2 }]
+            : [],
+        );
+  const polygons =
+    options.avoid === 'none'
+      ? []
+      : allItems(doc).flatMap((i) => (i.kind === 'building' ? [i.points] : []));
+  return {
+    obstacles: { lines, polygons },
+    allowed: (x, y) => {
+      if (options.avoid === 'none' && !onlyOn?.length) return true;
+      const ground = terrainAt(list, x, y);
+      // Water is not stood on (unless the thing is for reeds and the like: `onlyOn` says).
+      if (options.avoid !== 'none' && ground === 'water' && !onlyOn?.includes('water'))
+        return false;
+      if (onlyOn?.length) return ground !== null && ground !== undefined && onlyOn.includes(ground);
+      return true;
+    },
+  };
 }
 
 /** Everything needed to make the pieces of a scatter item. */
@@ -84,8 +115,6 @@ export function scatterSetup(
   doc: MapDoc,
   item: ScatterItem,
 ): { spec: ScatterSpec; obstacles: Obstacles; allowed: (x: number, y: number) => boolean } {
-  const list = grounds(doc);
-  const onlyOn = item.onlyOn;
   return {
     spec: {
       mode: item.mode,
@@ -103,15 +132,11 @@ export function scatterSetup(
       clearance: item.clearance,
       max: 6000,
     },
-    obstacles: obstaclesOf(doc, item),
-    allowed: (x, y) => {
-      if (item.avoid === 'none' && !onlyOn?.length) return true;
-      const ground = terrainAt(list, x, y);
-      // Water is not stood on (unless the scatter is for reeds and the like: `onlyOn` says).
-      if (item.avoid !== 'none' && ground === 'water' && !onlyOn?.includes('water')) return false;
-      if (onlyOn?.length) return ground !== null && ground !== undefined && onlyOn.includes(ground);
-      return true;
-    },
+    ...placementRules(doc, {
+      avoid: item.avoid,
+      onlyOn: item.onlyOn,
+      skipPath: item.follow,
+    }),
   };
 }
 
@@ -130,6 +155,7 @@ export function obstacleSignature(doc: MapDoc): string {
     for (const i of layer.items)
       if (i.kind === 'path') parts.push([i.id, i.points, i.smooth, i.style, i.width]);
       else if (i.kind === 'shape') parts.push([i.id, i.points, i.smooth, i.texture ?? '']);
+      else if (i.kind === 'building') parts.push([i.id, i.points]);
   const text = JSON.stringify(parts);
   let h = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0;
