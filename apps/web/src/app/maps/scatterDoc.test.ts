@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { addItem, newMap, updateItem, type MapDoc } from './model';
 import {
   bakeScatter,
+  FURNISH_PRESETS,
   makeScatter,
   obstacleSignature,
   SCATTER_PRESETS,
@@ -175,5 +176,44 @@ describe('scatter in a map', () => {
     const big = makeScatter('b', settingsFromPreset(forest, 2), { points: [] }, 1);
     expect(big.spacing).toBe(small.spacing * 4);
     expect(big.sizeMax).toBe(small.sizeMax * 4);
+  });
+});
+
+describe('furnishing a room', () => {
+  it('scatters furniture inside the floor of a room, square on, and follows the room', () => {
+    const start = newMap('Inn', [], 'now');
+    const layer = start.layers[0]?.id ?? '';
+    let doc = addItem(start, layer, {
+      kind: 'room',
+      id: 'room',
+      points: square(100, 100, 400),
+      smooth: 0,
+      floor: 'wood',
+      wall: 12,
+      wallStyle: 'stone',
+    });
+    const tavern = FURNISH_PRESETS.find((p) => p.id === 'tavern');
+    if (!tavern) throw new Error('preset');
+    const furniture = makeScatter(
+      'f',
+      settingsFromPreset(tavern),
+      { points: [], within: 'room' },
+      3,
+    );
+    doc = addItem(doc, layer, furniture);
+    const list = scatterOf(doc, furniture);
+    expect(list.length).toBeGreaterThan(3);
+    // Inside the room, in from its walls.
+    expect(list.every((p) => p.x > 110 && p.x < 490 && p.y > 110 && p.y < 490)).toBe(true);
+    // Square on: turned by quarters only.
+    const quarter = Math.PI / 2;
+    expect(
+      list.every((p) => Math.abs(Math.round(p.angle / quarter) * quarter - p.angle) < 1e-9),
+    ).toBe(true);
+    // Move the room: the furniture goes with it.
+    const moved = updateItem(doc, 'room', (i) =>
+      i.kind === 'room' ? { ...i, points: square(700, 700, 400) } : i,
+    );
+    expect(scatterOf(moved, furniture).every((p) => p.x > 700 && p.y > 700)).toBe(true);
   });
 });

@@ -22,7 +22,7 @@ export interface ScatterSpec {
   sizeMax: number;
   /** Weight of each kind of piece, in order. */
   weights: readonly number[];
-  rotation: 'none' | 'random' | 'along';
+  rotation: 'none' | 'random' | 'along' | 'quarter';
   /** 0 an even spread, 1 groves with clearings between. */
   cluster: number;
   /** Along a line: how far to the side(s) pieces stand. */
@@ -138,7 +138,9 @@ export function scatterInstances(
               ? p.angle
               : spec.rotation === 'random'
                 ? rand() * Math.PI * 2
-                : 0,
+                : spec.rotation === 'quarter'
+                  ? Math.floor(rand() * 4) * (Math.PI / 2)
+                  : 0,
           size: size(),
           piece: pick(spec.weights, rand()),
         });
@@ -180,7 +182,12 @@ export function scatterInstances(
       const inst: Instance = {
         x,
         y,
-        angle: spec.rotation === 'random' ? rand() * Math.PI * 2 : 0,
+        angle:
+          spec.rotation === 'random'
+            ? rand() * Math.PI * 2
+            : spec.rotation === 'quarter'
+              ? Math.floor(rand() * 4) * (Math.PI / 2)
+              : 0,
         size: size(),
         piece: pick(spec.weights, rand()),
       };

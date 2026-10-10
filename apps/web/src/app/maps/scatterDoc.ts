@@ -1,9 +1,10 @@
 import { glyphAspect, glyphRef, isGlyphRef, type GlyphId } from './glyphs';
 import type { MapDoc, MapItem } from './model';
 import { parsePackRef, squaresOf } from './packModel';
+import { insetPolygon } from './polyclip';
 import { pointInPolygon } from './polygon';
 import { scatterInstances, type Instance, type Obstacles, type ScatterSpec } from './scatter';
-import { bounds, splinePoints } from './spline';
+import { bounds, growPolygon, splinePoints } from './spline';
 import type { TerrainId } from './terrain';
 
 /**
@@ -15,7 +16,6 @@ import type { TerrainId } from './terrain';
 
 export type ScatterItem = Extract<MapItem, { kind: 'scatter' }>;
 
-type ShapeItem = Extract<MapItem, { kind: 'shape' }>;
 type PathItem = Extract<MapItem, { kind: 'path' }>;
 
 const allItems = (doc: MapDoc): MapItem[] => doc.layers.flatMap((l) => l.items);
@@ -23,10 +23,17 @@ const allItems = (doc: MapDoc): MapItem[] => doc.layers.flatMap((l) => l.items);
 /** The outline (area) or line (along) a scatter uses, rounded, in map pixels. */
 export function scatterLine(doc: MapDoc, item: ScatterItem): number[] {
   if (item.within) {
-    const shape = allItems(doc).find(
-      (i): i is ShapeItem => i.kind === 'shape' && i.id === item.within,
-    );
-    if (shape) return splinePoints(shape.points, true, shape.smooth);
+    const target = allItems(doc).find((i) => i.id === item.within);
+    if (target?.kind === 'shape') return splinePoints(target.points, true, target.smooth);
+    // A room: its floor, a little in from the walls.
+    if (target?.kind === 'room') {
+      const floor = splinePoints(target.points, true, target.smooth);
+      // In from the walls by half a piece too, so furniture does not spill over them.
+      return (
+        insetPolygon(floor, target.wall * 1.2 + item.sizeMax * 0.5) ??
+        growPolygon(floor, -target.wall * 1.4)
+      );
+    }
   }
   if (item.follow) {
     const path = allItems(doc).find(
@@ -173,7 +180,7 @@ export interface ScatterPreset {
   spacing: number;
   sizeMin: number;
   sizeMax: number;
-  rotation: 'none' | 'random' | 'along';
+  rotation: 'none' | 'random' | 'along' | 'quarter';
   cluster: number;
   offset: number;
   sides: 'center' | 'both' | 'left' | 'right';
@@ -182,6 +189,79 @@ export interface ScatterPreset {
 }
 
 const g = (id: GlyphId, weight = 1) => ({ ref: glyphRef(id), weight });
+
+const furnish = (
+  id: string,
+  name: string,
+  hint: string,
+  pieces: { ref: string; weight: number }[],
+  spacing: number,
+  sizeMin: number,
+  sizeMax: number,
+): ScatterPreset => ({
+  id,
+  name,
+  hint,
+  mode: 'area',
+  pieces,
+  spacing,
+  sizeMin,
+  sizeMax,
+  rotation: 'quarter',
+  cluster: 0.15,
+  offset: 0,
+  sides: 'center',
+  jitter: 0,
+});
+
+/** What a room can be furnished as (sizes are for a grid of 70 pixels). */
+export const FURNISH_PRESETS: ScatterPreset[] = [
+  furnish(
+    'tavern',
+    'Tavern',
+    'tables, chairs, barrels',
+    [g('table', 2), g('chair', 5), g('barrel', 1)],
+    175,
+    62,
+    104,
+  ),
+  furnish(
+    'storage',
+    'Storeroom',
+    'barrels, crates, chests',
+    [g('barrel', 3), g('crate', 3), g('chest', 1)],
+    112,
+    48,
+    70,
+  ),
+  furnish(
+    'bedroom',
+    'Bedroom',
+    'beds, chests, a shelf',
+    [g('bed', 2), g('chest', 1), g('shelf', 1), g('chair', 1)],
+    200,
+    66,
+    120,
+  ),
+  furnish(
+    'workshop',
+    'Workshop',
+    'benches, crates, shelves',
+    [g('table', 3), g('crate', 1), g('barrel', 1), g('shelf', 1)],
+    165,
+    62,
+    104,
+  ),
+  furnish(
+    'study',
+    'Library or study',
+    'shelves, tables, chairs',
+    [g('shelf', 3), g('table', 1), g('chair', 2)],
+    170,
+    80,
+    130,
+  ),
+];
 
 export const SCATTER_PRESETS: ScatterPreset[] = [
   {
@@ -350,7 +430,7 @@ export interface ScatterSettings {
   spacing: number;
   sizeMin: number;
   sizeMax: number;
-  rotation: 'none' | 'random' | 'along';
+  rotation: 'none' | 'random' | 'along' | 'quarter';
   cluster: number;
   offset: number;
   sides: 'center' | 'both' | 'left' | 'right';

@@ -1212,3 +1212,79 @@ test('elevation is made, painted and shown as hill shading', async ({ page }, te
   await page.getByRole('button', { name: 'Remove the elevation' }).click();
   await expect(page.getByRole('button', { name: 'Start with flat land' })).toBeVisible();
 });
+
+test('a room is furnished, and the Viewer finds pins by name', async ({ page }, testInfo) => {
+  test.skip(isPhone(page), 'Drawn on the desktop.');
+  test.setTimeout(90_000);
+  await newMap(page, 'The Gull and Anchor');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  await tool(page, 'Room').click();
+  await page.mouse.move(box.x + 120, box.y + 120);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 360, box.y + 300, { steps: 6 });
+  await page.mouse.up();
+  await waitForSaved(page, 'maps', '"kind":"room"');
+  // The room is picked: furnish it as a tavern.
+  await page.getByRole('button', { name: 'Tavern' }).click();
+  await waitForSaved(page, 'maps', '"within"');
+  await waitForSaved(page, 'maps', 'glyph:table');
+  await page.waitForTimeout(800);
+  await canvas.screenshot({ path: testInfo.outputPath('tavern.png') });
+  // In the Viewer: a pin, found by typing part of its name.
+  await switchMode(page, 'View map');
+  await tool(page, 'Pin').click();
+  await page.mouse.click(box.x + 200, box.y + 200);
+  await page.getByLabel('Pin label').fill('Bar Maid Brunhild');
+  await waitForSaved(page, 'maps', 'Bar Maid Brunhild');
+  const search = page.getByRole('combobox', { name: 'Find on the map' });
+  await search.fill('brunh');
+  const result = page.getByRole('listbox', { name: 'Results' }).getByRole('button');
+  await expect(result).toHaveCount(1);
+  await result.click();
+  await search.fill('nobody');
+  await expect(page.getByText('Nothing by that name.')).toBeVisible();
+});
+
+test('a map moves between the library and a campaign with its pictures', async ({ page }) => {
+  test.setTimeout(60_000);
+  await installData(page);
+  await createCampaign(page, 'Rust and Sunfire');
+  await newMap(page, 'Mover');
+  if (isPhone(page)) await page.getByRole('button', { name: 'Panels' }).click();
+  await page.getByRole('tab', { name: 'Layers' }).click();
+  await page
+    .getByLabel('Add a picture layer')
+    .setInputFiles({ name: 'Mover_Day.png', mimeType: 'image/png', buffer: PIXEL });
+  await expect(page.getByRole('button', { name: 'Hide Mover Day' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Map' }).click();
+  await waitForSaved(page, 'campaigns/rust-and-sunfire/maps', '"name":"Mover"');
+  // To the library.
+  await page.getByLabel('Where the map lives').selectOption('');
+  await waitForSaved(page, 'maps', '"name":"Mover"');
+  await expect(page.getByLabel('Where the map lives')).toHaveValue('');
+  // The picture came too.
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async () => {
+          try {
+            const root = await navigator.storage.getDirectory();
+            const assets = await (
+              await (await root.getDirectoryHandle('user-data')).getDirectoryHandle('maps')
+            ).getDirectoryHandle('assets');
+            for await (const [name] of assets.entries())
+              if (name.startsWith('Mover_Day')) return true;
+          } catch {
+            // not there yet
+          }
+          return false;
+        }),
+      { timeout: 20_000 },
+    )
+    .toBe(true);
+  // And back into the campaign.
+  await page.getByLabel('Where the map lives').selectOption({ label: 'Rust and Sunfire' });
+  await expect(page.getByLabel('Where the map lives')).not.toHaveValue('');
+});

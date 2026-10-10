@@ -21,7 +21,7 @@ interface Controls {
   spacing: number;
   sizeMin: number;
   sizeMax: number;
-  rotation: 'none' | 'random' | 'along';
+  rotation: 'none' | 'random' | 'along' | 'quarter';
   cluster: number;
   offset: number;
   sides: 'center' | 'both' | 'left' | 'right';
@@ -262,6 +262,7 @@ function ScatterControls({
         >
           <option value="none">Upright</option>
           <option value="random">Any way (rocks, top-down pictures)</option>
+          <option value="quarter">Square on (furniture)</option>
           {value.mode === 'along' && <option value="along">Along the line</option>}
         </select>
       </label>

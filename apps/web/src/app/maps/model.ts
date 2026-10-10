@@ -108,7 +108,7 @@ export type MapItem =
       spacing: number;
       sizeMin: number;
       sizeMax: number;
-      rotation: 'none' | 'random' | 'along';
+      rotation: 'none' | 'random' | 'along' | 'quarter';
       /** 0 even, 1 groves with clearings. */
       cluster: number;
       offset: number;
@@ -386,6 +386,55 @@ export function mapPath(id: string, campaign?: string): string {
 /** A flat picture of a map (`key`: a variant's id, or `-`). */
 export function mapRenderPath(id: string, key: string, campaign?: string): string {
   return `${mapDir(campaign)}/${MAP_ASSETS}/render-${id}-${key}.webp`;
+}
+
+/**
+ * The map as it is after moving to a campaign (or to the library, `undefined`): its pictures and
+ * flat pictures get paths in the new place. Returns the map and which files to copy (and the
+ * old ones to delete after). `exists` says whether a path in the new place is already taken.
+ */
+export function relocateMap(
+  doc: MapDoc,
+  to: string | undefined,
+  exists: (path: string) => boolean,
+): { doc: MapDoc; copies: [from: string, to: string][] } {
+  const copies: [string, string][] = [];
+  const used = new Set<string>();
+  const place = (from: string): string => {
+    const name = from.slice(from.lastIndexOf('/') + 1);
+    const dot = name.lastIndexOf('.');
+    const stem = dot > 0 ? name.slice(0, dot) : name;
+    const ext = dot > 0 ? name.slice(dot) : '';
+    let path = mapAssetPath(name, to);
+    for (let n = 1; used.has(path) || exists(path); n++)
+      path = mapAssetPath(`${stem} ${String(n)}${ext}`, to);
+    used.add(path);
+    copies.push([from, path]);
+    return path;
+  };
+  const layers = doc.layers.map((l) =>
+    l.picture ? { ...l, picture: { ...l.picture, path: place(l.picture.path) } } : l,
+  );
+  const render = doc.render
+    ? {
+        ...doc.render,
+        images: Object.fromEntries(
+          Object.entries(doc.render.images).map(([key, path]): [string, string] => {
+            const next = mapRenderPath(doc.id, key, to);
+            used.add(next);
+            copies.push([path, next]);
+            return [key, next];
+          }),
+        ),
+      }
+    : undefined;
+  // The thumbnail has a place of its own.
+  copies.push([mapThumbPath(doc.id, doc.campaign), mapThumbPath(doc.id, to)]);
+  const { campaign: _c, render: _r, ...rest } = doc;
+  return {
+    doc: { ...rest, layers, ...(render ? { render } : {}), ...(to ? { campaign: to } : {}) },
+    copies,
+  };
 }
 
 export function mapAssetPath(name: string, campaign?: string): string {

@@ -18,6 +18,13 @@ export const GLYPHS = [
   { id: 'hill', name: 'Hill', group: 'Stone', aspect: 1.6 },
   { id: 'mountain', name: 'Mountain', group: 'Stone', aspect: 1.15 },
   { id: 'peak', name: 'Snowy peak', group: 'Stone', aspect: 1 },
+  { id: 'table', name: 'Table', group: 'Furniture', aspect: 1.4 },
+  { id: 'chair', name: 'Chair', group: 'Furniture', aspect: 1 },
+  { id: 'barrel', name: 'Barrel', group: 'Furniture', aspect: 1 },
+  { id: 'crate', name: 'Crate', group: 'Furniture', aspect: 1 },
+  { id: 'bed', name: 'Bed', group: 'Furniture', aspect: 0.6 },
+  { id: 'chest', name: 'Chest', group: 'Furniture', aspect: 1.3 },
+  { id: 'shelf', name: 'Bookshelf', group: 'Furniture', aspect: 3 },
 ] as const;
 
 export type GlyphId = (typeof GLYPHS)[number]['id'];
@@ -150,6 +157,49 @@ function draw(id: GlyphId): Graphics {
       g.poly([38, 18, 60, 52, 50, 96, 30, 96, 36, 50]).fill({ color: 0x5f574e, alpha: 0.55 });
       g.poly([38, 18, 26, 40, 34, 36, 40, 44, 48, 34]).fill({ color: 0xf4f1ea });
       g.poly([72, 34, 64, 46, 70, 44, 76, 48, 80, 42]).fill({ color: 0xf4f1ea });
+      break;
+    case 'table':
+      g.roundRect(8, 24, 84, 52, 9).fill({ color: 0x8a5a2b }).stroke(outline(2));
+      for (const y of [38, 50, 62])
+        g.moveTo(16, y).lineTo(84, y).stroke({ color: 0x6b4423, width: 1.5, alpha: 0.6 });
+      g.circle(34, 44, 6).fill({ color: 0xd9d4c8 }).stroke(outline(1.2));
+      g.circle(66, 56, 6).fill({ color: 0xd9d4c8 }).stroke(outline(1.2));
+      break;
+    case 'chair':
+      g.roundRect(26, 26, 48, 48, 8).fill({ color: 0x9b6b3c }).stroke(outline(2));
+      g.roundRect(26, 20, 48, 12, 4).fill({ color: 0x7a5230 }).stroke(outline(1.6));
+      break;
+    case 'barrel':
+      g.circle(50, 50, 40).fill({ color: 0x8a6a3b }).stroke(outline(2.5));
+      g.circle(50, 50, 31).stroke({ color: 0x5a4524, width: 3, alpha: 0.8 });
+      g.circle(50, 50, 20).stroke({ color: 0x5a4524, width: 2.5, alpha: 0.7 });
+      g.circle(50, 50, 9).fill({ color: 0xb08a50 });
+      break;
+    case 'crate':
+      g.rect(14, 14, 72, 72).fill({ color: 0xa9824a }).stroke(outline(2.5));
+      g.moveTo(14, 14)
+        .lineTo(86, 86)
+        .moveTo(86, 14)
+        .lineTo(14, 86)
+        .stroke({ color: 0x7a5a30, width: 4, alpha: 0.8 });
+      g.rect(22, 22, 56, 56).stroke({ color: 0x7a5a30, width: 2, alpha: 0.7 });
+      break;
+    case 'bed':
+      g.roundRect(18, 2, 64, 96, 6).fill({ color: 0x7a5230 }).stroke(outline(2));
+      g.roundRect(24, 32, 52, 62, 4).fill({ color: 0xb04a4a }).stroke(outline(1.6));
+      g.roundRect(26, 8, 48, 20, 6).fill({ color: 0xf1ece0 }).stroke(outline(1.4));
+      break;
+    case 'chest':
+      g.roundRect(8, 26, 84, 50, 6).fill({ color: 0x8a5a2b }).stroke(outline(2.2));
+      g.rect(8, 44, 84, 10).fill({ color: 0x55504a, alpha: 0.85 });
+      g.rect(44, 38, 12, 24).fill({ color: 0xc9a227 }).stroke(outline(1.2));
+      break;
+    case 'shelf':
+      g.rect(0, 32, 100, 36).fill({ color: 0x5c4026 }).stroke(outline(1.8));
+      for (let i = 0; i < 12; i++)
+        g.rect(4 + i * 7.8, 36, 5.6, 28).fill({
+          color: [0x8a2f2f, 0x2f5f8a, 0x4a7a3a, 0xa8873a][i % 4] ?? 0x8a2f2f,
+        });
       break;
     case 'peak':
       g.poly([10, 98, 50, 4, 90, 98]).fill({ color: 0x938a7e }).stroke(outline(2.5));
