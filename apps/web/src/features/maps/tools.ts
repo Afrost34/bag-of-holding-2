@@ -7,6 +7,7 @@ import {
   Eraser,
   Hand,
   House,
+  Mountain,
   MapPin,
   MousePointer2,
   PaintRoller,
@@ -24,6 +25,7 @@ import {
 } from 'lucide-react';
 import type { MapKind, TemplateShape } from '../../app/maps/model';
 import type { RoofStyle } from '../../app/maps/cityDoc';
+import type { BrushMode } from '../../app/maps/elevation';
 import type { DoorKind } from '../../app/maps/rooms';
 import type { PathStyle } from '../../app/maps/shapes';
 import type { TerrainId } from '../../app/maps/terrain';
@@ -49,6 +51,7 @@ export type Tool =
   | 'building'
   | 'room'
   | 'door'
+  | 'elevation'
   | 'calibrate';
 
 /** The tool bar, in order; calibrate lives in the grid panel. */
@@ -61,6 +64,7 @@ export const TOOLS: { id: Tool; label: string; icon: LucideIcon; key: string }[]
   { id: 'eraser', label: 'Eraser', icon: Eraser, key: 'e' },
   { id: 'area', label: 'Terrain shape', icon: Shapes, key: 'a' },
   { id: 'path', label: 'Road or river', icon: Waves, key: 'l' },
+  { id: 'elevation', label: 'Elevation', icon: Mountain, key: 'j' },
   { id: 'scatter', label: 'Scatter', icon: Trees, key: 'x' },
   { id: 'district', label: 'District', icon: Castle, key: 'c' },
   { id: 'building', label: 'Building', icon: House, key: 'q' },
@@ -86,6 +90,7 @@ export const TOOL_GROUP: Record<Tool, number> = {
   area: 2,
   path: 2,
   scatter: 2,
+  elevation: 2,
   district: 3,
   building: 3,
   room: 3,
@@ -113,6 +118,7 @@ const CREATOR_TOOLS = new Set<Tool>([
   'area',
   'path',
   'scatter',
+  'elevation',
   'district',
   'building',
   'room',
@@ -160,6 +166,7 @@ export const TOOLS_WITH_SETTINGS = new Set<Tool>([
   'building',
   'room',
   'door',
+  'elevation',
 ]);
 
 export interface TemplateSettings {
@@ -222,4 +229,11 @@ export interface RoomSettings {
   wall: number;
   smooth: number;
   doorKind: DoorKind;
+}
+
+/** The elevation brush: what it does, how wide, how hard. */
+export interface ElevationBrush {
+  mode: BrushMode;
+  radius: number;
+  strength: number;
 }

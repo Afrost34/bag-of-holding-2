@@ -38,6 +38,7 @@ export interface Drag {
     | 'fog'
     | 'building'
     | 'room'
+    | 'elevation'
     | 'vertex'
     | 'calibrate';
   start: Point;

@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { useState } from 'react';
 import { ArrangePanel } from './ArrangePanel';
 import { ItemSettings } from './ItemSettings';
+import { ElevationPanel } from './ElevationPanel';
 import { FogPanel } from './FogPanel';
 import { Layers } from './LayersPanel';
 import { MapSettings } from './MapSettings';
@@ -80,6 +81,7 @@ export function MapPanels(props: MapPanelsProps) {
         {tool === 'fog' && <FogPanel {...props} />}
         {(tool === 'area' || tool === 'path') && <ShapePanel {...props} />}
         {tool === 'scatter' && <ScatterPanel {...props} />}
+        {tool === 'elevation' && <ElevationPanel {...props} />}
         {tool === 'district' && <DistrictPanel {...props} />}
         {(tool === 'room' || tool === 'door') && <RoomPanel {...props} />}
         {tool === 'building' && <BuildingPanel {...props} />}
