@@ -40,6 +40,7 @@ import {
   addMirrored,
   constrainAngle,
   itemsWithIds,
+  pasteItems,
   MIRRORS,
   moveItems,
   nearestVertex,
@@ -131,6 +132,9 @@ import {
 } from './tools';
 
 /** One map, edited: the canvas, the tool bar and the side panels. */
+/** Copied items, kept across maps (Ctrl+C here, Ctrl+V on another map). */
+let clipboard: MapItem[] = [];
+
 export function MapEditor({ id, mode }: { id: string; mode: MapMode }) {
   const { loaded, load } = useMaps();
   const doc = useMapDoc(id);
@@ -1431,6 +1435,31 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         e.preventDefault();
         if (e.shiftKey) redo();
         else undo();
+        return;
+      }
+      if (creator && mod && ['c', 'x', 'v', 'd'].includes(e.key.toLowerCase())) {
+        const key = e.key.toLowerCase();
+        const ids = [selected, ...group].filter((id): id is string => !!id);
+        if (key === 'c' || key === 'x' || key === 'd') {
+          if (ids.length === 0) return;
+          e.preventDefault();
+          clipboard = itemsWithIds(doc, ids);
+          if (key === 'x') {
+            commit((d) => removeItems(d, ids));
+            setSelected(null);
+            setGroup([]);
+            return;
+          }
+          if (key === 'c') return;
+        } else if (clipboard.length === 0) return;
+        e.preventDefault();
+        const home = findItem(doc, clipboard[0]?.id ?? '')?.layer.id ?? layer?.id ?? '';
+        const target = drawable.some((l) => l.id === home) ? home : (layer?.id ?? '');
+        const pasted = pasteItems(doc, target, clipboard, grid.size, grid.size);
+        commit(() => pasted.doc);
+        clipboard = itemsWithIds(pasted.doc, pasted.ids);
+        setSelected(pasted.ids[0] ?? null);
+        setGroup(pasted.ids.slice(1));
         return;
       }
       if (mod && e.key.toLowerCase() === 'y') {
