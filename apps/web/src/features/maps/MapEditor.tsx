@@ -60,6 +60,7 @@ import {
   mixSettings,
   SCATTER_PRESETS,
   settingsFromPreset,
+  singlePiece,
   type ScatterSettings,
 } from '../../app/maps/scatterDoc';
 import { bakeMap } from '../../app/maps/render';
@@ -1062,9 +1063,21 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         else setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey)]);
         return;
       }
+      case 'scatter':
+        if (scatter.single) {
+          // One random piece of the set where it is clicked, as a stamp of its own.
+          if (!canDraw) return;
+          const at = e.altKey ? p : snapPoint(p);
+          commit((d) => {
+            const piece = singlePiece(d, scatter, at, itemId(d), Math.floor(Math.random() * 1e9));
+            return piece ? add(d, layer.id, piece) : d;
+          });
+          return;
+        }
+        if (canDraw) setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey)]);
+        return;
       case 'area':
       case 'path':
-      case 'scatter':
       case 'district':
         // Organic outlines: the points are where they are clicked, not on the grid.
         if (canDraw) setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey)]);

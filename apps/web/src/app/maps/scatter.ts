@@ -95,7 +95,8 @@ export function blocked(x: number, y: number, o: Obstacles, clearance: number): 
   return false;
 }
 
-const pick = (weights: readonly number[], r: number): number => {
+/** The index picked by a roll from 0 to 1, weighted. */
+export const pickIndex = (weights: readonly number[], r: number): number => {
   const total = weights.reduce((a, b) => a + Math.max(0, b), 0);
   if (total <= 0) return 0;
   let at = r * total;
@@ -155,7 +156,7 @@ export function scatterInstances(
                   ? Math.floor(rand() * 4) * (Math.PI / 2)
                   : 0,
           size: size(),
-          piece: pick(spec.weights, rand()),
+          piece: pickIndex(spec.weights, rand()),
         });
       d += spec.spacing * (0.75 + rand() * 0.5);
     }
@@ -202,7 +203,7 @@ export function scatterInstances(
               ? Math.floor(rand() * 4) * (Math.PI / 2)
               : 0,
         size: size(),
-        piece: pick(spec.weights, rand()),
+        piece: pickIndex(spec.weights, rand()),
       };
       out.push(inst);
       const k = key(cx, cy);

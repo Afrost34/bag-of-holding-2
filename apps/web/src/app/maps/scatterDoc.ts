@@ -3,9 +3,16 @@ import type { MapDoc, MapItem } from './model';
 import { parsePackRef, squaresOf } from './packModel';
 import { insetPolygon } from './polyclip';
 import { pointInPolygon } from './polygon';
-import { scatterInstances, type Instance, type Obstacles, type ScatterSpec } from './scatter';
+import {
+  pickIndex,
+  randomAngle,
+  scatterInstances,
+  type Instance,
+  type Obstacles,
+  type ScatterSpec,
+} from './scatter';
 import { bounds, growPolygon, splinePoints } from './spline';
-import type { TerrainRef } from './terrain';
+import { seeded, type TerrainRef } from './terrain';
 
 /**
  * How a scatter item meets the rest of its map: the outline it fills or the line it follows (its
@@ -462,6 +469,8 @@ export interface ScatterSettings {
   onlyOn?: TerrainRef[] | undefined;
   /** Multiplies spacing, sizes and offset: the same preset for a battle map or a continent. */
   scale: number;
+  /** One piece per click, drawn at random, instead of a stroke over an area. */
+  single?: boolean;
 }
 
 export const settingsFromPreset = (p: ScatterPreset, scale = 1): ScatterSettings => ({
@@ -608,3 +617,43 @@ const firstPreset = SCATTER_PRESETS[0];
 if (!firstPreset) throw new Error('No scatter presets');
 /** What the Scatter tool starts with. */
 export const DEFAULT_SCATTER: ScatterSettings = settingsFromPreset(firstPreset);
+
+/**
+ * One piece of a scatter's set put down at a point, as an ordinary stamp (Dungeondraft's click-once
+ * scatter): the piece, size and turn are drawn at random, so the next click is another. Null when
+ * the settings have no pieces.
+ */
+export function singlePiece(
+  doc: MapDoc,
+  s: ScatterSettings,
+  at: { x: number; y: number },
+  id: string,
+  seed: number,
+): MapItem | null {
+  if (s.pieces.length === 0) return null;
+  const item = makeScatter(id, s, { points: [] }, seed);
+  const rand = seeded(seed);
+  const piece = pickIndex(
+    item.pieces.map((p) => p.weight),
+    rand(),
+  );
+  const size = item.sizeMin + rand() * Math.max(0, item.sizeMax - item.sizeMin);
+  const angle =
+    item.rotation === 'random'
+      ? randomAngle(rand, item)
+      : item.rotation === 'quarter'
+        ? Math.floor(rand() * 4) * (Math.PI / 2)
+        : 0;
+  const inst: Instance = { x: at.x, y: at.y, angle, size, piece };
+  const box = pieceBox(doc, item, inst);
+  return {
+    kind: 'stamp',
+    id,
+    stamp: item.pieces[piece]?.ref ?? '',
+    x: Math.round(at.x),
+    y: Math.round(box.base ? at.y - box.h * 0.42 : at.y),
+    w: Math.round(box.w),
+    h: Math.round(box.h),
+    rotation: Math.round((angle * 180) / Math.PI) % 360,
+  };
+}

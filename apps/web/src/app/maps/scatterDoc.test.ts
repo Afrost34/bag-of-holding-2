@@ -10,6 +10,7 @@ import {
   SCATTER_PRESETS,
   scatterOf,
   settingsFromPreset,
+  singlePiece,
   type ScatterItem,
 } from './scatterDoc';
 
@@ -287,5 +288,31 @@ describe('scatter with pack pictures', () => {
     expect(stamps.length).toBeGreaterThan(4);
     // 2 x 2 squares on a grid of 70, within the 0.8 to 1.2 variation.
     expect(stamps.every((s) => s.w >= 110 && s.w <= 170 && s.w === s.h)).toBe(true);
+  });
+});
+
+describe('one piece per click', () => {
+  it('is a stamp of the set at the point, and another piece with another seed', () => {
+    const { doc } = base();
+    const settings = settingsFromPreset(forest);
+    const a = singlePiece(doc, settings, { x: 120, y: 300 }, 'p1', 1);
+    expect(a).toMatchObject({ kind: 'stamp', id: 'p1', x: 120 });
+    if (a?.kind !== 'stamp') throw new Error('stamp');
+    expect(settings.pieces.map((p) => p.ref)).toContain(a.stamp);
+    expect(a.w).toBeGreaterThanOrEqual(settings.sizeMin);
+    expect(a.w).toBeLessThanOrEqual(settings.sizeMax);
+    // The same seed gives the same piece; others differ somewhere.
+    expect(singlePiece(doc, settings, { x: 120, y: 300 }, 'p1', 1)).toEqual(a);
+    const others = Array.from({ length: 12 }, (_, i) =>
+      singlePiece(doc, settings, { x: 120, y: 300 }, 'p', i + 2),
+    );
+    expect(new Set(others.map((o) => JSON.stringify(o))).size).toBeGreaterThan(3);
+  });
+
+  it('is nothing without pieces', () => {
+    const { doc } = base();
+    expect(
+      singlePiece(doc, { ...settingsFromPreset(forest), pieces: [] }, { x: 0, y: 0 }, 'p', 1),
+    ).toBeNull();
   });
 });

@@ -366,6 +366,17 @@ export function ScatterPanel({ scatter, setScatter, stamp }: MapPanelsProps) {
           setScatter({ ...scatter, scale });
         }}
       />
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={scatter.single === true}
+          onChange={(e) => {
+            const { single: _s, ...rest } = scatter;
+            setScatter(e.target.checked ? { ...rest, single: true } : rest);
+          }}
+        />
+        One piece per click (a random one each time)
+      </label>
       <ScatterControls
         value={scatter}
         stamp={stamp}

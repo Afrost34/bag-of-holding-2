@@ -1644,6 +1644,14 @@ test('scatter turns its pieces within a range', async ({ page }) => {
   await expect(to).toContainText('90°');
   await page.getByLabel('Rotation of pieces').selectOption('none');
   await expect(from).toHaveCount(0);
+  // One piece per click: a random one of the set, as a stamp.
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  await page.getByLabel('One piece per click').check();
+  await page.mouse.click(box.x + 300, box.y + 250);
+  await page.mouse.click(box.x + 380, box.y + 300);
+  await waitForSaved(page, 'maps', '"stamp":"glyph:');
 });
 
 test('a hole is cut out of a terrain shape and filled again', async ({ page }, testInfo) => {
