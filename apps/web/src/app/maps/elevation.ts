@@ -22,6 +22,8 @@ export interface Elevation {
   strength: number;
   /** Colour the land by height and the sea blue. */
   tint: boolean;
+  /** Contour lines every this many height units (0–255 scale); absent: none. */
+  contours?: number;
 }
 
 export const LAND = 120;
@@ -231,6 +233,91 @@ export function riversFromHeights(
     );
   }
   return rivers;
+}
+
+/** One short line of a contour: x1, y1, x2, y2 in cells (a cell's middle is at .5). */
+export type ContourSegment = [number, number, number, number];
+
+/**
+ * The line where the ground is at `level`, by marching squares: a short segment through every
+ * square of four cells that the level crosses.
+ */
+export function contourSegments(
+  w: number,
+  h: number,
+  heights: Uint8Array,
+  level: number,
+): ContourSegment[] {
+  const out: ContourSegment[] = [];
+  const v = (x: number, y: number) => heights[y * w + x] ?? 0;
+  // Where along an edge the level is crossed (0 at the first end, 1 at the second).
+  const at = (v1: number, v2: number) => (v2 === v1 ? 0.5 : (level - v1) / (v2 - v1));
+  for (let y = 0; y + 1 < h; y++)
+    for (let x = 0; x + 1 < w; x++) {
+      const tl = v(x, y);
+      const tr = v(x + 1, y);
+      const br = v(x + 1, y + 1);
+      const bl = v(x, y + 1);
+      const index =
+        (tl >= level ? 8 : 0) |
+        (tr >= level ? 4 : 0) |
+        (br >= level ? 2 : 0) |
+        (bl >= level ? 1 : 0);
+      if (index === 0 || index === 15) continue;
+      const top: [number, number] = [x + 0.5 + at(tl, tr), y + 0.5];
+      const right: [number, number] = [x + 1.5, y + 0.5 + at(tr, br)];
+      const bottom: [number, number] = [x + 0.5 + at(bl, br), y + 1.5];
+      const left: [number, number] = [x + 0.5, y + 0.5 + at(tl, bl)];
+      const line = (a: [number, number], b: [number, number]) => {
+        out.push([a[0], a[1], b[0], b[1]]);
+      };
+      switch (index) {
+        case 1:
+        case 14:
+          line(left, bottom);
+          break;
+        case 2:
+        case 13:
+          line(bottom, right);
+          break;
+        case 3:
+        case 12:
+          line(left, right);
+          break;
+        case 4:
+        case 11:
+          line(top, right);
+          break;
+        case 6:
+        case 9:
+          line(top, bottom);
+          break;
+        case 7:
+        case 8:
+          line(top, left);
+          break;
+        case 5:
+          // A saddle: told apart by the middle of the square.
+          if ((tl + tr + br + bl) / 4 >= level) {
+            line(top, right);
+            line(left, bottom);
+          } else {
+            line(top, left);
+            line(bottom, right);
+          }
+          break;
+        case 10:
+          if ((tl + tr + br + bl) / 4 >= level) {
+            line(top, left);
+            line(bottom, right);
+          } else {
+            line(top, right);
+            line(left, bottom);
+          }
+          break;
+      }
+    }
+  return out;
 }
 
 /** Height 0–255 → a colour: deep water to shore, then green lowland, brown hills, white peaks. */

@@ -1221,6 +1221,9 @@ test('elevation is made, painted and shown as hill shading', async ({ page }, te
   await page.mouse.up();
   await page.waitForTimeout(500);
   await canvas.screenshot({ path: testInfo.outputPath('spine.png') });
+  // Contour lines every so many heights.
+  await page.getByRole('slider', { name: /^Contour lines every/ }).fill('20');
+  await waitForSaved(page, 'maps', '"contours":20');
   // Rivers run downhill from the high ground.
   await page.getByRole('button', { name: 'Make rivers that run downhill' }).click();
   await waitForSaved(page, 'maps', '"style":"river"');

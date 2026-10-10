@@ -38,7 +38,7 @@ import { glyphIdOf, glyphTexture, isGlyphRef } from './glyphs';
 import { itemBox } from './arrange';
 import { lightSegments, visibilityPolygon } from './lighting';
 import { frameCorners, frameRects, roseShape } from './decor';
-import { heightsOf, shadeImage, type Elevation } from './elevation';
+import { contourSegments, heightsOf, shadeImage, type Elevation } from './elevation';
 import { alongLayout, targetLine } from './labels';
 import { buildingView, districtView } from './cityView';
 import { roomDoorsView, roomFloorView, roomWallView } from './roomView';
@@ -809,7 +809,15 @@ export class MapScene {
   /** Hill shading over the layers: one small picture, stretched over the map. */
   private drawElevation(e: Elevation | undefined, heights?: Uint8Array): void {
     const key = e
-      ? [e.data.length, e.data.slice(0, 64), e.data.slice(-64), e.sea, e.strength, e.tint].join('|')
+      ? [
+          e.data.length,
+          e.data.slice(0, 64),
+          e.data.slice(-64),
+          e.sea,
+          e.strength,
+          e.tint,
+          e.contours ?? 0,
+        ].join('|')
       : '';
     if (!heights && key === this.elevationKey) return;
     this.elevationKey = heights ? '' : key;
@@ -827,6 +835,19 @@ export class MapScene {
     const sprite = new Sprite(texture);
     sprite.scale.set(e.cell);
     this.elevationView.addChild(sprite);
+    if (!heights && e.contours && e.contours > 0) {
+      // Contour lines: thin ink, every fifth one stronger (not while a brush is painting).
+      const all = heightsOf(e);
+      const lines = new Graphics();
+      for (let level = e.contours, n = 1; level < 255; level += e.contours, n++) {
+        if (level <= e.sea && e.tint) continue;
+        const strong = n % 5 === 0;
+        for (const [x1, y1, x2, y2] of contourSegments(e.w, e.h, all, level))
+          lines.moveTo(x1 * e.cell, y1 * e.cell).lineTo(x2 * e.cell, y2 * e.cell);
+        lines.stroke({ color: INK, width: strong ? 2.2 : 1.1, alpha: strong ? 0.5 : 0.28 });
+      }
+      this.elevationView.addChild(lines);
+    }
     this.requestRender();
   }
 

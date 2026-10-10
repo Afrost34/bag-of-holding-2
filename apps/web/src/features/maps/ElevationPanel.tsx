@@ -193,6 +193,21 @@ export function ElevationPanel({ doc, commit, elev, setElev, layerId }: MapPanel
             />
             Colour by height (sea, lowland, hills, snow)
           </label>
+          <Slider
+            label="Contour lines every"
+            value={e.contours ?? 0}
+            min={0}
+            max={60}
+            step={5}
+            display={e.contours ? String(e.contours) : 'off'}
+            onChange={(contours) => {
+              commit((d) => {
+                if (!d.elevation) return d;
+                const { contours: _old, ...rest } = d.elevation;
+                return { ...d, elevation: contours > 0 ? { ...rest, contours } : rest };
+              });
+            }}
+          />
           {e.tint && (
             <Slider
               label="Sea level"

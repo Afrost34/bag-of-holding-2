@@ -7,6 +7,7 @@ import {
   heightAt,
   heightsOf,
   LAND,
+  contourSegments,
   paintHeights,
   riversFromHeights,
   shadeImage,
@@ -142,5 +143,31 @@ describe('rivers from the heights', () => {
     expect(
       riversFromHeights(e, new Uint8Array(e.w * e.h), { seed: 1, count: 3, minLength: 5 }),
     ).toEqual([]);
+  });
+});
+
+describe('contour lines', () => {
+  it('run round a hill at the height asked for', () => {
+    const w = 40;
+    const h = 40;
+    const heights = new Uint8Array(w * h);
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++)
+        heights[y * w + x] = Math.max(0, Math.round(200 - Math.hypot(x - 19.5, y - 19.5) * 10));
+    const segments = contourSegments(w, h, heights, 100);
+    expect(segments.length).toBeGreaterThan(20);
+    // Every end is where the height is 100: ten cells out from the middle.
+    for (const [x1, y1, x2, y2] of segments) {
+      expect(Math.hypot(x1 - 20, y1 - 20)).toBeGreaterThan(9);
+      expect(Math.hypot(x1 - 20, y1 - 20)).toBeLessThan(11);
+      expect(Math.hypot(x2 - 20, y2 - 20)).toBeGreaterThan(9);
+      expect(Math.hypot(x2 - 20, y2 - 20)).toBeLessThan(11);
+    }
+  });
+
+  it('are none on flat land or above the highest point', () => {
+    const flat = new Uint8Array(30 * 30).fill(LAND);
+    expect(contourSegments(30, 30, flat, 100)).toEqual([]);
+    expect(contourSegments(30, 30, flat, 200)).toEqual([]);
   });
 });

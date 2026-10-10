@@ -793,6 +793,9 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
             sea: num(json.elevation.sea, 90),
             strength: num(json.elevation.strength, 0.6),
             tint: json.elevation.tint === true,
+            ...(num(json.elevation.contours, 0) > 0
+              ? { contours: num(json.elevation.contours, 0) }
+              : {}),
           },
         }
       : {}),
