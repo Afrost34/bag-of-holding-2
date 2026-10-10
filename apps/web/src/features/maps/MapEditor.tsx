@@ -1246,6 +1246,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       width: s.width,
       opacity: s.opacity,
       texture: tool === 'terrain' ? s.texture : undefined,
+      soft: tool === 'terrain' ? s.soft : undefined,
     };
   };
 
@@ -1319,6 +1320,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             brush: tool === 'terrain' ? 'terrain' : 'pen',
             opacity: s.opacity,
             ...(s.texture ? { texture: s.texture } : {}),
+            ...(s.soft ? { soft: s.soft } : {}),
           }),
         );
         return;
@@ -1557,6 +1559,20 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         commit((d) => removeItems(d, ids));
         setSelected(null);
         setGroup([]);
+        return;
+      }
+      // [ and ] size the brush and the eraser, as in Dungeondraft.
+      if (!selectedItem && (e.key === '[' || e.key === ']')) {
+        const grow = e.key === ']' ? 1.15 : 1 / 1.15;
+        if (tool === 'terrain')
+          setTerrain((t) => ({
+            ...t,
+            width: Math.min(400, Math.max(20, Math.round(t.width * grow))),
+          }));
+        else if (tool === 'pen')
+          setBrush((b) => ({ ...b, width: Math.min(40, Math.max(1, Math.round(b.width * grow))) }));
+        else if (tool === 'eraser')
+          setEraser((v) => Math.min(400, Math.max(10, Math.round(v * grow))));
         return;
       }
       if (selectedItem?.kind === 'stamp') {

@@ -79,6 +79,8 @@ type MapItemBody =
       opacity: number;
       /** A terrain stroke painted with a texture (see `terrain.ts`) rather than a colour. */
       texture?: TerrainRef;
+      /** 0–1: how far the edge fades into what is under it (smooth blending); hard when absent. */
+      soft?: number;
     }
   | {
       kind: 'wall';

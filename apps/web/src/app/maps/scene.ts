@@ -1,6 +1,7 @@
 import {
   AlphaFilter,
   Application,
+  BlurFilter,
   Container,
   Culler,
   FillPattern,
@@ -348,7 +349,12 @@ export interface StrokeStyle {
   width: number;
   opacity: number;
   texture?: TerrainRef | undefined;
+  /** 0–1: the edge fades out. */
+  soft?: number | undefined;
 }
+
+/** How blurred a stroke of this width and softness is (map pixels). */
+export const softBlur = (width: number, soft: number): number => Math.max(0, width * soft * 0.1);
 
 /**
  * A brush stroke: a line in a colour or a terrain texture. Opacity is applied to
@@ -368,7 +374,11 @@ function strokeView(points: readonly number[], style: StrokeStyle): Container {
     join: 'round',
   });
   const view: Container = line;
-  if (style.opacity < 1) view.filters = [new AlphaFilter({ alpha: style.opacity })];
+  const filters = [];
+  if ((style.soft ?? 0) > 0)
+    filters.push(new BlurFilter({ strength: softBlur(style.width, style.soft ?? 0), quality: 4 }));
+  if (style.opacity < 1) filters.push(new AlphaFilter({ alpha: style.opacity }));
+  if (filters.length > 0) view.filters = filters;
   return view;
 }
 
@@ -415,6 +425,8 @@ export class MapScene {
   onLoading: (loading: boolean) => void = () => undefined;
   private destroyed = false;
   private frame = 0;
+  /** Views that are culled once they have been drawn once. */
+  private readonly cullLater = new Set<Container>();
   private resizing: ResizeObserver | null = null;
   /** Scale the view with the host when it is resized (a map in a board card), not just crop it. */
   followResize = false;
@@ -503,6 +515,10 @@ export class MapScene {
       if (this.destroyed) return;
       Culler.shared.cull(this.world, this.app.screen);
       this.app.render();
+      if (this.cullLater.size > 0) {
+        for (const view of this.cullLater) view.cullable = true;
+        this.cullLater.clear();
+      }
     });
   }
 
@@ -653,13 +669,16 @@ export class MapScene {
         const home = item.under === true && walls ? walls : view;
         if (node?.item === item && node.look === look && node.view.parent === home) return;
         if (node) {
+          this.cullLater.delete(node.view);
           node.view.destroy({ children: true });
           for (const e of node.extras ?? []) e.destroy({ children: true });
         }
         const fresh = this.drawItem(item, doc);
-        fresh.cullable = !['path', 'shape', 'scatter', 'district', 'building', 'room'].includes(
-          item.kind,
-        );
+        // A new view has no place yet (its transform is made when it is first drawn), so the
+        // culler would hide it: it is left alone for its first frame (see `requestRender`).
+        if (!['path', 'shape', 'scatter', 'district', 'building', 'room'].includes(item.kind))
+          this.cullLater.add(fresh);
+        fresh.cullable = false;
         if (this.hideAnnotations && (item.kind === 'pin' || item.kind === 'route'))
           fresh.visible = false;
         const extras: Container[] = [];
@@ -1027,6 +1046,7 @@ export class MapScene {
           width: item.width,
           opacity: item.opacity,
           texture: item.texture,
+          soft: item.soft,
         });
       case 'room':
         return roomFloorView(item, terrainPattern(item.floor), floorColor(item.floor));

@@ -155,6 +155,22 @@ export function ToolSettings({
           className="w-full"
         />
       </label>
+      {terrainTool && (
+        <label className="block text-sm">
+          Soft edge: {Math.round((s.soft ?? 0) * 100)}%
+          <input
+            type="range"
+            aria-label="Soft edge"
+            min={0}
+            max={100}
+            value={Math.round((s.soft ?? 0) * 100)}
+            onChange={(e) => {
+              set({ ...s, soft: Number(e.target.value) / 100 });
+            }}
+            className="w-full"
+          />
+        </label>
+      )}
       <label className="block text-sm">
         Opacity: {Math.round(s.opacity * 100)}%
         <input

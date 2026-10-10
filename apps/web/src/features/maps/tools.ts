@@ -174,6 +174,8 @@ export interface BrushSettings {
   opacity: number;
   /** The terrain brush paints a texture. */
   texture?: TerrainRef;
+  /** 0–1: the stroke's edge fades out (the terrain brush). */
+  soft?: number;
 }
 
 /** Tools that have settings in the side panel. */

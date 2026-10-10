@@ -1530,7 +1530,7 @@ test('a road fades in and out and can close into a ring', async ({ page }) => {
   await page.getByRole('checkbox', { name: 'Close the loop' }).check();
   await page.mouse.click(box.x + 200, box.y + 200);
   await page.mouse.click(box.x + 360, box.y + 220);
-  await page.mouse.click(box.x + 300, box.y + 360);
+  await page.mouse.click(box.x + 300, box.y + 300);
   await page.keyboard.press('Enter');
   await waitForSaved(page, 'maps', '"start":"grow"');
   await waitForSaved(page, 'maps', '"end":"fade"');
@@ -1541,4 +1541,51 @@ test('a road fades in and out and can close into a ring', async ({ page }) => {
   await page.getByLabel('Path ends').selectOption('hard');
   await expect(page.getByLabel('Path ends')).toHaveValue('hard');
   await expect(page.getByLabel('Path begins')).toHaveValue('grow');
+});
+
+/** The brush strokes saved in the user's maps. */
+const savedStrokes = (page: Page) =>
+  page.evaluate(async () => {
+    const out: { soft?: number; width: number; points?: number[] }[] = [];
+    try {
+      const root = await navigator.storage.getDirectory();
+      const dir = await (await root.getDirectoryHandle('user-data')).getDirectoryHandle('maps');
+      for await (const entry of dir.values()) {
+        if (entry.kind !== 'file') continue;
+        const doc = JSON.parse(await (await entry.getFile()).text()) as {
+          layers?: { items: { kind: string; soft?: number; width: number; points?: number[] }[] }[];
+        };
+        for (const layer of doc.layers ?? [])
+          for (const item of layer.items) if (item.kind === 'stroke') out.push(item);
+      }
+    } catch {
+      return out;
+    }
+    return out;
+  });
+
+test('the terrain brush has a soft edge, and [ ] size it', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Soft');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  await tool(page, 'Terrain brush').click();
+  const width = page.getByText(/^Width: \d+$/);
+  const before = Number((await width.textContent())?.replace(/\D/g, ''));
+  await page.keyboard.press(']');
+  await expect(width).not.toHaveText(`Width: ${String(before)}`);
+  await page.getByLabel('Soft edge').fill('0');
+  await page.mouse.move(box.x + 150, box.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 300, box.y + 220, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(async () => (await savedStrokes(page)).length).toBe(1);
+  await page.getByLabel('Soft edge').fill('80');
+  await page.mouse.move(box.x + 150, box.y + 300);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 300, box.y + 320, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(async () => (await savedStrokes(page)).length).toBe(2);
+  expect((await savedStrokes(page)).map((x) => x.soft ?? 0).sort()).toEqual([0, 0.8]);
 });
