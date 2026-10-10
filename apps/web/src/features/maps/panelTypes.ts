@@ -3,7 +3,10 @@ import type { Point } from '../../app/maps/geometry';
 import { type MapDoc, type MapItem } from '../../app/maps/model';
 import {
   type BrushSettings,
+  type AreaSettings,
   type FogSettings,
+  type IslandRequest,
+  type PathSettings,
   type MapMode,
   type TemplateSettings,
   type Tool,
@@ -37,6 +40,14 @@ export interface MapPanelsProps {
   setTemplate: (t: TemplateSettings) => void;
   fog: FogSettings;
   setFog: (f: FogSettings) => void;
+  area: AreaSettings;
+  setArea: (a: AreaSettings) => void;
+  pathSet: PathSettings;
+  setPathSet: (p: PathSettings) => void;
+  /** Islands to drop in the middle of the view. */
+  onGenerate: (request: IslandRequest) => void;
+  /** Covers the whole map with the chosen terrain, under everything on the layer. */
+  onFillMap: () => void;
   snap: boolean;
   setSnap: (s: boolean) => void;
   /** Starts measuring from a point (a pin's "Measure from here"). */

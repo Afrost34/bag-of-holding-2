@@ -16,6 +16,7 @@ import { type MapPanelsProps, field } from './panelTypes';
 import { PinLinkField } from './PinLinkField';
 import { PinLook } from './PinPanels';
 import { RouteSettings } from './RouteSettings';
+import { ShapeItemSettings } from './ShapePanel';
 import { TextLettering } from './TextLettering';
 
 export function ItemSettings({
@@ -50,10 +51,15 @@ export function ItemSettings({
     text: 'Text',
     template: 'Spell template',
     pin: 'Pin',
+    shape: 'Terrain shape',
+    path: 'Road or river',
   };
   return (
     <Section title={titles[item.kind]}>
       {item.kind === 'route' && <RouteSettings item={item} doc={doc} set={set} />}
+      {(item.kind === 'shape' || item.kind === 'path') && (
+        <ShapeItemSettings item={item} set={set} />
+      )}
       {item.kind === 'stamp' && (
         <>
           <div className="grid grid-cols-2 gap-2">

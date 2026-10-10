@@ -24,7 +24,11 @@ import { emptyHistory, record, redo as redoStep, undo as undoStep } from '../../
 import { journalPath } from '../../app/journal/paths';
 import { useJournal } from '../../app/journal/store';
 import { useStamps } from '../../app/maps/assets';
+import { generateArchipelago } from '../../app/maps/islandgen';
 import { bakeMap } from '../../app/maps/render';
+import { PATH_STYLES } from '../../app/maps/shapes';
+import { splinePoints } from '../../app/maps/spline';
+import { TERRAINS } from '../../app/maps/terrain';
 import { snapToCell, snapToCorner, templateOutline, type Point } from '../../app/maps/geometry';
 import {
   addFog,
@@ -54,7 +58,18 @@ import { useMapDoc, useMaps } from '../../app/maps/store';
 import { measurePath } from '../../app/maps/measure';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
-import { eraseStrokes, ROUTE_COLOR, routeStatus, simplify, type Drag } from './editorModel';
+import {
+  dedupePoints,
+  eraseStrokes,
+  insertVertex,
+  nearestHandle,
+  removeVertex,
+  ROUTE_COLOR,
+  routeStatus,
+  simplify,
+  snapRiverEnd,
+  type Drag,
+} from './editorModel';
 import { DeleteMap, NameInput } from './EditorParts';
 import { ExportDialog } from './ExportDialog';
 import { MapPanels } from './MapPanels';
@@ -62,8 +77,11 @@ import { PinHover } from '../../app/maps/PinHover';
 import {
   TOOLS_WITH_SETTINGS,
   toolsFor,
+  type AreaSettings,
   type BrushSettings,
   type FogSettings,
+  type IslandRequest,
+  type PathSettings,
   type MapMode,
   type TemplateSettings,
   type Tool,
@@ -136,6 +154,18 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     color: '#dc2626',
   });
   const [fog, setFog] = useState<FogSettings>({ mode: 'hide', shape: 'rect' });
+  const [area, setArea] = useState<AreaSettings>({
+    texture: 'grass',
+    edge: 'shore',
+    smooth: 0.8,
+    opacity: 1,
+  });
+  const [pathSet, setPathSet] = useState<PathSettings>({
+    style: 'road',
+    width: 24,
+    smooth: 0.6,
+    taper: true,
+  });
   const [snap, setSnap] = useState(true);
   const [viewing, setViewing] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
@@ -294,6 +324,52 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       scene?.clearPreview();
       return;
     }
+    if (wall && tool === 'area') {
+      const points = dedupePoints(wall);
+      if (points.length >= 6 && layer) {
+        const base = TERRAINS.find((t) => t.id === area.texture)?.base ?? '#5b8a2b';
+        commit((d) =>
+          addItem(d, layer.id, {
+            kind: 'shape',
+            id: itemId(d),
+            points: points.map(Math.round),
+            smooth: area.smooth,
+            texture: area.texture,
+            color: base,
+            opacity: area.opacity,
+            edge: area.edge,
+          }),
+        );
+      }
+      setWall(null);
+      scene?.clearPreview();
+      return;
+    }
+    if (wall && tool === 'path') {
+      let points = dedupePoints(wall).map(Math.round);
+      if (points.length >= 4 && layer) {
+        const color = PATH_STYLES.find((p) => p.id === pathSet.style)?.color ?? '#d9c79e';
+        const joined =
+          pathSet.style === 'river' ? snapRiverEnd(doc, points, 30 / (scene?.zoom ?? 1)) : null;
+        if (joined) points = joined.points;
+        commit((d) =>
+          addItem(d, layer.id, {
+            kind: 'path',
+            id: itemId(d),
+            points,
+            smooth: pathSet.smooth,
+            style: pathSet.style,
+            width: pathSet.width,
+            color,
+            ...(pathSet.style === 'river' ? { taper: pathSet.taper } : {}),
+            ...(joined?.into ? { into: joined.into } : {}),
+          }),
+        );
+      }
+      setWall(null);
+      scene?.clearPreview();
+      return;
+    }
     if (wall && wall.length >= 4 && layer) {
       const item: MapItem =
         tool === 'route'
@@ -303,6 +379,67 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     }
     setWall(null);
     scene?.clearPreview();
+  };
+
+  /** Drops the points placed so far without making anything. */
+  const cancelWall = () => {
+    setWall(null);
+    scene?.clearPreview();
+  };
+
+  /** Random islands in the middle of the view, with the terrain tool's look. */
+  const generate = (request: IslandRequest) => {
+    const el = host.current;
+    if (!scene || !el || !layer || layer.locked) return;
+    const c = scene.toMap(el.clientWidth / 2, el.clientHeight / 2);
+    const base = TERRAINS.find((t) => t.id === area.texture)?.base ?? '#5b8a2b';
+    const islands = generateArchipelago({
+      x: c.x,
+      y: c.y,
+      radius: Math.min(doc.width, doc.height) * request.size,
+      seed: request.seed,
+      ruggedness: request.ruggedness,
+      elongation: request.elongation,
+      count: request.count,
+    });
+    commit((d) =>
+      islands.reduce(
+        (acc, points) =>
+          addItem(acc, layer.id, {
+            kind: 'shape',
+            id: itemId(acc),
+            points,
+            smooth: Math.max(area.smooth, 0.7),
+            texture: area.texture,
+            color: base,
+            opacity: area.opacity,
+            edge: area.edge,
+          }),
+        d,
+      ),
+    );
+  };
+
+  /** The whole map covered with the chosen terrain, under everything else on the layer. */
+  const fillMap = () => {
+    if (!layer || layer.locked) return;
+    const base = TERRAINS.find((t) => t.id === area.texture)?.base ?? '#5b8a2b';
+    commit((d) => {
+      const shape: MapItem = {
+        kind: 'shape',
+        id: itemId(d),
+        points: [0, 0, d.width, 0, d.width, d.height, 0, d.height],
+        smooth: 0,
+        texture: area.texture,
+        color: base,
+        opacity: 1,
+        edge: 'none',
+      };
+      return {
+        ...d,
+        layers: d.layers.map((l) => (l.id === layer.id ? { ...l, items: [shape, ...l.items] } : l)),
+      };
+    });
   };
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -330,6 +467,31 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     if (e.button === 0 && (viewing || ctrl)) {
       const hit = scene.hit(p);
       if (hit?.kind === 'pin' && followPin(hit, ctrl)) return;
+    }
+    // A picked shape or path shows a handle on each control point: drag it, or right-click to
+    // remove it.
+    if (
+      creator &&
+      tool === 'select' &&
+      (e.button === 0 || e.button === 2) &&
+      (selectedItem?.kind === 'shape' || selectedItem?.kind === 'path')
+    ) {
+      const index = nearestHandle(selectedItem.points, p, 10 / scene.zoom);
+      if (index >= 0) {
+        if (e.button === 2) {
+          const points = removeVertex(
+            selectedItem.points,
+            index,
+            selectedItem.kind === 'shape' ? 3 : 2,
+          );
+          commit((d) =>
+            updateItem(d, selectedItem.id, (i) =>
+              i.kind === 'shape' || i.kind === 'path' ? { ...i, points } : i,
+            ),
+          );
+        } else drag.current = { mode: 'vertex', ...base, index, points: [...selectedItem.points] };
+        return;
+      }
     }
     if (e.button === 1 || space.current || tool === 'pan' || viewing) {
       drag.current = { mode: 'pan', ...base };
@@ -407,6 +569,11 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       case 'template':
         drag.current = { mode: 'template', ...base, start: snap ? snapPoint(p) : p };
         return;
+      case 'area':
+      case 'path':
+        // Organic outlines: the points are where they are clicked, not on the grid.
+        if (canDraw) setWall((w) => [...(w ?? []), p.x, p.y]);
+        return;
       case 'fog':
         if (fog.shape === 'polygon') setWall((w) => [...(w ?? []), p.x, p.y]);
         else drag.current = { mode: 'fog', ...base };
@@ -438,6 +605,22 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       scene.drawPreview((g) => {
         drawRoute(g, [...wall, p.x, p.y], ROUTE_COLOR, routeWidth(doc));
       });
+    if (wall && (tool === 'area' || tool === 'path')) {
+      const control = [...wall, p.x, p.y];
+      const line = splinePoints(
+        control,
+        tool === 'area',
+        tool === 'area' ? area.smooth : pathSet.smooth,
+      );
+      scene.drawPreview((g) => {
+        if (tool === 'area') g.poly(line).fill({ color: 0x3b82f6, alpha: 0.18 });
+        g.poly(line, tool === 'area').stroke({ color: 0x3b82f6, width: 2 / scene.zoom });
+        for (let i = 0; i + 1 < wall.length; i += 2)
+          g.circle(wall[i] ?? 0, wall[i + 1] ?? 0, 4 / scene.zoom)
+            .fill({ color: 0xffffff })
+            .stroke({ color: 0x3b82f6, width: 1.5 / scene.zoom });
+      });
+    }
     if (wall && tool === 'fog')
       scene.drawPreview((g) => {
         g.poly([...wall, p.x, p.y]).fill({
@@ -507,6 +690,20 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           },
           { text: `${String(template.feet)} ft ${template.shape}`, at: p },
         );
+        d.last = p;
+        return;
+      }
+      case 'vertex': {
+        const item = selectedItem;
+        if (!d.points || d.index === undefined || (item?.kind !== 'shape' && item?.kind !== 'path'))
+          return;
+        d.points[d.index * 2] = p.x;
+        d.points[d.index * 2 + 1] = p.y;
+        const line = splinePoints(d.points, item.kind === 'shape', item.smooth);
+        scene.drawPreview((g) => {
+          g.poly(line, item.kind === 'shape').stroke({ color: 0x3b82f6, width: 2 / scene.zoom });
+          g.circle(p.x, p.y, 6 / scene.zoom).fill({ color: 0x3b82f6 });
+        });
         d.last = p;
         return;
       }
@@ -632,6 +829,19 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         drawMeasured(next);
         return;
       }
+      case 'vertex': {
+        scene.clearPreview();
+        const item = selectedItem;
+        if (!d.points || d.index === undefined || (item?.kind !== 'shape' && item?.kind !== 'path'))
+          return;
+        const points = d.points.map(Math.round);
+        commit((doc2) =>
+          updateItem(doc2, item.id, (i) =>
+            i.kind === 'shape' || i.kind === 'path' ? { ...i, points } : i,
+          ),
+        );
+        return;
+      }
       case 'template':
         // A range to measure, never kept on the map: the preview stays until the next one.
         return;
@@ -712,7 +922,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       // Alt combinations are the app's (tabs, modules).
       if (mod || e.altKey) return;
       if (e.key === 'Escape') {
-        if (wall) finishWall();
+        if (wall && (tool === 'area' || tool === 'path' || tool === 'fog')) cancelWall();
+        else if (wall) finishWall();
         setSelected(null);
         setMeasured([]);
         scene?.clearPreview();
@@ -966,8 +1177,32 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerUp}
-            onDoubleClick={() => {
-              if (wall) finishWall();
+            onDoubleClick={(e) => {
+              if (wall) {
+                finishWall();
+                return;
+              }
+              if (
+                creator &&
+                scene &&
+                tool === 'select' &&
+                (selectedItem?.kind === 'shape' || selectedItem?.kind === 'path')
+              ) {
+                const screen = local(e);
+                const at = scene.toMap(screen.x, screen.y);
+                const points = insertVertex(
+                  selectedItem.points,
+                  at,
+                  selectedItem.kind === 'shape',
+                  12 / scene.zoom,
+                );
+                if (points)
+                  commit((d) =>
+                    updateItem(d, selectedItem.id, (i) =>
+                      i.kind === 'shape' || i.kind === 'path' ? { ...i, points } : i,
+                    ),
+                  );
+              }
             }}
             onContextMenu={(e) => {
               e.preventDefault();
@@ -989,9 +1224,11 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
                 : wall && tool === 'route'
                   ? routeStatus(wall, doc)
                   : wall
-                    ? tool === 'fog'
-                      ? 'Click the corners; double-click or Enter to finish the area.'
-                      : 'Click to add corners; double-click or Enter to finish the wall.'
+                    ? tool === 'area' || tool === 'path'
+                      ? 'Click to place points; double-click or Enter to finish, Escape to cancel.'
+                      : tool === 'fog'
+                        ? 'Click the corners; double-click or Enter to finish the area.'
+                        : 'Click to add corners; double-click or Enter to finish the wall.'
                     : measure
                       ? `Distance: ${measure} (Escape to clear)`
                       : 'Click the next point.'}
@@ -1048,6 +1285,12 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             setTemplate={setTemplate}
             fog={fog}
             setFog={setFog}
+            area={area}
+            setArea={setArea}
+            pathSet={pathSet}
+            setPathSet={setPathSet}
+            onGenerate={generate}
+            onFillMap={fillMap}
             snap={snap}
             setSnap={setSnap}
           />

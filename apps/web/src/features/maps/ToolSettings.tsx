@@ -164,7 +164,7 @@ export function ToolSettings({
 }
 
 /** A terrain texture's look, for its button. */
-function TerrainSwatch({ id }: { id: (typeof TERRAINS)[number]['id'] }) {
+export function TerrainSwatch({ id }: { id: (typeof TERRAINS)[number]['id'] }) {
   const url = useMemo(() => terrainTile(id).toDataURL('image/png'), [id]);
   return (
     <span

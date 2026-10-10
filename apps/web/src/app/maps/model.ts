@@ -69,6 +69,35 @@ export type MapItem =
       texture?: TerrainId;
     }
   | { kind: 'wall'; id: string; points: number[] }
+  /** A closed area of terrain (land, water, a forest floor) with a rounded outline. */
+  | {
+      kind: 'shape';
+      id: string;
+      /** Control points of the outline: x0, y0, x1, y1… */
+      points: number[];
+      /** 0 straight corners, 1 fully rounded. */
+      smooth: number;
+      texture?: TerrainId;
+      color: string;
+      /** 0.1–1. */
+      opacity: number;
+      /** A shore glow with wave lines, an ink line, or none. */
+      edge: 'none' | 'ink' | 'shore';
+    }
+  /** A road, trail, river or fence along control points. */
+  | {
+      kind: 'path';
+      id: string;
+      points: number[];
+      smooth: number;
+      style: 'road' | 'trail' | 'river' | 'fence';
+      width: number;
+      color: string;
+      /** A river that widens along its way (default); false keeps one width. */
+      taper?: boolean;
+      /** The path this one flows into. */
+      into?: string;
+    }
   /** A way across a world or city map, stop by stop: its length says how long the journey is. */
   | {
       kind: 'route';
@@ -387,7 +416,17 @@ const boolMap = (v: unknown): Record<string, boolean> =>
         Object.entries(v).filter((e): e is [string, boolean] => typeof e[1] === 'boolean'),
       )
     : {};
-const KINDS = new Set(['stamp', 'stroke', 'wall', 'route', 'text', 'template', 'pin']);
+const KINDS = new Set([
+  'stamp',
+  'stroke',
+  'wall',
+  'shape',
+  'path',
+  'route',
+  'text',
+  'template',
+  'pin',
+]);
 
 /** True when a stored map is older than this build's format (it is saved again once read). */
 export function mapIsStale(text: string | null): boolean {
