@@ -118,6 +118,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   const [layerId, setLayerId] = useState(drawable.at(-2)?.id ?? drawable[0]?.id ?? '');
   const [stamp, setStamp] = useState<string | null>(null);
   const [stampAspect, setStampAspect] = useState(1);
+  const [stampSquares, setStampSquares] = useState<{ w: number; h: number } | null>(null);
   const [brush, setBrush] = useState<BrushSettings>({ color: '#111111', width: 6, opacity: 1 });
   const [terrain, setTerrain] = useState<BrushSettings>({
     color: '#5b8a2b',
@@ -324,8 +325,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           stamp,
           x: at.x,
           y: at.y,
-          w: stampAspect >= 1 ? size * stampAspect : size,
-          h: stampAspect >= 1 ? size : size / stampAspect,
+          w: stampSquares ? stampSquares.w * size : stampAspect >= 1 ? size * stampAspect : size,
+          h: stampSquares ? stampSquares.h * size : stampAspect >= 1 ? size : size / stampAspect,
           rotation: 0,
         });
         return;
@@ -1000,9 +1001,10 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
               drawMeasured([p]);
             }}
             stamp={stamp}
-            setStamp={(path, aspect) => {
+            setStamp={(path, aspect, squares) => {
               setStamp(path);
               setStampAspect(aspect);
+              setStampSquares(squares ?? null);
               setTool('stamp');
             }}
             brush={brush}

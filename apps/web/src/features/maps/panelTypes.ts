@@ -24,7 +24,8 @@ export interface MapPanelsProps {
   layerId: string;
   setLayerId: (id: string) => void;
   stamp: string | null;
-  setStamp: (path: string, aspect: number) => void;
+  /** `squares`: the stamp's own size in grid squares, when its name says it. */
+  setStamp: (path: string, aspect: number, squares?: { w: number; h: number }) => void;
   brush: BrushSettings;
   setBrush: (b: BrushSettings) => void;
   terrain: BrushSettings;
