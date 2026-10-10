@@ -76,6 +76,7 @@ import {
   itemId,
   rectPoints,
   setActiveVariant,
+  stepVariant,
   updateItem,
   type MapDoc,
   type MapItem,
@@ -256,6 +257,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     end: 'hard',
     loop: false,
   });
+  /** The variant whose layers show faintly under the map (comparing floors or versions). */
+  const [compare, setCompare] = useState<string | undefined>(undefined);
   const [snap, setSnapState] = useState(() => {
     try {
       return localStorage.getItem('boh.map.snap') !== 'off';
@@ -348,12 +351,13 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   }, [docId, creator]);
 
   useEffect(() => {
+    scene?.setCompare(compare);
     scene?.setDoc(doc);
     const found = selected ? findItem(doc, selected) : undefined;
     const more = itemsWithIds(doc, group);
     if (found && more.length > 0) scene?.selectMany([found.item, ...more]);
     else scene?.select(found?.item ?? null);
-  }, [scene, doc, selected, group]);
+  }, [scene, doc, selected, group, compare]);
 
   // A few seconds after the art last changed, the Creator makes the flat picture other devices
   // (a phone without the packs) show instead of drawing it.
@@ -1688,6 +1692,12 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           return;
         }
       }
+      // Page Up and Page Down step through the variants (floors, versions).
+      if ((e.key === 'PageUp' || e.key === 'PageDown') && (doc.variants?.length ?? 0) > 1) {
+        e.preventDefault();
+        commit((d) => stepVariant(d, e.key === 'PageDown' ? 1 : -1));
+        return;
+      }
       if (e.key === 'g' || e.key === 'G') {
         commit((d) => ({ ...d, grid: { ...d.grid, visible: !d.grid.visible } }));
         return;
@@ -2090,6 +2100,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
               setMeasured([p]);
               drawMeasured([p]);
             }}
+            compare={compare}
+            setCompare={setCompare}
             stamp={stamp}
             setStamp={(path, aspect, squares) => {
               rememberStamp({ ref: path, aspect, squares });

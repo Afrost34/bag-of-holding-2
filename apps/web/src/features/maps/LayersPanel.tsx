@@ -8,6 +8,7 @@ import {
   addLayer,
   addPictureLayer,
   addVariant,
+  moveVariant,
   layerShown,
   moveLayer,
   removeLayer,
@@ -24,7 +25,12 @@ import { type MapPanelsProps } from './panelTypes';
  * Variants: named sets of what is shown (a night version, another floor, the players' view of
  * the same map). Showing or hiding a layer while one is active changes that variant only.
  */
-function Variants({ doc, commit }: Pick<MapPanelsProps, 'doc' | 'commit'>) {
+function Variants({
+  doc,
+  commit,
+  compare,
+  setCompare,
+}: Pick<MapPanelsProps, 'doc' | 'commit' | 'compare' | 'setCompare'>) {
   const variants = doc.variants ?? [];
   const current = activeVariant(doc);
   return (
@@ -60,6 +66,24 @@ function Variants({ doc, commit }: Pick<MapPanelsProps, 'doc' | 'commit'>) {
                 className="min-w-0 flex-1 bg-transparent text-sm focus:outline-none"
               />
               <IconButton
+                label={`Move ${v.name} up`}
+                disabled={variants[0]?.id === v.id}
+                onClick={() => {
+                  commit((d) => moveVariant(d, v.id, -1));
+                }}
+              >
+                <ArrowUp className="h-4 w-4" />
+              </IconButton>
+              <IconButton
+                label={`Move ${v.name} down`}
+                disabled={variants.at(-1)?.id === v.id}
+                onClick={() => {
+                  commit((d) => moveVariant(d, v.id, 1));
+                }}
+              >
+                <ArrowDown className="h-4 w-4" />
+              </IconButton>
+              <IconButton
                 label={`Delete ${v.name}`}
                 onClick={() => {
                   commit((d) => removeVariant(d, v.id));
@@ -70,6 +94,28 @@ function Variants({ doc, commit }: Pick<MapPanelsProps, 'doc' | 'commit'>) {
             </li>
           ))}
         </ul>
+      )}
+      {variants.length > 1 && (
+        <label className="block text-sm">
+          Compare with
+          <select
+            aria-label="Compare with"
+            value={compare ?? ''}
+            onChange={(e) => {
+              setCompare(e.target.value || undefined);
+            }}
+            className="mt-1 w-full rounded-md border border-border bg-surface px-2 py-1 text-sm"
+          >
+            <option value="">Nothing</option>
+            {variants
+              .filter((v) => v.id !== doc.activeVariant)
+              .map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+          </select>
+        </label>
       )}
       <div className="flex flex-wrap gap-2">
         <Button
@@ -114,7 +160,7 @@ export function Layers(props: MapPanelsProps) {
   };
   return (
     <>
-      <Variants doc={doc} commit={commit} />
+      <Variants doc={doc} commit={commit} compare={props.compare} setCompare={props.setCompare} />
       <Section title="Layers">
         <p className="text-xs text-muted">
           New things go on the chosen layer. The top one is drawn last.

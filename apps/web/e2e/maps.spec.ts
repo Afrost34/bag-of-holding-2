@@ -526,6 +526,12 @@ test('picture layers and variants: a night version, switched in the Viewer', asy
   await page.getByLabel('Variant name').nth(1).fill('Night');
   await page.getByRole('button', { name: 'Show Mine Night' }).click();
   await waitForSaved(page, 'maps', '"name":"Night"');
+  // Comparing shows the other version faintly; the variants can be moved in the list.
+  await page.getByLabel('Compare with').selectOption({ label: 'Day' });
+  await expect(page.getByLabel('Compare with')).toHaveValue(/.+/);
+  await page.getByRole('button', { name: 'Move Night up' }).click();
+  await waitForSaved(page, 'maps', '"name":"Night"');
+  await expect(page.getByLabel('Variant name').first()).toHaveValue('Night');
   // The Viewer switches between them.
   await page.getByRole('link', { name: /View map/ }).click();
   const variant = page.getByLabel('Variant', { exact: true });

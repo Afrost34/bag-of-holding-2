@@ -27,6 +27,7 @@ import {
   PAPERS,
   isArt,
   itemShown,
+  layerGhost,
   layerShown,
   pinStyle,
   type Grid,
@@ -434,6 +435,9 @@ export class MapScene {
   onLoading: (loading: boolean) => void = () => undefined;
   private destroyed = false;
   private frame = 0;
+  /** The variant being compared with (see `layerGhost`), and the layers shown faintly for it. */
+  private compare: string | undefined;
+  private readonly ghosts = new Set<Container>();
   /** Views that are culled once they have been drawn once. */
   private readonly cullLater = new Set<Container>();
   private resizing: ResizeObserver | null = null;
@@ -601,6 +605,11 @@ export class MapScene {
     this.setView((w - this.doc.width * zoom) / 2, (h - this.doc.height * zoom) / 2, zoom);
   }
 
+  /** Compare with another variant: its layers show faintly (from the next `setDoc`). */
+  setCompare(id: string | undefined): void {
+    this.compare = id;
+  }
+
   setDoc(doc: MapDoc): void {
     this.doc = doc;
     patternGrid = doc.grid.size;
@@ -640,7 +649,12 @@ export class MapScene {
         this.layerViews.set(layer.id, view);
         this.layers.addChild(view);
       }
-      view.visible = layerShown(doc, layer);
+      // Comparing with another variant: its layers show faintly (never in a picture).
+      const ghost = layerGhost(doc, layer, this.compare);
+      view.visible = layerShown(doc, layer) || ghost;
+      view.alpha = ghost ? 0.3 : 1;
+      if (ghost) this.ghosts.add(view);
+      else this.ghosts.delete(view);
       this.layers.setChildIndex(view, index);
       if (layer.picture) {
         // A picture layer: loaded once and kept, so showing and hiding it is instant.
@@ -1709,6 +1723,9 @@ export class MapScene {
       n.view.alpha = 1;
       if (!withSecretPins) n.view.visible = false;
     }
+    // Layers shown only to compare are left out of the picture.
+    const ghostShown = [...this.ghosts].map((v) => v.visible);
+    for (const v of this.ghosts) v.visible = false;
     // The markers of lights are for placing them, not for the picture.
     const markers = [...this.nodes.values()].filter((n) => n.item.kind === 'light');
     const markerShown = markers.map((n) => n.view.visible);
@@ -1729,6 +1746,9 @@ export class MapScene {
     } finally {
       markers.forEach((n, i) => {
         n.view.visible = markerShown[i] ?? true;
+      });
+      [...this.ghosts].forEach((v, i) => {
+        v.visible = ghostShown[i] ?? true;
       });
       this.overlay.visible = true;
       this.gridLines.visible = true;

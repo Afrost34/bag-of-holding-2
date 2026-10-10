@@ -12,6 +12,8 @@ import {
   fogHides,
   addPictureLayer,
   addVariant,
+  layerGhost,
+  moveVariant,
   itemShown,
   layerShown,
   mapIsStale,
@@ -205,6 +207,30 @@ describe('variants', () => {
     // The layer's own flag is untouched by variant changes.
     expect(doc.layers.find((l) => l.id === up.id)?.visible).toBe(false);
     expect(parseMap(serializeMap(doc), doc.id)).toEqual(doc);
+  });
+
+  it('are reordered, and a layer only the compared variant shows is a ghost', () => {
+    let doc = base();
+    const [ground, up] = doc.layers;
+    if (!ground || !up) throw new Error('layers');
+    doc = setLayerShown(doc, up.id, false);
+    doc = addVariant(doc, 'Ground');
+    const first = doc.activeVariant;
+    doc = addVariant(doc, 'Upstairs');
+    doc = setLayerShown(doc, up.id, true);
+    doc = setLayerShown(doc, ground.id, false);
+    const second = doc.activeVariant;
+    expect(doc.variants?.map((v) => v.name)).toEqual(['Ground', 'Upstairs']);
+    doc = moveVariant(doc, second ?? '', -1);
+    expect(doc.variants?.map((v) => v.name)).toEqual(['Upstairs', 'Ground']);
+    // Past the ends nothing moves.
+    expect(moveVariant(doc, second ?? '', -1)).toBe(doc);
+    // Upstairs shows the second picture only; comparing with Ground ghosts the first.
+    doc = setActiveVariant(doc, second);
+    expect(layerGhost(doc, ground, first)).toBe(true);
+    expect(layerGhost(doc, up, first)).toBe(false);
+    expect(layerGhost(doc, ground, undefined)).toBe(false);
+    expect(layerGhost(doc, ground, second)).toBe(false);
   });
 
   it('hide items, step round, and are removed with their activity', () => {

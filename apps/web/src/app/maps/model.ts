@@ -1029,6 +1029,27 @@ export function stepVariant(doc: MapDoc, by: 1 | -1): MapDoc {
   return next ? { ...doc, activeVariant: next.id } : doc;
 }
 
+/** A variant one place earlier (-1) or later (+1) in the list. */
+export function moveVariant(doc: MapDoc, id: string, by: 1 | -1): MapDoc {
+  const list = [...(doc.variants ?? [])];
+  const from = list.findIndex((v) => v.id === id);
+  const to = from + by;
+  if (from < 0 || to < 0 || to >= list.length) return doc;
+  const [moved] = list.splice(from, 1);
+  if (moved) list.splice(to, 0, moved);
+  return { ...doc, variants: list };
+}
+
+/**
+ * Whether a layer is only in the variant being compared with (shown there, not now): it is drawn
+ * faintly so the two can be told apart.
+ */
+export function layerGhost(doc: MapDoc, layer: Layer, compare: string | undefined): boolean {
+  if (!compare || compare === doc.activeVariant) return false;
+  const other = doc.variants?.find((v) => v.id === compare);
+  return !layerShown(doc, layer) && (other?.layers[layer.id] ?? false);
+}
+
 export function removeVariant(doc: MapDoc, id: string): MapDoc {
   const variants = (doc.variants ?? []).filter((v) => v.id !== id);
   const { variants: _v, activeVariant: _a, ...rest } = doc;

@@ -34,6 +34,9 @@ export interface MapPanelsProps {
   onDeselect: () => void;
   layerId: string;
   setLayerId: (id: string) => void;
+  /** The variant being compared with (its layers show faintly), if any. */
+  compare: string | undefined;
+  setCompare: (id: string | undefined) => void;
   stamp: string | null;
   /** `squares`: the stamp's own size in grid squares, when its name says it. */
   setStamp: (path: string, aspect: number, squares?: { w: number; h: number }) => void;
