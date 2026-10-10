@@ -1778,3 +1778,32 @@ test('a wall can close into a loop and have sharp corners', async ({ page }) => 
   await page.mouse.click(box.x + 250, box.y + 275);
   await expect(page.getByLabel('Close the loop')).toBeChecked();
 });
+
+test('a region has a plain colour and a dashed border', async ({ page }, testInfo) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Kingdoms');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  const click = async (x: number, y: number) => {
+    await page.mouse.click(box.x + x, box.y + y);
+  };
+  await tool(page, 'Terrain shape').click();
+  await click(150, 150);
+  await click(450, 140);
+  await click(480, 380);
+  await click(200, 400);
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'maps', '"kind":"shape"');
+  await tool(page, 'Select and move').click();
+  await click(300, 270);
+  await page.getByLabel('Fill colour').fill('#c0504d');
+  await page.getByRole('radio', { name: 'Dashed border' }).click();
+  await page.getByRole('slider', { name: /^Opacity/ }).fill('0.4');
+  await waitForSaved(page, 'maps', '"edge":"dashed"');
+  await waitForSaved(page, 'maps', '"color":"#c0504d"');
+  // Picking nothing shows the border as it is.
+  await click(560, 470);
+  await page.waitForTimeout(600);
+  await canvas.screenshot({ path: testInfo.outputPath('region.png') });
+});

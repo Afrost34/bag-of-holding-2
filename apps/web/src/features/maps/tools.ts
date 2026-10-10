@@ -228,7 +228,7 @@ export interface FogSettings {
 /** The terrain shape tool: what the area is, and how its edge looks. */
 export interface AreaSettings {
   texture: TerrainRef;
-  edge: 'none' | 'ink' | 'shore';
+  edge: 'none' | 'ink' | 'shore' | 'dashed';
   /** 0 straight corners, 1 fully rounded. */
   smooth: number;
   opacity: number;

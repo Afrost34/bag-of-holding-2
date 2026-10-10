@@ -68,7 +68,16 @@ export function shapeView(item: Shape, pattern: FillPattern | null): Container {
     g.poly(outline).fill(pattern ? { fill: pattern } : { color: color(item.color) });
     const holes = shapeHoles(item);
     for (const hole of holes) g.poly(hole).cut();
-    if (item.edge !== 'none') {
+    if (item.edge === 'dashed') {
+      // A dashed border, as round a region on a map of kingdoms.
+      const unit = Math.max(6, Math.sqrt(Math.abs(polygonArea(outline))) * 0.03);
+      for (const ring of [outline, ...holes])
+        for (const seg of dashSegments([...ring, ring[0] ?? 0, ring[1] ?? 0], unit * 2, unit)) {
+          g.moveTo(seg[0] ?? 0, seg[1] ?? 0);
+          for (let i = 2; i + 1 < seg.length; i += 2) g.lineTo(seg[i] ?? 0, seg[i + 1] ?? 0);
+          g.stroke({ color: 0x2b2118, width: Math.max(2, unit * 0.35), alpha: 0.85, cap: 'round' });
+        }
+    } else if (item.edge !== 'none') {
       g.poly(outline).stroke({ color: 0x2b2118, width: 1.8, alpha: 0.75, join: 'round' });
       for (const hole of holes)
         g.poly(hole).stroke({ color: 0x2b2118, width: 1.8, alpha: 0.75, join: 'round' });

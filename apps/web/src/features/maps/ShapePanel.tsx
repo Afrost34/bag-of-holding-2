@@ -14,6 +14,7 @@ import { TerrainSwatch } from './ToolSettings';
 const EDGES = [
   ['shore', 'Coast', 'a shallow-water glow and wave lines'],
   ['ink', 'Ink line', 'a thin dark outline'],
+  ['dashed', 'Dashed border', 'a dashed line, as on a map of regions'],
   ['none', 'None', 'no outline'],
 ] as const;
 
@@ -281,7 +282,7 @@ export function ShapePanel(props: MapPanelsProps) {
             setArea({ ...area, texture });
           }}
         />
-        <div role="radiogroup" aria-label="Edge" className="grid grid-cols-3 gap-1">
+        <div role="radiogroup" aria-label="Edge" className="grid grid-cols-2 gap-1">
           {EDGES.map(([id, label, hint]) => (
             <button
               key={id}
@@ -351,7 +352,24 @@ export function ShapeItemSettings({
             set((i) => (i.kind === 'shape' ? { ...i, texture, color: base } : i));
           }}
         />
-        <div role="radiogroup" aria-label="Edge" className="grid grid-cols-3 gap-1">
+        <label className="flex items-center gap-2 text-sm">
+          Plain colour (a region)
+          <input
+            type="color"
+            aria-label="Fill colour"
+            value={item.color}
+            onChange={(e) => {
+              const color = e.target.value;
+              set((i) => {
+                if (i.kind !== 'shape') return i;
+                const { texture: _t, ...rest } = i;
+                return { ...rest, color };
+              });
+            }}
+            className="h-7 w-9 cursor-pointer rounded border border-border bg-surface"
+          />
+        </label>
+        <div role="radiogroup" aria-label="Edge" className="grid grid-cols-2 gap-1">
           {EDGES.map(([id, label]) => (
             <button
               key={id}

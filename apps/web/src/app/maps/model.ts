@@ -112,7 +112,7 @@ type MapItemBody =
       /** 0.1–1. */
       opacity: number;
       /** A shore glow with wave lines, an ink line, or none. */
-      edge: 'none' | 'ink' | 'shore';
+      edge: 'none' | 'ink' | 'shore' | 'dashed';
       /** Areas cut out of it (a lake in a forest): control points of each, as the outline's. */
       holes?: number[][];
     }
