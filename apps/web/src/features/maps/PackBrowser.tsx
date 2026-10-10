@@ -1,5 +1,5 @@
 import { Button, cn } from '@boh/ui';
-import { ChevronRight, FileArchive, Home, Search, Trash2 } from 'lucide-react';
+import { ChevronRight, FileArchive, Home, Search, Trash2, Trees } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { askConfirm } from '../../app/confirm';
 import { packThumbUrl, usePacks, entryRef, type ImportProgress } from '../../app/maps/packs';
@@ -58,9 +58,12 @@ function Preview({ entry }: { entry: PackEntry }) {
 export function PackBrowser({
   selected,
   onPick,
+  onUseAsMix,
 }: {
   selected: string | null;
   onPick: (ref: string, aspect: number, squares?: { w: number; h: number }) => void;
+  /** Scatter these pictures (a folder, or a search): trees, rocks, a whole set. */
+  onUseAsMix?: ((refs: string[]) => void) | undefined;
 }) {
   const { metas, entries, loaded, load, importFiles, remove } = usePacks();
   const [prefix, setPrefix] = useState('');
@@ -258,6 +261,19 @@ export function PackBrowser({
           <p className="text-xs text-muted" role="status">
             {found.total.toLocaleString('en')} picture{found.total === 1 ? '' : 's'}
           </p>
+          {onUseAsMix && found.total > 0 && (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                // Up to 40, spread over the whole set when there are more.
+                const all = findPackEntries(entries, prefix, search, 400).list;
+                const stride = Math.max(1, Math.ceil(all.length / 40));
+                onUseAsMix(all.filter((_, i) => i % stride === 0).map(entryRef));
+              }}
+            >
+              <Trees className="h-4 w-4" aria-hidden /> Scatter these ({Math.min(found.total, 40)})
+            </Button>
+          )}
           <ul aria-label="Pack pictures" className="grid grid-cols-3 gap-1">
             {found.list.map((e) => {
               const ref = entryRef(e);
