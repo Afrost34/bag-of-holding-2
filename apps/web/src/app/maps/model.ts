@@ -84,6 +84,40 @@ export type MapItem =
       /** A shore glow with wave lines, an ink line, or none. */
       edge: 'none' | 'ink' | 'shore';
     }
+  /**
+   * Pieces (trees, rocks, mountains) scattered from a seed over an area or along a line, kept
+   * clear of roads and rivers. Made again whenever what it reacts to changes; "bake" turns it
+   * into loose stamps.
+   */
+  | {
+      kind: 'scatter';
+      id: string;
+      mode: 'area' | 'along';
+      /** Control points of its own outline or line (unused while tied to another item). */
+      points: number[];
+      smooth: number;
+      /** Fill this shape (by id) instead: reshaping the shape reshapes the scatter. */
+      within?: string;
+      /** Follow this path (by id) instead. */
+      follow?: string;
+      seed: number;
+      /** Glyphs (`glyph:tree`) or stamps, with the weight each is picked with. */
+      pieces: { ref: string; weight: number }[];
+      spacing: number;
+      sizeMin: number;
+      sizeMax: number;
+      rotation: 'none' | 'random' | 'along';
+      /** 0 even, 1 groves with clearings. */
+      cluster: number;
+      offset: number;
+      sides: 'center' | 'both' | 'left' | 'right';
+      jitter: number;
+      clearance: number;
+      /** Keep clear of roads, rivers and water (auto), or not. */
+      avoid: 'auto' | 'none';
+      /** Only on these kinds of ground. */
+      onlyOn?: TerrainId[];
+    }
   /** A road, trail, river or fence along control points. */
   | {
       kind: 'path';
@@ -422,6 +456,7 @@ const KINDS = new Set([
   'wall',
   'shape',
   'path',
+  'scatter',
   'route',
   'text',
   'template',

@@ -968,3 +968,56 @@ test('terrain shapes, islands, roads and rivers are drawn and edited', async ({
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect.poll(counts).toBe(4);
 });
+
+test('scatter fills areas and lines with trees and mountains, clear of roads', async ({
+  page,
+}, testInfo) => {
+  test.skip(isPhone(page), 'Drawn on the desktop.');
+  test.setTimeout(90_000);
+  await newMap(page, 'The Greenwood', 'World or city map');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  const cx = box.width / 2;
+  const cy = box.height / 2;
+  const click = async (x: number, y: number) => {
+    await page.mouse.click(box.x + x, box.y + y);
+  };
+  await tool(page, 'Terrain shape').click();
+  await page
+    .getByRole('radiogroup', { name: 'Terrain' })
+    .getByRole('radio', { name: 'Water' })
+    .click();
+  await page.getByRole('button', { name: 'Cover the whole map' }).click();
+  await page
+    .getByRole('radiogroup', { name: 'Terrain' })
+    .getByRole('radio', { name: 'Grass' })
+    .click();
+  await page.getByRole('slider', { name: /^Size/ }).fill('0.3');
+  await page.getByRole('button', { name: 'Generate an island' }).click();
+  await waitForSaved(page, 'maps', '"kind":"shape"');
+  // A road across the island, then a forest scattered inside it.
+  await tool(page, 'Road or river').click();
+  await click(cx - 160, cy - 40);
+  await click(cx, cy - 30);
+  await click(cx + 160, cy - 60);
+  await page.keyboard.press('Enter');
+  await tool(page, 'Select and move').click();
+  await click(cx - 30, cy + 40);
+  await expect(page.getByRole('region', { name: 'Terrain shape' })).toBeVisible();
+  await page.getByRole('button', { name: 'Scatter inside this' }).click();
+  await waitForSaved(page, 'maps', '"within"');
+  // Mountains along a line you draw.
+  await tool(page, 'Scatter').click();
+  await page.getByRole('radio', { name: /Mountain range/ }).click();
+  await click(cx - 200, cy + 150);
+  await click(cx - 60, cy + 120);
+  await click(cx + 100, cy + 150);
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'maps', '"mode":"along"');
+  await page.waitForTimeout(800);
+  await canvas.screenshot({ path: testInfo.outputPath('greenwood.png') });
+  // The pieces can be turned into loose stamps.
+  await page.getByRole('button', { name: 'Bake into stamps' }).click();
+  await waitForSaved(page, 'maps', '"stamp":"glyph:mountain"');
+});

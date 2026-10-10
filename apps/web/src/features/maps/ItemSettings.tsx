@@ -16,6 +16,7 @@ import { type MapPanelsProps, field } from './panelTypes';
 import { PinLinkField } from './PinLinkField';
 import { PinLook } from './PinPanels';
 import { RouteSettings } from './RouteSettings';
+import { ScatterItemSettings } from './ScatterPanel';
 import { ShapeItemSettings } from './ShapePanel';
 import { TextLettering } from './TextLettering';
 
@@ -25,6 +26,8 @@ export function ItemSettings({
   item,
   onDeselect,
   onMeasureFrom,
+  onScatterOn,
+  stamp,
 }: MapPanelsProps & { item: MapItem }) {
   // Selectors return what the stores hold; lists are made from it here (a new array from a
   // selector would re-render forever).
@@ -53,12 +56,22 @@ export function ItemSettings({
     pin: 'Pin',
     shape: 'Terrain shape',
     path: 'Road or river',
+    scatter: 'Scatter',
   };
   return (
     <Section title={titles[item.kind]}>
       {item.kind === 'route' && <RouteSettings item={item} doc={doc} set={set} />}
       {(item.kind === 'shape' || item.kind === 'path') && (
-        <ShapeItemSettings item={item} set={set} />
+        <ShapeItemSettings
+          item={item}
+          set={set}
+          onScatter={() => {
+            onScatterOn(item);
+          }}
+        />
+      )}
+      {item.kind === 'scatter' && (
+        <ScatterItemSettings item={item} stamp={stamp} set={set} commit={commit} />
       )}
       {item.kind === 'stamp' && (
         <>

@@ -8,6 +8,7 @@ import { MapSettings } from './MapSettings';
 import { type MapPanelsProps, type Tab } from './panelTypes';
 import { PinCategories } from './PinPanels';
 import { StampLibrary } from './StampLibrary';
+import { ScatterPanel } from './ScatterPanel';
 import { ShapePanel } from './ShapePanel';
 import { ToolSettings } from './ToolSettings';
 
@@ -74,6 +75,7 @@ export function MapPanels(props: MapPanelsProps) {
         )}
         {tool === 'fog' && <FogPanel {...props} />}
         {(tool === 'area' || tool === 'path') && <ShapePanel {...props} />}
+        {tool === 'scatter' && <ScatterPanel {...props} />}
         {tab === 'stamps' && <StampLibrary selected={props.stamp} onPick={props.setStamp} />}
         {tab === 'layers' && <Layers {...props} />}
         {tab === 'pins' && <PinCategories doc={props.doc} commit={props.commit} />}

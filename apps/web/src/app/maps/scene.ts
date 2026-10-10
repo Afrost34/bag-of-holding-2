@@ -30,6 +30,8 @@ import {
   type MapItem,
 } from './model';
 import { pinIconSvg } from './pinIcons';
+import { glyphAspect, glyphIdOf, glyphTexture, isGlyphRef } from './glyphs';
+import { isTied, obstacleSignature, scatterLine, scatterOf } from './scatterDoc';
 import { pathLine, pathView, shapeOutline, shapeView } from './shapes';
 import { pointInPolygon } from './polygon';
 import { terrainTile, type TerrainId } from './terrain';
@@ -458,6 +460,10 @@ export class MapScene {
     // Layers, bottom first.
     const seen = new Set<string>();
     const pictureKeys = new Set<string>();
+    // What scatter reacts to (roads, rivers, shapes): scatter is made again when it changes.
+    const obstacles = doc.layers.some((l) => l.items.some((i) => i.kind === 'scatter'))
+      ? obstacleSignature(doc)
+      : '';
     doc.layers.forEach((layer, index) => {
       let view = this.layerViews.get(layer.id);
       if (!view) {
@@ -482,11 +488,13 @@ export class MapScene {
         seen.add(item.id);
         const node = this.nodes.get(item.id);
         const look =
-          item.kind === 'pin'
-            ? JSON.stringify([pinStyle(doc, item), doc.pinStyle ?? '', fantasyFontReady])
-            : item.kind === 'text' && item.font === 'fantasy'
-              ? String(fantasyFontReady)
-              : '';
+          item.kind === 'scatter'
+            ? obstacles
+            : item.kind === 'pin'
+              ? JSON.stringify([pinStyle(doc, item), doc.pinStyle ?? '', fantasyFontReady])
+              : item.kind === 'text' && item.font === 'fantasy'
+                ? String(fantasyFontReady)
+                : '';
         if (node?.item === item && node.look === look && node.view.parent === view) return;
         if (node) node.view.destroy({ children: true });
         const fresh = this.drawItem(item, doc);
@@ -615,6 +623,41 @@ export class MapScene {
     for (const pic of this.pictureViews.values()) pic.visible = !this.renderActive;
   }
 
+  /** The texture of a stamp reference: a glyph drawn in code, or a picture. */
+  private stampTexture(ref: string): Promise<Texture | null> {
+    const glyph = isGlyphRef(ref) ? glyphIdOf(ref) : null;
+    if (glyph) return Promise.resolve(glyphTexture(this.app.renderer, glyph));
+    return textureFor(stampFile(ref));
+  }
+
+  /** The pieces of a scatter: made from its seed, standing on their base, back to front. */
+  private scatterView(item: Extract<MapItem, { kind: 'scatter' }>, doc: MapDoc): Container {
+    const holder = new Container();
+    const list = scatterOf(doc, item);
+    this.loading++;
+    void Promise.all(item.pieces.map((p) => this.stampTexture(p.ref))).then((textures) => {
+      this.loading--;
+      if (holder.destroyed) return;
+      for (const inst of list) {
+        const texture = textures[inst.piece];
+        const ref = item.pieces[inst.piece]?.ref ?? '';
+        if (!texture) continue;
+        const sprite = new Sprite(texture);
+        const glyph = isGlyphRef(ref);
+        // Glyphs stand on their base; pictures are centred.
+        sprite.anchor.set(0.5, glyph ? 0.92 : 0.5);
+        const aspect = glyph ? glyphAspect(ref) : texture.width / Math.max(1, texture.height);
+        sprite.width = inst.size;
+        sprite.height = inst.size / aspect;
+        sprite.rotation = inst.angle;
+        sprite.position.set(inst.x, inst.y);
+        holder.addChild(sprite);
+      }
+      this.requestRender();
+    });
+    return holder;
+  }
+
   private loadPicture(_key: string, path: string, view: Container): void {
     this.loadTiles(path, view);
   }
@@ -739,7 +782,7 @@ export class MapScene {
         holder.position.set(item.x, item.y);
         holder.rotation = (item.rotation * Math.PI) / 180;
         this.loading++;
-        void textureFor(stampFile(item.stamp)).then((texture) => {
+        void this.stampTexture(item.stamp).then((texture) => {
           this.loading--;
           if (holder.destroyed) return;
           if (!texture) {
@@ -768,6 +811,8 @@ export class MapScene {
           opacity: item.opacity,
           texture: item.texture,
         });
+      case 'scatter':
+        return this.scatterView(item, doc);
       case 'shape':
         return shapeView(item, item.texture ? terrainPattern(item.texture) : null);
       case 'path':
@@ -941,6 +986,13 @@ export class MapScene {
           if (pointInPolygon(p, outline)) return item;
           continue;
         }
+        if (item.kind === 'scatter') {
+          const line = scatterLine(this.doc, item);
+          if (item.mode === 'area') {
+            if (pointInPolygon(p, line)) return item;
+          } else if (nearPolyline(p, line, item.spacing + item.offset + 6 / this.zoom)) return item;
+          continue;
+        }
         if (item.kind === 'path') {
           const tolerance = item.width / 2 + 6 / this.zoom;
           if (nearPolyline(p, pathLine(item), tolerance)) return item;
@@ -988,6 +1040,17 @@ export class MapScene {
         ];
       });
       g.poly(corners.flat()).stroke({ color: SELECT_COLOR, width: w * 1.5 });
+      return;
+    }
+    if (item.kind === 'scatter' && this.doc) {
+      const line = scatterLine(this.doc, item);
+      if (line.length >= 4)
+        g.poly(line, item.mode === 'area').stroke({ color: SELECT_COLOR, width: w });
+      if (!isTied(item))
+        for (let i = 0; i + 1 < item.points.length; i += 2)
+          g.circle(item.points[i] ?? 0, item.points[i + 1] ?? 0, 5 / this.zoom)
+            .fill({ color: 0xffffff })
+            .stroke({ color: SELECT_COLOR, width: w });
       return;
     }
     if (item.kind === 'shape' || item.kind === 'path') {

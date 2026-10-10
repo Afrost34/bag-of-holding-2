@@ -8,6 +8,7 @@ import {
   type MapDoc,
   type MapItem,
 } from '../../app/maps/model';
+import { isTied } from '../../app/maps/scatterDoc';
 import { nearestOnPolyline, splinePoints } from '../../app/maps/spline';
 import { formatDistance, routeLength, speedsOf, travelTimes } from '../../app/maps/travel';
 
@@ -164,3 +165,20 @@ export function snapRiverEnd(
     into: best.id,
   };
 }
+
+/** Items drawn from control points the user can drag (a scatter tied to another item has none). */
+export type PointItem = Extract<MapItem, { kind: 'shape' | 'path' | 'scatter' }>;
+
+export const isPointItem = (i: MapItem | null | undefined): i is PointItem =>
+  !!i && (i.kind === 'shape' || i.kind === 'path' || (i.kind === 'scatter' && !isTied(i)));
+
+/** A closed outline (a shape, a scatter over an area) rather than an open line. */
+export const isClosedItem = (i: PointItem): boolean =>
+  i.kind === 'shape' || (i.kind === 'scatter' && i.mode === 'area');
+
+/** The least points a closed outline or an open line keeps. */
+export const minPoints = (i: PointItem): number => (isClosedItem(i) ? 3 : 2);
+
+/** The same item with other control points. */
+export const withPoints = (i: MapItem, points: number[]): MapItem =>
+  i.kind === 'shape' || i.kind === 'path' || i.kind === 'scatter' ? { ...i, points } : i;

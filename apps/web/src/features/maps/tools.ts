@@ -13,6 +13,7 @@ import {
   Spline,
   Waves,
   Stamp,
+  Trees,
   Triangle,
   Type,
   type LucideIcon,
@@ -37,6 +38,7 @@ export type Tool =
   | 'fog'
   | 'area'
   | 'path'
+  | 'scatter'
   | 'calibrate';
 
 /** The tool bar, in order; calibrate lives in the grid panel. */
@@ -49,6 +51,7 @@ export const TOOLS: { id: Tool; label: string; icon: LucideIcon; key: string }[]
   { id: 'eraser', label: 'Eraser', icon: Eraser, key: 'e' },
   { id: 'area', label: 'Terrain shape', icon: Shapes, key: 'a' },
   { id: 'path', label: 'Road or river', icon: Waves, key: 'l' },
+  { id: 'scatter', label: 'Scatter', icon: Trees, key: 'x' },
   { id: 'wall', label: 'Wall', icon: Spline, key: 'w' },
   { id: 'text', label: 'Text', icon: Type, key: 't' },
   { id: 'measure', label: 'Measure', icon: Ruler, key: 'm' },
@@ -70,6 +73,7 @@ const CREATOR_TOOLS = new Set<Tool>([
   'eraser',
   'area',
   'path',
+  'scatter',
   'wall',
   'text',
   'measure',
@@ -108,6 +112,7 @@ export const TOOLS_WITH_SETTINGS = new Set<Tool>([
   'fog',
   'area',
   'path',
+  'scatter',
 ]);
 
 export interface TemplateSettings {
