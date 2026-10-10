@@ -9,6 +9,7 @@ import { type MapPanelsProps, type Tab } from './panelTypes';
 import { PinCategories } from './PinPanels';
 import { StampLibrary } from './StampLibrary';
 import { BuildingPanel, DistrictPanel } from './CityPanel';
+import { RoomPanel } from './RoomPanel';
 import { ScatterPanel } from './ScatterPanel';
 import { ShapePanel } from './ShapePanel';
 import { ToolSettings } from './ToolSettings';
@@ -78,6 +79,7 @@ export function MapPanels(props: MapPanelsProps) {
         {(tool === 'area' || tool === 'path') && <ShapePanel {...props} />}
         {tool === 'scatter' && <ScatterPanel {...props} />}
         {tool === 'district' && <DistrictPanel {...props} />}
+        {(tool === 'room' || tool === 'door') && <RoomPanel {...props} />}
         {tool === 'building' && <BuildingPanel {...props} />}
         {tab === 'stamps' && <StampLibrary selected={props.stamp} onPick={props.setStamp} />}
         {tab === 'layers' && <Layers {...props} />}

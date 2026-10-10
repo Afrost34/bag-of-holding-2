@@ -17,6 +17,7 @@ import { PinLinkField } from './PinLinkField';
 import { PinLook } from './PinPanels';
 import { RouteSettings } from './RouteSettings';
 import { BuildingItemSettings, DistrictItemSettings } from './CityPanel';
+import { RoomItemSettings } from './RoomPanel';
 import { ScatterItemSettings } from './ScatterPanel';
 import { ShapeItemSettings } from './ShapePanel';
 import { TextLettering } from './TextLettering';
@@ -60,6 +61,7 @@ export function ItemSettings({
     scatter: 'Scatter',
     district: 'District',
     building: 'Building',
+    room: 'Room',
   };
   return (
     <Section title={titles[item.kind]}>
@@ -75,6 +77,7 @@ export function ItemSettings({
       )}
       {item.kind === 'district' && <DistrictItemSettings item={item} set={set} commit={commit} />}
       {item.kind === 'building' && <BuildingItemSettings item={item} set={set} />}
+      {item.kind === 'room' && <RoomItemSettings item={item} set={set} />}
       {item.kind === 'scatter' && (
         <ScatterItemSettings item={item} stamp={stamp} set={set} commit={commit} />
       )}

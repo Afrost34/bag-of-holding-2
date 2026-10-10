@@ -15,7 +15,7 @@ const EDGES = [
   ['none', 'None', 'no outline'],
 ] as const;
 
-function TerrainPicker({
+export function TerrainPicker({
   value,
   onPick,
 }: {
@@ -46,7 +46,7 @@ function TerrainPicker({
   );
 }
 
-function Slider({
+export function Slider({
   label,
   value,
   min,
