@@ -113,17 +113,34 @@ accent-coloured text).
 
 ## Where to look first
 
-| Task                                | Start in                                                                                |
-| ----------------------------------- | --------------------------------------------------------------------------------------- |
-| A character choice is missing/wrong | `packages/rules/src/patches.ts` (by feature name), then `extract/*.ts`                  |
-| Sheet numbers (AC, saves, spells)   | `packages/rules/src/sheet.ts`; the worker assembles the view in `data.worker.ts`        |
-| Character builder steps             | `apps/web/src/features/characters/*Step.tsx`, choices via `ChoiceControl`               |
-| Printed character sheet             | `features/characters/print/` (`PrintSheet`, `usePrintData`, `sections.ts`)              |
-| Board widgets (NPC, names, cards…)  | `app/boards/model.ts` (kinds), `features/boards/widgetBodies.tsx`, `addOptions.ts`      |
-| A store for a new kind of user file | copy `app/tables/` (model + test + store); register reload in `app/sync/store.ts`       |
-| Sync                                | `packages/storage/src/sync/engine.ts`; app side `app/sync/store.ts`, `app/userStore.ts` |
-| Shell: sidebar, tabs, right-click   | `app/shell/` (`contextMenuModel.ts` is the pure part)                                   |
-| Small text formats (`+2`, `3rd`)    | `app/format.ts` — reuse, don't copy                                                     |
+| Task                                | Start in                                                                                         |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------ |
+| A character choice is missing/wrong | `packages/rules/src/patches.ts` (by feature name), then `extract/*.ts`                           |
+| Sheet numbers (AC, saves, spells)   | `packages/rules/src/sheet.ts`; the worker assembles the view in `data.worker.ts`                 |
+| Character builder steps             | `apps/web/src/features/characters/*Step.tsx`, choices via `ChoiceControl`                        |
+| Printed character sheet             | `features/characters/print/` (`PrintSheet`, `usePrintData`, `sections.ts`)                       |
+| Board widgets (NPC, names, cards…)  | `app/boards/model.ts` (kinds), `features/boards/widgetBodies.tsx`, `addOptions.ts`               |
+| A store for a new kind of user file | copy `app/tables/` (model + test + store); register reload in `app/sync/store.ts`                |
+| Sync                                | `packages/storage/src/sync/engine.ts`; app side `app/sync/store.ts`, `app/userStore.ts`          |
+| Shell: sidebar, tabs, right-click   | `app/shell/` (`contextMenuModel.ts` is the pure part)                                            |
+| Small text formats (`+2`, `3rd`)    | `app/format.ts` — reuse, don't copy                                                              |
+| A map tool (Creator or Viewer)      | `features/maps/tools.ts` (tool lists, groups), `MapEditor.tsx` (pointer), a `*Panel.tsx`         |
+| A new kind of map item              | `app/maps/model.ts` (type + KINDS), `scene.ts` (`drawItem`, `hit`, `select`), `ItemSettings.tsx` |
+| Map generators and their rules      | pure modules in `app/maps/`: `scatter`, `city`, `rooms`, `islandgen`, `elevation` (all tested)   |
+| Stamp packs (zips)                  | `app/maps/zip.ts`, `packs.ts`, `packModel.ts`; browser in `features/maps/PackBrowser.tsx`        |
+
+## Maps (ADR 0010, 0011)
+
+One map file, two modes: `#/maps/<id>` is the **Viewer** (pins, routes, measure, fog, variants, range
+templates, search) and `#/maps/<id>/edit` the **Creator** (stamps, brushes, terrain shapes, roads and
+rivers, scatter, districts, buildings, rooms and doors, elevation, labels). `MapEditor` serves both with a
+`mode`; `toolsFor(kind, mode)` picks the tools. The map format is v2 (`parseMap` upgrades v1 in place:
+background and pictures become picture layers and variants). Procedural things (scatter, districts,
+furniture) are items made from a seed and re-made when what they react to changes (`obstacleSignature`);
+"bake" turns them into loose stamps/buildings. The Creator keeps a flat picture of the art
+(`render`, made by `render.ts`) so phones without the stamp packs show the map. Asset packs are zips copied
+into `map-assets/` (OPFS) and read in place; they are never synced. Stamps are named `pack:<id>:<path>` or
+`glyph:<name>` (drawn in code).
 
 ## Pitfalls already met
 
@@ -140,6 +157,10 @@ accent-coloured text).
   Run them before touching `packages/rules` or `packages/data5e`.
 - The accessibility test checks light and dark: ability colours (`--boh-str`…) are light in
   dark mode, so use them for text and borders, never as a fill under white text.
+- Composite map items (shapes, paths, scatter, districts, rooms) must not be culled (`cullable = false`
+  in `scene.ts`): Pixi computes their bounds late and hides them. Rooms put their walls under, and their
+  doors over, every other item of the layer (`Node.extras`).
+- Do not write patch scripts with regexes for source edits; use the Edit tool (prettier reformats lines).
 - The board canvas renders every node (`onlyRenderVisibleElements={false}`): turning culling on
   re-sorts the DOM on every pan and made large boards lag.
 
