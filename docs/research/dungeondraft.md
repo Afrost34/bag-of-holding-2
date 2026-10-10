@@ -88,13 +88,13 @@ Two pieces of follow-up would reduce the remaining uncertainty. Opening a real `
 | 2   | Over/Under flag per item                      | Done (#144)                                                                                             |
 | 3   | Edit points and the usual keys on every shape | Done: walls, routes, shapes, paths, rooms; Backspace, Delete over a point, Alt erases                   |
 | 4   | Doors follow wall edits                       | Done as wall + fraction along it (`reattachDoors`); no stable numeric ids                               |
-| 5   | Merge overlapping rooms into one outline      | Not done (walls of touching rooms already join visually)                                                |
-| 6   | Scatter ranges                                | Done: rotation range, size range, one random piece per click. Not done: negative (packing) spread       |
-| 7   | Terrain splat brush                           | Done as vector strokes with a soft edge and an optional border (ADR 0012); no 8-slot palette            |
+| 5   | Merge overlapping rooms into one outline      | Done: Merge the rooms into one (union of outlines; doors still in a wall are kept)                      |
+| 6   | Scatter ranges                                | Done: rotation range, size range, one random piece per click, overlap (packing)                         |
+| 7   | Terrain splat brush                           | Done as vector strokes with a soft edge, an optional border and eight recent-texture slots (ADR 0012)   |
 | 8   | UVTT export                                   | Dropped by the owner                                                                                    |
-| 9   | Pack browser views                            | Done: Used on this map, fuzzy search. Not done: tags view (FA packs have no tag file)                   |
-| 10  | Path options                                  | Done: width, curve, in/out ends, loop. Walls as path styles not done                                    |
-| 11  | Holes, outline, opacity                       | Done for terrain shapes (holes, dashed border, plain colour). Not done for districts                    |
+| 9   | Pack browser views                            | Done: Used on this map, fuzzy search, tags (from folder names; FA packs have no tag file)               |
+| 10  | Path options                                  | Done: width, curve, in/out ends, loop; walls as a path style (blocks light)                             |
+| 11  | Holes, outline, opacity                       | Done for terrain shapes (holes, dashed border, plain colour) and districts (holes)                      |
 | 12  | Roofs from the outline, hide toggle, sun      | Done: hide toggle, sun direction and shade                                                              |
 | 13  | Levels with compare overlay                   | Done: variants compared (the other shows faintly), cloned, reordered, Page Up/Down; no per-level lights |
 | 14  | Lights and ambient light                      | Done with shadows from walls, closed doors, buildings and stamps that block light                       |

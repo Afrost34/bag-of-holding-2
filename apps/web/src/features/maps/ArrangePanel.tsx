@@ -13,6 +13,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { alignItems, distributeItems, removeItems, type AlignMode } from '../../app/maps/arrange';
+import { mergeRooms } from '../../app/maps/merge';
 import { Section } from './PanelParts';
 import { type MapPanelsProps } from './panelTypes';
 
@@ -53,6 +54,14 @@ export function ArrangePanel({
           </button>
         ))}
       </div>
+      <Button
+        variant="ghost"
+        onClick={() => {
+          commit((d) => mergeRooms(d, selectedIds));
+        }}
+      >
+        Merge the rooms into one
+      </Button>
       <div role="group" aria-label="Distribute" className="flex flex-wrap gap-1">
         <button
           type="button"

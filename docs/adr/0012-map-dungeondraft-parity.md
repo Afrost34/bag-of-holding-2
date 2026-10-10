@@ -36,5 +36,6 @@ JSON-item map format differs. VTT export (`.dd2vtt`) was asked for and then drop
 - A map made with the new options opens in older builds as plain art (unknown fields are dropped, a
   `light` item is ignored); nothing breaks.
 - Lights darken pins too; the Viewer's pins are drawn in the layers, under the lighting.
-- Not done, and recorded in the research file: levels with a compare overlay, merging overlapping rooms
-  into one outline, holes in districts, a tag index from `.dungeondraft_tags`.
+- Not done, and recorded in the research file: stable numeric item ids (doors keep their wall and place by
+  the wall's index and fraction instead), per-level lights, and a tag index read from `.dungeondraft_tags`
+  (tags are made from folder names).

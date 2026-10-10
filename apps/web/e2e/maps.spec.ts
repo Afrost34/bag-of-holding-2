@@ -1917,3 +1917,39 @@ test('a wall can be drawn as a path, with curves and a loop', async ({ page }) =
   await waitForSaved(page, 'maps', '"style":"wall"');
   await waitForSaved(page, 'maps', '"loop":true');
 });
+
+test('rooms that touch are merged into one', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Hall');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  const drag = async (x0: number, y0: number, x1: number, y1: number) => {
+    await page.mouse.move(box.x + x0, box.y + y0);
+    await page.mouse.down();
+    await page.mouse.move(box.x + x1, box.y + y1, { steps: 5 });
+    await page.mouse.up();
+  };
+  const rooms = () =>
+    page.evaluate(async () => {
+      const root = await navigator.storage.getDirectory();
+      const dir = await (await root.getDirectoryHandle('user-data')).getDirectoryHandle('maps');
+      let n = 0;
+      for await (const entry of dir.values())
+        if (entry.kind === 'file')
+          n += ((await (await entry.getFile()).text()).match(/"kind":"room"/g) ?? []).length;
+      return n;
+    });
+  await tool(page, 'Room').click();
+  // Two rooms side by side on the grid: they share a wall.
+  await drag(200, 250, 300, 330);
+  await drag(300, 250, 400, 330);
+  await expect.poll(rooms).toBe(2);
+  await tool(page, 'Select and move').click();
+  await page.mouse.move(box.x + 150, box.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 450, box.y + 380, { steps: 6 });
+  await page.mouse.up();
+  await page.getByRole('button', { name: 'Merge the rooms into one' }).click();
+  await expect.poll(rooms).toBe(1);
+});
