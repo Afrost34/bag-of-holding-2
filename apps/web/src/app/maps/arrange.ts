@@ -1,5 +1,5 @@
 import { newId } from '../cards/model';
-import { addItem, itemId, type MapDoc, type MapItem } from './model';
+import { addItem, itemId, itemShown, layerShown, type MapDoc, type MapItem } from './model';
 import { bounds } from './spline';
 
 /**
@@ -12,6 +12,26 @@ export interface Box {
   y0: number;
   x1: number;
   y1: number;
+}
+
+/**
+ * The ids of the items whose middle a box drags over (so a backdrop that covers the whole map is
+ * not picked by any box), bottom layer first, on layers that are shown and not locked (and not
+ * pictures). Items the variant hides are left out.
+ */
+export function itemsInBox(doc: MapDoc, box: Box): string[] {
+  const out: string[] = [];
+  for (const layer of doc.layers) {
+    if (!layerShown(doc, layer) || layer.locked || layer.picture) continue;
+    for (const item of layer.items) {
+      if (!itemShown(doc, item.id)) continue;
+      const b = itemBox(item);
+      const x = (b.x0 + b.x1) / 2;
+      const y = (b.y0 + b.y1) / 2;
+      if (x >= box.x0 && x <= box.x1 && y >= box.y0 && y <= box.y1) out.push(item.id);
+    }
+  }
+  return out;
 }
 
 /** The box an item covers (roughly: pins and text count as a point with a little size). */

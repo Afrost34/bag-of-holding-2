@@ -1821,3 +1821,28 @@ test('a region has a plain colour and a dashed border', async ({ page }, testInf
   await page.waitForTimeout(600);
   await canvas.screenshot({ path: testInfo.outputPath('region.png') });
 });
+
+test('dragging over empty ground with Select picks what it goes over', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Marquee');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  await page.keyboard.press('s');
+  await tool(page, 'Wall').click();
+  for (const y of [150, 250]) {
+    await page.mouse.click(box.x + 150, box.y + y);
+    await page.mouse.dblclick(box.x + 300, box.y + y);
+  }
+  await waitForSaved(page, 'maps', '"kind":"wall"');
+  await tool(page, 'Select and move').click();
+  // A box round both walls picks both: the arrange panel for several items appears.
+  await page.mouse.move(box.x + 100, box.y + 100);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 400, box.y + 330, { steps: 6 });
+  await page.mouse.up();
+  await expect(page.getByRole('region', { name: 'Selection' })).toBeVisible();
+  // A click on empty ground drops the pick.
+  await page.mouse.click(box.x + 500, box.y + 450);
+  await expect(page.getByRole('region', { name: 'Selection' })).toHaveCount(0);
+});

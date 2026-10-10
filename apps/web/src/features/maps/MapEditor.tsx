@@ -39,6 +39,7 @@ import {
 import {
   addMirrored,
   constrainAngle,
+  itemsInBox,
   itemsWithIds,
   pasteItems,
   MIRRORS,
@@ -897,7 +898,10 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           setSelected(hit?.id ?? null);
           setGroup([]);
         }
-        drag.current = hit ? { mode: 'move', ...base, item: hit } : { mode: 'pan', ...base };
+        // Dragging over empty ground with the mouse picks what it goes over; a finger pans.
+        if (hit) drag.current = { mode: 'move', ...base, item: hit };
+        else if (creator && e.pointerType === 'mouse') drag.current = { mode: 'box', ...base };
+        else drag.current = { mode: 'pan', ...base };
         return;
       }
       case 'stamp': {
@@ -1183,6 +1187,19 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       case 'pan':
         scene.panBy(screen.x - d.screen.x, screen.y - d.screen.y);
         d.screen = screen;
+        return;
+      case 'box':
+        d.last = p;
+        scene.drawPreview((g) => {
+          g.rect(
+            Math.min(d.start.x, p.x),
+            Math.min(d.start.y, p.y),
+            Math.abs(p.x - d.start.x),
+            Math.abs(p.y - d.start.y),
+          )
+            .fill({ color: 0x3b82f6, alpha: 0.12 })
+            .stroke({ color: 0x3b82f6, width: 1.5 / scene.zoom });
+        });
         return;
       case 'move': {
         if (!d.item) return;
@@ -1487,6 +1504,23 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         if (!d.points || d.index === undefined || !isPointItem(item)) return;
         const points = d.points.map(Math.round);
         commit((doc2) => updateItem(doc2, item.id, (i) => withPoints(i, points)));
+        return;
+      }
+      case 'box': {
+        scene.clearPreview();
+        // A click that did not drag picks nothing (and drops the pick).
+        const moved =
+          Math.abs(p.x - d.start.x) > 4 / scene.zoom || Math.abs(p.y - d.start.y) > 4 / scene.zoom;
+        const ids = moved
+          ? itemsInBox(doc, {
+              x0: Math.min(d.start.x, p.x),
+              y0: Math.min(d.start.y, p.y),
+              x1: Math.max(d.start.x, p.x),
+              y1: Math.max(d.start.y, p.y),
+            })
+          : [];
+        setSelected(ids[0] ?? null);
+        setGroup(ids.slice(1));
         return;
       }
       case 'template':

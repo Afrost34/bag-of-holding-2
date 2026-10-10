@@ -41,6 +41,7 @@ export interface Drag {
     | 'room'
     | 'elevation'
     | 'vertex'
+    | 'box'
     | 'calibrate';
   start: Point;
   screen: Point;
