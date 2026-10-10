@@ -1,6 +1,7 @@
 /** Types and styles shared by the map maker's side panels. */
 import type { Point } from '../../app/maps/geometry';
 import { type MapDoc, type MapItem } from '../../app/maps/model';
+import { type ScatterSettings } from '../../app/maps/scatterDoc';
 import {
   type BrushSettings,
   type AreaSettings,
@@ -40,6 +41,10 @@ export interface MapPanelsProps {
   setTemplate: (t: TemplateSettings) => void;
   fog: FogSettings;
   setFog: (f: FogSettings) => void;
+  scatter: ScatterSettings;
+  setScatter: (s: ScatterSettings) => void;
+  /** Scatter inside the picked shape, or along the picked path. */
+  onScatterOn: (item: MapItem) => void;
   area: AreaSettings;
   setArea: (a: AreaSettings) => void;
   pathSet: PathSettings;

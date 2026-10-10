@@ -1,6 +1,6 @@
 /** Settings of the terrain shape and road/river tools, the island generator, and picked shapes. */
 import { Button, cn } from '@boh/ui';
-import { Dices, PaintBucket } from 'lucide-react';
+import { Dices, PaintBucket, Trees } from 'lucide-react';
 import { useState } from 'react';
 import { type MapItem } from '../../app/maps/model';
 import { PATH_STYLES, type PathStyle } from '../../app/maps/shapes';
@@ -265,9 +265,12 @@ export function ShapePanel(props: MapPanelsProps) {
 export function ShapeItemSettings({
   item,
   set,
+  onScatter,
 }: {
   item: Extract<MapItem, { kind: 'shape' | 'path' }>;
   set: (change: (i: MapItem) => MapItem) => void;
+  /** Trees, rocks… inside this shape, or along this path. */
+  onScatter: () => void;
 }) {
   if (item.kind === 'shape')
     return (
@@ -321,6 +324,9 @@ export function ShapeItemSettings({
             set((i) => (i.kind === 'shape' ? { ...i, opacity } : i));
           }}
         />
+        <Button variant="ghost" onClick={onScatter}>
+          <Trees className="h-4 w-4" aria-hidden /> Scatter inside this
+        </Button>
       </>
     );
   return (
@@ -378,6 +384,9 @@ export function ShapeItemSettings({
           Widens downstream
         </label>
       )}
+      <Button variant="ghost" onClick={onScatter}>
+        <Trees className="h-4 w-4" aria-hidden /> Scatter along this
+      </Button>
     </>
   );
 }

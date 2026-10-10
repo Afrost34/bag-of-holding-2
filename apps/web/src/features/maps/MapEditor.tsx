@@ -25,6 +25,13 @@ import { journalPath } from '../../app/journal/paths';
 import { useJournal } from '../../app/journal/store';
 import { useStamps } from '../../app/maps/assets';
 import { generateArchipelago } from '../../app/maps/islandgen';
+import {
+  DEFAULT_SCATTER,
+  makeScatter,
+  SCATTER_PRESETS,
+  settingsFromPreset,
+  type ScatterSettings,
+} from '../../app/maps/scatterDoc';
 import { bakeMap } from '../../app/maps/render';
 import { PATH_STYLES } from '../../app/maps/shapes';
 import { splinePoints } from '../../app/maps/spline';
@@ -62,12 +69,16 @@ import {
   dedupePoints,
   eraseStrokes,
   insertVertex,
+  isClosedItem,
+  isPointItem,
+  minPoints,
   nearestHandle,
   removeVertex,
   ROUTE_COLOR,
   routeStatus,
   simplify,
   snapRiverEnd,
+  withPoints,
   type Drag,
 } from './editorModel';
 import { DeleteMap, NameInput } from './EditorParts';
@@ -154,6 +165,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     color: '#dc2626',
   });
   const [fog, setFog] = useState<FogSettings>({ mode: 'hide', shape: 'rect' });
+  const [scatter, setScatter] = useState<ScatterSettings>(DEFAULT_SCATTER);
   const [area, setArea] = useState<AreaSettings>({
     texture: 'grass',
     edge: 'shore',
@@ -345,6 +357,24 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       scene?.clearPreview();
       return;
     }
+    if (wall && tool === 'scatter') {
+      const points = dedupePoints(wall).map(Math.round);
+      const enough = scatter.mode === 'area' ? 6 : 4;
+      if (points.length >= enough && layer) {
+        const id = itemId(doc);
+        commit((d) =>
+          addItem(
+            d,
+            layer.id,
+            makeScatter(id, scatter, { points }, Math.floor(Math.random() * 1e9)),
+          ),
+        );
+        setSelected(id);
+      }
+      setWall(null);
+      scene?.clearPreview();
+      return;
+    }
     if (wall && tool === 'path') {
       let points = dedupePoints(wall).map(Math.round);
       if (points.length >= 4 && layer) {
@@ -379,6 +409,28 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     }
     setWall(null);
     scene?.clearPreview();
+  };
+
+  /** Scatter inside a picked shape, or along a picked path (tied: it follows when that moves). */
+  const scatterOn = (target: MapItem) => {
+    if (!layer || layer.locked || (target.kind !== 'shape' && target.kind !== 'path')) return;
+    const id = itemId(doc);
+    // A shape wants an area scatter, a path a line one: the current preset if it fits, else a
+    // sensible one (a forest, trees beside a road).
+    const wanted = target.kind === 'shape' ? 'area' : 'along';
+    const fallback = SCATTER_PRESETS.find(
+      (p) => p.id === (wanted === 'area' ? 'forest' : 'roadside'),
+    );
+    const settings: ScatterSettings =
+      scatter.mode === wanted || !fallback ? scatter : settingsFromPreset(fallback, scatter.scale);
+    const where =
+      target.kind === 'shape'
+        ? { points: [], within: target.id }
+        : { points: [], follow: target.id };
+    commit((d) =>
+      addItem(d, layer.id, makeScatter(id, settings, where, Math.floor(Math.random() * 1e9))),
+    );
+    setSelected(id);
   };
 
   /** Drops the points placed so far without making anything. */
@@ -474,21 +526,13 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       creator &&
       tool === 'select' &&
       (e.button === 0 || e.button === 2) &&
-      (selectedItem?.kind === 'shape' || selectedItem?.kind === 'path')
+      isPointItem(selectedItem)
     ) {
       const index = nearestHandle(selectedItem.points, p, 10 / scene.zoom);
       if (index >= 0) {
         if (e.button === 2) {
-          const points = removeVertex(
-            selectedItem.points,
-            index,
-            selectedItem.kind === 'shape' ? 3 : 2,
-          );
-          commit((d) =>
-            updateItem(d, selectedItem.id, (i) =>
-              i.kind === 'shape' || i.kind === 'path' ? { ...i, points } : i,
-            ),
-          );
+          const points = removeVertex(selectedItem.points, index, minPoints(selectedItem));
+          commit((d) => updateItem(d, selectedItem.id, (i) => withPoints(i, points)));
         } else drag.current = { mode: 'vertex', ...base, index, points: [...selectedItem.points] };
         return;
       }
@@ -571,6 +615,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         return;
       case 'area':
       case 'path':
+      case 'scatter':
         // Organic outlines: the points are where they are clicked, not on the grid.
         if (canDraw) setWall((w) => [...(w ?? []), p.x, p.y]);
         return;
@@ -605,16 +650,17 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       scene.drawPreview((g) => {
         drawRoute(g, [...wall, p.x, p.y], ROUTE_COLOR, routeWidth(doc));
       });
-    if (wall && (tool === 'area' || tool === 'path')) {
+    if (wall && (tool === 'area' || tool === 'path' || tool === 'scatter')) {
+      const closed = tool === 'area' || (tool === 'scatter' && scatter.mode === 'area');
       const control = [...wall, p.x, p.y];
       const line = splinePoints(
         control,
-        tool === 'area',
-        tool === 'area' ? area.smooth : pathSet.smooth,
+        closed,
+        tool === 'area' ? area.smooth : tool === 'scatter' ? 0.7 : pathSet.smooth,
       );
       scene.drawPreview((g) => {
-        if (tool === 'area') g.poly(line).fill({ color: 0x3b82f6, alpha: 0.18 });
-        g.poly(line, tool === 'area').stroke({ color: 0x3b82f6, width: 2 / scene.zoom });
+        if (closed) g.poly(line).fill({ color: 0x3b82f6, alpha: 0.18 });
+        g.poly(line, closed).stroke({ color: 0x3b82f6, width: 2 / scene.zoom });
         for (let i = 0; i + 1 < wall.length; i += 2)
           g.circle(wall[i] ?? 0, wall[i + 1] ?? 0, 4 / scene.zoom)
             .fill({ color: 0xffffff })
@@ -695,13 +741,13 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       }
       case 'vertex': {
         const item = selectedItem;
-        if (!d.points || d.index === undefined || (item?.kind !== 'shape' && item?.kind !== 'path'))
-          return;
+        if (!d.points || d.index === undefined || !isPointItem(item)) return;
         d.points[d.index * 2] = p.x;
         d.points[d.index * 2 + 1] = p.y;
-        const line = splinePoints(d.points, item.kind === 'shape', item.smooth);
+        const closed = isClosedItem(item);
+        const line = splinePoints(d.points, closed, item.smooth);
         scene.drawPreview((g) => {
-          g.poly(line, item.kind === 'shape').stroke({ color: 0x3b82f6, width: 2 / scene.zoom });
+          g.poly(line, closed).stroke({ color: 0x3b82f6, width: 2 / scene.zoom });
           g.circle(p.x, p.y, 6 / scene.zoom).fill({ color: 0x3b82f6 });
         });
         d.last = p;
@@ -832,14 +878,9 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       case 'vertex': {
         scene.clearPreview();
         const item = selectedItem;
-        if (!d.points || d.index === undefined || (item?.kind !== 'shape' && item?.kind !== 'path'))
-          return;
+        if (!d.points || d.index === undefined || !isPointItem(item)) return;
         const points = d.points.map(Math.round);
-        commit((doc2) =>
-          updateItem(doc2, item.id, (i) =>
-            i.kind === 'shape' || i.kind === 'path' ? { ...i, points } : i,
-          ),
-        );
+        commit((doc2) => updateItem(doc2, item.id, (i) => withPoints(i, points)));
         return;
       }
       case 'template':
@@ -922,7 +963,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       // Alt combinations are the app's (tabs, modules).
       if (mod || e.altKey) return;
       if (e.key === 'Escape') {
-        if (wall && (tool === 'area' || tool === 'path' || tool === 'fog')) cancelWall();
+        if (wall && (tool === 'area' || tool === 'path' || tool === 'scatter' || tool === 'fog'))
+          cancelWall();
         else if (wall) finishWall();
         setSelected(null);
         setMeasured([]);
@@ -1182,26 +1224,17 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
                 finishWall();
                 return;
               }
-              if (
-                creator &&
-                scene &&
-                tool === 'select' &&
-                (selectedItem?.kind === 'shape' || selectedItem?.kind === 'path')
-              ) {
+              if (creator && scene && tool === 'select' && isPointItem(selectedItem)) {
                 const screen = local(e);
                 const at = scene.toMap(screen.x, screen.y);
                 const points = insertVertex(
                   selectedItem.points,
                   at,
-                  selectedItem.kind === 'shape',
+                  isClosedItem(selectedItem),
                   12 / scene.zoom,
                 );
                 if (points)
-                  commit((d) =>
-                    updateItem(d, selectedItem.id, (i) =>
-                      i.kind === 'shape' || i.kind === 'path' ? { ...i, points } : i,
-                    ),
-                  );
+                  commit((d) => updateItem(d, selectedItem.id, (i) => withPoints(i, points)));
               }
             }}
             onContextMenu={(e) => {
@@ -1224,7 +1257,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
                 : wall && tool === 'route'
                   ? routeStatus(wall, doc)
                   : wall
-                    ? tool === 'area' || tool === 'path'
+                    ? tool === 'area' || tool === 'path' || tool === 'scatter'
                       ? 'Click to place points; double-click or Enter to finish, Escape to cancel.'
                       : tool === 'fog'
                         ? 'Click the corners; double-click or Enter to finish the area.'
@@ -1285,6 +1318,9 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             setTemplate={setTemplate}
             fog={fog}
             setFog={setFog}
+            scatter={scatter}
+            setScatter={setScatter}
+            onScatterOn={scatterOn}
             area={area}
             setArea={setArea}
             pathSet={pathSet}
