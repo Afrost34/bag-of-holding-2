@@ -10,6 +10,7 @@ import {
   Sprite,
   Text,
   Texture,
+  TilingSprite,
   type ColorSource,
 } from 'pixi.js';
 import { fileUrl, stampFile } from './assets';
@@ -43,6 +44,7 @@ import { districtGeo, districtOutline } from './cityDoc';
 import { isTied, obstacleSignature, pieceBox, scatterLine, scatterOf } from './scatterDoc';
 import { pathLine, pathView, shapeOutline, shapeView } from './shapes';
 import { pointInPolygon } from './polygon';
+import { stripSegments } from './wallStrip';
 import { isPackTexture, TERRAINS, terrainTile, type TerrainRef } from './terrain';
 
 /**
@@ -264,9 +266,55 @@ const PACK_TEXTURE_SQUARES = 5;
 
 /** The look of an item that depends on pack pictures still arriving. */
 const packLook = (item: MapItem): string => {
-  const ref = item.kind === 'room' ? item.floor : 'texture' in item ? item.texture : undefined;
-  return ref && isPackTexture(ref) ? String(packTexturesReady) + '|' + String(patternGrid) : '';
+  const refs = [
+    item.kind === 'room' ? item.floor : 'texture' in item ? item.texture : undefined,
+    item.kind === 'room' ? item.wallTexture : item.kind === 'wall' ? item.texture : undefined,
+  ];
+  return refs.some((r) => r && isPackTexture(r))
+    ? String(packTexturesReady) + '|' + String(patternGrid)
+    : '';
 };
+
+/** A pack picture used as a texture, once it has loaded (null until then; the load starts at the first ask). */
+export function packTexture(ref: string): Texture | null {
+  const loaded = packTextures.get(ref);
+  if (loaded === undefined) {
+    packTextures.set(ref, null);
+    void textureFor(stampFile(ref)).then((tex) => {
+      if (!tex) return;
+      packTextures.set(ref, tex);
+      packTexturesReady++;
+      onPackTexture?.();
+    });
+  }
+  return loaded ?? null;
+}
+
+/**
+ * A wall made of a pack's strip picture, repeated along each segment: a strip is one grid square
+ * tall in its picture, drawn here at the grid's size. Null while the picture loads.
+ */
+export function stripWallView(
+  points: readonly number[],
+  closed: boolean,
+  ref: string,
+  gridSize: number,
+): Container | null {
+  const texture = packTexture(ref);
+  if (!texture) return null;
+  const holder = new Container();
+  const k = gridSize / Math.max(1, texture.height);
+  const thickness = gridSize * 0.3;
+  for (const s of stripSegments(points, closed, thickness)) {
+    const strip = new TilingSprite({ texture, width: s.length / k, height: texture.height });
+    strip.anchor.set(0, 0.5);
+    strip.scale.set(k);
+    strip.position.set(s.x, s.y);
+    strip.rotation = s.angle;
+    holder.addChild(strip);
+  }
+  return holder;
+}
 
 /**
  * A texture, repeating across the map (so strokes side by side join up). A picture of a pack is
@@ -281,16 +329,7 @@ function terrainPattern(ref: TerrainRef): FillPattern {
     }
     return t;
   }
-  const loaded = packTextures.get(ref);
-  if (loaded === undefined) {
-    packTextures.set(ref, null);
-    void textureFor(stampFile(ref)).then((tex) => {
-      if (!tex) return;
-      packTextures.set(ref, tex);
-      packTexturesReady++;
-      onPackTexture?.();
-    });
-  }
+  const loaded = packTexture(ref);
   if (!loaded) return terrainPattern('stone');
   const key = ref + '|' + String(patternGrid);
   let t = terrainPatterns.get(key);
@@ -625,7 +664,17 @@ export class MapScene {
           fresh.visible = false;
         const extras: Container[] = [];
         if (item.kind === 'room' && walls && tops) {
-          const wallView = roomWallView(item);
+          const wallView = roomWallView(
+            item,
+            item.wallTexture && isPackTexture(item.wallTexture)
+              ? stripWallView(
+                  roomOutline(item.points, item.smooth),
+                  true,
+                  item.wallTexture,
+                  doc.grid.size,
+                )
+              : null,
+          );
           walls.addChild(wallView);
           const doorView = roomDoorsView(item);
           tops.addChild(doorView);
@@ -992,6 +1041,10 @@ export class MapScene {
       case 'path':
         return pathView(item);
       case 'wall': {
+        if (item.texture && isPackTexture(item.texture)) {
+          const strips = stripWallView(item.points, false, item.texture, grid.size);
+          if (strips) return strips;
+        }
         const g = new Graphics();
         const p = item.points;
         if (p.length >= 2) {

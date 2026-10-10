@@ -224,6 +224,8 @@ export interface RoomSettings {
   wall: number;
   smooth: number;
   doorKind: DoorKind;
+  /** A pack's wall strip for walls and room walls; absent: the drawn style. */
+  wallTexture?: string;
 }
 
 /** The elevation brush: what it does, how wide, how hard. */

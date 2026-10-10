@@ -79,7 +79,13 @@ type MapItemBody =
       /** A terrain stroke painted with a texture (see `terrain.ts`) rather than a colour. */
       texture?: TerrainRef;
     }
-  | { kind: 'wall'; id: string; points: number[] }
+  | {
+      kind: 'wall';
+      id: string;
+      points: number[];
+      /** A pack's wall strip (`pack:<id>:<path>`); absent: a drawn ink line. */
+      texture?: string;
+    }
   /** A closed area of terrain (land, water, a forest floor) with a rounded outline. */
   | {
       kind: 'shape';
@@ -177,6 +183,8 @@ type MapItemBody =
       /** Wall thickness, in map pixels. */
       wall: number;
       wallStyle: 'stone' | 'cave' | 'wood';
+      /** A pack's wall strip for the walls, instead of the drawn style. */
+      wallTexture?: string;
       doors?: Door[];
     }
   /** A road, trail, river or fence along control points. */

@@ -1421,3 +1421,45 @@ test('a texture of an imported pack paints terrain', async ({ page }) => {
   await page.mouse.up();
   await waitForSaved(page, 'maps', '"texture":"pack:');
 });
+
+test('walls are made of a pack strip, and its doors snap onto them', async ({ page }, testInfo) => {
+  test.skip(isPhone(page), 'The Creator is used on the desktop.');
+  test.setTimeout(60_000);
+  await installData(page);
+  await newMap(page, 'Pack Keep');
+  const zip = Buffer.from(
+    zipSync({
+      'FA_Assets_Webp/Core/Building/Walls_and_Curbs/Wall_Stone_B/Wall_Stone_Earthy_B1_Straight_Path.png':
+        [PIXEL, { level: 0 }],
+      'FA_Assets_Webp/Core/Building/Doors/Door_Wood_Brown_A_1x1.png': [PIXEL, { level: 0 }],
+    }),
+  );
+  await tool(page, 'Stamp').click();
+  await page.getByRole('tab', { name: 'Stamps', exact: true }).click();
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Import packs (zip)' }).click();
+  await (await chooser).setFiles({ name: 'Keep.zip', mimeType: 'application/zip', buffer: zip });
+  await expect(page.getByRole('status').filter({ hasText: '1 added' })).toBeVisible();
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  // A wall in the pack's style.
+  await tool(page, 'Wall').click();
+  await page
+    .getByRole('list', { name: 'Wall styles' })
+    .getByRole('button', { name: 'Stone Earthy B1' })
+    .click();
+  await page.mouse.click(box.x + 200, box.y + 300);
+  await page.mouse.dblclick(box.x + 500, box.y + 300);
+  await waitForSaved(page, 'maps', '"texture":"pack:');
+  // A door of the pack, clicked a little off the wall, lands on it.
+  await tool(page, 'Stamp').click();
+  await page.getByLabel('Find a pack picture').fill('door');
+  await page
+    .getByRole('list', { name: 'Pack pictures' })
+    .getByRole('button', { name: 'Door Wood Brown A' })
+    .click();
+  await page.mouse.click(box.x + 350, box.y + 312);
+  await waitForSaved(page, 'maps', '"rotation":0');
+  await canvas.screenshot({ path: testInfo.outputPath('pack-wall.png') });
+});
