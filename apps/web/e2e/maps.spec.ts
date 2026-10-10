@@ -19,10 +19,9 @@ const pngSize = (bytes: Buffer) => ({
   height: bytes.readUInt32BE(20),
 });
 
-async function newMap(page: Page, name: string, kind?: 'World or city map') {
+async function newMap(page: Page, name: string) {
   await page.goto('./#/maps');
   await page.getByRole('button', { name: 'New map' }).click();
-  if (kind) await page.getByRole('radio', { name: new RegExp(kind) }).check();
   await page.getByLabel('Name').fill(name);
   await page.getByRole('button', { name: 'Create' }).click();
   await expect(page.getByRole('textbox', { name: 'Map name' })).toHaveValue(name);
@@ -603,13 +602,13 @@ test('a world map measures distances, and a route moves the calendar on', async 
   await page.getByRole('button', { name: 'Start a calendar' }).click();
   await expect(page.getByRole('region', { name: 'Today' })).toContainText('1 Deepwinter, Year 1');
 
-  await newMap(page, 'The Sunash Sea', 'World or city map');
+  await newMap(page, 'The Sunash Sea');
   // The Creator draws: no pins, routes or spell templates there.
   await expect(tool(page, 'Wall')).toBeVisible();
   await expect(tool(page, 'Route')).toHaveCount(0);
   await expect(tool(page, 'Spell template')).toHaveCount(0);
   await page.getByRole('tab', { name: 'Map' }).click();
-  await expect(page.getByRole('region', { name: 'Grid' })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Grid' })).toBeVisible();
   const scale = page.getByRole('region', { name: 'Scale and travel' });
   await scale.getByLabel('Unit').selectOption('km');
   await scale.getByLabel('Distance across the map').fill('28000');
@@ -768,7 +767,7 @@ test('region names lettered as on an old map, dashed routes, measuring from a pi
   page,
 }) => {
   test.skip(isPhone(page), 'Drawn and measured on the desktop.');
-  await newMap(page, 'The Westlands', 'World or city map');
+  await newMap(page, 'The Westlands');
   const box = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
   if (!box) throw new Error('no canvas');
 
@@ -801,7 +800,7 @@ test('region names lettered as on an old map, dashed routes, measuring from a pi
 
 test('a scale bar, plain or as on an old map', async ({ page }) => {
   test.skip(isPhone(page), 'Drawn on the desktop.');
-  await newMap(page, 'The Sunash Sea', 'World or city map');
+  await newMap(page, 'The Sunash Sea');
   await page.getByRole('tab', { name: 'Map' }).click();
   const scale = page.getByRole('region', { name: 'Scale and travel' });
   await scale.getByLabel('Unit').selectOption('mi');
@@ -901,7 +900,7 @@ test('terrain shapes, islands, roads and rivers are drawn and edited', async ({
 }, testInfo) => {
   test.skip(isPhone(page), 'Drawn on the desktop.');
   test.setTimeout(90_000);
-  await newMap(page, 'The Isles', 'World or city map');
+  await newMap(page, 'The Isles');
   const canvas = page.getByRole('application', { name: 'Map canvas' });
   const box = await canvas.boundingBox();
   if (!box) throw new Error('no canvas');
@@ -976,7 +975,7 @@ test('scatter fills areas and lines with trees and mountains, clear of roads', a
 }, testInfo) => {
   test.skip(isPhone(page), 'Drawn on the desktop.');
   test.setTimeout(90_000);
-  await newMap(page, 'The Greenwood', 'World or city map');
+  await newMap(page, 'The Greenwood');
   const canvas = page.getByRole('application', { name: 'Map canvas' });
   const box = await canvas.boundingBox();
   if (!box) throw new Error('no canvas');
@@ -1029,7 +1028,7 @@ test('a town is generated from outlines, with walls, houses and a saved building
 }, testInfo) => {
   test.skip(isPhone(page), 'Drawn on the desktop.');
   test.setTimeout(120_000);
-  await newMap(page, 'Highmoor', 'World or city map');
+  await newMap(page, 'Highmoor');
   const canvas = page.getByRole('application', { name: 'Map canvas' });
   const box = await canvas.boundingBox();
   if (!box) throw new Error('no canvas');
@@ -1161,7 +1160,7 @@ test('mirrored drawing, and several items picked to line up', async ({ page }) =
 test('a label runs along a river, and the paper can be changed', async ({ page }, testInfo) => {
   test.skip(isPhone(page), 'Drawn on the desktop.');
   test.setTimeout(60_000);
-  await newMap(page, 'The Silverrun', 'World or city map');
+  await newMap(page, 'The Silverrun');
   const canvas = page.getByRole('application', { name: 'Map canvas' });
   const box = await canvas.boundingBox();
   if (!box) throw new Error('no canvas');
@@ -1194,7 +1193,7 @@ test('a label runs along a river, and the paper can be changed', async ({ page }
 test('elevation is made, painted and shown as hill shading', async ({ page }, testInfo) => {
   test.skip(isPhone(page), 'Painted on the desktop.');
   test.setTimeout(60_000);
-  await newMap(page, 'The Spine', 'World or city map');
+  await newMap(page, 'The Spine');
   const canvas = page.getByRole('application', { name: 'Map canvas' });
   const box = await canvas.boundingBox();
   if (!box) throw new Error('no canvas');

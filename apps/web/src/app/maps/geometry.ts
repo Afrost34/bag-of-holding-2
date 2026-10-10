@@ -54,7 +54,6 @@ export function hexCorners(centre: Point, grid: Grid): Point[] {
 
 /** The centre of the cell a point is in (the point itself without a grid). */
 export function snapToCell(p: Point, grid: Grid): Point {
-  if (grid.type === 'none') return p;
   if (grid.type === 'hex') {
     const { q, r } = hexAt(p, grid);
     return hexCentre(q, r, grid);
@@ -78,7 +77,7 @@ export function snapToCorner(p: Point, grid: Grid): Point {
 
 /**
  * Distance in feet, as the rules count it on this grid: squares (each step, straight or
- * diagonal, is one cell), hexes, or straight-line without a grid.
+ * diagonal, is one cell) or hexes.
  */
 export function distanceFeet(a: Point, b: Point, grid: Grid): number {
   if (grid.type === 'square') {
@@ -92,15 +91,12 @@ export function distanceFeet(a: Point, b: Point, grid: Grid): number {
     );
     return cells * grid.feet;
   }
-  if (grid.type === 'hex') {
-    const h1 = hexAt(a, grid);
-    const h2 = hexAt(b, grid);
-    const dq = h1.q - h2.q;
-    const dr = h1.r - h2.r;
-    const cells = (Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2;
-    return cells * grid.feet;
-  }
-  return Math.round((Math.hypot(b.x - a.x, b.y - a.y) / grid.size) * grid.feet);
+  const h1 = hexAt(a, grid);
+  const h2 = hexAt(b, grid);
+  const dq = h1.q - h2.q;
+  const dr = h1.r - h2.r;
+  const cells = (Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2;
+  return cells * grid.feet;
 }
 
 /** Feet to map pixels on this grid. */

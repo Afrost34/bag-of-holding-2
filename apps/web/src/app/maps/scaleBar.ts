@@ -1,4 +1,4 @@
-import { mapKind, type MapDoc } from './model';
+import type { MapDoc } from './model';
 
 /**
  * A map's scale bar: a round distance (1, 2 or 5 × 10ⁿ) up to about a third of the map wide, in the
@@ -28,8 +28,8 @@ export function roundDistance(max: number): number {
 }
 
 export function scaleBarSpec(doc: MapDoc): ScaleBarSpec | null {
-  // A world map has no size until it is given one (its grid is not a measure).
-  if (!doc.scale && mapKind(doc) === 'world') return null;
+  // A map with a hidden grid and no scale has no size to show.
+  if (!doc.scale && !doc.grid.visible) return null;
   const perPixel = doc.scale
     ? doc.scale.perPixel
     : doc.grid.size > 0 && doc.grid.feet > 0

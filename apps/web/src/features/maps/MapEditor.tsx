@@ -72,7 +72,6 @@ import {
   hasArt,
   isDrawable,
   itemId,
-  mapKind,
   rectPoints,
   setActiveVariant,
   updateItem,
@@ -173,7 +172,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   const [tool, setTool] = useState<Tool>(creator ? 'select' : 'pan');
   /** Where the pointer went down (screen), to tell a click from a drag. */
   const downAt = useRef<Point | null>(null);
-  const tools = toolsFor(mapKind(doc), mode);
+  const tools = toolsFor(mode);
   // A tool the map's kind does not have (its kind was just changed) gives way to Select.
   if (tool !== 'select' && tool !== 'calibrate' && !tools.some((t) => t.id === tool))
     setTool('select');
@@ -845,9 +844,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           size: Math.round(
             target
               ? Math.max(grid.size * 0.5, Math.min(doc.width, doc.height) / 32)
-              : mapKind(doc) === 'world'
-                ? Math.max(grid.size * 0.6, Math.min(doc.width, doc.height) / 45)
-                : grid.size * 0.6,
+              : Math.max(grid.size * 0.6, Math.min(doc.width, doc.height) / 45),
           ),
           color: '#111111',
           ...(target
@@ -1657,7 +1654,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
               name={doc.name}
               width={doc.width}
               height={doc.height}
-              hasGrid={grid.type !== 'none'}
+              hasGrid={grid.visible}
               hasSecretPins={doc.layers.some((l) =>
                 l.items.some((i) => i.kind === 'pin' && i.secret === true),
               )}

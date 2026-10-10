@@ -42,7 +42,6 @@ import {
   updateItem,
   type Grid,
   type MapItem,
-  mapKind,
 } from './model';
 
 const square: Grid = { ...DEFAULT_GRID, size: 50, offsetX: 10, offsetY: 20 };
@@ -83,14 +82,13 @@ describe('maps', () => {
     expect(snapToCorner({ x: 40, y: 50 }, square)).toEqual({ x: 60, y: 70 });
     const c = hexCentre(2, 1, hex);
     expect(snapToCell({ x: c.x + 5, y: c.y - 5 }, hex)).toEqual(c);
-    expect(snapToCell({ x: 3, y: 4 }, { ...square, type: 'none' })).toEqual({ x: 3, y: 4 });
+    expect(snapToCell({ x: 3, y: 4 }, square)).toEqual({ x: -15, y: -5 });
   });
 
   it('counts distance the way the rules do', () => {
     // Four cells right and two down on squares: 4 cells (diagonals count as one) = 20 ft.
     expect(distanceFeet({ x: 35, y: 45 }, { x: 235, y: 145 }, square)).toBe(20);
     expect(distanceFeet(hexCentre(0, 0, hex), hexCentre(3, -1, hex), hex)).toBe(15);
-    expect(distanceFeet({ x: 0, y: 0 }, { x: 300, y: 400 }, { ...square, type: 'none' })).toBe(50);
   });
 
   it('outlines spell templates at the grid’s scale', () => {
@@ -321,43 +319,40 @@ describe('finding maps', () => {
   });
 }); // prettier-ignore
 
-describe('kinds of map', () => {
-  it('battle maps have a grid; world and city maps have none, and routes', () => {
-    const battle = newMap('Cave', [], '');
-    expect(mapKind(battle)).toBe('battle');
-    expect(battle.grid.type).toBe('square');
-    const world = newMap('Continent', [], '', 'world');
-    expect(mapKind(world)).toBe('world');
-    expect(world.grid.type).toBe('none');
-    expect(world.layers.map((l) => l.name)).toContain('Routes');
+describe('maps have a size and no type', () => {
+  it('start at the size asked in squares, with a visible grid', () => {
+    const doc = newMap('Cave', [], '', { w: 20, h: 10 });
+    expect(doc.width).toBe(20 * DEFAULT_GRID.size);
+    expect(doc.height).toBe(10 * DEFAULT_GRID.size);
+    expect(doc.grid).toMatchObject({ type: 'square', visible: true });
+    expect(newMap('Big', [], '', { w: 900, h: 0 })).toMatchObject({
+      width: 200 * DEFAULT_GRID.size,
+      height: DEFAULT_GRID.size,
+    });
   });
 
-  it('older maps with a real scale are world maps', () => {
-    const { kind: _k, ...old } = newMap('Old', [], '');
-    expect(mapKind(old)).toBe('battle');
-    expect(mapKind({ ...old, scale: { unit: 'km', perPixel: 2 } })).toBe('world');
+  it('read an old world map (no grid) as a map with a hidden grid', () => {
+    const old = JSON.parse(serializeMap(newMap('Old', [], ''))) as Record<string, unknown>;
+    old.kind = 'world';
+    old.grid = { type: 'none', size: 70, feet: 5, opacity: 0.35 };
+    expect(parseMap(JSON.stringify(old), 'x')?.grid).toMatchObject({
+      type: 'square',
+      visible: false,
+    });
   });
 
-  it('keeps its kind and routes in the file', () => {
-    const world = newMap('Continent', [], '', 'world');
-    const layer = world.layers[1]?.id ?? '';
-    const withRoute = addItem(world, layer, {
+  it('keeps routes in the file', () => {
+    const doc = newMap('Continent', [], '');
+    const layer = doc.layers[1]?.id ?? '';
+    const withRoute = addItem(doc, layer, {
       kind: 'route',
       id: 'r1',
       points: [0, 0, 100, 0],
       label: 'Sea road',
       color: '#b91c1c',
     });
-    const back = parseMap(serializeMap(withRoute), world.id);
-    expect(back?.kind).toBe('world');
+    const back = parseMap(serializeMap(withRoute), doc.id);
     expect(back?.layers[1]?.items[0]).toMatchObject({ kind: 'route', label: 'Sea road' });
-  });
-
-  it('finds maps by kind', () => {
-    const maps = [newMap('Cave', [], ''), newMap('Continent', [], '', 'world')];
-    expect(
-      filterMaps(maps, { q: '', folder: '', tags: [], kind: 'world' }).map((m) => m.name),
-    ).toEqual(['Continent']);
   });
 });
 

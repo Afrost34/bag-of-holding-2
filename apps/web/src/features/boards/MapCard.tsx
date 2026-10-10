@@ -150,16 +150,14 @@ export function MapBody({ card }: { card: Extract<BoardCard, { kind: 'map' }> })
             pick('look');
           }}
         />
-        {doc.kind !== 'world' && (
-          <ToolButton
-            label="Range"
-            Icon={Triangle}
-            pressed={tool === 'range'}
-            onClick={() => {
-              pick('range');
-            }}
-          />
-        )}
+        <ToolButton
+          label="Range"
+          Icon={Triangle}
+          pressed={tool === 'range'}
+          onClick={() => {
+            pick('range');
+          }}
+        />
         <ToolButton
           label="Measure"
           Icon={Ruler}

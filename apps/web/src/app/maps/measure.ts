@@ -16,7 +16,7 @@ export interface MeasureBasis {
 
 /** Where a click lands for measuring: anywhere on a scaled map, a cell's middle on a grid. */
 export function measurePoint(p: Point, basis: MeasureBasis): Point {
-  return basis.scale || basis.grid.type === 'none' ? p : snapToCell(p, basis.grid);
+  return basis.scale ? p : snapToCell(p, basis.grid);
 }
 
 /**
