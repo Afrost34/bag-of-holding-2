@@ -1,6 +1,7 @@
 /** The side panels a board opens to pick what to add: a map, a character, a journal note. */
 import '@xyflow/react/dist/style.css';
-import { X } from 'lucide-react';
+import { Button } from '@boh/ui';
+import { FilePlus, X } from 'lucide-react';
 import { useEffect, type ReactNode } from 'react';
 import { AppLink } from '../../app/AppLink';
 import { useCharacters } from '../../app/characters/store';
@@ -122,5 +123,19 @@ export function Panel({
 /** The campaign's journal notes, found by name, to put one on the board. */
 export function NotePicker({ onPick }: { onPick: (path: string) => void }) {
   const notes = useJournal((s) => s.notes);
-  return <FindNote notes={[...notes.keys()]} onPick={onPick} />;
+  const createNote = useJournal((s) => s.createNote);
+  return (
+    <div className="space-y-2">
+      <Button
+        variant="ghost"
+        onClick={() => {
+          // A fresh note for the session, filed under Sessions in the journal.
+          void createNote('Sessions', 'Session notes').then(onPick);
+        }}
+      >
+        <FilePlus className="h-4 w-4" aria-hidden /> New note
+      </Button>
+      <FindNote notes={[...notes.keys()]} onPick={onPick} />
+    </div>
+  );
 }

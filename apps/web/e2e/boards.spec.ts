@@ -575,3 +575,23 @@ test('a DM screen card has the quick-reference tables, with dice to roll', async
   await damage.getByRole('button', { name: '18d10' }).first().click();
   await expect(page.getByRole('list', { name: 'Roll results' })).toContainText('18d10 →');
 });
+
+test('a note is written on the board during the session', async ({ page }) => {
+  test.setTimeout(60_000);
+  await createCampaign(page, 'Rust and Sunfire');
+  await page.goto('./#/boards?list=1');
+  await page.getByRole('button', { name: 'New board' }).click();
+  await page.getByRole('button', { name: 'Create' }).click();
+  await addCard(page, 'Note…');
+  await page.getByRole('button', { name: 'New note' }).click();
+  const note = card(page, 'Session notes');
+  await note.getByRole('button', { name: 'Edit note' }).click();
+  await note.locator('.cm-content').click();
+  await page.keyboard.type('The party met Brother Tam at the gate.');
+  await note.getByRole('button', { name: 'Done' }).click();
+  await expect(note).toContainText('Brother Tam at the gate');
+  // Kept: the journal wrote the file, and the card shows it again after a reload.
+  await page.waitForTimeout(1500);
+  await page.reload();
+  await expect(card(page, 'Session notes')).toContainText('Brother Tam at the gate');
+});
