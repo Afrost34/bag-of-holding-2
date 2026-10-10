@@ -1,6 +1,12 @@
 import { Button } from '@boh/ui';
 import { ExternalLink } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useBoards } from '../../app/boards/store';
+import { useCardSheets } from '../../app/cards/store';
+import { useCharacters } from '../../app/characters/store';
+import { useEncounters } from '../../app/encounters/store';
+import { PAGE_KINDS, pagePath, parsePagePath, type PageKind } from '../../app/maps/pages';
+import { useTables } from '../../app/tables/store';
 import { entityPath } from '../../app/data/entities';
 import { journalPath } from '../../app/journal/paths';
 import type { MapDoc, MapItem } from '../../app/maps/model';
@@ -19,6 +25,7 @@ const KINDS: { id: PinLink['kind'] | ''; label: string }[] = [
   { id: 'note', label: 'A journal note' },
   { id: 'map', label: 'Another map' },
   { id: 'entity', label: 'A compendium entry' },
+  { id: 'page', label: 'A character, board, encounter…' },
 ];
 
 /**
@@ -50,7 +57,9 @@ export function PinLinkField({
       ? journalPath(link.path)
       : link.kind === 'map'
         ? `/maps/${link.id}`
-        : entityPath(link.key)
+        : link.kind === 'page'
+          ? link.path
+          : entityPath(link.key)
     : null;
   return (
     <>
@@ -106,6 +115,7 @@ export function PinLinkField({
           ))}
         </select>
       )}
+      {kind === 'page' && <PagePicker doc={doc} link={link} onPick={setLink} />}
       {kind === 'entity' && (
         <>
           {link?.kind === 'entity' && (
@@ -151,6 +161,81 @@ export function PinLinkField({
         Click a pin to follow it: with the Pan tool or in full page here, and on boards, where it
         opens beside the map.
       </p>
+    </>
+  );
+}
+
+/** A character, board, encounter, roll table or card sheet of the map's campaign (or library). */
+function PagePicker({
+  doc,
+  link,
+  onPick,
+}: {
+  doc: MapDoc;
+  link: PinLink | null;
+  onPick: (link: PinLink | null) => void;
+}) {
+  const current = link?.kind === 'page' ? parsePagePath(link.path) : null;
+  const [kind, setKind] = useState<PageKind>(current?.kind ?? 'characters');
+  const characters = useCharacters();
+  const boards = useBoards();
+  const encounters = useEncounters();
+  const tables = useTables();
+  const cards = useCardSheets();
+  // Each list is read once, when it is first looked at.
+  useEffect(() => {
+    if (kind === 'characters' && !characters.loaded) void characters.load();
+    if (kind === 'boards' && !boards.loaded) void boards.load();
+    if (kind === 'encounters' && !encounters.loaded) void encounters.load();
+    if (kind === 'tables' && !tables.loaded) void tables.load();
+    if (kind === 'cards' && !cards.loaded) void cards.load();
+  }, [kind, characters, boards, encounters, tables, cards]);
+  const same = <T extends { campaign?: string | undefined }>(list: readonly T[]) =>
+    list.filter((x) => x.campaign === doc.campaign);
+  const options: { id: string; name: string }[] =
+    kind === 'characters'
+      ? same(characters.characters).map((c) => ({ id: c.id, name: c.name }))
+      : kind === 'boards'
+        ? same(boards.boards)
+            .filter((b) => !b.players)
+            .map((b) => ({ id: b.id, name: b.name }))
+        : kind === 'encounters'
+          ? same(encounters.encounters).map((e) => ({ id: e.id, name: e.name }))
+          : kind === 'tables'
+            ? same(tables.tables).map((t) => ({ id: t.id, name: t.name }))
+            : same(cards.sheets).map((c) => ({ id: c.id, name: c.name }));
+  return (
+    <>
+      <select
+        value={kind}
+        aria-label="Kind of page"
+        onChange={(e) => {
+          setKind(e.target.value as PageKind);
+          onPick(null);
+        }}
+        className={field}
+      >
+        {PAGE_KINDS.map((k) => (
+          <option key={k.id} value={k.id}>
+            {k.label}
+          </option>
+        ))}
+      </select>
+      <select
+        value={current?.kind === kind ? current.id : ''}
+        aria-label="Page"
+        onChange={(e) => {
+          onPick(e.target.value ? { kind: 'page', path: pagePath(kind, e.target.value) } : null);
+        }}
+        className={field}
+      >
+        <option value="">Pick one…</option>
+        {options.map((o) => (
+          <option key={o.id} value={o.id}>
+            {o.name}
+          </option>
+        ))}
+      </select>
     </>
   );
 }

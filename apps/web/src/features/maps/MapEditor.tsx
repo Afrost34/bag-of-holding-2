@@ -394,7 +394,9 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         ? `/maps/${link.id}`
         : link.kind === 'note'
           ? journalPath(link.path)
-          : entityPath(link.key),
+          : link.kind === 'page'
+            ? link.path
+            : entityPath(link.key),
       { newTab },
     );
     return true;

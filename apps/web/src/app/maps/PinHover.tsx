@@ -8,6 +8,7 @@ import { NotesProvider } from '../journal/notes/NotesProvider';
 import { NoteViewer } from '../journal/notes/NoteViewer';
 import { useJournal } from '../journal/store';
 import { EntityCard } from '../renderer/EntityCard';
+import { PAGE_KINDS, parsePagePath } from './pages';
 import { pinLink, type PinLink } from './pinLink';
 import type { MapScene } from './scene';
 import { useMaps } from './store';
@@ -153,6 +154,7 @@ export function PinHover({
 function Content({ link, campaignId }: { link: PinLink; campaignId: string | undefined }) {
   if (link.kind === 'entity') return <EntityPreview entityKey={link.key} />;
   if (link.kind === 'map') return <MapPreview id={link.id} />;
+  if (link.kind === 'page') return <PagePreview path={link.path} />;
   return <NotePreview path={link.path} campaignId={campaignId} />;
 }
 
@@ -172,6 +174,17 @@ function MapPreview({ id }: { id: string }) {
       <p className="text-xs font-semibold text-muted uppercase">Map</p>
       <p className="font-serif text-lg font-bold">{map?.name ?? 'This map no longer exists.'}</p>
     </div>
+  );
+}
+
+/** A page of the app: what kind it is, and that a click opens it. */
+function PagePreview({ path }: { path: string }) {
+  const info = parsePagePath(path);
+  const label = PAGE_KINDS.find((k) => k.id === info?.kind)?.label ?? 'A page of the app';
+  return (
+    <p className="p-3 text-sm">
+      {label}. <span className="text-muted">Click the pin to open it.</span>
+    </p>
   );
 }
 
