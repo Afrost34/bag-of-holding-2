@@ -5,7 +5,7 @@ import { insetPolygon } from './polyclip';
 import { pointInPolygon } from './polygon';
 import { scatterInstances, type Instance, type Obstacles, type ScatterSpec } from './scatter';
 import { bounds, growPolygon, splinePoints } from './spline';
-import type { TerrainId } from './terrain';
+import type { TerrainRef } from './terrain';
 
 /**
  * How a scatter item meets the rest of its map: the outline it fills or the line it follows (its
@@ -48,7 +48,7 @@ export function scatterLine(doc: MapDoc, item: ScatterItem): number[] {
 export const isTied = (item: ScatterItem): boolean => Boolean(item.within ?? item.follow);
 
 interface Ground {
-  texture: TerrainId | undefined;
+  texture: TerrainRef | undefined;
   outline: number[];
   box: { x0: number; y0: number; x1: number; y1: number };
 }
@@ -66,8 +66,8 @@ function grounds(doc: MapDoc): Ground[] {
 }
 
 /** The terrain at a point: the texture of the last (top) shape that covers it. */
-function terrainAt(list: readonly Ground[], x: number, y: number): TerrainId | undefined | null {
-  let found: TerrainId | undefined | null = null;
+function terrainAt(list: readonly Ground[], x: number, y: number): TerrainRef | undefined | null {
+  let found: TerrainRef | undefined | null = null;
   for (const g of list) {
     if (x < g.box.x0 || x > g.box.x1 || y < g.box.y0 || y > g.box.y1) continue;
     if (pointInPolygon({ x, y }, g.outline)) found = g.texture;
@@ -80,7 +80,7 @@ export interface PlacementOptions {
   /** Keep clear of paths, buildings and water (auto), or not. */
   avoid: 'auto' | 'none';
   /** Only on these kinds of ground. */
-  onlyOn?: readonly TerrainId[] | undefined;
+  onlyOn?: readonly TerrainRef[] | undefined;
   /** A path to ignore (the one a scatter follows). */
   skipPath?: string | undefined;
 }
@@ -185,7 +185,7 @@ export interface ScatterPreset {
   offset: number;
   sides: 'center' | 'both' | 'left' | 'right';
   jitter: number;
-  onlyOn?: TerrainId[];
+  onlyOn?: TerrainRef[];
 }
 
 const g = (id: GlyphId, weight = 1) => ({ ref: glyphRef(id), weight });
@@ -436,7 +436,7 @@ export interface ScatterSettings {
   sides: 'center' | 'both' | 'left' | 'right';
   jitter: number;
   avoid: 'auto' | 'none';
-  onlyOn?: TerrainId[] | undefined;
+  onlyOn?: TerrainRef[] | undefined;
   /** Multiplies spacing, sizes and offset: the same preset for a battle map or a continent. */
   scale: number;
 }

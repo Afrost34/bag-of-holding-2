@@ -11,6 +11,7 @@ import { type MapPanelsProps, type Tab } from './panelTypes';
 import { PinCategories } from './PinPanels';
 import { StampLibrary } from './StampLibrary';
 import { BuildingPanel, DistrictPanel } from './CityPanel';
+import { WallPanel } from './WallStrips';
 import { RoomPanel } from './RoomPanel';
 import { ScatterPanel } from './ScatterPanel';
 import { ShapePanel } from './ShapePanel';
@@ -103,6 +104,7 @@ export function MapPanels(props: MapPanelsProps) {
         {tool === 'district' && <DistrictPanel {...props} />}
         {(tool === 'room' || tool === 'door') && <RoomPanel {...props} />}
         {tool === 'building' && <BuildingPanel {...props} />}
+        {tool === 'wall' && <WallPanel {...props} />}
         {tab === 'stamps' && !ownsPanel && (
           <StampLibrary
             selected={props.stamp}

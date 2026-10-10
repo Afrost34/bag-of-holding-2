@@ -18,6 +18,11 @@ export const TERRAINS = [
 
 export type TerrainId = (typeof TERRAINS)[number]['id'];
 
+/** What a texture can be: one of the built-in ones, or a picture of an asset pack (`pack:<id>:<path>`). */
+export type TerrainRef = TerrainId | `pack:${string}`;
+
+export const isPackTexture = (ref: string): ref is `pack:${string}` => ref.startsWith('pack:');
+
 export const isTerrain = (v: unknown): v is TerrainId => TERRAINS.some((t) => t.id === v);
 
 /** A small fast random generator, seeded (mulberry32). */

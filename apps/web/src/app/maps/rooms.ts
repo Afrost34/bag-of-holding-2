@@ -37,8 +37,10 @@ export function doorOnWall(
   outline: readonly number[],
   at: { x: number; y: number },
   within: number,
+  isClosed = true,
 ): { x: number; y: number; angle: number } | null {
-  const closed = [...outline, outline[0] ?? 0, outline[1] ?? 0];
+  const closed = isClosed ? [...outline, outline[0] ?? 0, outline[1] ?? 0] : [...outline];
+  if (closed.length < 4) return null;
   const near = nearestOnPolyline(closed, at);
   if (near.dist > within) return null;
   // The direction of the segment nearest to the point.

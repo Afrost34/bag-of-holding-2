@@ -17,7 +17,7 @@ const megabytes = (bytes: number) =>
   bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${String(Math.round(bytes / 1e6))} MB`;
 
 /** A preview that is made when the tile scrolls into view. */
-function Preview({ entry }: { entry: PackEntry }) {
+export function Preview({ entry }: { entry: PackEntry }) {
   const ref = useRef<HTMLSpanElement>(null);
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {

@@ -14,6 +14,7 @@ import {
 import { useMaps } from '../../app/maps/store';
 import { NumberField, Section } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
+import { WallStrips } from './WallStrips';
 import { PinLinkField } from './PinLinkField';
 import { PinLook } from './PinPanels';
 import { RouteSettings } from './RouteSettings';
@@ -102,6 +103,18 @@ export function ItemSettings({
             Send to back
           </Button>
         </div>
+      )}
+      {item.kind === 'wall' && (
+        <WallStrips
+          value={item.texture}
+          onPick={(texture) => {
+            set((i) => {
+              if (i.kind !== 'wall') return i;
+              const { texture: _t, ...rest } = i;
+              return texture ? { ...rest, texture } : rest;
+            });
+          }}
+        />
       )}
       {item.kind === 'route' && <RouteSettings item={item} doc={doc} set={set} />}
       {(item.kind === 'shape' || item.kind === 'path') && (

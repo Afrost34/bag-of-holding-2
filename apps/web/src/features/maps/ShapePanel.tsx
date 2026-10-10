@@ -4,9 +4,10 @@ import { Dices, PaintBucket, Trees } from 'lucide-react';
 import { useState } from 'react';
 import { type MapItem } from '../../app/maps/model';
 import { PATH_STYLES, type PathStyle } from '../../app/maps/shapes';
-import { TERRAINS, type TerrainId } from '../../app/maps/terrain';
+import { TERRAINS, type TerrainRef } from '../../app/maps/terrain';
 import { Section } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
+import { PackTextures } from './PackTextures';
 import { TerrainSwatch } from './ToolSettings';
 
 const EDGES = [
@@ -19,30 +20,38 @@ export function TerrainPicker({
   value,
   onPick,
 }: {
-  value: TerrainId | undefined;
-  onPick: (id: TerrainId, base: string) => void;
+  value: TerrainRef | undefined;
+  onPick: (id: TerrainRef, base: string) => void;
 }) {
   return (
-    <div className="grid grid-cols-3 gap-1" role="radiogroup" aria-label="Terrain">
-      {TERRAINS.map((t) => (
-        <button
-          key={t.id}
-          type="button"
-          role="radio"
-          aria-checked={value === t.id}
-          onClick={() => {
-            onPick(t.id, t.base);
-          }}
-          className={cn(
-            'overflow-hidden rounded-md border-2 text-left text-xs',
-            value === t.id ? 'border-accent' : 'border-border',
-          )}
-        >
-          <TerrainSwatch id={t.id} />
-          <span className="block truncate px-1 py-0.5">{t.name}</span>
-        </button>
-      ))}
-    </div>
+    <>
+      <div className="grid grid-cols-3 gap-1" role="radiogroup" aria-label="Terrain">
+        {TERRAINS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="radio"
+            aria-checked={value === t.id}
+            onClick={() => {
+              onPick(t.id, t.base);
+            }}
+            className={cn(
+              'overflow-hidden rounded-md border-2 text-left text-xs',
+              value === t.id ? 'border-accent' : 'border-border',
+            )}
+          >
+            <TerrainSwatch id={t.id} />
+            <span className="block truncate px-1 py-0.5">{t.name}</span>
+          </button>
+        ))}
+      </div>
+      <PackTextures
+        value={value}
+        onPick={(ref) => {
+          onPick(ref, '#9a958d');
+        }}
+      />
+    </>
   );
 }
 
