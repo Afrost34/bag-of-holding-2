@@ -217,7 +217,7 @@ type MapItemBody =
       id: string;
       points: number[];
       smooth: number;
-      style: 'road' | 'trail' | 'river' | 'fence';
+      style: 'road' | 'trail' | 'river' | 'fence' | 'wall';
       width: number;
       color: string;
       /** A river that widens along its way (default); false keeps one width. */

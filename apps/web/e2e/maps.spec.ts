@@ -1900,3 +1900,20 @@ test('a hole is cut out of a district', async ({ page }) => {
   await page.keyboard.press('Enter');
   await waitForSaved(page, 'maps', '"holes":[[');
 });
+
+test('a wall can be drawn as a path, with curves and a loop', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Curtain wall');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  await tool(page, 'Road or river').click();
+  await page.getByLabel('Path kind').selectOption('wall');
+  await page.getByRole('checkbox', { name: 'Close the loop' }).check();
+  await page.mouse.click(box.x + 200, box.y + 200);
+  await page.mouse.click(box.x + 400, box.y + 220);
+  await page.mouse.click(box.x + 300, box.y + 380);
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'maps', '"style":"wall"');
+  await waitForSaved(page, 'maps', '"loop":true');
+});

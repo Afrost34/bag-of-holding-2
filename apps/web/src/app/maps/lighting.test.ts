@@ -98,6 +98,24 @@ describe('what blocks light', () => {
     expect(Math.max(...ys) - Math.min(...ys)).toBeCloseTo(40);
   });
 
+  it('takes a path drawn as a wall, and not a road', () => {
+    let doc = newMap('Paths', [], '');
+    const layer = doc.layers[0]?.id ?? '';
+    const path = (id: string, style: 'wall' | 'road') => ({
+      kind: 'path' as const,
+      id,
+      points: [0, 0, 200, 0],
+      smooth: 0,
+      style,
+      width: 12,
+      color: '#888888',
+    });
+    doc = addItem(doc, layer, path('r', 'road'));
+    expect(lightSegments(doc)).toHaveLength(0);
+    doc = addItem(doc, layer, path('w', 'wall'));
+    expect(lightSegments(doc).length).toBeGreaterThanOrEqual(1);
+  });
+
   it('leaves out hidden layers', () => {
     let doc = newMap('Hidden', [], '');
     const layer = doc.layers[0]?.id ?? '';

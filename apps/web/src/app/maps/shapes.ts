@@ -18,6 +18,7 @@ export const PATH_STYLES = [
   { id: 'trail', name: 'Trail', width: 8, color: '#6b4f33' },
   { id: 'river', name: 'River', width: 46, color: '#3d7fb0' },
   { id: 'fence', name: 'Fence or hedge', width: 8, color: '#3b2d1f' },
+  { id: 'wall', name: 'Wall (blocks light)', width: 12, color: '#8a847d' },
 ] as const;
 export type PathStyle = (typeof PATH_STYLES)[number]['id'];
 
@@ -141,6 +142,10 @@ export function pathView(item: Path): Container {
       case 'fence':
         draw(Math.max(1.5, item.width * 0.25), color(item.color), 0.9);
         break;
+      case 'wall':
+        draw(item.width + 4, 0x2b2118, 0.9);
+        draw(item.width, color(item.color), 1);
+        break;
     }
     return g;
   }
@@ -171,6 +176,11 @@ export function pathView(item: Path): Container {
       }
       break;
     }
+    case 'wall':
+      // A wall of stone with a dark edge: a path that blocks light like a wall tool wall.
+      stroke(item.width + 4, 0x2b2118, 0.9);
+      stroke(item.width, color(item.color));
+      break;
     case 'fence':
       stroke(Math.max(1.5, item.width * 0.25), color(item.color), 0.9);
       for (const d of dotsAlong(line, item.width * 2.4))

@@ -13,7 +13,13 @@ export interface LabelTarget {
   kind: 'path' | 'shape';
 }
 
-const PATH_NAMES = { road: 'Road', trail: 'Trail', river: 'River', fence: 'Fence' } as const;
+const PATH_NAMES = {
+  road: 'Road',
+  trail: 'Trail',
+  river: 'River',
+  fence: 'Fence',
+  wall: 'Wall',
+} as const;
 
 const allItems = (doc: MapDoc): MapItem[] => doc.layers.flatMap((l) => l.items);
 

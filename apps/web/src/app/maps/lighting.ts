@@ -1,5 +1,6 @@
 import { layerShown, type MapDoc } from './model';
 import { roomOutline } from './rooms';
+import { splinePoints } from './spline';
 
 /**
  * Lights (Dungeondraft's light tool and environment): what blocks light, and the area a light
@@ -93,6 +94,13 @@ export function lightSegments(doc: MapDoc): Segment[] {
           ),
         );
       } else if (item.kind === 'wall') out.push(...pairsOf(item.points, item.loop === true));
+      else if (item.kind === 'path' && item.style === 'wall')
+        out.push(
+          ...pairsOf(
+            splinePoints(item.points, item.loop === true, item.smooth),
+            item.loop === true,
+          ),
+        );
       else if (item.kind === 'building') out.push(...pairsOf(item.points, true));
       else if (item.kind === 'room') {
         let segs = pairsOf(roomOutline(item.points, item.smooth), true);
