@@ -1,7 +1,7 @@
 import { parseFrontmatter } from '@boh/journal';
 import { EntityView } from '@boh/renderer';
 import { Button, cn } from '@boh/ui';
-import { Pause, Play, Plus, RotateCcw, X } from 'lucide-react';
+import { Pause, Pencil, Play, Plus, RotateCcw, X } from 'lucide-react';
 import { useContext, useEffect, useState } from 'react';
 import { ArtImage } from '../../app/ArtImage';
 import { timerLeft, type BoardCard } from '../../app/boards/model';
@@ -14,6 +14,7 @@ import { JournalViewContext } from '../../app/journal/notes/context';
 import { NoteViewer } from '../../app/journal/notes/NoteViewer';
 import { useJournal } from '../../app/journal/store';
 import { CalendarGlance } from '../../app/calendar/CalendarGlance';
+import { BoardNoteEditor } from './BoardNoteEditor';
 import { CombatBody, EncounterBody } from './combatBodies';
 import { useBoardActions, useIsPlayersBoard } from './context';
 import { ConverterBody } from './ConverterBody';
@@ -87,9 +88,22 @@ function NoteBody({ card }: { card: Extract<BoardCard, { kind: 'note' }> }) {
   const text = notes.get(card.path);
   const hasJournal = useContext(JournalViewContext) !== null;
   const [choosing, setChoosing] = useState(false);
+  const [editing, setEditing] = useState(false);
   if (!hasJournal) return <p className="text-muted">Notes show on the campaign’s boards.</p>;
   const change = !forPlayers && (
-    <div className="mb-2 flex justify-end">
+    <div className="mb-2 flex justify-end gap-1">
+      {text !== undefined && !choosing && (
+        <button
+          type="button"
+          aria-pressed={editing}
+          onClick={() => {
+            setEditing(!editing);
+          }}
+          className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-link hover:bg-sunken"
+        >
+          <Pencil className="h-3 w-3" aria-hidden /> {editing ? 'Done' : 'Edit note'}
+        </button>
+      )}
       <button
         type="button"
         aria-expanded={choosing}
@@ -121,6 +135,13 @@ function NoteBody({ card }: { card: Extract<BoardCard, { kind: 'note' }> }) {
       <>
         {change}
         <p className="text-muted">This note no longer exists.</p>
+      </>
+    );
+  if (editing && !forPlayers)
+    return (
+      <>
+        {change}
+        <BoardNoteEditor path={card.path} text={text} />
       </>
     );
   // Live: shown again whenever the note changes. Only the content: properties stay in the journal.
