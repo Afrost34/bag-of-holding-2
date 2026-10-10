@@ -10,7 +10,7 @@ import {
 import { glyphRef, GLYPHS, isGlyphRef } from '../../app/maps/glyphs';
 import { displayName, parsePackRef } from '../../app/maps/packModel';
 import { type MapItem } from '../../app/maps/model';
-import { TERRAINS, type TerrainId } from '../../app/maps/terrain';
+import { TERRAINS, type TerrainRef } from '../../app/maps/terrain';
 import { Section } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
 
@@ -27,7 +27,7 @@ interface Controls {
   sides: 'center' | 'both' | 'left' | 'right';
   jitter: number;
   avoid: 'auto' | 'none';
-  onlyOn?: TerrainId[] | undefined;
+  onlyOn?: TerrainRef[] | undefined;
 }
 
 function Slider({
@@ -273,7 +273,7 @@ function ScatterControls({
           aria-label="Only on this ground"
           onChange={(e) => {
             const id = e.target.value;
-            onChange({ onlyOn: id ? [id as TerrainId] : undefined });
+            onChange({ onlyOn: id ? [id as TerrainRef] : undefined });
           }}
           className={field}
         >

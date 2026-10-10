@@ -3,6 +3,7 @@ import { cn } from '@boh/ui';
 import { useMemo } from 'react';
 import { type TemplateShape } from '../../app/maps/model';
 import { TERRAINS, terrainTile } from '../../app/maps/terrain';
+import { PackTextures } from './PackTextures';
 import { Section } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
 import { PEN_COLORS } from './tools';
@@ -82,26 +83,34 @@ export function ToolSettings({
   return (
     <Section title={terrainTool ? 'Terrain brush' : 'Brush'}>
       {terrainTool ? (
-        <div className="grid grid-cols-3 gap-1" role="radiogroup" aria-label="Terrain">
-          {TERRAINS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              role="radio"
-              aria-checked={s.texture === t.id}
-              onClick={() => {
-                set({ ...s, texture: t.id, color: t.base });
-              }}
-              className={cn(
-                'overflow-hidden rounded-md border-2 text-left text-xs',
-                s.texture === t.id ? 'border-accent' : 'border-border',
-              )}
-            >
-              <TerrainSwatch id={t.id} />
-              <span className="block truncate px-1 py-0.5">{t.name}</span>
-            </button>
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-3 gap-1" role="radiogroup" aria-label="Terrain">
+            {TERRAINS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                role="radio"
+                aria-checked={s.texture === t.id}
+                onClick={() => {
+                  set({ ...s, texture: t.id, color: t.base });
+                }}
+                className={cn(
+                  'overflow-hidden rounded-md border-2 text-left text-xs',
+                  s.texture === t.id ? 'border-accent' : 'border-border',
+                )}
+              >
+                <TerrainSwatch id={t.id} />
+                <span className="block truncate px-1 py-0.5">{t.name}</span>
+              </button>
+            ))}
+          </div>
+          <PackTextures
+            value={s.texture}
+            onPick={(texture) => {
+              set({ ...s, texture, color: '#9a958d' });
+            }}
+          />
+        </>
       ) : (
         <div className="flex flex-wrap items-center gap-1" role="radiogroup" aria-label="Colour">
           {PEN_COLORS.map((c) => (

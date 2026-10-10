@@ -5,6 +5,7 @@ import {
   Culler,
   FillPattern,
   Graphics,
+  Matrix,
   Rectangle,
   Sprite,
   Text,
@@ -42,7 +43,7 @@ import { districtGeo, districtOutline } from './cityDoc';
 import { isTied, obstacleSignature, pieceBox, scatterLine, scatterOf } from './scatterDoc';
 import { pathLine, pathView, shapeOutline, shapeView } from './shapes';
 import { pointInPolygon } from './polygon';
-import { TERRAINS, terrainTile, type TerrainId } from './terrain';
+import { isPackTexture, TERRAINS, terrainTile, type TerrainRef } from './terrain';
 
 /**
  * The map canvas (PixiJS, WebGL): background, grid, layers of items, and an overlay for what is
@@ -251,13 +252,53 @@ function iconTexture(id: string, color = '#ffffff', width = 2.25): Promise<Textu
   return t;
 }
 
-const terrainPatterns = new Map<TerrainId, FillPattern>();
-/** A terrain's texture, repeating across the map (so strokes side by side join up). */
-function terrainPattern(id: TerrainId): FillPattern {
-  let t = terrainPatterns.get(id);
+const terrainPatterns = new Map<string, FillPattern>();
+/** Pictures of asset packs used as textures, once loaded (null while they load). */
+const packTextures = new Map<string, Texture | null>();
+/** Counts the pack textures that have arrived: items drawn with one are drawn again when it changes. */
+let packTexturesReady = 0;
+let onPackTexture: (() => void) | null = null;
+/** The grid of the map being drawn: a pack texture spans a few of its squares. */
+let patternGrid = 70;
+const PACK_TEXTURE_SQUARES = 5;
+
+/** The look of an item that depends on pack pictures still arriving. */
+const packLook = (item: MapItem): string => {
+  const ref = item.kind === 'room' ? item.floor : 'texture' in item ? item.texture : undefined;
+  return ref && isPackTexture(ref) ? String(packTexturesReady) + '|' + String(patternGrid) : '';
+};
+
+/**
+ * A texture, repeating across the map (so strokes side by side join up). A picture of a pack is
+ * loaded first: until it is there the pattern is a plain stone one, and the item is drawn again.
+ */
+function terrainPattern(ref: TerrainRef): FillPattern {
+  if (!isPackTexture(ref)) {
+    let t = terrainPatterns.get(ref);
+    if (!t) {
+      t = new FillPattern(Texture.from(terrainTile(ref)), 'repeat');
+      terrainPatterns.set(ref, t);
+    }
+    return t;
+  }
+  const loaded = packTextures.get(ref);
+  if (loaded === undefined) {
+    packTextures.set(ref, null);
+    void textureFor(stampFile(ref)).then((tex) => {
+      if (!tex) return;
+      packTextures.set(ref, tex);
+      packTexturesReady++;
+      onPackTexture?.();
+    });
+  }
+  if (!loaded) return terrainPattern('stone');
+  const key = ref + '|' + String(patternGrid);
+  let t = terrainPatterns.get(key);
   if (!t) {
-    t = new FillPattern(Texture.from(terrainTile(id)), 'repeat');
-    terrainPatterns.set(id, t);
+    t = new FillPattern(loaded, 'repeat');
+    const k = (patternGrid * PACK_TEXTURE_SQUARES) / Math.max(1, loaded.width);
+    t.setTransform(new Matrix().scale(k, k));
+    terrainPatterns.set(key, t);
   }
   return t;
 }
@@ -267,7 +308,7 @@ export interface StrokeStyle {
   color: string;
   width: number;
   opacity: number;
-  texture?: TerrainId | undefined;
+  texture?: TerrainRef | undefined;
 }
 
 /**
@@ -496,6 +537,10 @@ export class MapScene {
 
   setDoc(doc: MapDoc): void {
     this.doc = doc;
+    patternGrid = doc.grid.size;
+    onPackTexture = () => {
+      if (this.doc && !this.destroyed) this.setDoc(this.doc);
+    };
     if (!this.ready) return;
     if (usesFantasyFont(doc) && !fantasyFontReady && typeof document !== 'undefined') {
       fantasyFontLoading ??= Promise.all([
@@ -565,7 +610,7 @@ export class MapScene {
                 ? JSON.stringify([pinStyle(doc, item), doc.pinStyle ?? '', fantasyFontReady])
                 : item.kind === 'text' && item.font === 'fantasy'
                   ? String(fantasyFontReady)
-                  : '';
+                  : packLook(item);
         const home = item.under === true && walls ? walls : view;
         if (node?.item === item && node.look === look && node.view.parent === home) return;
         if (node) {
@@ -1442,4 +1487,4 @@ function gridGraphics(grid: Grid, width: number, height: number): Graphics {
 }
 
 /** A terrain's base colour (the floor of a room before its texture is made). */
-const floorColor = (id: TerrainId): string => TERRAINS.find((t) => t.id === id)?.base ?? '#9a958d';
+const floorColor = (id: TerrainRef): string => TERRAINS.find((t) => t.id === id)?.base ?? '#9a958d';

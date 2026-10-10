@@ -1388,3 +1388,36 @@ test('the bottom bar shows the grid and snap, G and S switch them, and items can
   await page.getByLabel("Under the layer's other items").check();
   await waitForSaved(page, 'maps', '"under":true');
 });
+
+test('a texture of an imported pack paints terrain', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is used on the desktop.');
+  test.setTimeout(60_000);
+  await installData(page);
+  await newMap(page, 'Pack Meadow');
+  const zip = Buffer.from(
+    zipSync({
+      'FA_Assets_Webp/Woodlands/!Wilderness/Textures/Grass/Grass_A_01.png': [PIXEL, { level: 0 }],
+      'FA_Assets_Webp/Woodlands/!Wilderness/Flora/Oak_A1_1x1.png': [PIXEL, { level: 0 }],
+    }),
+  );
+  await tool(page, 'Terrain brush').click();
+  await expect(page.getByText('No textures yet')).toBeVisible();
+  await tool(page, 'Stamp').click();
+  await page.getByRole('tab', { name: 'Stamps', exact: true }).click();
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Import packs (zip)' }).click();
+  await (await chooser).setFiles({ name: 'Meadow.zip', mimeType: 'application/zip', buffer: zip });
+  await expect(page.getByRole('status').filter({ hasText: '1 added' })).toBeVisible();
+  await tool(page, 'Terrain brush').click();
+  const textures = page.getByRole('list', { name: 'Pack textures' });
+  // Only the texture, not the 1×1 oak.
+  await expect(textures.getByRole('button')).toHaveCount(1);
+  await textures.getByRole('button', { name: 'Grass A 01' }).click();
+  const box = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
+  if (!box) throw new Error('no canvas');
+  await page.mouse.move(box.x + 200, box.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 500, box.y + 260, { steps: 6 });
+  await page.mouse.up();
+  await waitForSaved(page, 'maps', '"texture":"pack:');
+});
