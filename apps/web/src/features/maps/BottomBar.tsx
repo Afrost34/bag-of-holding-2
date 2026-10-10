@@ -7,6 +7,8 @@ export function BottomBar({
   onGrid,
   snap,
   onSnap,
+  snapStep,
+  onSnapStep,
   roofs,
   onRoofs,
   zoom,
@@ -18,6 +20,9 @@ export function BottomBar({
   onGrid: (visible: boolean) => void;
   snap: boolean;
   onSnap: (snap: boolean) => void;
+  /** Snap steps per cell: 1, 2, 4 or 8. */
+  snapStep: number;
+  onSnapStep: (step: number) => void;
   /** Roofs shown; null when the map has no buildings. */
   roofs: boolean | null;
   onRoofs: (shown: boolean) => void;
@@ -63,6 +68,22 @@ export function BottomBar({
       >
         <Magnet className="h-4 w-4" aria-hidden /> Snap
       </button>
+      {snap && (
+        <select
+          aria-label="Snap step"
+          title="How finely it snaps"
+          value={snapStep}
+          onChange={(e) => {
+            onSnapStep(Number(e.target.value));
+          }}
+          className="h-8 rounded-md border border-border bg-surface px-1 text-xs"
+        >
+          <option value={1}>Cell</option>
+          <option value={2}>½ cell</option>
+          <option value={4}>¼ cell</option>
+          <option value={8}>⅛ cell</option>
+        </select>
+      )}
       {roofs !== null && (
         <button
           type="button"

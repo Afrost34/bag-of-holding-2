@@ -1727,3 +1727,16 @@ test('a compass rose and a frame decorate the map', async ({ page }, testInfo) =
   await page.getByLabel('Compass rose', { exact: true }).selectOption('none');
   await expect(page.getByLabel('Compass rose', { exact: true })).toHaveValue('none');
 });
+
+test('snapping can step by half or quarter cells', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Fine');
+  const bar = page.getByRole('toolbar', { name: 'Map bar' });
+  await bar.getByLabel('Snap step').selectOption('2');
+  await waitForSaved(page, 'maps', '"snap":2');
+  await bar.getByLabel('Snap step').selectOption('1');
+  await expect(bar.getByLabel('Snap step')).toHaveValue('1');
+  // Switched off, the step goes away with the snap.
+  await page.keyboard.press('s');
+  await expect(bar.getByLabel('Snap step')).toHaveCount(0);
+});

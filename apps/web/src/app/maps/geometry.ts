@@ -58,7 +58,8 @@ export function snapToCell(p: Point, grid: Grid): Point {
     const { q, r } = hexAt(p, grid);
     return hexCentre(q, r, grid);
   }
-  const s = grid.size;
+  // Custom snap: finer steps than a whole cell.
+  const s = grid.size / (grid.snap ?? 1);
   return {
     x: grid.offsetX + (Math.floor((p.x - grid.offsetX) / s) + 0.5) * s,
     y: grid.offsetY + (Math.floor((p.y - grid.offsetY) / s) + 0.5) * s,
@@ -68,7 +69,7 @@ export function snapToCell(p: Point, grid: Grid): Point {
 /** The nearest grid corner (square grids; cell centres on hex grids). */
 export function snapToCorner(p: Point, grid: Grid): Point {
   if (grid.type !== 'square') return snapToCell(p, grid);
-  const s = grid.size;
+  const s = grid.size / (grid.snap ?? 1);
   return {
     x: grid.offsetX + Math.round((p.x - grid.offsetX) / s) * s,
     y: grid.offsetY + Math.round((p.y - grid.offsetY) / s) * s,

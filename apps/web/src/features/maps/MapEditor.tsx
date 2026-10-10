@@ -1938,6 +1938,13 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             }}
             snap={snap}
             onSnap={setSnap}
+            snapStep={grid.snap ?? 1}
+            onSnapStep={(step) => {
+              commit((d) => {
+                const { snap: _old, ...rest } = d.grid;
+                return { ...d, grid: step > 1 ? { ...rest, snap: step } : rest };
+              });
+            }}
             roofs={
               doc.layers.some((l) =>
                 l.items.some((i) => i.kind === 'building' || i.kind === 'district'),

@@ -80,6 +80,10 @@ describe('maps', () => {
   it('snaps to cells and corners on square and hex grids', () => {
     expect(snapToCell({ x: 12, y: 22 }, square)).toEqual({ x: 35, y: 45 });
     expect(snapToCorner({ x: 40, y: 50 }, square)).toEqual({ x: 60, y: 70 });
+    // Custom snap: half a cell (25 px on a 50 px grid).
+    const half = { ...square, snap: 2 };
+    expect(snapToCorner({ x: 40, y: 50 }, half)).toEqual({ x: 35, y: 45 });
+    expect(snapToCell({ x: 12, y: 22 }, half)).toEqual({ x: 22.5, y: 32.5 });
     const c = hexCentre(2, 1, hex);
     expect(snapToCell({ x: c.x + 5, y: c.y - 5 }, hex)).toEqual(c);
     expect(snapToCell({ x: 3, y: 4 }, square)).toEqual({ x: -15, y: -5 });

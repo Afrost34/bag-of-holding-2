@@ -40,6 +40,8 @@ export interface Grid {
   opacity: number;
   /** Drawn or hidden; hidden it still snaps and measures. */
   visible: boolean;
+  /** Snapping steps this many times per cell (2: half cells, 4: quarters); a whole cell when absent. */
+  snap?: number;
 }
 
 export type TemplateShape = 'cone' | 'sphere' | 'cube' | 'line';
@@ -844,6 +846,7 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
       opacity: num(g.opacity, DEFAULT_GRID.opacity),
       // Older maps without a grid (world maps) had type 'none': the grid stays hidden.
       visible: g.type === 'none' ? false : g.visible !== false,
+      ...([2, 4, 8].includes(num(g.snap, 1)) ? { snap: num(g.snap, 1) } : {}),
     },
     layers: layers.length ? layers : newMap('', [], '').layers,
     ...(variants.length ? { variants } : {}),
