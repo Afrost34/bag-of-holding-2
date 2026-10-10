@@ -18,7 +18,9 @@ import { hexCorners, templateOutline, type Point } from './geometry';
 import { resizedView, type ViewBase } from './view';
 import { hiddenFromPlayers } from './pinLink';
 import {
+  artHash,
   fogHides,
+  isArt,
   itemShown,
   layerShown,
   pinStyle,
@@ -260,6 +262,12 @@ export class MapScene {
   private readonly scaleBarView = new Container();
   private scaleBarKey = '';
   private readonly layers = new Container();
+  private readonly renderView = new Container();
+  private renderKey = '';
+  /** The flat picture of the art is showing, so the art itself is left out. */
+  private renderActive = false;
+  /** Pictures and stamps still loading (see `settled`). */
+  private loading = 0;
   private readonly fog = new Container();
   private fogKey = '';
   private readonly overlay = new Container();
@@ -287,6 +295,8 @@ export class MapScene {
   forPlayers = false;
   /** The Creator shows the map's art only: pins and routes are the Viewer's (set before `setDoc`). */
   hideAnnotations = false;
+  /** Show the flat picture of the art when the map has a fresh one (the Viewer, boards). */
+  useRender = false;
 
   async init(host: HTMLElement): Promise<void> {
     await this.app.init({
@@ -309,6 +319,7 @@ export class MapScene {
     this.overlay.addChild(this.strokePreview, this.preview, this.selection, this.previewText);
     this.world.addChild(
       this.background,
+      this.renderView,
       this.layers,
       this.fog,
       this.gridLines,
@@ -495,6 +506,7 @@ export class MapScene {
         this.pictureViews.delete(key);
       }
     this.drawFog(doc);
+    this.drawRender(doc);
     this.applyVisibility(doc);
     this.scalePins();
     for (const [id, node] of this.nodes)
@@ -559,6 +571,29 @@ export class MapScene {
   }
 
   /**
+   * The flat picture of the art, for devices without the stamp packs: used when the map has one
+   * made from exactly this art. Until it has loaded the art itself stays, so nothing flashes.
+   */
+  private drawRender(doc: MapDoc): void {
+    const r = this.useRender && doc.render?.hash === artHash(doc) ? doc.render : null;
+    const path = r ? (r.images[doc.activeVariant ?? '-'] ?? r.images['-'] ?? '') : '';
+    if (path === this.renderKey) return;
+    this.renderKey = path;
+    for (const c of this.renderView.removeChildren()) c.destroy({ children: true });
+    this.renderActive = false;
+    if (!r || !path) return;
+    const view = new Container();
+    view.scale.set(doc.width / r.width);
+    this.renderView.addChild(view);
+    this.loadTiles(path, view, () => {
+      if (this.destroyed || this.renderKey !== path || !this.doc) return;
+      this.renderActive = true;
+      this.applyVisibility(this.doc);
+      this.requestRender();
+    });
+  }
+
+  /**
    * What shows: the active variant's items, the Creator's no pins or routes, the players' no
    * secret pins, and no pin in a hidden category.
    */
@@ -567,24 +602,28 @@ export class MapScene {
       const item = node.item;
       let shown = itemShown(doc, id);
       if (this.hideAnnotations && (item.kind === 'pin' || item.kind === 'route')) shown = false;
+      if (this.renderActive && isArt(item)) shown = false;
       if (item.kind === 'pin')
         shown &&=
           !pinStyle(doc, item).hidden &&
           !(this.forPlayers && (item.secret === true || fogHides(doc, item.x, item.y)));
       node.view.visible = shown;
     }
+    for (const pic of this.pictureViews.values()) pic.visible = !this.renderActive;
   }
 
-  /** The scene was destroyed while a picture loaded, or the picture was let go. */
-  private dropped(key: string, view: Container): boolean {
-    return this.destroyed || this.pictureViews.get(key) !== view;
+  private loadPicture(_key: string, path: string, view: Container): void {
+    this.loadTiles(path, view);
   }
 
-  private loadPicture(key: string, path: string, view: Container): void {
+  /** A picture cut into tiles under `view`; `done` once all are there. */
+  private loadTiles(path: string, view: Container, done?: () => void): void {
+    this.loading++;
     this.onLoading(true);
+    const gone = () => this.destroyed || view.destroyed;
     void fileUrl(path)
       .then(async (url) => {
-        if (!url || this.dropped(key, view)) return;
+        if (!url || gone()) return;
         const blob = await (await fetch(url)).blob();
         const bitmap = await createImageBitmap(blob);
         for (let y = 0; y < bitmap.height; y += TILE)
@@ -592,7 +631,7 @@ export class MapScene {
             const w = Math.min(TILE, bitmap.width - x);
             const h = Math.min(TILE, bitmap.height - y);
             const tile = await createImageBitmap(bitmap, x, y, w, h);
-            if (this.dropped(key, view)) return;
+            if (gone()) return;
             const sprite = new Sprite(Texture.from(tile));
             sprite.position.set(x, y);
             sprite.cullable = true;
@@ -600,10 +639,21 @@ export class MapScene {
             this.requestRender();
           }
         bitmap.close();
+        done?.();
       })
       .finally(() => {
+        this.loading--;
         this.onLoading(false);
       });
+  }
+
+  /** Resolves when the pictures and stamps asked for so far have loaded (or after 30 s). */
+  async settled(): Promise<void> {
+    const until = Date.now() + 30_000;
+    await new Promise((r) => setTimeout(r, 50));
+    while (this.loading > 0 && Date.now() < until && !this.destroyed)
+      await new Promise((r) => setTimeout(r, 50));
+    this.requestRender();
   }
 
   /**
@@ -685,7 +735,9 @@ export class MapScene {
         const holder = new Container();
         holder.position.set(item.x, item.y);
         holder.rotation = (item.rotation * Math.PI) / 180;
+        this.loading++;
         void textureFor(stampFile(item.stamp)).then((texture) => {
+          this.loading--;
           if (holder.destroyed) return;
           if (!texture) {
             holder.addChild(
