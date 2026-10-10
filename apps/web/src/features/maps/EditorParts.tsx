@@ -18,7 +18,7 @@ export function NameInput({ name, onRename }: { name: string; onRename: (name: s
       onBlur={() => {
         if (value.trim() && value !== name) onRename(value.trim());
       }}
-      className="min-w-0 flex-1 rounded bg-transparent px-1 font-serif text-lg font-bold focus:bg-sunken focus:outline-none"
+      className="min-w-28 flex-1 rounded bg-transparent px-1 font-serif text-lg font-bold focus:bg-sunken focus:outline-none"
     />
   );
 }

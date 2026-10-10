@@ -1,6 +1,6 @@
 import { cn } from '@boh/ui';
 import { X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrangePanel } from './ArrangePanel';
 import { ItemSettings } from './ItemSettings';
 import { ElevationPanel } from './ElevationPanel';
@@ -21,6 +21,24 @@ export function MapPanels(props: MapPanelsProps) {
   const { open, onClose, selected, tool, mode } = props;
   const creator = mode === 'creator';
   const [tab, setTab] = useState<Tab>(creator ? 'stamps' : 'pins');
+  // Another tool or tab shows from its top, not from where the last one was scrolled to.
+  const scroller = useRef<HTMLDivElement>(null);
+  // Tools with settings of their own do not also show the stamp library under them (Scatter keeps
+  // it, to add a stamp to the mix).
+  const ownsPanel = ![
+    'stamp',
+    'select',
+    'pan',
+    'text',
+    'measure',
+    'scatter',
+    'wall',
+    'pin',
+    'route',
+  ].includes(tool);
+  useEffect(() => {
+    scroller.current?.scrollTo({ top: 0 });
+  }, [tool, tab]);
   const [shownFor, setShownFor] = useState<string | null>(null);
   // Picking an item shows its settings.
   if ((selected?.id ?? null) !== shownFor) {
@@ -73,7 +91,7 @@ export function MapPanels(props: MapPanelsProps) {
           <X className="h-4 w-4" aria-hidden />
         </button>
       </div>
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
+      <div ref={scroller} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
         {props.selectedIds.length > 1 && <ArrangePanel {...props} />}
         {(tool === 'pen' || tool === 'terrain' || tool === 'eraser' || tool === 'template') && (
           <ToolSettings {...props} />
@@ -85,7 +103,12 @@ export function MapPanels(props: MapPanelsProps) {
         {tool === 'district' && <DistrictPanel {...props} />}
         {(tool === 'room' || tool === 'door') && <RoomPanel {...props} />}
         {tool === 'building' && <BuildingPanel {...props} />}
-        {tab === 'stamps' && <StampLibrary selected={props.stamp} onPick={props.setStamp} />}
+        {tab === 'stamps' && !ownsPanel && (
+          <StampLibrary selected={props.stamp} onPick={props.setStamp} />
+        )}
+        {tab === 'stamps' && ownsPanel && (
+          <p className="text-xs text-muted">The stamp library is here when the Stamp tool is on.</p>
+        )}
         {tab === 'layers' && <Layers {...props} />}
         {tab === 'pins' && <PinCategories doc={props.doc} commit={props.commit} />}
         {tab === 'grid' && <MapSettings {...props} />}
