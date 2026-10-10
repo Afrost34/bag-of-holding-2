@@ -420,6 +420,15 @@ test('asset packs are imported as zips, browsed with previews, and their stamps 
   await waitForSaved(page, 'maps', '"stamp":"pack:');
   await waitForSaved(page, 'maps', '"w":140,"h":140');
   await canvas.screenshot({ path: testInfo.outputPath('pack-stamp.png') });
+  // The hotbar remembers it: a click or its number takes the stamp again.
+  const hotbar = page.getByRole('toolbar', { name: 'Recent stamps' });
+  await expect(hotbar.getByRole('button', { name: 'Stamp 1: Well Stone A1' })).toBeVisible();
+  await tool(page, 'Select and move').click();
+  await expect(tool(page, 'Stamp')).toHaveAttribute('aria-pressed', 'false');
+  await page.keyboard.press('1');
+  await expect(tool(page, 'Stamp')).toHaveAttribute('aria-pressed', 'true');
+  await tool(page, 'Select and move').click();
+  await page.mouse.click(box.x + 300, box.y + 300);
   // A stamp can have a drop shadow and block light.
   await page.getByLabel('Drop shadow').check();
   await waitForSaved(page, 'maps', '"shadow":true');

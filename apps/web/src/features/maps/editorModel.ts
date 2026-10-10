@@ -248,3 +248,15 @@ export function selectedName(item: MapItem): string {
   if (item.kind === 'text' && item.text) return `${title}: ${item.text.slice(0, 24)}`;
   return title;
 }
+
+/** A stamp picked before, to pick again from the hotbar. */
+export interface HotStamp {
+  ref: string;
+  aspect: number;
+  squares?: { w: number; h: number } | undefined;
+}
+
+/** The hotbar after using a stamp: it goes first, once, and the list keeps `max`. */
+export function pushRecent(list: readonly HotStamp[], item: HotStamp, max = 9): HotStamp[] {
+  return [item, ...list.filter((x) => x.ref !== item.ref)].slice(0, max);
+}

@@ -5,6 +5,7 @@ import {
   dropLastPoint,
   insertVertex,
   nearestHandle,
+  pushRecent,
   removeVertex,
   snapRiverEnd,
 } from './editorModel';
@@ -62,5 +63,18 @@ describe('taking the last point back', () => {
     expect(dropLastPoint([0, 0, 10, 10, 20, 5])).toEqual([0, 0, 10, 10]);
     expect(dropLastPoint([4, 4])).toEqual([]);
     expect(dropLastPoint([])).toEqual([]);
+  });
+});
+
+describe('the hotbar of recent stamps', () => {
+  it('puts the latest first, once, and keeps nine', () => {
+    let list = pushRecent([], { ref: 'a', aspect: 1 });
+    list = pushRecent(list, { ref: 'b', aspect: 1 });
+    list = pushRecent(list, { ref: 'a', aspect: 2 });
+    expect(list.map((x) => x.ref)).toEqual(['a', 'b']);
+    expect(list[0]?.aspect).toBe(2);
+    for (let i = 0; i < 12; i++) list = pushRecent(list, { ref: `s${String(i)}`, aspect: 1 });
+    expect(list).toHaveLength(9);
+    expect(list[0]?.ref).toBe('s11');
   });
 });

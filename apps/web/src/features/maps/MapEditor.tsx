@@ -101,6 +101,8 @@ import {
   isPointItem,
   minPoints,
   nearestHandle,
+  pushRecent,
+  type HotStamp,
   removeVertex,
   ROUTE_COLOR,
   routeStatus,
@@ -114,6 +116,7 @@ import {
 import { DeleteMap, NameInput } from './EditorParts';
 import { ExportDialog } from './ExportDialog';
 import { BottomBar } from './BottomBar';
+import { Hotbar } from './Hotbar';
 import { MapSearch } from './MapSearch';
 import { MapPanels } from './MapPanels';
 import { PinHover } from '../../app/maps/PinHover';
@@ -266,6 +269,33 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       localStorage.setItem('boh.map.snap', on ? 'on' : 'off');
     } catch {
       /* a private window: the choice lasts until the page closes */
+    }
+  };
+  /** Stamps used lately, kept on this device. */
+  const [hot, setHotState] = useState<HotStamp[]>(() => {
+    try {
+      const raw = localStorage.getItem('boh.map.hotbar');
+      const parsed: unknown = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed)
+        ? parsed.filter(
+            (x): x is HotStamp =>
+              typeof x === 'object' &&
+              x !== null &&
+              typeof (x as HotStamp).ref === 'string' &&
+              typeof (x as HotStamp).aspect === 'number',
+          )
+        : [];
+    } catch {
+      return [];
+    }
+  });
+  const rememberStamp = (item: HotStamp) => {
+    const next = pushRecent(hot, item);
+    setHotState(next);
+    try {
+      localStorage.setItem('boh.map.hotbar', JSON.stringify(next));
+    } catch {
+      /* a private window: the bar lasts until the page closes */
     }
   };
   const [zoom, setZoom] = useState(1);
@@ -1646,6 +1676,18 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         );
         return;
       }
+      // 1–9 pick the stamps of the hotbar.
+      if (creator && /^[1-9]$/.test(e.key) && !e.shiftKey) {
+        const item = hot[Number(e.key) - 1];
+        if (item) {
+          rememberStamp(item);
+          setStamp(item.ref);
+          setStampAspect(item.aspect);
+          setStampSquares(item.squares ?? null);
+          setTool('stamp');
+          return;
+        }
+      }
       if (e.key === 'g' || e.key === 'G') {
         commit((d) => ({ ...d, grid: { ...d.grid, visible: !d.grid.visible } }));
         return;
@@ -1931,6 +1973,19 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
               e.preventDefault();
             }}
           />
+          {creator && !viewing && (
+            <Hotbar
+              items={hot}
+              selected={stamp}
+              onPick={(item) => {
+                rememberStamp(item);
+                setStamp(item.ref);
+                setStampAspect(item.aspect);
+                setStampSquares(item.squares ?? null);
+                setTool('stamp');
+              }}
+            />
+          )}
           <BottomBar
             gridVisible={grid.visible}
             onGrid={(visible) => {
@@ -2037,6 +2092,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             }}
             stamp={stamp}
             setStamp={(path, aspect, squares) => {
+              rememberStamp({ ref: path, aspect, squares });
               setStamp(path);
               setStampAspect(aspect);
               setStampSquares(squares ?? null);
