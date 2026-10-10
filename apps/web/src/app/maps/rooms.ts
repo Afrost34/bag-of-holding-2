@@ -61,6 +61,60 @@ export function doorOnWall(
   return { x: Math.round(near.x), y: Math.round(near.y), angle: best.angle };
 }
 
+/** Where a point lies on a closed outline: which wall (segment) and how far along it (0–1). */
+function placeOnOutline(
+  outline: readonly number[],
+  at: { x: number; y: number },
+): { index: number; t: number; dist: number } {
+  const n = Math.floor(outline.length / 2);
+  let best = { index: 0, t: 0, dist: Infinity };
+  for (let i = 0; i < n; i++) {
+    const ax = outline[i * 2] ?? 0;
+    const ay = outline[i * 2 + 1] ?? 0;
+    const bx = outline[((i + 1) % n) * 2] ?? 0;
+    const by = outline[((i + 1) % n) * 2 + 1] ?? 0;
+    const dx = bx - ax;
+    const dy = by - ay;
+    const len2 = dx * dx + dy * dy;
+    const t =
+      len2 === 0 ? 0 : Math.max(0, Math.min(1, ((at.x - ax) * dx + (at.y - ay) * dy) / len2));
+    const dist = Math.hypot(at.x - (ax + dx * t), at.y - (ay + dy * t));
+    if (dist < best.dist) best = { index: i, t, dist };
+  }
+  return best;
+}
+
+/**
+ * The doors of a room put back on its walls after the walls moved. A door stays on the same wall
+ * at the same fraction of its length (when the outline has the same number of walls); otherwise
+ * it goes to the nearest point of the new outline. A door keeps its kind and turns along the wall.
+ */
+export function reattachDoors(
+  doors: readonly Door[],
+  before: readonly number[],
+  after: readonly number[],
+): Door[] {
+  const same = before.length === after.length;
+  const n = Math.floor(after.length / 2);
+  return doors.map((d) => {
+    if (same && n >= 2) {
+      const spot = placeOnOutline(before, d);
+      const ax = after[spot.index * 2] ?? 0;
+      const ay = after[spot.index * 2 + 1] ?? 0;
+      const bx = after[((spot.index + 1) % n) * 2] ?? 0;
+      const by = after[((spot.index + 1) % n) * 2 + 1] ?? 0;
+      return {
+        ...d,
+        x: Math.round(ax + (bx - ax) * spot.t),
+        y: Math.round(ay + (by - ay) * spot.t),
+        angle: Math.atan2(by - ay, bx - ax),
+      };
+    }
+    const on = doorOnWall(after, d, Infinity);
+    return on ? { ...d, x: on.x, y: on.y, angle: on.angle } : d;
+  });
+}
+
 /** A rectangle with sides along the axes, as four corners. */
 export const rectPolygon = (x: number, y: number, w: number, h: number): number[] => [
   x,

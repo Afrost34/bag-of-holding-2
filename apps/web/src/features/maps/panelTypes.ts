@@ -10,6 +10,7 @@ import {
   type AreaSettings,
   type FogSettings,
   type IslandRequest,
+  type LightSettings,
   type PathSettings,
   type RoomSettings,
   type MapMode,
@@ -33,6 +34,9 @@ export interface MapPanelsProps {
   onDeselect: () => void;
   layerId: string;
   setLayerId: (id: string) => void;
+  /** The variant being compared with (its layers show faintly), if any. */
+  compare: string | undefined;
+  setCompare: (id: string | undefined) => void;
   stamp: string | null;
   /** `squares`: the stamp's own size in grid squares, when its name says it. */
   setStamp: (path: string, aspect: number, squares?: { w: number; h: number }) => void;
@@ -40,6 +44,8 @@ export interface MapPanelsProps {
   setBrush: (b: BrushSettings) => void;
   terrain: BrushSettings;
   setTerrain: (b: BrushSettings) => void;
+  /** The textures used last (eight), as slots to pick from. */
+  terrainSlots: string[];
   /** The eraser's width, in map pixels. */
   eraser: number;
   setEraser: (w: number) => void;
@@ -47,6 +53,8 @@ export interface MapPanelsProps {
   setTemplate: (t: TemplateSettings) => void;
   fog: FogSettings;
   setFog: (f: FogSettings) => void;
+  light: LightSettings;
+  setLight: (l: LightSettings) => void;
   elev: ElevationBrush;
   setElev: (b: ElevationBrush) => void;
   roomSet: RoomSettings;
@@ -63,6 +71,8 @@ export interface MapPanelsProps {
   onGenerateTown: () => void;
   scatter: ScatterSettings;
   setScatter: (s: ScatterSettings) => void;
+  /** Draw an area to cut out of the picked shape (a lake in a forest). */
+  onCutHole: (shapeId: string) => void;
   /** Scatter inside the picked shape, or along the picked path. */
   onScatterOn: (item: MapItem) => void;
   /** Scatter with a set of pack pictures: the Scatter tool takes them as its mix. */

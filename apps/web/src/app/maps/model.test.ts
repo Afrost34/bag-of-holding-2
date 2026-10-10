@@ -12,6 +12,8 @@ import {
   fogHides,
   addPictureLayer,
   addVariant,
+  layerGhost,
+  moveVariant,
   itemShown,
   layerShown,
   mapIsStale,
@@ -80,6 +82,10 @@ describe('maps', () => {
   it('snaps to cells and corners on square and hex grids', () => {
     expect(snapToCell({ x: 12, y: 22 }, square)).toEqual({ x: 35, y: 45 });
     expect(snapToCorner({ x: 40, y: 50 }, square)).toEqual({ x: 60, y: 70 });
+    // Custom snap: half a cell (25 px on a 50 px grid).
+    const half = { ...square, snap: 2 };
+    expect(snapToCorner({ x: 40, y: 50 }, half)).toEqual({ x: 35, y: 45 });
+    expect(snapToCell({ x: 12, y: 22 }, half)).toEqual({ x: 22.5, y: 32.5 });
     const c = hexCentre(2, 1, hex);
     expect(snapToCell({ x: c.x + 5, y: c.y - 5 }, hex)).toEqual(c);
     expect(snapToCell({ x: 3, y: 4 }, square)).toEqual({ x: -15, y: -5 });
@@ -201,6 +207,30 @@ describe('variants', () => {
     // The layer's own flag is untouched by variant changes.
     expect(doc.layers.find((l) => l.id === up.id)?.visible).toBe(false);
     expect(parseMap(serializeMap(doc), doc.id)).toEqual(doc);
+  });
+
+  it('are reordered, and a layer only the compared variant shows is a ghost', () => {
+    let doc = base();
+    const [ground, up] = doc.layers;
+    if (!ground || !up) throw new Error('layers');
+    doc = setLayerShown(doc, up.id, false);
+    doc = addVariant(doc, 'Ground');
+    const first = doc.activeVariant;
+    doc = addVariant(doc, 'Upstairs');
+    doc = setLayerShown(doc, up.id, true);
+    doc = setLayerShown(doc, ground.id, false);
+    const second = doc.activeVariant;
+    expect(doc.variants?.map((v) => v.name)).toEqual(['Ground', 'Upstairs']);
+    doc = moveVariant(doc, second ?? '', -1);
+    expect(doc.variants?.map((v) => v.name)).toEqual(['Upstairs', 'Ground']);
+    // Past the ends nothing moves.
+    expect(moveVariant(doc, second ?? '', -1)).toBe(doc);
+    // Upstairs shows the second picture only; comparing with Ground ghosts the first.
+    doc = setActiveVariant(doc, second);
+    expect(layerGhost(doc, ground, first)).toBe(true);
+    expect(layerGhost(doc, up, first)).toBe(false);
+    expect(layerGhost(doc, ground, undefined)).toBe(false);
+    expect(layerGhost(doc, ground, second)).toBe(false);
   });
 
   it('hide items, step round, and are removed with their activity', () => {
@@ -382,6 +412,10 @@ describe('the fingerprint of the art', () => {
     });
     expect(hasArt(stroked)).toBe(true);
     expect(artHash(stroked)).not.toBe(base);
+    // The light and the roofs are part of the picture too.
+    expect(artHash({ ...doc, ambient: '#2b3157' })).not.toBe(base);
+    expect(artHash({ ...doc, hideRoofs: true })).not.toBe(base);
+    expect(artHash({ ...doc, sun: { angle: 90, strength: 1 } })).not.toBe(base);
     expect(artHash(setLayerShown(doc, layer, false))).not.toBe(base);
     expect(artHash({ ...doc, width: doc.width + 1 })).not.toBe(base);
   });

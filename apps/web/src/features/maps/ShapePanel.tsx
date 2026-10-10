@@ -1,8 +1,9 @@
 /** Settings of the terrain shape and road/river tools, the island generator, and picked shapes. */
 import { Button, cn } from '@boh/ui';
-import { Dices, PaintBucket, Trees } from 'lucide-react';
+import { Dices, PaintBucket, Scissors, Trees } from 'lucide-react';
 import { useState } from 'react';
 import { type MapItem } from '../../app/maps/model';
+import { PATH_ENDS, type PathEnd } from '../../app/maps/pathEnds';
 import { PATH_STYLES, type PathStyle } from '../../app/maps/shapes';
 import { TERRAINS, type TerrainRef } from '../../app/maps/terrain';
 import { Section } from './PanelParts';
@@ -13,8 +14,58 @@ import { TerrainSwatch } from './ToolSettings';
 const EDGES = [
   ['shore', 'Coast', 'a shallow-water glow and wave lines'],
   ['ink', 'Ink line', 'a thin dark outline'],
+  ['dashed', 'Dashed border', 'a dashed line, as on a map of regions'],
   ['none', 'None', 'no outline'],
 ] as const;
+
+/** How a path begins and ends, and whether it closes into a ring (Dungeondraft's In, Out and loop). */
+function PathEndsFields({
+  start,
+  end,
+  loop,
+  onChange,
+}: {
+  start: PathEnd;
+  end: PathEnd;
+  loop: boolean;
+  onChange: (change: { start?: PathEnd; end?: PathEnd; loop?: boolean }) => void;
+}) {
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-2">
+        {(['start', 'end'] as const).map((which) => (
+          <label key={which} className="block text-sm">
+            {which === 'start' ? 'Begins' : 'Ends'}
+            <select
+              aria-label={which === 'start' ? 'Path begins' : 'Path ends'}
+              value={which === 'start' ? start : end}
+              onChange={(e) => {
+                onChange({ [which]: e.target.value as PathEnd });
+              }}
+              className={field}
+            >
+              {PATH_ENDS.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ))}
+      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={loop}
+          onChange={(e) => {
+            onChange({ loop: e.target.checked });
+          }}
+        />
+        Close the loop
+      </label>
+    </>
+  );
+}
 
 export function TerrainPicker({
   value,
@@ -206,6 +257,14 @@ export function ShapePanel(props: MapPanelsProps) {
             Widens downstream (draw from the source to the sea)
           </label>
         )}
+        <PathEndsFields
+          start={pathSet.start}
+          end={pathSet.end}
+          loop={pathSet.loop}
+          onChange={(change) => {
+            setPathSet({ ...pathSet, ...change });
+          }}
+        />
         <p className="text-xs text-muted">
           Click to place points; double-click or Enter finishes, Escape cancels.
           {pathSet.style === 'river' ? ' End next to another river to join it.' : ''} Pick it with
@@ -223,7 +282,7 @@ export function ShapePanel(props: MapPanelsProps) {
             setArea({ ...area, texture });
           }}
         />
-        <div role="radiogroup" aria-label="Edge" className="grid grid-cols-3 gap-1">
+        <div role="radiogroup" aria-label="Edge" className="grid grid-cols-2 gap-1">
           {EDGES.map(([id, label, hint]) => (
             <button
               key={id}
@@ -275,11 +334,14 @@ export function ShapeItemSettings({
   item,
   set,
   onScatter,
+  onCutHole,
 }: {
   item: Extract<MapItem, { kind: 'shape' | 'path' }>;
   set: (change: (i: MapItem) => MapItem) => void;
   /** Trees, rocks… inside this shape, or along this path. */
   onScatter: () => void;
+  /** Draw an area to cut out of this shape. */
+  onCutHole: () => void;
 }) {
   if (item.kind === 'shape')
     return (
@@ -290,7 +352,24 @@ export function ShapeItemSettings({
             set((i) => (i.kind === 'shape' ? { ...i, texture, color: base } : i));
           }}
         />
-        <div role="radiogroup" aria-label="Edge" className="grid grid-cols-3 gap-1">
+        <label className="flex items-center gap-2 text-sm">
+          Plain colour (a region)
+          <input
+            type="color"
+            aria-label="Fill colour"
+            value={item.color}
+            onChange={(e) => {
+              const color = e.target.value;
+              set((i) => {
+                if (i.kind !== 'shape') return i;
+                const { texture: _t, ...rest } = i;
+                return { ...rest, color };
+              });
+            }}
+            className="h-7 w-9 cursor-pointer rounded border border-border bg-surface"
+          />
+        </label>
+        <div role="radiogroup" aria-label="Edge" className="grid grid-cols-2 gap-1">
           {EDGES.map(([id, label]) => (
             <button
               key={id}
@@ -333,6 +412,23 @@ export function ShapeItemSettings({
             set((i) => (i.kind === 'shape' ? { ...i, opacity } : i));
           }}
         />
+        <Button variant="ghost" onClick={onCutHole}>
+          <Scissors className="h-4 w-4" aria-hidden /> Cut a hole
+        </Button>
+        {(item.holes?.length ?? 0) > 0 && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              set((i) => {
+                if (i.kind !== 'shape') return i;
+                const { holes: _holes, ...rest } = i;
+                return rest;
+              });
+            }}
+          >
+            Fill the {item.holes?.length} {item.holes?.length === 1 ? 'hole' : 'holes'}
+          </Button>
+        )}
         <Button variant="ghost" onClick={onScatter}>
           <Trees className="h-4 w-4" aria-hidden /> Scatter inside this
         </Button>
@@ -393,6 +489,21 @@ export function ShapeItemSettings({
           Widens downstream
         </label>
       )}
+      <PathEndsFields
+        start={item.start ?? 'hard'}
+        end={item.end ?? 'hard'}
+        loop={item.loop === true}
+        onChange={(change) => {
+          set((i) => {
+            if (i.kind !== 'path') return i;
+            const next = { ...i, ...change };
+            if (next.start === 'hard') delete next.start;
+            if (next.end === 'hard') delete next.end;
+            if (!next.loop) delete next.loop;
+            return next;
+          });
+        }}
+      />
       <Button variant="ghost" onClick={onScatter}>
         <Trees className="h-4 w-4" aria-hidden /> Scatter along this
       </Button>

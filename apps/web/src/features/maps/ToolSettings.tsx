@@ -2,7 +2,7 @@
 import { cn } from '@boh/ui';
 import { useMemo } from 'react';
 import { type TemplateShape } from '../../app/maps/model';
-import { TERRAINS, terrainTile } from '../../app/maps/terrain';
+import { TERRAINS, terrainTile, type TerrainRef } from '../../app/maps/terrain';
 import { PackTextures } from './PackTextures';
 import { Section } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
@@ -14,6 +14,7 @@ export function ToolSettings({
   setBrush,
   terrain,
   setTerrain,
+  terrainSlots,
   eraser,
   setEraser,
   template,
@@ -84,6 +85,33 @@ export function ToolSettings({
     <Section title={terrainTool ? 'Terrain brush' : 'Brush'}>
       {terrainTool ? (
         <>
+          <div role="group" aria-label="Terrain slots" className="flex flex-wrap gap-1">
+            {terrainSlots.map((ref, i) => {
+              const known = TERRAINS.find((t) => t.id === ref);
+              return (
+                <button
+                  key={ref}
+                  type="button"
+                  aria-label={`Slot ${String(i + 1)}: ${known?.name ?? ref.split('/').at(-1) ?? ref}`}
+                  aria-pressed={s.texture === ref}
+                  title={known?.name ?? ref}
+                  onClick={() => {
+                    set({
+                      ...s,
+                      texture: ref as TerrainRef,
+                      color: known?.base ?? '#9a958d',
+                    });
+                  }}
+                  className={cn(
+                    'h-9 w-9 overflow-hidden rounded-md border-2 text-[9px]',
+                    s.texture === ref ? 'border-accent' : 'border-border',
+                  )}
+                >
+                  {known ? <TerrainSwatch id={known.id} /> : <span>pack</span>}
+                </button>
+              );
+            })}
+          </div>
           <div className="grid grid-cols-3 gap-1" role="radiogroup" aria-label="Terrain">
             {TERRAINS.map((t) => (
               <button
@@ -155,6 +183,35 @@ export function ToolSettings({
           className="w-full"
         />
       </label>
+      {terrainTool && (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={s.border === true}
+            onChange={(e) => {
+              const { border: _b, ...rest } = s;
+              set(e.target.checked ? { ...rest, border: true } : rest);
+            }}
+          />
+          Border (a material: rock, lava, ice)
+        </label>
+      )}
+      {terrainTool && (
+        <label className="block text-sm">
+          Soft edge: {Math.round((s.soft ?? 0) * 100)}%
+          <input
+            type="range"
+            aria-label="Soft edge"
+            min={0}
+            max={100}
+            value={Math.round((s.soft ?? 0) * 100)}
+            onChange={(e) => {
+              set({ ...s, soft: Number(e.target.value) / 100 });
+            }}
+            className="w-full"
+          />
+        </label>
+      )}
       <label className="block text-sm">
         Opacity: {Math.round(s.opacity * 100)}%
         <input

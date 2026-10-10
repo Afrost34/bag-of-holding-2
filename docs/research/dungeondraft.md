@@ -79,3 +79,23 @@ The most important gaps are structural. No official manual was reachable. The na
 The sharpest insight is that Dungeondraft is already type-less, so the owner's wish is a validation rather than a risk: the real differences between a battlemap, a city and a world are scale, density and which layers are populated, not which tools exist. What Dungeondraft lacks is exactly what we can add on top: unit scale, large-map performance, auto roofs, district-level tools and elevation. Its best ideas are small and structural: Over/Under within named layers, parametric doors on walls, edit points everywhere, a splat terrain brush and size-aware scatter. They are cheaper and more valuable than any single flashy tool.
 
 Two pieces of follow-up would reduce the remaining uncertainty. Opening a real `.dungeondraft_map` file would settle the native format and layer numbers, and the in-app shortcut list or the unofficial manual would settle the hotkeys that sources left silent. Neither should block the first five priorities, which are fully defined by the evidence above.
+
+## Status of the priorities above
+
+| #   | Priority                                      | State                                                                                                   |
+| --- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| 1   | No map type, size in squares, grid toggle (G) | Done (#143)                                                                                             |
+| 2   | Over/Under flag per item                      | Done (#144)                                                                                             |
+| 3   | Edit points and the usual keys on every shape | Done: walls, routes, shapes, paths, rooms; Backspace, Delete over a point, Alt erases                   |
+| 4   | Doors follow wall edits                       | Done as wall + fraction along it (`reattachDoors`); no stable numeric ids                               |
+| 5   | Merge overlapping rooms into one outline      | Done: Merge the rooms into one (union of outlines; doors still in a wall are kept)                      |
+| 6   | Scatter ranges                                | Done: rotation range, size range, one random piece per click, overlap (packing)                         |
+| 7   | Terrain splat brush                           | Done as vector strokes with a soft edge, an optional border and eight recent-texture slots (ADR 0012)   |
+| 8   | UVTT export                                   | Dropped by the owner                                                                                    |
+| 9   | Pack browser views                            | Done: Used on this map, fuzzy search, tags (from folder names; FA packs have no tag file)               |
+| 10  | Path options                                  | Done: width, curve, in/out ends, loop; walls as a path style (blocks light)                             |
+| 11  | Holes, outline, opacity                       | Done for terrain shapes (holes, dashed border, plain colour) and districts (holes)                      |
+| 12  | Roofs from the outline, hide toggle, sun      | Done: hide toggle, sun direction and shade                                                              |
+| 13  | Levels with compare overlay                   | Done: variants compared (the other shows faintly), cloned, reordered, Page Up/Down; no per-level lights |
+| 14  | Lights and ambient light                      | Done with shadows from walls, closed doors, buildings and stamps that block light                       |
+| 15  | Hotbar, status bar, tool tabs                 | Done: grouped tools, hint and selection in the bar, hotbar 1–9, custom snap, drag-to-select             |

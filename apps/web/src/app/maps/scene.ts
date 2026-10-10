@@ -1,6 +1,7 @@
 import {
   AlphaFilter,
   Application,
+  BlurFilter,
   Container,
   Culler,
   FillPattern,
@@ -26,6 +27,7 @@ import {
   PAPERS,
   isArt,
   itemShown,
+  layerGhost,
   layerShown,
   pinStyle,
   type Grid,
@@ -35,14 +37,16 @@ import {
 import { pinIconSvg } from './pinIcons';
 import { glyphIdOf, glyphTexture, isGlyphRef } from './glyphs';
 import { itemBox } from './arrange';
-import { heightsOf, shadeImage, type Elevation } from './elevation';
+import { lightSegments, visibilityPolygon } from './lighting';
+import { frameCorners, frameRects, roseShape } from './decor';
+import { contourSegments, heightsOf, shadeImage, type Elevation } from './elevation';
 import { alongLayout, targetLine } from './labels';
 import { buildingView, districtView } from './cityView';
 import { roomDoorsView, roomFloorView, roomWallView } from './roomView';
 import { roomOutline } from './rooms';
 import { districtGeo, districtOutline } from './cityDoc';
 import { isTied, obstacleSignature, pieceBox, scatterLine, scatterOf } from './scatterDoc';
-import { pathLine, pathView, shapeOutline, shapeView } from './shapes';
+import { pathLine, pathView, shapeHoles, shapeOutline, shapeView } from './shapes';
 import { pointInPolygon } from './polygon';
 import { stripSegments } from './wallStrip';
 import { isPackTexture, TERRAINS, terrainTile, type TerrainRef } from './terrain';
@@ -131,6 +135,7 @@ const colorOf = (c: string): ColorSource => c;
 const usesFantasyFont = (doc: MapDoc) =>
   doc.pinStyle === 'fantasy' ||
   doc.scaleBar === 'fantasy' ||
+  doc.compass === 'fantasy' ||
   doc.layers.some((l) => l.items.some((i) => i.kind === 'text' && i.font === 'fantasy'));
 
 /**
@@ -348,7 +353,14 @@ export interface StrokeStyle {
   width: number;
   opacity: number;
   texture?: TerrainRef | undefined;
+  /** 0–1: the edge fades out. */
+  soft?: number | undefined;
+  /** A dark line round the stroke. */
+  border?: boolean | undefined;
 }
+
+/** How blurred a stroke of this width and softness is (map pixels). */
+export const softBlur = (width: number, soft: number): number => Math.max(0, width * soft * 0.1);
 
 /**
  * A brush stroke: a line in a colour or a terrain texture. Opacity is applied to
@@ -356,11 +368,24 @@ export interface StrokeStyle {
  */
 function strokeView(points: readonly number[], style: StrokeStyle): Container {
   const line = new Graphics();
-  if (points.length >= 2) {
+  const trace = () => {
+    if (points.length < 2) return;
     line.moveTo(points[0] ?? 0, points[1] ?? 0);
     for (let i = 2; i + 1 < points.length; i += 2) line.lineTo(points[i] ?? 0, points[i + 1] ?? 0);
     if (points.length === 2) line.lineTo((points[0] ?? 0) + 0.1, points[1] ?? 0);
+  };
+  // A material's border: a darker, wider line under the fill.
+  if (style.border) {
+    trace();
+    line.stroke({
+      color: colorOf(INK),
+      width: style.width + Math.max(4, style.width * 0.06),
+      alpha: 0.65,
+      cap: 'round',
+      join: 'round',
+    });
   }
+  trace();
   line.stroke({
     ...(style.texture ? { fill: terrainPattern(style.texture) } : { color: colorOf(style.color) }),
     width: style.width,
@@ -368,7 +393,11 @@ function strokeView(points: readonly number[], style: StrokeStyle): Container {
     join: 'round',
   });
   const view: Container = line;
-  if (style.opacity < 1) view.filters = [new AlphaFilter({ alpha: style.opacity })];
+  const filters = [];
+  if ((style.soft ?? 0) > 0)
+    filters.push(new BlurFilter({ strength: softBlur(style.width, style.soft ?? 0), quality: 4 }));
+  if (style.opacity < 1) filters.push(new AlphaFilter({ alpha: style.opacity }));
+  if (filters.length > 0) view.filters = filters;
   return view;
 }
 
@@ -381,6 +410,9 @@ export class MapScene {
   private readonly gridLines = new Container();
   /** The scale bar, over the items (kept in exports). */
   private readonly scaleBarView = new Container();
+  /** A compass rose and a frame (see `drawDecor`). */
+  private readonly decorView = new Container();
+  private decorKey = '';
   private scaleBarKey = '';
   private readonly layers = new Container();
   private readonly renderView = new Container();
@@ -390,6 +422,9 @@ export class MapScene {
   /** Pictures and stamps still loading (see `settled`). */
   private loading = 0;
   private readonly elevationView = new Container();
+  /** Ambient light and lights: one picture over the layers (see `drawLighting`). */
+  private readonly lightingView = new Container();
+  private lightingKey = '';
   private elevationKey = '';
   private readonly fog = new Container();
   private fogKey = '';
@@ -415,6 +450,11 @@ export class MapScene {
   onLoading: (loading: boolean) => void = () => undefined;
   private destroyed = false;
   private frame = 0;
+  /** The variant being compared with (see `layerGhost`), and the layers shown faintly for it. */
+  private compare: string | undefined;
+  private readonly ghosts = new Set<Container>();
+  /** Views that are culled once they have been drawn once. */
+  private readonly cullLater = new Set<Container>();
   private resizing: ResizeObserver | null = null;
   /** Scale the view with the host when it is resized (a map in a board card), not just crop it. */
   followResize = false;
@@ -449,9 +489,11 @@ export class MapScene {
       this.renderView,
       this.layers,
       this.elevationView,
+      this.lightingView,
       this.fog,
       this.gridLines,
       this.scaleBarView,
+      this.decorView,
       this.overlay,
     );
     this.app.stage.addChild(this.world);
@@ -503,6 +545,10 @@ export class MapScene {
       if (this.destroyed) return;
       Culler.shared.cull(this.world, this.app.screen);
       this.app.render();
+      if (this.cullLater.size > 0) {
+        for (const view of this.cullLater) view.cullable = true;
+        this.cullLater.clear();
+      }
     });
   }
 
@@ -574,6 +620,11 @@ export class MapScene {
     this.setView((w - this.doc.width * zoom) / 2, (h - this.doc.height * zoom) / 2, zoom);
   }
 
+  /** Compare with another variant: its layers show faintly (from the next `setDoc`). */
+  setCompare(id: string | undefined): void {
+    this.compare = id;
+  }
+
   setDoc(doc: MapDoc): void {
     this.doc = doc;
     patternGrid = doc.grid.size;
@@ -594,6 +645,7 @@ export class MapScene {
     this.drawBackground(doc);
     this.drawGrid(doc);
     this.drawScaleBar(doc);
+    this.drawDecor(doc);
     // Layers, bottom first.
     const seen = new Set<string>();
     const pictureKeys = new Set<string>();
@@ -612,7 +664,12 @@ export class MapScene {
         this.layerViews.set(layer.id, view);
         this.layers.addChild(view);
       }
-      view.visible = layerShown(doc, layer);
+      // Comparing with another variant: its layers show faintly (never in a picture).
+      const ghost = layerGhost(doc, layer, this.compare);
+      view.visible = layerShown(doc, layer) || ghost;
+      view.alpha = ghost ? 0.3 : 1;
+      if (ghost) this.ghosts.add(view);
+      else this.ghosts.delete(view);
       this.layers.setChildIndex(view, index);
       if (layer.picture) {
         // A picture layer: loaded once and kept, so showing and hiding it is instant.
@@ -641,25 +698,32 @@ export class MapScene {
         seen.add(item.id);
         const node = this.nodes.get(item.id);
         const look =
-          item.kind === 'scatter' || item.kind === 'district'
-            ? obstacles
-            : item.kind === 'text' && item.follow
-              ? obstacles + String(fantasyFontReady)
-              : item.kind === 'pin'
-                ? JSON.stringify([pinStyle(doc, item), doc.pinStyle ?? '', fantasyFontReady])
-                : item.kind === 'text' && item.font === 'fantasy'
-                  ? String(fantasyFontReady)
-                  : packLook(item);
+          item.kind === 'building'
+            ? JSON.stringify([doc.hideRoofs ?? false, doc.sun ?? null])
+            : item.kind === 'district'
+              ? obstacles + JSON.stringify([doc.hideRoofs ?? false, doc.sun ?? null])
+              : item.kind === 'scatter'
+                ? obstacles
+                : item.kind === 'text' && item.follow
+                  ? obstacles + String(fantasyFontReady)
+                  : item.kind === 'pin'
+                    ? JSON.stringify([pinStyle(doc, item), doc.pinStyle ?? '', fantasyFontReady])
+                    : item.kind === 'text' && item.font === 'fantasy'
+                      ? String(fantasyFontReady)
+                      : packLook(item);
         const home = item.under === true && walls ? walls : view;
         if (node?.item === item && node.look === look && node.view.parent === home) return;
         if (node) {
+          this.cullLater.delete(node.view);
           node.view.destroy({ children: true });
           for (const e of node.extras ?? []) e.destroy({ children: true });
         }
         const fresh = this.drawItem(item, doc);
-        fresh.cullable = !['path', 'shape', 'scatter', 'district', 'building', 'room'].includes(
-          item.kind,
-        );
+        // A new view has no place yet (its transform is made when it is first drawn), so the
+        // culler would hide it: it is left alone for its first frame (see `requestRender`).
+        if (!['path', 'shape', 'scatter', 'district', 'building', 'room'].includes(item.kind))
+          this.cullLater.add(fresh);
+        fresh.cullable = false;
         if (this.hideAnnotations && (item.kind === 'pin' || item.kind === 'route'))
           fresh.visible = false;
         const extras: Container[] = [];
@@ -702,6 +766,7 @@ export class MapScene {
       }
     this.drawFog(doc);
     this.drawElevation(doc.elevation);
+    this.drawLighting(doc);
     this.drawRender(doc);
     this.applyVisibility(doc);
     this.scalePins();
@@ -773,7 +838,15 @@ export class MapScene {
   /** Hill shading over the layers: one small picture, stretched over the map. */
   private drawElevation(e: Elevation | undefined, heights?: Uint8Array): void {
     const key = e
-      ? [e.data.length, e.data.slice(0, 64), e.data.slice(-64), e.sea, e.strength, e.tint].join('|')
+      ? [
+          e.data.length,
+          e.data.slice(0, 64),
+          e.data.slice(-64),
+          e.sea,
+          e.strength,
+          e.tint,
+          e.contours ?? 0,
+        ].join('|')
       : '';
     if (!heights && key === this.elevationKey) return;
     this.elevationKey = heights ? '' : key;
@@ -791,6 +864,107 @@ export class MapScene {
     const sprite = new Sprite(texture);
     sprite.scale.set(e.cell);
     this.elevationView.addChild(sprite);
+    if (!heights && e.contours && e.contours > 0) {
+      // Contour lines: thin ink, every fifth one stronger (not while a brush is painting).
+      const all = heightsOf(e);
+      const lines = new Graphics();
+      for (let level = e.contours, n = 1; level < 255; level += e.contours, n++) {
+        if (level <= e.sea && e.tint) continue;
+        const strong = n % 5 === 0;
+        for (const [x1, y1, x2, y2] of contourSegments(e.w, e.h, all, level))
+          lines.moveTo(x1 * e.cell, y1 * e.cell).lineTo(x2 * e.cell, y2 * e.cell);
+        lines.stroke({ color: INK, width: strong ? 2.2 : 1.1, alpha: strong ? 0.5 : 0.28 });
+      }
+      this.elevationView.addChild(lines);
+    }
+    this.requestRender();
+  }
+
+  /**
+   * The light of the map: the ambient colour with each light added, drawn into one picture (on a
+   * canvas, shadows cut by the walls) that darkens the layers by multiplying, or (in daylight)
+   * adds a glow.
+   */
+  private drawLighting(doc: MapDoc): void {
+    const lights = doc.layers.flatMap((l) =>
+      layerShown(doc, l) ? l.items.filter((i) => i.kind === 'light') : [],
+    );
+    const walls = lights.some((l) => l.shadows) ? lightSegments(doc) : [];
+    const key = JSON.stringify([
+      doc.ambient ?? '',
+      lights.map((l) => [l.x, l.y, l.range, l.color, l.intensity, l.shadows]),
+      walls.map((s) => [s.ax, s.ay, s.bx, s.by].map(Math.round)),
+      doc.width,
+      doc.height,
+    ]);
+    if (key === this.lightingKey) return;
+    this.lightingKey = key;
+    for (const c of this.lightingView.removeChildren()) c.destroy({ children: true });
+    if ((!doc.ambient && lights.length === 0) || typeof document === 'undefined') {
+      this.requestRender();
+      return;
+    }
+    // Drawn at most about 2k pixels wide, then stretched: light is soft.
+    const k = Math.min(1, 2048 / Math.max(doc.width, doc.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(doc.width * k));
+    canvas.height = Math.max(1, Math.round(doc.height * k));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    if (doc.ambient) {
+      ctx.fillStyle = doc.ambient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    ctx.globalCompositeOperation = 'lighter';
+    for (const light of lights) {
+      const rgb = Number.parseInt(light.color.replace('#', ''), 16) || 0xffffff;
+      const [r, g, b] = [(rgb >> 16) & 255, (rgb >> 8) & 255, rgb & 255];
+      const gradient = ctx.createRadialGradient(
+        light.x * k,
+        light.y * k,
+        0,
+        light.x * k,
+        light.y * k,
+        light.range * k,
+      );
+      // In daylight a light is only a faint glow; in the dark it is what lights the map.
+      const top = light.intensity * (doc.ambient ? 1 : 0.45);
+      gradient.addColorStop(0, `rgba(${String(r)},${String(g)},${String(b)},${String(top)})`);
+      gradient.addColorStop(
+        0.5,
+        `rgba(${String(r)},${String(g)},${String(b)},${String(top * 0.5)})`,
+      );
+      gradient.addColorStop(1, `rgba(${String(r)},${String(g)},${String(b)},0)`);
+      ctx.save();
+      if (light.shadows) {
+        const poly = visibilityPolygon(light.x, light.y, light.range, walls);
+        if (poly.length >= 6) {
+          ctx.beginPath();
+          for (let i = 0; i + 1 < poly.length; i += 2) {
+            const px = (poly[i] ?? 0) * k;
+            const py = (poly[i + 1] ?? 0) * k;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.clip();
+        }
+      }
+      ctx.fillStyle = gradient;
+      ctx.fillRect(
+        (light.x - light.range) * k,
+        (light.y - light.range) * k,
+        light.range * 2 * k,
+        light.range * 2 * k,
+      );
+      ctx.restore();
+    }
+    const texture = Texture.from(canvas);
+    texture.source.scaleMode = 'linear';
+    const sprite = new Sprite(texture);
+    sprite.scale.set(1 / k);
+    sprite.blendMode = doc.ambient ? 'multiply' : 'add';
+    this.lightingView.addChild(sprite);
     this.requestRender();
   }
 
@@ -978,6 +1152,66 @@ export class MapScene {
     this.scaleBarView.addChild(holder);
   }
 
+  /** The compass rose (top-right) and the frame round the map. */
+  private drawDecor(doc: MapDoc): void {
+    const key = JSON.stringify([doc.compass, doc.frame, doc.width, doc.height, fantasyFontReady]);
+    if (key === this.decorKey) return;
+    this.decorKey = key;
+    for (const c of this.decorView.removeChildren()) c.destroy({ children: true });
+    const unit = Math.min(doc.width, doc.height);
+    if (doc.frame) {
+      const fantasy = doc.frame === 'fantasy';
+      const g = new Graphics();
+      for (const r of frameRects(doc.width, doc.height, doc.frame))
+        g.rect(r.x, r.y, r.w, r.h).stroke({ color: INK, width: r.line, join: 'miter' });
+      if (fantasy)
+        for (const c of frameCorners(doc.width, doc.height))
+          g.circle(c.x, c.y, unit * 0.014)
+            .fill({ color: PARCHMENT })
+            .stroke({ color: INK, width: Math.max(2, unit * 0.004) });
+      this.decorView.addChild(g);
+    }
+    if (doc.compass) {
+      const fantasy = doc.compass === 'fantasy';
+      const radius = unit * 0.1;
+      const holder = new Container();
+      const margin = unit * (doc.frame ? 0.09 : 0.05);
+      holder.position.set(doc.width - margin - radius, margin + radius);
+      const g = new Graphics();
+      const { long, short } = roseShape(doc.compass);
+      const scaled = (p: number[]) => p.map((v) => v * radius);
+      if (fantasy)
+        g.circle(0, 0, radius * 0.72).stroke({ color: INK, width: Math.max(1.5, radius * 0.02) });
+      for (const piece of [...short, ...long]) {
+        g.poly(scaled(piece.points)).fill({ color: PARCHMENT });
+        g.poly(scaled(piece.shaded)).fill({ color: INK });
+        g.poly(scaled(piece.points)).stroke({
+          color: INK,
+          width: Math.max(1, radius * 0.015),
+          join: 'miter',
+        });
+      }
+      holder.addChild(g);
+      const t = new Text({
+        text: 'N',
+        style: {
+          fontFamily: fantasy ? FANTASY_FONT : 'Merriweather, Georgia, serif',
+          fontStyle: fantasy ? 'italic' : 'normal',
+          fontWeight: '700',
+          fontSize: radius * 0.4,
+          fill: INK,
+          stroke: { color: PARCHMENT, width: Math.max(3, radius * 0.08) },
+        },
+        resolution: 2,
+      });
+      t.anchor.set(0.5, 1);
+      t.position.set(0, -radius * 1.05);
+      holder.addChild(t);
+      this.decorView.addChild(holder);
+    }
+    this.requestRender();
+  }
+
   private drawGrid(doc: MapDoc): void {
     const g = doc.grid;
     const key = `${String(g.visible)}|${g.type}|${String(g.size)}|${String(g.offsetX)}|${String(g.offsetY)}|${String(g.opacity)}|${String(doc.width)}|${String(doc.height)}`;
@@ -1016,6 +1250,25 @@ export class MapScene {
           sprite.height = item.h;
           if (item.flipX) sprite.scale.x *= -1;
           if (item.flipY) sprite.scale.y *= -1;
+          if (item.shadow) {
+            // A soft dark copy, a little to the south-east, under the picture.
+            const shade = new Sprite(texture);
+            shade.anchor.set(0.5);
+            shade.width = item.w;
+            shade.height = item.h;
+            shade.scale.x = sprite.scale.x;
+            shade.scale.y = sprite.scale.y;
+            shade.tint = 0x000000;
+            shade.alpha = 0.4;
+            shade.position.set(item.w * 0.04, item.h * 0.05);
+            shade.filters = [
+              new BlurFilter({
+                strength: Math.max(1, Math.min(item.w, item.h) * 0.04),
+                quality: 3,
+              }),
+            ];
+            holder.addChild(shade);
+          }
           holder.addChild(sprite);
           this.requestRender();
         });
@@ -1027,13 +1280,39 @@ export class MapScene {
           width: item.width,
           opacity: item.opacity,
           texture: item.texture,
+          soft: item.soft,
+          border: item.border,
         });
       case 'room':
         return roomFloorView(item, terrainPattern(item.floor), floorColor(item.floor));
       case 'district':
-        return districtView(item, districtGeo(doc, item));
+        return districtView(item, districtGeo(doc, item), { hide: doc.hideRoofs, sun: doc.sun });
       case 'building':
-        return buildingView(item);
+        return buildingView(item, { hide: doc.hideRoofs, sun: doc.sun });
+      case 'light': {
+        // A small sun with a ring at its range: for placing and moving it, not for the picture.
+        const holder = new Container();
+        holder.position.set(item.x, item.y);
+        holder.visible = this.hideAnnotations;
+        const g = new Graphics();
+        const rays = 8;
+        for (let i = 0; i < rays; i++) {
+          const a = (i * Math.PI * 2) / rays;
+          g.moveTo(Math.cos(a) * 11, Math.sin(a) * 11)
+            .lineTo(Math.cos(a) * 17, Math.sin(a) * 17)
+            .stroke({ color: INK, width: 2.5, cap: 'round' });
+        }
+        g.circle(0, 0, 8)
+          .fill({ color: colorOf(item.color) })
+          .stroke({ color: INK, width: 2 });
+        holder.addChild(g);
+        const ring = new Graphics();
+        ring
+          .circle(0, 0, item.range)
+          .stroke({ color: colorOf(item.color), width: 1.5, alpha: 0.5 });
+        holder.addChild(ring);
+        return holder;
+      }
       case 'scatter':
         return this.scatterView(item, doc);
       case 'shape':
@@ -1042,7 +1321,7 @@ export class MapScene {
         return pathView(item);
       case 'wall': {
         if (item.texture && isPackTexture(item.texture)) {
-          const strips = stripWallView(item.points, false, item.texture, grid.size);
+          const strips = stripWallView(item.points, item.loop === true, item.texture, grid.size);
           if (strips) return strips;
         }
         const g = new Graphics();
@@ -1051,12 +1330,13 @@ export class MapScene {
           g.moveTo(p[0] ?? 0, p[1] ?? 0);
           for (let i = 2; i + 1 < p.length; i += 2) g.lineTo(p[i] ?? 0, p[i + 1] ?? 0);
           if (p.length === 2) g.lineTo((p[0] ?? 0) + 0.1, p[1] ?? 0);
+          if (item.loop && p.length >= 6) g.closePath();
         }
         g.stroke({
           color: WALL_COLOR,
           width: Math.max(6, grid.size * 0.14),
-          cap: 'round',
-          join: 'round',
+          cap: item.joint === 'sharp' ? 'butt' : 'round',
+          join: item.joint === 'sharp' ? 'miter' : 'round',
         });
         return g;
       }
@@ -1194,6 +1474,10 @@ export class MapScene {
         if (this.hideAnnotations && (item.kind === 'pin' || item.kind === 'route')) continue;
         if (!itemShown(this.doc, item.id)) continue;
         if (this.forPlayers && item.kind === 'pin' && fogHides(this.doc, item.x, item.y)) continue;
+        if (item.kind === 'light') {
+          if (Math.hypot(p.x - item.x, p.y - item.y) <= 16 + 6 / this.zoom) return item;
+          continue;
+        }
         if (item.kind === 'stroke' || item.kind === 'wall' || item.kind === 'route') {
           const width =
             item.kind === 'wall'
@@ -1202,7 +1486,11 @@ export class MapScene {
                 ? routeWidth(this.doc)
                 : item.width / 2;
           const tolerance = width + 6 / this.zoom;
-          if (nearPolyline(p, item.points, tolerance)) return item;
+          const line =
+            item.kind === 'wall' && item.loop && item.points.length >= 6
+              ? [...item.points, item.points[0] ?? 0, item.points[1] ?? 0]
+              : item.points;
+          if (nearPolyline(p, line, tolerance)) return item;
           continue;
         }
         if (item.kind === 'shape') {
@@ -1210,7 +1498,8 @@ export class MapScene {
           const outline = shapeOutline(item);
           const b = bounds(outline);
           if ((b.x1 - b.x0) * (b.y1 - b.y0) > this.doc.width * this.doc.height * 0.8) continue;
-          if (pointInPolygon(p, outline)) return item;
+          if (pointInPolygon(p, outline) && !shapeHoles(item).some((h) => pointInPolygon(p, h)))
+            return item;
           continue;
         }
         if (item.kind === 'room') {
@@ -1278,6 +1567,12 @@ export class MapScene {
       g.poly(corners.flat()).stroke({ color: SELECT_COLOR, width: w * 1.5 });
       return;
     }
+    if (item.kind === 'light') {
+      // The marker, and how far the light reaches (the ring is not part of what is picked).
+      g.circle(item.x, item.y, 20).stroke({ color: SELECT_COLOR, width: w * 1.5 });
+      g.circle(item.x, item.y, item.range).stroke({ color: SELECT_COLOR, width: w, alpha: 0.6 });
+      return;
+    }
     if (item.kind === 'district' || item.kind === 'building' || item.kind === 'room') {
       const outline =
         item.kind === 'district'
@@ -1303,9 +1598,19 @@ export class MapScene {
             .stroke({ color: SELECT_COLOR, width: w });
       return;
     }
-    if (item.kind === 'shape' || item.kind === 'path') {
+    if (
+      item.kind === 'shape' ||
+      item.kind === 'path' ||
+      item.kind === 'wall' ||
+      item.kind === 'route'
+    ) {
       // The outline, and a handle on each control point to drag.
-      const line = item.kind === 'shape' ? shapeOutline(item) : pathLine(item);
+      const line =
+        item.kind === 'shape'
+          ? shapeOutline(item)
+          : item.kind === 'path'
+            ? pathLine(item)
+            : item.points;
       if (line.length >= 4)
         g.poly(line, item.kind === 'shape').stroke({ color: SELECT_COLOR, width: w });
       for (let i = 0; i + 1 < item.points.length; i += 2)
@@ -1434,6 +1739,13 @@ export class MapScene {
       n.view.alpha = 1;
       if (!withSecretPins) n.view.visible = false;
     }
+    // Layers shown only to compare are left out of the picture.
+    const ghostShown = [...this.ghosts].map((v) => v.visible);
+    for (const v of this.ghosts) v.visible = false;
+    // The markers of lights are for placing them, not for the picture.
+    const markers = [...this.nodes.values()].filter((n) => n.item.kind === 'light');
+    const markerShown = markers.map((n) => n.view.visible);
+    for (const n of markers) n.view.visible = false;
     // Everything is drawn, on screen or not.
     uncull(this.world);
     try {
@@ -1448,6 +1760,12 @@ export class MapScene {
           ctx.drawImage(tile as HTMLCanvasElement, Math.round(x * scale), Math.round(y * scale));
         }
     } finally {
+      markers.forEach((n, i) => {
+        n.view.visible = markerShown[i] ?? true;
+      });
+      [...this.ghosts].forEach((v, i) => {
+        v.visible = ghostShown[i] ?? true;
+      });
       this.overlay.visible = true;
       this.gridLines.visible = true;
       // Pins back to screen size, the secret ones faint again.

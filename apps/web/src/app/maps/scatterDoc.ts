@@ -3,9 +3,16 @@ import type { MapDoc, MapItem } from './model';
 import { parsePackRef, squaresOf } from './packModel';
 import { insetPolygon } from './polyclip';
 import { pointInPolygon } from './polygon';
-import { scatterInstances, type Instance, type Obstacles, type ScatterSpec } from './scatter';
+import {
+  pickIndex,
+  randomAngle,
+  scatterInstances,
+  type Instance,
+  type Obstacles,
+  type ScatterSpec,
+} from './scatter';
 import { bounds, growPolygon, splinePoints } from './spline';
-import type { TerrainRef } from './terrain';
+import { seeded, type TerrainRef } from './terrain';
 
 /**
  * How a scatter item meets the rest of its map: the outline it fills or the line it follows (its
@@ -50,6 +57,7 @@ export const isTied = (item: ScatterItem): boolean => Boolean(item.within ?? ite
 interface Ground {
   texture: TerrainRef | undefined;
   outline: number[];
+  holes: number[][];
   box: { x0: number; y0: number; x1: number; y1: number };
 }
 
@@ -60,7 +68,10 @@ function grounds(doc: MapDoc): Ground[] {
     for (const item of layer.items)
       if (item.kind === 'shape') {
         const outline = splinePoints(item.points, true, item.smooth);
-        out.push({ texture: item.texture, outline, box: bounds(outline) });
+        const holes = (item.holes ?? [])
+          .filter((h) => h.length >= 6)
+          .map((h) => splinePoints(h, true, item.smooth));
+        out.push({ texture: item.texture, outline, holes, box: bounds(outline) });
       }
   return out;
 }
@@ -70,7 +81,8 @@ function terrainAt(list: readonly Ground[], x: number, y: number): TerrainRef | 
   let found: TerrainRef | undefined | null = null;
   for (const g of list) {
     if (x < g.box.x0 || x > g.box.x1 || y < g.box.y0 || y > g.box.y1) continue;
-    if (pointInPolygon({ x, y }, g.outline)) found = g.texture;
+    if (pointInPolygon({ x, y }, g.outline) && !g.holes.some((h) => pointInPolygon({ x, y }, h)))
+      found = g.texture;
   }
   return found;
 }
@@ -122,16 +134,32 @@ export function scatterSetup(
   doc: MapDoc,
   item: ScatterItem,
 ): { spec: ScatterSpec; obstacles: Obstacles; allowed: (x: number, y: number) => boolean } {
+  const rules = placementRules(doc, {
+    avoid: item.avoid,
+    onlyOn: item.onlyOn,
+    skipPath: item.follow,
+  });
+  // Scattered over a shape with holes, it keeps out of them.
+  const target = item.within ? allItems(doc).find((i) => i.id === item.within) : undefined;
+  const holes =
+    target?.kind === 'shape'
+      ? (target.holes ?? [])
+          .filter((h) => h.length >= 6)
+          .map((h) => splinePoints(h, true, target.smooth))
+      : [];
   return {
     spec: {
       mode: item.mode,
       line: scatterLine(doc, item),
       seed: item.seed,
-      spacing: item.spacing,
+      // Overlap shrinks the room each piece keeps round it (a packed forest, a crowd).
+      spacing: Math.max(2, item.spacing * (1 - (item.overlap ?? 0))),
       sizeMin: item.sizeMin,
       sizeMax: item.sizeMax,
       weights: item.pieces.map((p) => p.weight),
       rotation: item.rotation,
+      rotMin: item.rotMin,
+      rotMax: item.rotMax,
       cluster: item.cluster,
       offset: item.offset,
       sides: item.sides,
@@ -139,11 +167,11 @@ export function scatterSetup(
       clearance: item.clearance,
       max: 6000,
     },
-    ...placementRules(doc, {
-      avoid: item.avoid,
-      onlyOn: item.onlyOn,
-      skipPath: item.follow,
-    }),
+    obstacles: {
+      lines: rules.obstacles.lines,
+      polygons: [...rules.obstacles.polygons, ...holes],
+    },
+    allowed: rules.allowed,
   };
 }
 
@@ -161,7 +189,8 @@ export function obstacleSignature(doc: MapDoc): string {
   for (const layer of doc.layers)
     for (const i of layer.items)
       if (i.kind === 'path') parts.push([i.id, i.points, i.smooth, i.style, i.width]);
-      else if (i.kind === 'shape') parts.push([i.id, i.points, i.smooth, i.texture ?? '']);
+      else if (i.kind === 'shape')
+        parts.push([i.id, i.points, i.smooth, i.texture ?? '', i.holes ?? []]);
       else if (i.kind === 'building') parts.push([i.id, i.points]);
   const text = JSON.stringify(parts);
   let h = 0x811c9dc5;
@@ -431,6 +460,9 @@ export interface ScatterSettings {
   sizeMin: number;
   sizeMax: number;
   rotation: 'none' | 'random' | 'along' | 'quarter';
+  rotMin?: number | undefined;
+  rotMax?: number | undefined;
+  overlap?: number | undefined;
   cluster: number;
   offset: number;
   sides: 'center' | 'both' | 'left' | 'right';
@@ -439,6 +471,8 @@ export interface ScatterSettings {
   onlyOn?: TerrainRef[] | undefined;
   /** Multiplies spacing, sizes and offset: the same preset for a battle map or a continent. */
   scale: number;
+  /** One piece per click, drawn at random, instead of a stroke over an area. */
+  single?: boolean;
 }
 
 export const settingsFromPreset = (p: ScatterPreset, scale = 1): ScatterSettings => ({
@@ -479,6 +513,9 @@ export function makeScatter(
     sizeMin: Math.round(s.sizeMin * s.scale),
     sizeMax: Math.round(s.sizeMax * s.scale),
     rotation: s.rotation,
+    ...(s.rotMin !== undefined ? { rotMin: s.rotMin } : {}),
+    ...(s.rotMax !== undefined ? { rotMax: s.rotMax } : {}),
+    ...(s.overlap ? { overlap: s.overlap } : {}),
     cluster: s.cluster,
     offset: Math.round(s.offset * s.scale),
     sides: s.sides,
@@ -583,3 +620,43 @@ const firstPreset = SCATTER_PRESETS[0];
 if (!firstPreset) throw new Error('No scatter presets');
 /** What the Scatter tool starts with. */
 export const DEFAULT_SCATTER: ScatterSettings = settingsFromPreset(firstPreset);
+
+/**
+ * One piece of a scatter's set put down at a point, as an ordinary stamp (Dungeondraft's click-once
+ * scatter): the piece, size and turn are drawn at random, so the next click is another. Null when
+ * the settings have no pieces.
+ */
+export function singlePiece(
+  doc: MapDoc,
+  s: ScatterSettings,
+  at: { x: number; y: number },
+  id: string,
+  seed: number,
+): MapItem | null {
+  if (s.pieces.length === 0) return null;
+  const item = makeScatter(id, s, { points: [] }, seed);
+  const rand = seeded(seed);
+  const piece = pickIndex(
+    item.pieces.map((p) => p.weight),
+    rand(),
+  );
+  const size = item.sizeMin + rand() * Math.max(0, item.sizeMax - item.sizeMin);
+  const angle =
+    item.rotation === 'random'
+      ? randomAngle(rand, item)
+      : item.rotation === 'quarter'
+        ? Math.floor(rand() * 4) * (Math.PI / 2)
+        : 0;
+  const inst: Instance = { x: at.x, y: at.y, angle, size, piece };
+  const box = pieceBox(doc, item, inst);
+  return {
+    kind: 'stamp',
+    id,
+    stamp: item.pieces[piece]?.ref ?? '',
+    x: Math.round(at.x),
+    y: Math.round(box.base ? at.y - box.h * 0.42 : at.y),
+    w: Math.round(box.w),
+    h: Math.round(box.h),
+    rotation: Math.round((angle * 180) / Math.PI) % 360,
+  };
+}

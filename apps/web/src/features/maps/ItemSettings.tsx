@@ -12,6 +12,7 @@ import {
   type TemplateShape,
 } from '../../app/maps/model';
 import { useMaps } from '../../app/maps/store';
+import { ITEM_TITLES } from './editorModel';
 import { NumberField, Section } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
 import { WallStrips } from './WallStrips';
@@ -21,6 +22,7 @@ import { RouteSettings } from './RouteSettings';
 import { BuildingItemSettings, DistrictItemSettings } from './CityPanel';
 import { RoomItemSettings } from './RoomPanel';
 import { ScatterItemSettings } from './ScatterPanel';
+import { LightItemSettings } from './LightPanel';
 import { ShapeItemSettings } from './ShapePanel';
 import { TextLettering } from './TextLettering';
 
@@ -31,6 +33,7 @@ export function ItemSettings({
   onDeselect,
   onMeasureFrom,
   onScatterOn,
+  onCutHole,
   onFurnish,
   stamp,
 }: MapPanelsProps & { item: MapItem }) {
@@ -51,23 +54,8 @@ export function ItemSettings({
     commit((d) => updateItem(d, item.id, change));
   };
   const layer = doc.layers.find((l) => l.items.some((i) => i.id === item.id));
-  const titles: Record<MapItem['kind'], string> = {
-    stamp: 'Stamp',
-    stroke: 'Brush stroke',
-    wall: 'Wall',
-    route: 'Route',
-    text: 'Text',
-    template: 'Spell template',
-    pin: 'Pin',
-    shape: 'Terrain shape',
-    path: 'Road or river',
-    scatter: 'Scatter',
-    district: 'District',
-    building: 'Building',
-    room: 'Room',
-  };
   return (
-    <Section title={titles[item.kind]}>
+    <Section title={ITEM_TITLES[item.kind]}>
       {item.kind !== 'route' && item.kind !== 'pin' && item.kind !== 'template' && (
         <label className="flex items-center gap-2 text-sm">
           <input
@@ -105,6 +93,46 @@ export function ItemSettings({
         </div>
       )}
       {item.kind === 'wall' && (
+        <>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={item.loop === true}
+              onChange={(e) => {
+                const on = e.target.checked;
+                set((i) => {
+                  if (i.kind !== 'wall') return i;
+                  const { loop: _l, ...rest } = i;
+                  return on ? { ...rest, loop: true } : rest;
+                });
+              }}
+            />
+            Close the loop
+          </label>
+          {!item.texture && (
+            <label className="block text-sm">
+              Corners
+              <select
+                aria-label="Wall corners"
+                value={item.joint ?? 'round'}
+                onChange={(e) => {
+                  const sharp = e.target.value === 'sharp';
+                  set((i) => {
+                    if (i.kind !== 'wall') return i;
+                    const { joint: _j, ...rest } = i;
+                    return sharp ? { ...rest, joint: 'sharp' } : rest;
+                  });
+                }}
+                className={field}
+              >
+                <option value="round">Rounded</option>
+                <option value="sharp">Sharp</option>
+              </select>
+            </label>
+          )}
+        </>
+      )}
+      {item.kind === 'wall' && (
         <WallStrips
           value={item.texture}
           onPick={(texture) => {
@@ -117,6 +145,7 @@ export function ItemSettings({
         />
       )}
       {item.kind === 'route' && <RouteSettings item={item} doc={doc} set={set} />}
+      {item.kind === 'light' && <LightItemSettings item={item} grid={doc.grid.size} set={set} />}
       {(item.kind === 'shape' || item.kind === 'path') && (
         <ShapeItemSettings
           item={item}
@@ -124,9 +153,21 @@ export function ItemSettings({
           onScatter={() => {
             onScatterOn(item);
           }}
+          onCutHole={() => {
+            onCutHole(item.id);
+          }}
         />
       )}
-      {item.kind === 'district' && <DistrictItemSettings item={item} set={set} commit={commit} />}
+      {item.kind === 'district' && (
+        <DistrictItemSettings
+          item={item}
+          set={set}
+          commit={commit}
+          onCutHole={() => {
+            onCutHole(item.id);
+          }}
+        />
+      )}
       {item.kind === 'building' && <BuildingItemSettings item={item} set={set} />}
       {item.kind === 'room' && (
         <RoomItemSettings
@@ -196,6 +237,23 @@ export function ItemSettings({
               <FlipVertical2 className="h-4 w-4" aria-hidden /> Flip up
             </Button>
           </div>
+          {(['shadow', 'blockLight'] as const).map((flag) => (
+            <label key={flag} className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={item[flag] === true}
+                onChange={(e) => {
+                  const on = e.target.checked;
+                  set((i) => {
+                    if (i.kind !== 'stamp') return i;
+                    const { [flag]: _old, ...rest } = i;
+                    return on ? { ...rest, [flag]: true } : rest;
+                  });
+                }}
+              />
+              {flag === 'shadow' ? 'Drop shadow' : 'Blocks light'}
+            </label>
+          ))}
           <p className="text-xs text-muted">Keys: R turns, [ and ] resize, Delete removes.</p>
         </>
       )}

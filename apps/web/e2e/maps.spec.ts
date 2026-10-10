@@ -420,6 +420,41 @@ test('asset packs are imported as zips, browsed with previews, and their stamps 
   await waitForSaved(page, 'maps', '"stamp":"pack:');
   await waitForSaved(page, 'maps', '"w":140,"h":140');
   await canvas.screenshot({ path: testInfo.outputPath('pack-stamp.png') });
+  // The hotbar remembers it: a click or its number takes the stamp again.
+  const hotbar = page.getByRole('toolbar', { name: 'Recent stamps' });
+  await expect(hotbar.getByRole('button', { name: 'Stamp 1: Well Stone A1' })).toBeVisible();
+  await tool(page, 'Select and move').click();
+  await expect(tool(page, 'Stamp')).toHaveAttribute('aria-pressed', 'false');
+  await page.keyboard.press('1');
+  await expect(tool(page, 'Stamp')).toHaveAttribute('aria-pressed', 'true');
+  await tool(page, 'Select and move').click();
+  await page.mouse.click(box.x + 300, box.y + 300);
+  // A stamp can have a drop shadow and block light.
+  await page.getByLabel('Drop shadow').check();
+  await waitForSaved(page, 'maps', '"shadow":true');
+  await page.getByLabel('Blocks light').check();
+  await waitForSaved(page, 'maps', '"blockLight":true');
+  // The pictures the map uses have a view of their own; a fuzzy search finds letters in order.
+  await page.getByRole('tab', { name: 'Stamps', exact: true }).click();
+  await page.getByLabel('Find a pack picture').fill('');
+  await page.getByRole('button', { name: /^Used on this map \(1\)/ }).click();
+  await expect(pictures.getByRole('button')).toHaveCount(1);
+  await expect(pictures.getByRole('button', { name: 'Well Stone A1' })).toBeVisible();
+  await page.getByRole('button', { name: 'All', exact: true }).click();
+  await page.getByLabel('Find a pack picture').fill('wll');
+  await expect(pictures.getByRole('button')).toHaveCount(0);
+  await page.getByLabel('Fuzzy search').check();
+  await expect(pictures.getByRole('button')).toHaveCount(1);
+  await page.getByLabel('Fuzzy search').uncheck();
+  await page.getByLabel('Find a pack picture').fill('');
+  // Tags are the folder names.
+  await page.getByRole('button', { name: 'Tags', exact: true }).click();
+  await page
+    .getByRole('list', { name: 'Pack tags' })
+    .getByRole('button', { name: /^desert/ })
+    .click();
+  await expect(pictures.getByRole('button')).toHaveCount(2);
+  await page.getByRole('button', { name: 'All', exact: true }).click();
   // Importing the same zip again adds nothing.
   await page.getByRole('tab', { name: 'Stamps', exact: true }).click();
   const again = page.waitForEvent('filechooser');
@@ -499,6 +534,12 @@ test('picture layers and variants: a night version, switched in the Viewer', asy
   await page.getByLabel('Variant name').nth(1).fill('Night');
   await page.getByRole('button', { name: 'Show Mine Night' }).click();
   await waitForSaved(page, 'maps', '"name":"Night"');
+  // Comparing shows the other version faintly; the variants can be moved in the list.
+  await page.getByLabel('Compare with').selectOption({ label: 'Day' });
+  await expect(page.getByLabel('Compare with')).toHaveValue(/.+/);
+  await page.getByRole('button', { name: 'Move Night up' }).click();
+  await waitForSaved(page, 'maps', '"name":"Night"');
+  await expect(page.getByLabel('Variant name').first()).toHaveValue('Night');
   // The Viewer switches between them.
   await page.getByRole('link', { name: /View map/ }).click();
   const variant = page.getByLabel('Variant', { exact: true });
@@ -1208,6 +1249,14 @@ test('elevation is made, painted and shown as hill shading', async ({ page }, te
   await page.mouse.up();
   await page.waitForTimeout(500);
   await canvas.screenshot({ path: testInfo.outputPath('spine.png') });
+  // Contour lines every so many heights.
+  await page.getByRole('slider', { name: /^Contour lines every/ }).fill('20');
+  await waitForSaved(page, 'maps', '"contours":20');
+  // Rivers run downhill from the high ground.
+  await page.getByRole('button', { name: 'Make rivers that run downhill' }).click();
+  await waitForSaved(page, 'maps', '"style":"river"');
+  await page.waitForTimeout(500);
+  await canvas.screenshot({ path: testInfo.outputPath('spine-rivers.png') });
   // Hidden by taking the shading to nothing; gone with Remove.
   await page.getByRole('slider', { name: /^How much it shows/ }).fill('0');
   await page.getByRole('button', { name: 'Remove the elevation' }).click();
@@ -1462,4 +1511,456 @@ test('walls are made of a pack strip, and its doors snap onto them', async ({ pa
   await page.mouse.click(box.x + 350, box.y + 312);
   await waitForSaved(page, 'maps', '"rotation":0');
   await canvas.screenshot({ path: testInfo.outputPath('pack-wall.png') });
+});
+
+/** The points of every wall saved in the user's maps. */
+const savedWalls = (page: Page) =>
+  page.evaluate(async () => {
+    const walls: number[][] = [];
+    try {
+      const root = await navigator.storage.getDirectory();
+      const dir = await (await root.getDirectoryHandle('user-data')).getDirectoryHandle('maps');
+      for await (const entry of dir.values()) {
+        if (entry.kind !== 'file') continue;
+        const doc = JSON.parse(await (await entry.getFile()).text()) as {
+          layers?: { items: { kind: string; points?: number[] }[] }[];
+        };
+        for (const layer of doc.layers ?? [])
+          for (const item of layer.items)
+            if (item.kind === 'wall' && item.points) walls.push(item.points);
+      }
+    } catch {
+      return walls;
+    }
+    return walls;
+  });
+
+test('Backspace takes the last point back while drawing, and Delete over a point removes it', async ({
+  page,
+}) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Points');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  // Points land where they are clicked, not on the grid.
+  await page.keyboard.press('s');
+  await tool(page, 'Wall').click();
+  await page.mouse.click(box.x + 200, box.y + 200);
+  await page.mouse.click(box.x + 300, box.y + 200);
+  // The second point is taken back; the wall ends at the third.
+  await page.keyboard.press('Backspace');
+  await page.mouse.dblclick(box.x + 400, box.y + 300);
+  await expect.poll(async () => (await savedWalls(page))[0]?.length).toBe(4);
+  // With three points, the middle one goes when the pointer is over it and Delete is pressed.
+  await tool(page, 'Wall').click();
+  await page.mouse.click(box.x + 200, box.y + 400);
+  await page.mouse.click(box.x + 300, box.y + 450);
+  await page.mouse.dblclick(box.x + 400, box.y + 400);
+  await expect.poll(async () => (await savedWalls(page)).length).toBe(2);
+  await tool(page, 'Select and move').click();
+  await page.mouse.click(box.x + 250, box.y + 425);
+  await page.mouse.move(box.x + 300, box.y + 450);
+  await page.keyboard.press('Delete');
+  await expect
+    .poll(async () => (await savedWalls(page)).map((w) => w.length).sort())
+    .toEqual([4, 4]);
+});
+
+test('a road fades in and out and can close into a ring', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Ends');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  await tool(page, 'Road or river').click();
+  await page.getByLabel('Path begins').selectOption('grow');
+  await page.getByLabel('Path ends').selectOption('fade');
+  await page.getByRole('checkbox', { name: 'Close the loop' }).check();
+  await page.mouse.click(box.x + 200, box.y + 200);
+  await page.mouse.click(box.x + 360, box.y + 220);
+  await page.mouse.click(box.x + 300, box.y + 300);
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'maps', '"start":"grow"');
+  await waitForSaved(page, 'maps', '"end":"fade"');
+  await waitForSaved(page, 'maps', '"loop":true');
+  // Picked, the same choices are on the road itself.
+  await tool(page, 'Select and move').click();
+  await page.mouse.click(box.x + 360, box.y + 220);
+  await page.getByLabel('Path ends').selectOption('hard');
+  await expect(page.getByLabel('Path ends')).toHaveValue('hard');
+  await expect(page.getByLabel('Path begins')).toHaveValue('grow');
+});
+
+/** The brush strokes saved in the user's maps. */
+const savedStrokes = (page: Page) =>
+  page.evaluate(async () => {
+    const out: { soft?: number; width: number; points?: number[] }[] = [];
+    try {
+      const root = await navigator.storage.getDirectory();
+      const dir = await (await root.getDirectoryHandle('user-data')).getDirectoryHandle('maps');
+      for await (const entry of dir.values()) {
+        if (entry.kind !== 'file') continue;
+        const doc = JSON.parse(await (await entry.getFile()).text()) as {
+          layers?: { items: { kind: string; soft?: number; width: number; points?: number[] }[] }[];
+        };
+        for (const layer of doc.layers ?? [])
+          for (const item of layer.items) if (item.kind === 'stroke') out.push(item);
+      }
+    } catch {
+      return out;
+    }
+    return out;
+  });
+
+test('the terrain brush has a soft edge, and [ ] size it', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Soft');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  await tool(page, 'Terrain brush').click();
+  // The textures used last are slots to pick from.
+  await page
+    .getByRole('radiogroup', { name: 'Terrain' })
+    .getByRole('radio', { name: 'Lava' })
+    .click();
+  await expect(page.getByRole('button', { name: 'Slot 1: Lava' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await page.getByRole('button', { name: 'Slot 2: Grass' }).click();
+  await expect(page.getByRole('button', { name: 'Slot 1: Grass' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  const width = page.getByText(/^Width: \d+$/);
+  const before = Number((await width.textContent())?.replace(/\D/g, ''));
+  await page.keyboard.press(']');
+  await expect(width).not.toHaveText(`Width: ${String(before)}`);
+  await page.getByLabel('Soft edge').fill('0');
+  await page.mouse.move(box.x + 150, box.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 300, box.y + 220, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(async () => (await savedStrokes(page)).length).toBe(1);
+  await page.getByLabel('Soft edge').fill('80');
+  await page.mouse.move(box.x + 150, box.y + 300);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 300, box.y + 320, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(async () => (await savedStrokes(page)).length).toBe(2);
+  expect((await savedStrokes(page)).map((x) => x.soft ?? 0).sort()).toEqual([0, 0.8]);
+  // A material has a border.
+  await page.getByLabel(/^Border/).check();
+  await page.getByLabel('Soft edge').fill('0');
+  await page.mouse.move(box.x + 150, box.y + 400);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 300, box.y + 420, { steps: 6 });
+  await page.mouse.up();
+  await waitForSaved(page, 'maps', '"border":true');
+});
+
+test('scatter turns its pieces within a range', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Turns');
+  await tool(page, 'Scatter').click();
+  await page.getByLabel('Rotation of pieces').selectOption('random');
+  const from = page.getByText(/^Turn from:/);
+  const to = page.getByText(/^Turn to:/);
+  await expect(from).toBeVisible();
+  await expect(to).toContainText('360°');
+  await to.getByRole('slider').fill('90');
+  await expect(to).toContainText('90°');
+  await page.getByLabel('Rotation of pieces').selectOption('none');
+  await expect(from).toHaveCount(0);
+  // One piece per click: a random one of the set, as a stamp.
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  await page.getByLabel('One piece per click').check();
+  await page.mouse.click(box.x + 300, box.y + 250);
+  await page.mouse.click(box.x + 380, box.y + 300);
+  await waitForSaved(page, 'maps', '"stamp":"glyph:');
+});
+
+test('a hole is cut out of a terrain shape and filled again', async ({ page }, testInfo) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Lake');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  const click = async (x: number, y: number) => {
+    await page.mouse.click(box.x + x, box.y + y);
+  };
+  await page.keyboard.press('s');
+  await tool(page, 'Terrain shape').click();
+  await click(100, 100);
+  await click(500, 100);
+  await click(500, 420);
+  await click(100, 420);
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'maps', '"kind":"shape"');
+  await tool(page, 'Select and move').click();
+  await click(150, 150);
+  await page.getByRole('button', { name: 'Cut a hole' }).click();
+  await click(250, 200);
+  await click(380, 200);
+  await click(380, 330);
+  await click(250, 330);
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'maps', '"holes":[[');
+  await page.waitForTimeout(500);
+  await canvas.screenshot({ path: testInfo.outputPath('hole.png') });
+  // The shape is picked again, and the hole can be filled.
+  await page.getByRole('button', { name: 'Fill the 1 hole' }).click();
+  await expect(page.getByRole('button', { name: 'Fill the 1 hole' })).toHaveCount(0);
+});
+
+test('roofs can be hidden, and the sun moves their shade', async ({ page }, testInfo) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  test.setTimeout(90_000);
+  await newMap(page, 'Roofs');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const bar = page.getByRole('toolbar', { name: 'Map bar' });
+  // The Roofs switch is there once the map has buildings.
+  await expect(bar.getByRole('button', { name: 'Roofs' })).toHaveCount(0);
+  await tool(page, 'District').click();
+  await page.getByRole('button', { name: 'Generate a walled town' }).click();
+  await waitForSaved(page, 'maps', '"wall":true');
+  const roofs = bar.getByRole('button', { name: 'Roofs' });
+  await expect(roofs).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('tab', { name: 'Map' }).click();
+  await page.getByLabel('Sun direction').fill('0');
+  await waitForSaved(page, 'maps', '"sun":{"angle":0');
+  await page.waitForTimeout(800);
+  await canvas.screenshot({ path: testInfo.outputPath('sun.png') });
+  await roofs.click();
+  await expect(roofs).toHaveAttribute('aria-pressed', 'false');
+  await waitForSaved(page, 'maps', '"hideRoofs":true');
+  await page.waitForTimeout(800);
+  await canvas.screenshot({ path: testInfo.outputPath('hidden.png') });
+});
+
+test('lights light a dark map, and walls cast their shadows', async ({ page }, testInfo) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Torches');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  const click = async (x: number, y: number) => {
+    await page.mouse.click(box.x + x, box.y + y);
+  };
+  await page.keyboard.press('s');
+  // A wall, and the night.
+  await tool(page, 'Wall').click();
+  await click(330, 120);
+  await click(330, 420);
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'maps', '"kind":"wall"');
+  await tool(page, 'Light').click();
+  await page.getByLabel('Ambient preset').selectOption('night');
+  await waitForSaved(page, 'maps', '"ambient":"#2b3157"');
+  await click(250, 270);
+  await waitForSaved(page, 'maps', '"kind":"light"');
+  await page.waitForTimeout(800);
+  await canvas.screenshot({ path: testInfo.outputPath('night.png') });
+  // The light is picked: its range and colour are on its panel.
+  await expect(page.getByLabel('Light range').first()).toBeVisible();
+  await page.getByLabel('Light range').last().fill('12');
+  await waitForSaved(page, 'maps', '"range":840');
+});
+
+test('a compass rose and a frame decorate the map', async ({ page }, testInfo) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Decor');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  await page.getByRole('tab', { name: 'Map' }).click();
+  await page.getByLabel('Compass rose', { exact: true }).selectOption('fantasy');
+  await waitForSaved(page, 'maps', '"compass":"fantasy"');
+  await page.getByLabel('Frame', { exact: true }).selectOption('fantasy');
+  await waitForSaved(page, 'maps', '"frame":"fantasy"');
+  await page.waitForTimeout(1000);
+  await canvas.screenshot({ path: testInfo.outputPath('decor.png') });
+  await page.getByLabel('Compass rose', { exact: true }).selectOption('none');
+  await expect(page.getByLabel('Compass rose', { exact: true })).toHaveValue('none');
+});
+
+test('snapping can step by half or quarter cells', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Fine');
+  const bar = page.getByRole('toolbar', { name: 'Map bar' });
+  await bar.getByLabel('Snap step').selectOption('2');
+  await waitForSaved(page, 'maps', '"snap":2');
+  await bar.getByLabel('Snap step').selectOption('1');
+  await expect(bar.getByLabel('Snap step')).toHaveValue('1');
+  // Switched off, the step goes away with the snap.
+  await page.keyboard.press('s');
+  await expect(bar.getByLabel('Snap step')).toHaveCount(0);
+});
+
+test('a wall can close into a loop and have sharp corners', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Loop');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  await tool(page, 'Wall').click();
+  await page.mouse.click(box.x + 200, box.y + 200);
+  await page.mouse.click(box.x + 400, box.y + 200);
+  await page.mouse.click(box.x + 300, box.y + 350);
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'maps', '"kind":"wall"');
+  await tool(page, 'Select and move').click();
+  await page.mouse.click(box.x + 300, box.y + 200);
+  await page.getByLabel('Close the loop').check();
+  await waitForSaved(page, 'maps', '"loop":true');
+  await page.getByLabel('Wall corners').selectOption('sharp');
+  await waitForSaved(page, 'maps', '"joint":"sharp"');
+  // The closing side can be picked too.
+  await page.keyboard.press('Escape');
+  await page.mouse.click(box.x + 250, box.y + 275);
+  await expect(page.getByLabel('Close the loop')).toBeChecked();
+});
+
+test('a region has a plain colour and a dashed border', async ({ page }, testInfo) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Kingdoms');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  const click = async (x: number, y: number) => {
+    await page.mouse.click(box.x + x, box.y + y);
+  };
+  await tool(page, 'Terrain shape').click();
+  await click(150, 150);
+  await click(450, 140);
+  await click(480, 380);
+  await click(200, 400);
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'maps', '"kind":"shape"');
+  await tool(page, 'Select and move').click();
+  await click(300, 270);
+  await page.getByLabel('Fill colour').fill('#c0504d');
+  await page.getByRole('radio', { name: 'Dashed border' }).click();
+  await page.getByRole('slider', { name: /^Opacity/ }).fill('0.4');
+  await waitForSaved(page, 'maps', '"edge":"dashed"');
+  await waitForSaved(page, 'maps', '"color":"#c0504d"');
+  // Picking nothing shows the border as it is.
+  await click(560, 470);
+  await page.waitForTimeout(600);
+  await canvas.screenshot({ path: testInfo.outputPath('region.png') });
+});
+
+test('dragging over empty ground with Select picks what it goes over', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Marquee');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  await page.keyboard.press('s');
+  await tool(page, 'Wall').click();
+  for (const y of [150, 250]) {
+    await page.mouse.click(box.x + 150, box.y + y);
+    await page.mouse.dblclick(box.x + 300, box.y + y);
+  }
+  await waitForSaved(page, 'maps', '"kind":"wall"');
+  await tool(page, 'Select and move').click();
+  // A box round both walls picks both: the arrange panel for several items appears.
+  await page.mouse.move(box.x + 100, box.y + 100);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 400, box.y + 330, { steps: 6 });
+  await page.mouse.up();
+  await expect(page.getByRole('region', { name: 'Selection' })).toBeVisible();
+  // A click on empty ground drops the pick.
+  await page.mouse.click(box.x + 500, box.y + 450);
+  await expect(page.getByRole('region', { name: 'Selection' })).toHaveCount(0);
+});
+
+test('a hole is cut out of a district', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  test.setTimeout(90_000);
+  await newMap(page, 'Park');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  await tool(page, 'District').click();
+  await page.getByRole('button', { name: 'Generate a walled town' }).click();
+  await waitForSaved(page, 'maps', '"wall":true');
+  await tool(page, 'Select and move').click();
+  await page.mouse.click(cx + 60, cy + 60);
+  await page.getByRole('button', { name: 'Cut a hole' }).click();
+  await page.keyboard.press('s');
+  await page.mouse.click(cx - 40, cy - 40);
+  await page.mouse.click(cx + 20, cy - 40);
+  await page.mouse.click(cx + 20, cy + 20);
+  await page.mouse.click(cx - 40, cy + 20);
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'maps', '"holes":[[');
+});
+
+test('a wall can be drawn as a path, with curves and a loop', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Curtain wall');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  await tool(page, 'Road or river').click();
+  await page.getByLabel('Path kind').selectOption('wall');
+  await page.getByRole('checkbox', { name: 'Close the loop' }).check();
+  await page.mouse.click(box.x + 200, box.y + 200);
+  await page.mouse.click(box.x + 400, box.y + 220);
+  await page.mouse.click(box.x + 300, box.y + 380);
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'maps', '"style":"wall"');
+  await waitForSaved(page, 'maps', '"loop":true');
+});
+
+test('rooms that touch are merged into one', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Hall');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  const drag = async (x0: number, y0: number, x1: number, y1: number) => {
+    await page.mouse.move(box.x + x0, box.y + y0);
+    await page.mouse.down();
+    await page.mouse.move(box.x + x1, box.y + y1, { steps: 5 });
+    await page.mouse.up();
+  };
+  // Counted from the saved file; a file caught mid-save is counted as the next poll finds it.
+  const rooms = () =>
+    page.evaluate(async () => {
+      let n = 0;
+      try {
+        const root = await navigator.storage.getDirectory();
+        const dir = await (await root.getDirectoryHandle('user-data')).getDirectoryHandle('maps');
+        for await (const entry of dir.values()) {
+          if (entry.kind !== 'file') continue;
+          try {
+            const text = await (await entry.getFile()).text();
+            n += (text.match(/"kind":"room"/g) ?? []).length;
+          } catch {
+            return -1;
+          }
+        }
+      } catch {
+        return -1;
+      }
+      return n;
+    });
+  await tool(page, 'Room').click();
+  // Two rooms side by side on the grid: they share a wall.
+  await drag(200, 250, 300, 330);
+  await drag(300, 250, 400, 330);
+  await expect.poll(rooms).toBe(2);
+  await tool(page, 'Select and move').click();
+  await page.mouse.move(box.x + 150, box.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 450, box.y + 380, { steps: 6 });
+  await page.mouse.up();
+  await page.getByRole('button', { name: 'Merge the rooms into one' }).click();
+  await expect.poll(rooms).toBe(1);
 });

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { doorOnWall, generateCave, generateDungeon, planBounds, rectPolygon } from './rooms';
+import {
+  doorOnWall,
+  generateCave,
+  generateDungeon,
+  planBounds,
+  rectPolygon,
+  reattachDoors,
+} from './rooms';
 import { pointInPolygon } from './polygon';
 import { polygonArea } from './spline';
 
@@ -13,6 +20,28 @@ describe('doors on walls', () => {
     expect(side?.x).toBe(200);
     expect(Math.abs(side?.angle ?? 0)).toBeCloseTo(Math.PI / 2, 5);
     expect(doorOnWall(room, { x: 100, y: 50 }, 20)).toBeNull();
+  });
+});
+
+describe('doors follow their walls', () => {
+  it('move with a wall that moved, keeping their kind, and turn with it', () => {
+    const doors = [
+      { x: 200, y: 50, angle: Math.PI / 2, kind: 'secret' as const },
+      { x: 100, y: 0, angle: 0, kind: 'door' as const },
+    ];
+    // The right wall is pulled out to x = 260: the door on it follows; the one on the top stays.
+    const before = rectPolygon(0, 0, 200, 100);
+    const moved = reattachDoors(doors, before, rectPolygon(0, 0, 260, 100));
+    expect(moved[0]).toMatchObject({ x: 260, y: 50, kind: 'secret' });
+    expect(moved[1]).toMatchObject({ x: 130, y: 0, kind: 'door' });
+    // A top wall tilted: the door turns along it.
+    const top = doors.slice(1);
+    const tilted = reattachDoors(top, before, [0, 0, 200, 40, 200, 140, 0, 100]);
+    expect(Math.abs(tilted[0]?.angle ?? 0)).toBeGreaterThan(0.1);
+    expect(tilted[0]?.y).toBe(20);
+    // With another number of walls it goes to the nearest point instead.
+    const more = reattachDoors(top, before, [0, 0, 100, -10, 200, 0, 200, 100, 0, 100]);
+    expect(more[0]?.y).toBeCloseTo(-10, 0);
   });
 });
 

@@ -22,6 +22,9 @@ interface Controls {
   sizeMin: number;
   sizeMax: number;
   rotation: 'none' | 'random' | 'along' | 'quarter';
+  rotMin?: number | undefined;
+  rotMax?: number | undefined;
+  overlap?: number | undefined;
   cluster: number;
   offset: number;
   sides: 'center' | 'both' | 'left' | 'right';
@@ -173,6 +176,17 @@ function ScatterControls({
           onChange({ spacing });
         }}
       />
+      <Slider
+        label="Overlap"
+        value={value.overlap ?? 0}
+        min={0}
+        max={0.8}
+        step={0.05}
+        display={`${String(Math.round((value.overlap ?? 0) * 100))}%`}
+        onChange={(overlap) => {
+          onChange({ overlap });
+        }}
+      />
       <div className="grid grid-cols-2 gap-2">
         <Slider
           label="Smallest"
@@ -266,6 +280,32 @@ function ScatterControls({
           {value.mode === 'along' && <option value="along">Along the line</option>}
         </select>
       </label>
+      {value.rotation === 'random' && (
+        <>
+          <Slider
+            label="Turn from"
+            value={value.rotMin ?? 0}
+            min={0}
+            max={360}
+            step={5}
+            display={`${String(value.rotMin ?? 0)}°`}
+            onChange={(rotMin) => {
+              onChange({ rotMin, rotMax: Math.max(rotMin, value.rotMax ?? 360) });
+            }}
+          />
+          <Slider
+            label="Turn to"
+            value={value.rotMax ?? 360}
+            min={0}
+            max={360}
+            step={5}
+            display={`${String(value.rotMax ?? 360)}°`}
+            onChange={(rotMax) => {
+              onChange({ rotMax, rotMin: Math.min(rotMax, value.rotMin ?? 0) });
+            }}
+          />
+        </>
+      )}
       <label className="block text-sm">
         Only on
         <select
@@ -338,6 +378,17 @@ export function ScatterPanel({ scatter, setScatter, stamp }: MapPanelsProps) {
           setScatter({ ...scatter, scale });
         }}
       />
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={scatter.single === true}
+          onChange={(e) => {
+            const { single: _s, ...rest } = scatter;
+            setScatter(e.target.checked ? { ...rest, single: true } : rest);
+          }}
+        />
+        One piece per click (a random one each time)
+      </label>
       <ScatterControls
         value={scatter}
         stamp={stamp}

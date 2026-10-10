@@ -1,11 +1,13 @@
 import { cn } from '@boh/ui';
 import { X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { usedPackRefs } from '../../app/maps/packUse';
 import { ArrangePanel } from './ArrangePanel';
 import { ItemSettings } from './ItemSettings';
 import { ElevationPanel } from './ElevationPanel';
 import { FogPanel } from './FogPanel';
 import { Layers } from './LayersPanel';
+import { LightPanel } from './LightPanel';
 import { MapSettings } from './MapSettings';
 import { type MapPanelsProps, type Tab } from './panelTypes';
 import { PinCategories } from './PinPanels';
@@ -21,6 +23,7 @@ import { ToolSettings } from './ToolSettings';
 export function MapPanels(props: MapPanelsProps) {
   const { open, onClose, selected, tool, mode } = props;
   const creator = mode === 'creator';
+  const used = useMemo(() => usedPackRefs(props.doc), [props.doc]);
   const [tab, setTab] = useState<Tab>(creator ? 'stamps' : 'pins');
   // Another tool or tab shows from its top, not from where the last one was scrolled to.
   const scroller = useRef<HTMLDivElement>(null);
@@ -98,6 +101,7 @@ export function MapPanels(props: MapPanelsProps) {
           <ToolSettings {...props} />
         )}
         {tool === 'fog' && <FogPanel {...props} />}
+        {tool === 'light' && <LightPanel {...props} />}
         {(tool === 'area' || tool === 'path') && <ShapePanel {...props} />}
         {tool === 'scatter' && <ScatterPanel {...props} />}
         {tool === 'elevation' && <ElevationPanel {...props} />}
@@ -110,6 +114,7 @@ export function MapPanels(props: MapPanelsProps) {
             selected={props.stamp}
             onPick={props.setStamp}
             onUseAsMix={props.onScatterMix}
+            used={used}
           />
         )}
         {tab === 'stamps' && ownsPanel && (

@@ -5,6 +5,7 @@ import {
   distributeItems,
   groupBox,
   itemBox,
+  itemsInBox,
   itemsWithIds,
   mirrorCopies,
   moveItems,
@@ -220,5 +221,40 @@ describe('copying and ordering', () => {
     const doc = docWith([stamp('a', 0, 0), stamp('b', 0, 0), stamp('c', 0, 0)]);
     expect(all(orderItem(doc, 'a', 'front')).map((i) => i.id)).toEqual(['b', 'c', 'a']);
     expect(all(orderItem(doc, 'c', 'back')).map((i) => i.id)).toEqual(['c', 'a', 'b']);
+  });
+});
+
+describe('picking with a box', () => {
+  it('takes the items whose middle is inside, on shown unlocked layers only', () => {
+    const blank = newMap('Box', [], '');
+    const [low, high] = blank.layers;
+    if (!low || !high) throw new Error('layers');
+    let doc: MapDoc = addItem(blank, low.id, stamp('a', 100, 100));
+    doc = addItem(doc, low.id, stamp('b', 500, 500));
+    doc = addItem(doc, high.id, stamp('c', 140, 120));
+    // A backdrop as big as the map: only its middle counts.
+    doc = addItem(doc, low.id, {
+      kind: 'shape',
+      id: 'sea',
+      points: [0, 0, 2000, 0, 2000, 1500, 0, 1500],
+      smooth: 0,
+      texture: 'water',
+      color: '#3d7fb0',
+      opacity: 1,
+      edge: 'none',
+    });
+    const box = { x0: 50, y0: 50, x1: 200, y1: 200 };
+    expect(itemsInBox(doc, box)).toEqual(['a', 'c']);
+    // A locked layer, and one that is hidden, give nothing.
+    const locked = {
+      ...doc,
+      layers: doc.layers.map((l) => (l.id === high.id ? { ...l, locked: true } : l)),
+    };
+    expect(itemsInBox(locked, box)).toEqual(['a']);
+    const hidden = {
+      ...doc,
+      layers: doc.layers.map((l) => (l.id === low.id ? { ...l, visible: false } : l)),
+    };
+    expect(itemsInBox(hidden, box)).toEqual(['c']);
   });
 });

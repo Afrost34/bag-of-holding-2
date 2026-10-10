@@ -1,4 +1,5 @@
 import { noise2 } from './scatter';
+import { seeded } from './terrain';
 
 /**
  * Elevation: a coarse grid of heights (0–255) under the map, painted with a soft brush or made
@@ -21,6 +22,8 @@ export interface Elevation {
   strength: number;
   /** Colour the land by height and the sea blue. */
   tint: boolean;
+  /** Contour lines every this many height units (0–255 scale); absent: none. */
+  contours?: number;
 }
 
 export const LAND = 120;
@@ -146,6 +149,173 @@ export function generateHeights(e: Pick<Elevation, 'w' | 'h'>, req: TerrainReque
         v = v * (1 - dist ** 2.2 * 0.85) - dist ** 3 * 0.15;
       }
       out[y * e.w + x] = Math.max(0, Math.min(255, Math.round(40 + v * 260 - 40)));
+    }
+  return out;
+}
+
+export interface RiverRequest {
+  seed: number;
+  /** How many rivers to try for. */
+  count: number;
+  /** Least length, in cells, for a river to be kept. */
+  minLength: number;
+}
+
+/**
+ * Rivers that run downhill: each starts high on the land and follows the steepest way down until
+ * it reaches the sea, the map's edge or another river. Points are in map pixels, source first, so
+ * a river that widens downstream widens the right way.
+ */
+export function riversFromHeights(
+  e: Pick<Elevation, 'w' | 'h' | 'cell' | 'sea'>,
+  heights: Uint8Array,
+  req: RiverRequest,
+): number[][] {
+  const { w, h } = e;
+  const rand = seeded(req.seed);
+  const at = (x: number, y: number) => heights[y * w + x] ?? 0;
+  // Sources: cells well above the sea, the highest first (with some chance, so they vary).
+  const high = e.sea + Math.max(40, (255 - e.sea) * 0.35);
+  const candidates: { x: number; y: number; score: number }[] = [];
+  for (let y = 1; y < h - 1; y++)
+    for (let x = 1; x < w - 1; x++)
+      if (at(x, y) >= high) candidates.push({ x, y, score: at(x, y) + rand() * 60 });
+  candidates.sort((a, b) => b.score - a.score);
+  const taken = new Set<number>();
+  const rivers: number[][] = [];
+  const apart = Math.max(4, Math.round(Math.min(w, h) / 10));
+  const starts: { x: number; y: number }[] = [];
+  for (const c of candidates) {
+    if (starts.length >= req.count) break;
+    if (starts.every((s) => Math.hypot(s.x - c.x, s.y - c.y) >= apart)) starts.push(c);
+  }
+  for (const start of starts) {
+    const path: { x: number; y: number }[] = [{ x: start.x, y: start.y }];
+    const seen = new Set<number>([start.y * w + start.x]);
+    let x = start.x;
+    let y = start.y;
+    let flat = 0;
+    let joined = false;
+    for (let steps = 0; steps < w * h; steps++) {
+      if (at(x, y) <= e.sea) break;
+      let best: { x: number; y: number; v: number } | null = null;
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h || seen.has(ny * w + nx)) continue;
+          // Diagonals are a little longer: a touch of preference for straight steps.
+          const v = at(nx, ny) + (dx !== 0 && dy !== 0 ? 0.4 : 0) + rand() * 0.3;
+          if (!best || v < best.v) best = { x: nx, y: ny, v };
+        }
+      if (!best) break;
+      // A pit: a few flat steps (a lake's width) are crossed, then the river ends.
+      if (best.v > at(x, y) + 0.8) {
+        if (++flat > 6) break;
+      } else flat = 0;
+      x = best.x;
+      y = best.y;
+      seen.add(y * w + x);
+      path.push({ x, y });
+      if (taken.has(y * w + x)) {
+        joined = true;
+        break;
+      }
+    }
+    const reached = joined || at(x, y) <= e.sea || x === 0 || y === 0 || x === w - 1 || y === h - 1;
+    if (path.length < req.minLength || !reached) continue;
+    for (const p of path) taken.add(p.y * w + p.x);
+    // Every few cells is enough: the path is rounded when drawn.
+    const keep = path.filter((_, i) => i % 3 === 0 || i === path.length - 1);
+    rivers.push(
+      keep.flatMap((p) => [Math.round((p.x + 0.5) * e.cell), Math.round((p.y + 0.5) * e.cell)]),
+    );
+  }
+  return rivers;
+}
+
+/** One short line of a contour: x1, y1, x2, y2 in cells (a cell's middle is at .5). */
+export type ContourSegment = [number, number, number, number];
+
+/**
+ * The line where the ground is at `level`, by marching squares: a short segment through every
+ * square of four cells that the level crosses.
+ */
+export function contourSegments(
+  w: number,
+  h: number,
+  heights: Uint8Array,
+  level: number,
+): ContourSegment[] {
+  const out: ContourSegment[] = [];
+  const v = (x: number, y: number) => heights[y * w + x] ?? 0;
+  // Where along an edge the level is crossed (0 at the first end, 1 at the second).
+  const at = (v1: number, v2: number) => (v2 === v1 ? 0.5 : (level - v1) / (v2 - v1));
+  for (let y = 0; y + 1 < h; y++)
+    for (let x = 0; x + 1 < w; x++) {
+      const tl = v(x, y);
+      const tr = v(x + 1, y);
+      const br = v(x + 1, y + 1);
+      const bl = v(x, y + 1);
+      const index =
+        (tl >= level ? 8 : 0) |
+        (tr >= level ? 4 : 0) |
+        (br >= level ? 2 : 0) |
+        (bl >= level ? 1 : 0);
+      if (index === 0 || index === 15) continue;
+      const top: [number, number] = [x + 0.5 + at(tl, tr), y + 0.5];
+      const right: [number, number] = [x + 1.5, y + 0.5 + at(tr, br)];
+      const bottom: [number, number] = [x + 0.5 + at(bl, br), y + 1.5];
+      const left: [number, number] = [x + 0.5, y + 0.5 + at(tl, bl)];
+      const line = (a: [number, number], b: [number, number]) => {
+        out.push([a[0], a[1], b[0], b[1]]);
+      };
+      switch (index) {
+        case 1:
+        case 14:
+          line(left, bottom);
+          break;
+        case 2:
+        case 13:
+          line(bottom, right);
+          break;
+        case 3:
+        case 12:
+          line(left, right);
+          break;
+        case 4:
+        case 11:
+          line(top, right);
+          break;
+        case 6:
+        case 9:
+          line(top, bottom);
+          break;
+        case 7:
+        case 8:
+          line(top, left);
+          break;
+        case 5:
+          // A saddle: told apart by the middle of the square.
+          if ((tl + tr + br + bl) / 4 >= level) {
+            line(top, right);
+            line(left, bottom);
+          } else {
+            line(top, left);
+            line(bottom, right);
+          }
+          break;
+        case 10:
+          if ((tl + tr + br + bl) / 4 >= level) {
+            line(top, left);
+            line(bottom, right);
+          } else {
+            line(top, right);
+            line(left, bottom);
+          }
+          break;
+      }
     }
   return out;
 }

@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { addItem, newMap } from '../../app/maps/model';
 import {
   dedupePoints,
+  dropLastPoint,
   insertVertex,
   nearestHandle,
+  pushRecent,
+  pushSlot,
   removeVertex,
   snapRiverEnd,
 } from './editorModel';
@@ -53,5 +56,36 @@ describe('rivers that meet', () => {
     expect(joined.into).toBe('main');
     expect(joined.points).toEqual([200, 0, 205, 100]);
     expect(snapRiverEnd(doc, [200, 0, 205, 40], 30)).toEqual({ points: [200, 0, 205, 40] });
+  });
+});
+
+describe('taking the last point back', () => {
+  it('drops one point and leaves the rest', () => {
+    expect(dropLastPoint([0, 0, 10, 10, 20, 5])).toEqual([0, 0, 10, 10]);
+    expect(dropLastPoint([4, 4])).toEqual([]);
+    expect(dropLastPoint([])).toEqual([]);
+  });
+});
+
+describe('the hotbar of recent stamps', () => {
+  it('puts the latest first, once, and keeps nine', () => {
+    let list = pushRecent([], { ref: 'a', aspect: 1 });
+    list = pushRecent(list, { ref: 'b', aspect: 1 });
+    list = pushRecent(list, { ref: 'a', aspect: 2 });
+    expect(list.map((x) => x.ref)).toEqual(['a', 'b']);
+    expect(list[0]?.aspect).toBe(2);
+    for (let i = 0; i < 12; i++) list = pushRecent(list, { ref: `s${String(i)}`, aspect: 1 });
+    expect(list).toHaveLength(9);
+    expect(list[0]?.ref).toBe('s11');
+  });
+});
+
+describe('the terrain slots', () => {
+  it('put the latest first, once, and keep eight', () => {
+    let list = pushSlot(['grass', 'dirt'], 'dirt');
+    expect(list).toEqual(['dirt', 'grass']);
+    for (let i = 0; i < 10; i++) list = pushSlot(list, `t${String(i)}`);
+    expect(list).toHaveLength(8);
+    expect(list[0]).toBe('t9');
   });
 });

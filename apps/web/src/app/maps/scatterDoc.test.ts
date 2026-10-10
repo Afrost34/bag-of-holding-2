@@ -10,6 +10,7 @@ import {
   SCATTER_PRESETS,
   scatterOf,
   settingsFromPreset,
+  singlePiece,
   type ScatterItem,
 } from './scatterDoc';
 
@@ -68,6 +69,29 @@ describe('scatter in a map', () => {
     const list = scatterOf(doc, wood);
     expect(list.length).toBeGreaterThan(10);
     expect(list.every((p) => p.x > 200 && p.x < 500 && p.y > 200 && p.y < 500)).toBe(true);
+  });
+
+  it('keeps out of the holes of a shape it fills', () => {
+    const start = base();
+    const { layer } = start;
+    let doc = start.doc;
+    doc = addItem(doc, layer, {
+      kind: 'shape',
+      id: 'land',
+      points: square(0, 0, 800),
+      smooth: 0,
+      texture: 'grass',
+      color: '#5b8a2b',
+      opacity: 1,
+      edge: 'none',
+      holes: [square(300, 300, 200)],
+    });
+    const wood = makeScatter('w', settingsFromPreset(forest), { points: [], within: 'land' }, 5);
+    doc = addItem(doc, layer, wood);
+    const list = scatterOf(doc, wood);
+    expect(list.length).toBeGreaterThan(10);
+    expect(list.some((p) => p.x > 300 && p.x < 500 && p.y > 300 && p.y < 500)).toBe(false);
+    expect(list.some((p) => p.x < 300)).toBe(true);
   });
 
   it('keeps clear of a road, and follows it when moved', () => {
@@ -264,5 +288,43 @@ describe('scatter with pack pictures', () => {
     expect(stamps.length).toBeGreaterThan(4);
     // 2 x 2 squares on a grid of 70, within the 0.8 to 1.2 variation.
     expect(stamps.every((s) => s.w >= 110 && s.w <= 170 && s.w === s.h)).toBe(true);
+  });
+});
+
+describe('one piece per click', () => {
+  it('is a stamp of the set at the point, and another piece with another seed', () => {
+    const { doc } = base();
+    const settings = settingsFromPreset(forest);
+    const a = singlePiece(doc, settings, { x: 120, y: 300 }, 'p1', 1);
+    expect(a).toMatchObject({ kind: 'stamp', id: 'p1', x: 120 });
+    if (a?.kind !== 'stamp') throw new Error('stamp');
+    expect(settings.pieces.map((p) => p.ref)).toContain(a.stamp);
+    expect(a.w).toBeGreaterThanOrEqual(settings.sizeMin);
+    expect(a.w).toBeLessThanOrEqual(settings.sizeMax);
+    // The same seed gives the same piece; others differ somewhere.
+    expect(singlePiece(doc, settings, { x: 120, y: 300 }, 'p1', 1)).toEqual(a);
+    const others = Array.from({ length: 12 }, (_, i) =>
+      singlePiece(doc, settings, { x: 120, y: 300 }, 'p', i + 2),
+    );
+    expect(new Set(others.map((o) => JSON.stringify(o))).size).toBeGreaterThan(3);
+  });
+
+  it('is nothing without pieces', () => {
+    const { doc } = base();
+    expect(
+      singlePiece(doc, { ...settingsFromPreset(forest), pieces: [] }, { x: 0, y: 0 }, 'p', 1),
+    ).toBeNull();
+  });
+});
+
+describe('overlap', () => {
+  it('packs more pieces into the same area', () => {
+    const { doc } = base();
+    const settings = settingsFromPreset(forest);
+    const area = { points: square(100, 100, 600) };
+    const loose = makeScatter('a', settings, area, 4);
+    const packed = makeScatter('b', { ...settings, overlap: 0.6 }, area, 4);
+    expect(packed.overlap).toBe(0.6);
+    expect(scatterOf(doc, packed).length).toBeGreaterThan(scatterOf(doc, loose).length * 1.5);
   });
 });

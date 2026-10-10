@@ -7,6 +7,7 @@ import { useEncounters } from '../../app/encounters/store';
 import { mapFolders, PAPERS, type MapDoc, type MapPaper } from '../../app/maps/model';
 import { useMaps } from '../../app/maps/store';
 import { DEFAULT_SPEEDS, scaleForWidth, type DistanceUnit } from '../../app/maps/travel';
+import { AmbientSettings } from './LightPanel';
 import { NumberField, Section } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
 import { CALIBRATE_ICON } from './tools';
@@ -266,6 +267,58 @@ export function MapSettings({ doc, commit, setTool, snap, setSnap }: MapPanelsPr
           ))}
         </select>
       </Section>
+      <AmbientSettings doc={doc} commit={commit} />
+      <Section title="Roofs and sun">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={doc.hideRoofs === true}
+            onChange={(e) => {
+              const hide = e.target.checked;
+              commit((d) => {
+                const { hideRoofs: _old, ...rest } = d;
+                return hide ? { ...rest, hideRoofs: true } : rest;
+              });
+            }}
+          />
+          Hide the roofs (show the floors inside)
+        </label>
+        <label className="block text-sm">
+          Sun: {Math.round(doc.sun?.angle ?? 180)}°
+          <input
+            type="range"
+            aria-label="Sun direction"
+            min={0}
+            max={355}
+            step={5}
+            value={doc.sun?.angle ?? 180}
+            onChange={(e) => {
+              const angle = Number(e.target.value);
+              commit((d) => ({ ...d, sun: { angle, strength: d.sun?.strength ?? 1 } }));
+            }}
+            className="w-full"
+          />
+        </label>
+        <label className="block text-sm">
+          Shade: {Math.round((doc.sun?.strength ?? 1) * 100)}%
+          <input
+            type="range"
+            aria-label="Shade strength"
+            min={0}
+            max={200}
+            step={10}
+            value={Math.round((doc.sun?.strength ?? 1) * 100)}
+            onChange={(e) => {
+              const strength = Number(e.target.value) / 100;
+              commit((d) => ({ ...d, sun: { angle: d.sun?.angle ?? 180, strength } }));
+            }}
+            className="w-full"
+          />
+        </label>
+        <p className="text-xs text-muted">
+          The sun is where the light comes from: 0° east, 90° south, 180° west, 270° north.
+        </p>
+      </Section>
       <Section title="Pins">
         <select
           value={doc.pinStyle ?? 'markers'}
@@ -305,6 +358,29 @@ export function MapSettings({ doc, commit, setTool, snap, setSnap }: MapPanelsPr
             Show the grid or give the map its real size (Scale and travel) first.
           </p>
         )}
+      </Section>
+      <Section title="Compass and frame">
+        {(['compass', 'frame'] as const).map((which) => (
+          <label key={which} className="block text-sm">
+            {which === 'compass' ? 'Compass rose' : 'Frame'}
+            <select
+              aria-label={which === 'compass' ? 'Compass rose' : 'Frame'}
+              value={doc[which] ?? 'none'}
+              onChange={(e) => {
+                const v = e.target.value;
+                commit((d) => {
+                  const { [which]: _old, ...rest } = d;
+                  return v === 'plain' || v === 'fantasy' ? { ...rest, [which]: v } : rest;
+                });
+              }}
+              className={field}
+            >
+              <option value="none">None</option>
+              <option value="plain">Plain</option>
+              <option value="fantasy">Fantasy map: inked on parchment</option>
+            </select>
+          </label>
+        ))}
       </Section>
       <Section title="Size">
         <div className="grid grid-cols-2 gap-2">

@@ -2,6 +2,7 @@ import { newId } from '../cards/model';
 import type { Elevation } from './elevation';
 import { pointInPolygon } from './polygon';
 import type { RouteDash } from './lettering';
+import type { PathEnd } from './pathEnds';
 import type { Door } from './rooms';
 import type { TerrainRef } from './terrain';
 import type { MapScale, TravelSpeed } from './travel';
@@ -39,6 +40,8 @@ export interface Grid {
   opacity: number;
   /** Drawn or hidden; hidden it still snaps and measures. */
   visible: boolean;
+  /** Snapping steps this many times per cell (2: half cells, 4: quarters); a whole cell when absent. */
+  snap?: number;
 }
 
 export type TemplateShape = 'cone' | 'sphere' | 'cube' | 'line';
@@ -65,6 +68,10 @@ type MapItemBody =
       rotation: number;
       flipX?: boolean;
       flipY?: boolean;
+      /** A soft shadow under it. */
+      shadow?: boolean;
+      /** Walls of light: it casts shadows from lights. */
+      blockLight?: boolean;
     }
   | {
       kind: 'stroke';
@@ -78,6 +85,10 @@ type MapItemBody =
       opacity: number;
       /** A terrain stroke painted with a texture (see `terrain.ts`) rather than a colour. */
       texture?: TerrainRef;
+      /** 0–1: how far the edge fades into what is under it (smooth blending); hard when absent. */
+      soft?: number;
+      /** A dark line round the stroke, as a material (rock, lava, ice) has. */
+      border?: boolean;
     }
   | {
       kind: 'wall';
@@ -85,6 +96,10 @@ type MapItemBody =
       points: number[];
       /** A pack's wall strip (`pack:<id>:<path>`); absent: a drawn ink line. */
       texture?: string;
+      /** The last point joins the first: a closed wall. */
+      loop?: boolean;
+      /** How corners of a drawn wall look: rounded (absent) or sharp. */
+      joint?: 'sharp';
     }
   /** A closed area of terrain (land, water, a forest floor) with a rounded outline. */
   | {
@@ -99,7 +114,9 @@ type MapItemBody =
       /** 0.1–1. */
       opacity: number;
       /** A shore glow with wave lines, an ink line, or none. */
-      edge: 'none' | 'ink' | 'shore';
+      edge: 'none' | 'ink' | 'shore' | 'dashed';
+      /** Areas cut out of it (a lake in a forest): control points of each, as the outline's. */
+      holes?: number[][];
     }
   /**
    * Pieces (trees, rocks, mountains) scattered from a seed over an area or along a line, kept
@@ -124,6 +141,11 @@ type MapItemBody =
       sizeMin: number;
       sizeMax: number;
       rotation: 'none' | 'random' | 'along' | 'quarter';
+      /** Random turning between these (degrees); all the way round when absent. */
+      rotMin?: number;
+      rotMax?: number;
+      /** 0–0.8: how far pieces may overlap (packed tight); 0 keeps them apart. */
+      overlap?: number;
       /** 0 even, 1 groves with clearings. */
       cluster: number;
       offset: number;
@@ -159,6 +181,8 @@ type MapItemBody =
       wall: boolean;
       avoid: 'auto' | 'none';
       removed?: string[];
+      /** Areas cut out of it (a park, a pond): control points of each, as the outline's. */
+      holes?: number[][];
     }
   /** A building drawn by hand (or baked from a district): its footprint and roof. */
   | {
@@ -193,13 +217,18 @@ type MapItemBody =
       id: string;
       points: number[];
       smooth: number;
-      style: 'road' | 'trail' | 'river' | 'fence';
+      style: 'road' | 'trail' | 'river' | 'fence' | 'wall';
       width: number;
       color: string;
       /** A river that widens along its way (default); false keeps one width. */
       taper?: boolean;
       /** The path this one flows into. */
       into?: string;
+      /** How it begins and ends; hard when absent. */
+      start?: PathEnd;
+      end?: PathEnd;
+      /** The last point joins the first: a ring road, a moat. */
+      loop?: boolean;
     }
   /** A way across a world or city map, stop by stop: its length says how long the journey is. */
   | {
@@ -246,6 +275,20 @@ type MapItemBody =
       /** Degrees: where it points. */
       angle: number;
       color: string;
+    }
+  /** A light: it lights the map where the ambient light is dark (see `lighting.ts`). */
+  | {
+      kind: 'light';
+      id: string;
+      x: number;
+      y: number;
+      /** How far it reaches, in map pixels. */
+      range: number;
+      color: string;
+      /** 0–1: how bright it is at its centre. */
+      intensity: number;
+      /** Walls and closed doors cast shadows. */
+      shadows: boolean;
     }
   | {
       kind: 'pin';
@@ -365,6 +408,15 @@ export interface MapDoc {
   pinStyle?: 'fantasy';
   /** A scale bar in the bottom-left corner: plain, or as on an old map (absent: none). */
   scaleBar?: 'plain' | 'fantasy';
+  /** A compass rose in the top-right corner, and a frame round the map (absent: none). */
+  compass?: 'plain' | 'fantasy';
+  frame?: 'plain' | 'fantasy';
+  /** Roofs left off, showing the floors of the buildings (the Viewer shows what is inside). */
+  hideRoofs?: boolean;
+  /** The light everywhere before lights are added: a colour (dark blue for night); absent: daylight. */
+  ambient?: string;
+  /** Where the sun is (degrees: 0 east, 90 south, 180 west, 270 north) and how dark the shade is (0–1). */
+  sun?: { angle: number; strength: number };
   /** Heights under the map, shown as hill shading (absent: flat). */
   elevation?: Elevation;
   /** The paper under the map (absent: parchment). */
@@ -595,6 +647,7 @@ const KINDS = new Set([
   'text',
   'template',
   'pin',
+  'light',
 ]);
 
 /** True when a stored map is older than this build's format (it is saved again once read). */
@@ -756,11 +809,23 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
             sea: num(json.elevation.sea, 90),
             strength: num(json.elevation.strength, 0.6),
             tint: json.elevation.tint === true,
+            ...(num(json.elevation.contours, 0) > 0
+              ? { contours: num(json.elevation.contours, 0) }
+              : {}),
           },
         }
       : {}),
     ...(json.scaleBar === 'plain' || json.scaleBar === 'fantasy'
       ? { scaleBar: json.scaleBar }
+      : {}),
+    ...(json.compass === 'plain' || json.compass === 'fantasy' ? { compass: json.compass } : {}),
+    ...(json.frame === 'plain' || json.frame === 'fantasy' ? { frame: json.frame } : {}),
+    ...(json.hideRoofs === true ? { hideRoofs: true } : {}),
+    ...(typeof json.ambient === 'string' && /^#[0-9a-fA-F]{6}$/.test(json.ambient)
+      ? { ambient: json.ambient }
+      : {}),
+    ...(isObj(json.sun)
+      ? { sun: { angle: num(json.sun.angle, 180), strength: num(json.sun.strength, 1) } }
       : {}),
     createdAt: typeof json.createdAt === 'string' ? json.createdAt : '',
     updatedAt: typeof json.updatedAt === 'string' ? json.updatedAt : '',
@@ -795,6 +860,7 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
       opacity: num(g.opacity, DEFAULT_GRID.opacity),
       // Older maps without a grid (world maps) had type 'none': the grid stays hidden.
       visible: g.type === 'none' ? false : g.visible !== false,
+      ...([2, 4, 8].includes(num(g.snap, 1)) ? { snap: num(g.snap, 1) } : {}),
     },
     layers: layers.length ? layers : newMap('', [], '').layers,
     ...(variants.length ? { variants } : {}),
@@ -882,6 +948,11 @@ export function artHash(doc: MapDoc): string {
     doc.height,
     doc.paper ?? '',
     doc.elevation ?? null,
+    doc.ambient ?? '',
+    doc.compass ?? '',
+    doc.frame ?? '',
+    doc.hideRoofs ?? false,
+    doc.sun ?? null,
     doc.layers.map((l) => [l.id, l.visible, l.picture ?? null, l.items.filter(isArt)]),
     (doc.variants ?? []).map((v) => [v.id, v.layers]),
   ]);
@@ -962,6 +1033,27 @@ export function stepVariant(doc: MapDoc, by: 1 | -1): MapDoc {
   const i = list.findIndex((v) => v.id === doc.activeVariant);
   const next = list[(i + by + list.length) % list.length];
   return next ? { ...doc, activeVariant: next.id } : doc;
+}
+
+/** A variant one place earlier (-1) or later (+1) in the list. */
+export function moveVariant(doc: MapDoc, id: string, by: 1 | -1): MapDoc {
+  const list = [...(doc.variants ?? [])];
+  const from = list.findIndex((v) => v.id === id);
+  const to = from + by;
+  if (from < 0 || to < 0 || to >= list.length) return doc;
+  const [moved] = list.splice(from, 1);
+  if (moved) list.splice(to, 0, moved);
+  return { ...doc, variants: list };
+}
+
+/**
+ * Whether a layer is only in the variant being compared with (shown there, not now): it is drawn
+ * faintly so the two can be told apart.
+ */
+export function layerGhost(doc: MapDoc, layer: Layer, compare: string | undefined): boolean {
+  if (!compare || compare === doc.activeVariant) return false;
+  const other = doc.variants?.find((v) => v.id === compare);
+  return !layerShown(doc, layer) && (other?.layers[layer.id] ?? false);
 }
 
 export function removeVariant(doc: MapDoc, id: string): MapDoc {

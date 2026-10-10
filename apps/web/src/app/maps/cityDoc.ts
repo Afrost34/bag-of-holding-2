@@ -2,6 +2,7 @@ import { generateDistrict, type DistrictGeo, type DistrictSpec } from './city';
 import { generateIsland } from './islandgen';
 import { addItem, type MapDoc, type MapItem } from './model';
 import { centroid } from './polyclip';
+import { pointInPolygon } from './polygon';
 import { placementRules } from './scatterDoc';
 import { nearestOnPolyline, splinePoints } from './spline';
 
@@ -209,10 +210,29 @@ export function districtSetup(
   };
 }
 
-/** The district as generated now, without the buildings erased. */
+/** The rounded outlines of the holes cut in a district. */
+export const districtHoles = (item: DistrictItem): number[][] =>
+  (item.holes ?? []).filter((h) => h.length >= 6).map((h) => splinePoints(h, true, item.smooth));
+
+/** The district as generated now, without the buildings erased or what stands in a hole. */
 export function districtGeo(doc: MapDoc, item: DistrictItem): DistrictGeo {
   const { spec, rules } = districtSetup(doc, item);
-  const geo = generateDistrict(spec, rules.obstacles, rules.allowed);
+  let geo = generateDistrict(spec, rules.obstacles, rules.allowed);
+  const holes = districtHoles(item);
+  if (holes.length > 0) {
+    const inHole = (poly: readonly number[]) => {
+      const c = centroid(poly);
+      return holes.some((h) => pointInPolygon(c, h));
+    };
+    const { plaza, ...rest } = geo;
+    const keepPlaza = plaza && !holes.some((h) => pointInPolygon(plaza, h));
+    geo = {
+      ...rest,
+      blocks: geo.blocks.filter((b) => !inHole(b)),
+      buildings: geo.buildings.filter((b) => !inHole(b.poly)),
+      ...(keepPlaza ? { plaza } : {}),
+    };
+  }
   const removed = new Set(item.removed ?? []);
   return removed.size === 0
     ? geo
@@ -389,4 +409,39 @@ export function rotatePoints(points: readonly number[], degrees: number): number
     out.push(Math.round(c.x + x * cos - y * sin), Math.round(c.y + x * sin + y * cos));
   }
   return out;
+}
+
+/** How a roof is lit: the sun (see `MapDoc.sun`) and whether the roofs are left off. */
+export interface RoofLook {
+  hide?: boolean | undefined;
+  sun?: { angle: number; strength: number } | undefined;
+}
+
+/**
+ * Which of the two halves of a roof, split along its ridge, is away from the sun: its centre is
+ * the farther one from where the sun is. With no sun set, the old rule (the sun in the west).
+ */
+export function shadedHalf(
+  a: readonly number[],
+  b: readonly number[],
+  edgeAngle: number,
+  sun?: { angle: number },
+): 'a' | 'b' {
+  if (!sun) return Math.sin(edgeAngle) >= 0 ? 'b' : 'a';
+  const centre = (p: readonly number[]) => {
+    let x = 0;
+    let y = 0;
+    const n = p.length / 2;
+    for (let i = 0; i + 1 < p.length; i += 2) {
+      x += p[i] ?? 0;
+      y += p[i + 1] ?? 0;
+    }
+    return { x: x / n, y: y / n };
+  };
+  const rad = (sun.angle * Math.PI) / 180;
+  const lit = (p: readonly number[]) => {
+    const c = centre(p);
+    return c.x * Math.cos(rad) + c.y * Math.sin(rad);
+  };
+  return lit(a) >= lit(b) ? 'b' : 'a';
 }

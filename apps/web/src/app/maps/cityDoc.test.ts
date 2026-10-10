@@ -10,6 +10,7 @@ import {
   makeDistrict,
   rectangleFootprint,
   rotatePoints,
+  shadedHalf,
   settingsFromStyle,
   type DistrictItem,
 } from './cityDoc';
@@ -31,6 +32,21 @@ describe('districts in a map', () => {
     const big = makeDistrict('b', settingsFromStyle('town', 2), square(0, 0, 100), 1);
     expect(big.blockSize).toBe(small.blockSize * 4);
     expect(big.lotArea).toBe(small.lotArea * 16);
+  });
+
+  it('leave a hole free of buildings', () => {
+    const { doc, district } = withDistrict();
+    const plain = districtGeo(doc, district);
+    const hole = [300, 300, 600, 300, 600, 600, 300, 600];
+    const holed = districtGeo(doc, { ...district, holes: [hole] });
+    expect(holed.buildings.length).toBeLessThan(plain.buildings.length);
+    expect(
+      holed.buildings.some((b) => {
+        const c = centroid(b.poly);
+        return c.x > 300 && c.x < 600 && c.y > 300 && c.y < 600;
+      }),
+    ).toBe(false);
+    expect(holed.buildings.some((b) => centroid(b.poly).x < 300)).toBe(true);
   });
 
   it('keep clear of roads and hand-made buildings', () => {
@@ -129,5 +145,23 @@ describe('towns and buildings', () => {
       480, 290, 520, 290, 520, 310, 480, 310,
     ]);
     expect(libraryId(['b1', 'b2'])).toBe('b3');
+  });
+});
+
+describe('the shade of a roof', () => {
+  // A roof split into a half on the left (x 0–50) and one on the right (x 50–100).
+  const left = [0, 0, 50, 0, 50, 40, 0, 40];
+  const right = [50, 0, 100, 0, 100, 40, 50, 40];
+
+  it('is the half away from the sun', () => {
+    // The sun in the east (0°): the left half is in shade.
+    expect(shadedHalf(left, right, 0, { angle: 0 })).toBe('a');
+    // In the west (180°): the right half is.
+    expect(shadedHalf(left, right, 0, { angle: 180 })).toBe('b');
+  });
+
+  it('keeps the old rule when the map sets no sun', () => {
+    expect(shadedHalf(left, right, 0.3)).toBe('b');
+    expect(shadedHalf(left, right, -0.3)).toBe('a');
   });
 });

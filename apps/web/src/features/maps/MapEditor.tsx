@@ -39,6 +39,7 @@ import {
 import {
   addMirrored,
   constrainAngle,
+  itemsInBox,
   itemsWithIds,
   pasteItems,
   MIRRORS,
@@ -60,6 +61,7 @@ import {
   mixSettings,
   SCATTER_PRESETS,
   settingsFromPreset,
+  singlePiece,
   type ScatterSettings,
 } from '../../app/maps/scatterDoc';
 import { bakeMap } from '../../app/maps/render';
@@ -76,6 +78,7 @@ import {
   itemId,
   rectPoints,
   setActiveVariant,
+  stepVariant,
   updateItem,
   type MapDoc,
   type MapItem,
@@ -95,11 +98,16 @@ import { usePageTitle } from '../../app/tabs/usePageTitle';
 import {
   dedupePoints,
   eraseStrokes,
+  dropLastPoint,
   insertVertex,
   isClosedItem,
   isPointItem,
   minPoints,
   nearestHandle,
+  pushRecent,
+  pushSlot,
+  DEFAULT_SLOTS,
+  type HotStamp,
   removeVertex,
   ROUTE_COLOR,
   routeStatus,
@@ -108,15 +116,19 @@ import {
   snapRiverEnd,
   withPoints,
   type Drag,
+  selectedName,
 } from './editorModel';
 import { DeleteMap, NameInput } from './EditorParts';
 import { ExportDialog } from './ExportDialog';
 import { BottomBar } from './BottomBar';
+import { Hotbar } from './Hotbar';
 import { MapSearch } from './MapSearch';
 import { MapPanels } from './MapPanels';
 import { PinHover } from '../../app/maps/PinHover';
 import {
   TOOL_GROUP,
+  GROUP_LABELS,
+  TOOL_HINTS,
   TOOLS_WITH_SETTINGS,
   toolsFor,
   type AreaSettings,
@@ -124,6 +136,7 @@ import {
   type BuildingSettings,
   type ElevationBrush,
   type FogSettings,
+  type LightSettings,
   type IslandRequest,
   type PathSettings,
   type RoomSettings,
@@ -175,7 +188,14 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   const shell = useRef<HTMLDivElement>(null);
   const [scene, setScene] = useState<MapScene | null>(null);
   const creator = mode === 'creator';
-  const [tool, setTool] = useState<Tool>(creator ? 'select' : 'pan');
+  const [tool, setToolNow] = useState<Tool>(creator ? 'select' : 'pan');
+  /** The shape the next area drawn is cut out of, instead of becoming a shape of its own. */
+  const [holeOf, setHoleOf] = useState<string | null>(null);
+  /** Another tool drops a hole that was being drawn. */
+  const setTool = (next: Tool) => {
+    setHoleOf(null);
+    setToolNow(next);
+  };
   /** Where the pointer went down (screen), to tell a click from a drag. */
   const downAt = useRef<Point | null>(null);
   const tools = toolsFor(mode);
@@ -185,6 +205,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   const [selected, setSelected] = useState<string | null>(null);
   const drawable = doc.layers.filter(isDrawable);
   const [layerId, setLayerId] = useState(drawable.at(-2)?.id ?? drawable[0]?.id ?? '');
+  /** The control point of the picked shape under the pointer (-1: none): Delete removes it. */
+  const hoverHandle = useRef(-1);
   const [stamp, setStamp] = useState<string | null>(null);
   const [stampAspect, setStampAspect] = useState(1);
   const [stampSquares, setStampSquares] = useState<{ w: number; h: number } | null>(null);
@@ -200,6 +222,12 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     shape: 'cone',
     feet: 15,
     color: '#dc2626',
+  });
+  const [light, setLight] = useState<LightSettings>({
+    squares: 6,
+    color: '#ffd9a0',
+    intensity: 0.9,
+    shadows: true,
   });
   const [fog, setFog] = useState<FogSettings>({ mode: 'hide', shape: 'rect' });
   const [scatter, setScatter] = useState<ScatterSettings>(DEFAULT_SCATTER);
@@ -229,7 +257,12 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     width: 24,
     smooth: 0.6,
     taper: true,
+    start: 'hard',
+    end: 'hard',
+    loop: false,
   });
+  /** The variant whose layers show faintly under the map (comparing floors or versions). */
+  const [compare, setCompare] = useState<string | undefined>(undefined);
   const [snap, setSnapState] = useState(() => {
     try {
       return localStorage.getItem('boh.map.snap') !== 'off';
@@ -243,6 +276,56 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       localStorage.setItem('boh.map.snap', on ? 'on' : 'off');
     } catch {
       /* a private window: the choice lasts until the page closes */
+    }
+  };
+  /** Stamps used lately, kept on this device. */
+  const [hot, setHotState] = useState<HotStamp[]>(() => {
+    try {
+      const raw = localStorage.getItem('boh.map.hotbar');
+      const parsed: unknown = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed)
+        ? parsed.filter(
+            (x): x is HotStamp =>
+              typeof x === 'object' &&
+              x !== null &&
+              typeof (x as HotStamp).ref === 'string' &&
+              typeof (x as HotStamp).aspect === 'number',
+          )
+        : [];
+    } catch {
+      return [];
+    }
+  });
+  const rememberStamp = (item: HotStamp) => {
+    const next = pushRecent(hot, item);
+    setHotState(next);
+    try {
+      localStorage.setItem('boh.map.hotbar', JSON.stringify(next));
+    } catch {
+      /* a private window: the bar lasts until the page closes */
+    }
+  };
+  /** The terrain textures used last: Dungeondraft's slots, kept on this device. */
+  const [slots, setSlotsState] = useState<string[]>(() => {
+    try {
+      const parsed: unknown = JSON.parse(localStorage.getItem('boh.map.slots') ?? 'null');
+      if (Array.isArray(parsed) && parsed.every((x) => typeof x === 'string') && parsed.length > 0)
+        return parsed.slice(0, 8);
+    } catch {
+      /* none kept yet */
+    }
+    return DEFAULT_SLOTS;
+  });
+  const pickTerrain = (b: BrushSettings) => {
+    setTerrain(b);
+    if (b.texture && b.texture !== terrain.texture) {
+      const next = pushSlot(slots, b.texture);
+      setSlotsState(next);
+      try {
+        localStorage.setItem('boh.map.slots', JSON.stringify(next));
+      } catch {
+        /* a private window: the slots last until the page closes */
+      }
     }
   };
   const [zoom, setZoom] = useState(1);
@@ -295,12 +378,13 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   }, [docId, creator]);
 
   useEffect(() => {
+    scene?.setCompare(compare);
     scene?.setDoc(doc);
     const found = selected ? findItem(doc, selected) : undefined;
     const more = itemsWithIds(doc, group);
     if (found && more.length > 0) scene?.selectMany([found.item, ...more]);
     else scene?.select(found?.item ?? null);
-  }, [scene, doc, selected, group]);
+  }, [scene, doc, selected, group, compare]);
 
   // A few seconds after the art last changed, the Creator makes the flat picture other devices
   // (a phone without the packs) show instead of drawing it.
@@ -430,6 +514,22 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       scene?.clearPreview();
       return;
     }
+    if (wall && tool === 'area' && holeOf) {
+      const points = dedupePoints(wall).map(Math.round);
+      if (points.length >= 6)
+        commit((d) =>
+          updateItem(d, holeOf, (i) =>
+            i.kind === 'shape' || i.kind === 'district'
+              ? { ...i, holes: [...(i.holes ?? []), points] }
+              : i,
+          ),
+        );
+      setHoleOf(null);
+      setWall(null);
+      scene?.clearPreview();
+      setSelected(holeOf);
+      return;
+    }
     if (wall && tool === 'area') {
       const points = dedupePoints(wall);
       if (points.length >= 6 && layer) {
@@ -531,6 +631,9 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             color,
             ...(pathSet.style === 'river' ? { taper: pathSet.taper } : {}),
             ...(joined?.into ? { into: joined.into } : {}),
+            ...(pathSet.start !== 'hard' ? { start: pathSet.start } : {}),
+            ...(pathSet.end !== 'hard' ? { end: pathSet.end } : {}),
+            ...(pathSet.loop ? { loop: true } : {}),
           }),
         );
       }
@@ -538,14 +641,16 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       scene?.clearPreview();
       return;
     }
-    if (wall && wall.length >= 4 && layer) {
+    // A double click places its point twice: one is enough.
+    const placed = wall ? dedupePoints(wall) : null;
+    if (wall && placed && placed.length >= 4 && layer) {
       const item: MapItem =
         tool === 'route'
-          ? { kind: 'route', id: itemId(doc), points: wall, label: 'Route', color: ROUTE_COLOR }
+          ? { kind: 'route', id: itemId(doc), points: placed, label: 'Route', color: ROUTE_COLOR }
           : {
               kind: 'wall',
               id: itemId(doc),
-              points: wall,
+              points: placed,
               ...(roomSet.wallTexture ? { texture: roomSet.wallTexture } : {}),
             };
       commit((d) => add(d, layer.id, item));
@@ -690,6 +795,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
 
   /** Drops the points placed so far without making anything. */
   const cancelWall = () => {
+    setHoleOf(null);
     setWall(null);
     scene?.clearPreview();
   };
@@ -819,7 +925,10 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           setSelected(hit?.id ?? null);
           setGroup([]);
         }
-        drag.current = hit ? { mode: 'move', ...base, item: hit } : { mode: 'pan', ...base };
+        // Dragging over empty ground with the mouse picks what it goes over; a finger pans.
+        if (hit) drag.current = { mode: 'move', ...base, item: hit };
+        else if (creator && e.pointerType === 'mouse') drag.current = { mode: 'box', ...base };
+        else drag.current = { mode: 'pan', ...base };
         return;
       }
       case 'stamp': {
@@ -843,6 +952,12 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       case 'pen':
       case 'terrain':
         if (!canDraw) return;
+        // Alt erases with the same brush, as in Dungeondraft.
+        if (e.altKey) {
+          drag.current = { mode: 'erase', ...base, points: [p.x, p.y] };
+          previewEraser([p.x, p.y]);
+          return;
+        }
         drag.current = { mode: 'stroke', ...base, points: [p.x, p.y] };
         scene.previewStroke([p.x, p.y], strokeStyle());
         return;
@@ -889,6 +1004,20 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         return;
       }
 
+      case 'light':
+        if (!canDraw) return;
+        place({
+          kind: 'light',
+          id: itemId(doc),
+          x: Math.round(p.x),
+          y: Math.round(p.y),
+          range: Math.round(light.squares * grid.size),
+          color: light.color,
+          intensity: light.intensity,
+          shadows: light.shadows,
+        });
+        setPanelOpen(true);
+        return;
       case 'pin':
         place({ kind: 'pin', id: itemId(doc), x: p.x, y: p.y, label: 'Pin' });
         setPanelOpen(true);
@@ -965,9 +1094,21 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         else setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey)]);
         return;
       }
+      case 'scatter':
+        if (scatter.single) {
+          // One random piece of the set where it is clicked, as a stamp of its own.
+          if (!canDraw) return;
+          const at = e.altKey ? p : snapPoint(p);
+          commit((d) => {
+            const piece = singlePiece(d, scatter, at, itemId(d), Math.floor(Math.random() * 1e9));
+            return piece ? add(d, layer.id, piece) : d;
+          });
+          return;
+        }
+        if (canDraw) setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey)]);
+        return;
       case 'area':
       case 'path':
-      case 'scatter':
       case 'district':
         // Organic outlines: the points are where they are clicked, not on the grid.
         if (canDraw) setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey)]);
@@ -1001,6 +1142,10 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     const row = Math.floor((p.y - grid.offsetY) / grid.size) + 1;
     setCursorSquare((c) => (c?.col === col && c.row === row ? c : { col, row }));
     setZoom(scene.zoom);
+    hoverHandle.current =
+      creator && tool === 'select' && isPointItem(selectedItem)
+        ? nearestHandle(selectedItem.points, p, 10 / scene.zoom)
+        : -1;
     if (tool === 'measure' && measured.length > 0 && !drag.current)
       drawMeasured([...measured, measureAt(p)]);
     if (wall && tool === 'route')
@@ -1069,6 +1214,19 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       case 'pan':
         scene.panBy(screen.x - d.screen.x, screen.y - d.screen.y);
         d.screen = screen;
+        return;
+      case 'box':
+        d.last = p;
+        scene.drawPreview((g) => {
+          g.rect(
+            Math.min(d.start.x, p.x),
+            Math.min(d.start.y, p.y),
+            Math.abs(p.x - d.start.x),
+            Math.abs(p.y - d.start.y),
+          )
+            .fill({ color: 0x3b82f6, alpha: 0.12 })
+            .stroke({ color: 0x3b82f6, width: 1.5 / scene.zoom });
+        });
         return;
       case 'move': {
         if (!d.item) return;
@@ -1222,6 +1380,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       width: s.width,
       opacity: s.opacity,
       texture: tool === 'terrain' ? s.texture : undefined,
+      soft: tool === 'terrain' ? s.soft : undefined,
+      border: tool === 'terrain' ? s.border : undefined,
     };
   };
 
@@ -1295,6 +1455,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             brush: tool === 'terrain' ? 'terrain' : 'pen',
             opacity: s.opacity,
             ...(s.texture ? { texture: s.texture } : {}),
+            ...(s.soft ? { soft: s.soft } : {}),
+            ...(s.border ? { border: true } : {}),
           }),
         );
         return;
@@ -1371,6 +1533,23 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         if (!d.points || d.index === undefined || !isPointItem(item)) return;
         const points = d.points.map(Math.round);
         commit((doc2) => updateItem(doc2, item.id, (i) => withPoints(i, points)));
+        return;
+      }
+      case 'box': {
+        scene.clearPreview();
+        // A click that did not drag picks nothing (and drops the pick).
+        const moved =
+          Math.abs(p.x - d.start.x) > 4 / scene.zoom || Math.abs(p.y - d.start.y) > 4 / scene.zoom;
+        const ids = moved
+          ? itemsInBox(doc, {
+              x0: Math.min(d.start.x, p.x),
+              y0: Math.min(d.start.y, p.y),
+              x1: Math.max(d.start.x, p.x),
+              y1: Math.max(d.start.y, p.y),
+            })
+          : [];
+        setSelected(ids[0] ?? null);
+        setGroup(ids.slice(1));
         return;
       }
       case 'template':
@@ -1504,11 +1683,49 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         finishWall();
         return;
       }
+      // Backspace while placing points takes the last one back.
+      if (e.key === 'Backspace' && wall && wall.length >= 2) {
+        e.preventDefault();
+        setWall(dropLastPoint(wall));
+        scene?.clearPreview();
+        return;
+      }
+      // Delete over a control point of the picked shape removes that point, not the shape.
+      if (
+        (e.key === 'Delete' || e.key === 'Backspace') &&
+        creator &&
+        tool === 'select' &&
+        isPointItem(selectedItem) &&
+        hoverHandle.current >= 0
+      ) {
+        const points = removeVertex(
+          selectedItem.points,
+          hoverHandle.current,
+          minPoints(selectedItem),
+        );
+        hoverHandle.current = -1;
+        commit((d) => updateItem(d, selectedItem.id, (i) => withPoints(i, points)));
+        return;
+      }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selected) {
         const ids = [selected, ...group];
         commit((d) => removeItems(d, ids));
         setSelected(null);
         setGroup([]);
+        return;
+      }
+      // [ and ] size the brush and the eraser, as in Dungeondraft.
+      if (!selectedItem && (e.key === '[' || e.key === ']')) {
+        const grow = e.key === ']' ? 1.15 : 1 / 1.15;
+        if (tool === 'terrain')
+          setTerrain((t) => ({
+            ...t,
+            width: Math.min(400, Math.max(20, Math.round(t.width * grow))),
+          }));
+        else if (tool === 'pen')
+          setBrush((b) => ({ ...b, width: Math.min(40, Math.max(1, Math.round(b.width * grow))) }));
+        else if (tool === 'eraser')
+          setEraser((v) => Math.min(400, Math.max(10, Math.round(v * grow))));
         return;
       }
       if (selectedItem?.kind === 'stamp') {
@@ -1537,6 +1754,24 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             i.kind === 'building' ? { ...i, points: rotatePoints(i.points, turn) } : i,
           ),
         );
+        return;
+      }
+      // 1–9 pick the stamps of the hotbar.
+      if (creator && /^[1-9]$/.test(e.key) && !e.shiftKey) {
+        const item = hot[Number(e.key) - 1];
+        if (item) {
+          rememberStamp(item);
+          setStamp(item.ref);
+          setStampAspect(item.aspect);
+          setStampSquares(item.squares ?? null);
+          setTool('stamp');
+          return;
+        }
+      }
+      // Page Up and Page Down step through the variants (floors, versions).
+      if ((e.key === 'PageUp' || e.key === 'PageDown') && (doc.variants?.length ?? 0) > 1) {
+        e.preventDefault();
+        commit((d) => stepVariant(d, e.key === 'PageDown' ? 1 : -1));
         return;
       }
       if (e.key === 'g' || e.key === 'G') {
@@ -1757,8 +1992,14 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           >
             {tools.map((t, index) => (
               <Fragment key={t.id}>
-                {index > 0 && TOOL_GROUP[t.id] !== TOOL_GROUP[tools[index - 1]?.id ?? t.id] && (
-                  <div role="separator" className="mx-1 my-0.5 h-px bg-border" />
+                {(index === 0 || TOOL_GROUP[t.id] !== TOOL_GROUP[tools[index - 1]?.id ?? t.id]) && (
+                  <div
+                    role="separator"
+                    aria-label={GROUP_LABELS[TOOL_GROUP[t.id]]}
+                    className="mt-1 border-t border-border px-0.5 pt-1 text-center text-[9px] font-semibold tracking-wide text-muted uppercase first:mt-0 first:border-t-0 first:pt-0"
+                  >
+                    {GROUP_LABELS[TOOL_GROUP[t.id]]}
+                  </div>
                 )}
                 <button
                   type="button"
@@ -1818,6 +2059,19 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
               e.preventDefault();
             }}
           />
+          {creator && !viewing && (
+            <Hotbar
+              items={hot}
+              selected={stamp}
+              onPick={(item) => {
+                rememberStamp(item);
+                setStamp(item.ref);
+                setStampAspect(item.aspect);
+                setStampSquares(item.squares ?? null);
+                setTool('stamp');
+              }}
+            />
+          )}
           <BottomBar
             gridVisible={grid.visible}
             onGrid={(visible) => {
@@ -1825,8 +2079,36 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             }}
             snap={snap}
             onSnap={setSnap}
+            snapStep={grid.snap ?? 1}
+            onSnapStep={(step) => {
+              commit((d) => {
+                const { snap: _old, ...rest } = d.grid;
+                return { ...d, grid: step > 1 ? { ...rest, snap: step } : rest };
+              });
+            }}
+            roofs={
+              doc.layers.some((l) =>
+                l.items.some((i) => i.kind === 'building' || i.kind === 'district'),
+              )
+                ? doc.hideRoofs !== true
+                : null
+            }
+            onRoofs={(shown) => {
+              commit((d) => {
+                const { hideRoofs: _old, ...rest } = d;
+                return shown ? rest : { ...rest, hideRoofs: true };
+              });
+            }}
             zoom={zoom}
             square={cursorSquare}
+            hint={
+              viewing
+                ? null
+                : holeOf
+                  ? 'Cut a hole: click the corners of the area; double-click or Enter to finish, Escape to cancel.'
+                  : `${tools.find((t) => t.id === tool)?.label ?? ''}: ${TOOL_HINTS[tool]}`
+            }
+            selectedName={selectedItem ? selectedName(selectedItem) : null}
           />
           <PinHover scene={scene} host={host} campaignId={doc.campaign} />
           {loadingPicture && (
@@ -1894,8 +2176,11 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
               setMeasured([p]);
               drawMeasured([p]);
             }}
+            compare={compare}
+            setCompare={setCompare}
             stamp={stamp}
             setStamp={(path, aspect, squares) => {
+              rememberStamp({ ref: path, aspect, squares });
               setStamp(path);
               setStampAspect(aspect);
               setStampSquares(squares ?? null);
@@ -1904,13 +2189,16 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             brush={brush}
             setBrush={setBrush}
             terrain={terrain}
-            setTerrain={setTerrain}
+            setTerrain={pickTerrain}
+            terrainSlots={slots}
             eraser={eraser}
             setEraser={setEraser}
             template={template}
             setTemplate={setTemplate}
             fog={fog}
             setFog={setFog}
+            light={light}
+            setLight={setLight}
             district={district}
             setDistrict={setDistrict}
             buildingSet={buildingSet}
@@ -1925,6 +2213,12 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             scatter={scatter}
             setScatter={setScatter}
             onScatterOn={scatterOn}
+            onCutHole={(id) => {
+              setSelected(null);
+              setWall(null);
+              setTool('area');
+              setHoleOf(id);
+            }}
             onScatterMix={scatterWithPictures}
             onFurnish={furnishRoom}
             area={area}

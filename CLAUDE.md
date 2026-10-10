@@ -128,8 +128,10 @@ accent-coloured text).
 | A new kind of map item              | `app/maps/model.ts` (type + KINDS), `scene.ts` (`drawItem`, `hit`, `select`), `ItemSettings.tsx` |
 | Map generators and their rules      | pure modules in `app/maps/`: `scatter`, `city`, `rooms`, `islandgen`, `elevation` (all tested)   |
 | Stamp packs (zips)                  | `app/maps/zip.ts`, `packs.ts`, `packModel.ts`; browser in `features/maps/PackBrowser.tsx`        |
+| Lights, shadows, ambient light      | `app/maps/lighting.ts` (pure), `drawLighting` in `scene.ts`, `features/maps/LightPanel.tsx`      |
+| Path ends, loops, compass, frame    | `app/maps/pathEnds.ts`, `decor.ts`; contour lines and rivers in `elevation.ts`                   |
 
-## Maps (ADR 0010, 0011)
+## Maps (ADR 0010, 0011, 0012)
 
 One map file, two modes: `#/maps/<id>` is the **Viewer** (pins, routes, measure, fog, variants, range
 templates, search) and `#/maps/<id>/edit` the **Creator** (stamps, brushes, terrain shapes, roads and
@@ -140,7 +142,8 @@ furniture) are items made from a seed and re-made when what they react to change
 "bake" turns them into loose stamps/buildings. The Creator keeps a flat picture of the art
 (`render`, made by `render.ts`) so phones without the stamp packs show the map. Asset packs are zips copied
 into `map-assets/` (OPFS) and read in place; they are never synced. Stamps are named `pack:<id>:<path>` or
-`glyph:<name>` (drawn in code).
+`glyph:<name>` (drawn in code). Dungeondraft parity decisions (soft vector terrain, one canvas for light, the
+hotbar, edit points everywhere) are in ADR 0012; `docs/research/dungeondraft.md` lists what is not done.
 
 ## Pitfalls already met
 

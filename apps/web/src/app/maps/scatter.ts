@@ -23,6 +23,9 @@ export interface ScatterSpec {
   /** Weight of each kind of piece, in order. */
   weights: readonly number[];
   rotation: 'none' | 'random' | 'along' | 'quarter';
+  /** Random turning between these (degrees); all the way round when absent. */
+  rotMin?: number | undefined;
+  rotMax?: number | undefined;
   /** 0 an even spread, 1 groves with clearings between. */
   cluster: number;
   /** Along a line: how far to the side(s) pieces stand. */
@@ -54,6 +57,16 @@ export interface Instance {
   piece: number;
 }
 
+/** A random angle (radians) in the spec's range of turning. */
+export function randomAngle(
+  rand: () => number,
+  spec: Pick<ScatterSpec, 'rotMin' | 'rotMax'>,
+): number {
+  const min = spec.rotMin ?? 0;
+  const max = spec.rotMax ?? 360;
+  return ((min + rand() * (max - min)) * Math.PI) / 180;
+}
+
 /** Smooth-ish noise from 0 to 1 at a point: bilinear interpolation of hashed lattice values. */
 export function noise2(x: number, y: number, seed: number): number {
   const hash = (ix: number, iy: number) => {
@@ -82,7 +95,8 @@ export function blocked(x: number, y: number, o: Obstacles, clearance: number): 
   return false;
 }
 
-const pick = (weights: readonly number[], r: number): number => {
+/** The index picked by a roll from 0 to 1, weighted. */
+export const pickIndex = (weights: readonly number[], r: number): number => {
   const total = weights.reduce((a, b) => a + Math.max(0, b), 0);
   if (total <= 0) return 0;
   let at = r * total;
@@ -137,12 +151,12 @@ export function scatterInstances(
             spec.rotation === 'along'
               ? p.angle
               : spec.rotation === 'random'
-                ? rand() * Math.PI * 2
+                ? randomAngle(rand, spec)
                 : spec.rotation === 'quarter'
                   ? Math.floor(rand() * 4) * (Math.PI / 2)
                   : 0,
           size: size(),
-          piece: pick(spec.weights, rand()),
+          piece: pickIndex(spec.weights, rand()),
         });
       d += spec.spacing * (0.75 + rand() * 0.5);
     }
@@ -184,12 +198,12 @@ export function scatterInstances(
         y,
         angle:
           spec.rotation === 'random'
-            ? rand() * Math.PI * 2
+            ? randomAngle(rand, spec)
             : spec.rotation === 'quarter'
               ? Math.floor(rand() * 4) * (Math.PI / 2)
               : 0,
         size: size(),
-        piece: pick(spec.weights, rand()),
+        piece: pickIndex(spec.weights, rand()),
       };
       out.push(inst);
       const k = key(cx, cy);
