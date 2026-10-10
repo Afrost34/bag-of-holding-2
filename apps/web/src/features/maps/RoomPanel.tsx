@@ -8,6 +8,7 @@ import { DOOR_KINDS, type DoorKind } from '../../app/maps/rooms';
 import { Section } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
 import { Slider, TerrainPicker } from './ShapePanel';
+import { WallStrips } from './WallStrips';
 
 type WallStyle = 'stone' | 'cave' | 'wood';
 const WALL_STYLES: { id: WallStyle; name: string }[] = [
@@ -101,6 +102,13 @@ export function RoomPanel(props: MapPanelsProps) {
           value={roomSet.wallStyle}
           onChange={(wallStyle) => {
             setRoomSet({ ...roomSet, wallStyle });
+          }}
+        />
+        <WallStrips
+          value={roomSet.wallTexture}
+          onPick={(wallTexture) => {
+            const { wallTexture: _w, ...rest } = roomSet;
+            setRoomSet(wallTexture ? { ...rest, wallTexture } : rest);
           }}
         />
         <Slider
@@ -206,6 +214,16 @@ export function RoomItemSettings({
         value={item.wallStyle}
         onChange={(wallStyle) => {
           change({ wallStyle });
+        }}
+      />
+      <WallStrips
+        value={item.wallTexture}
+        onPick={(wallTexture) => {
+          set((i) => {
+            if (i.kind !== 'room') return i;
+            const { wallTexture: _w, ...rest } = i;
+            return wallTexture ? { ...rest, wallTexture } : rest;
+          });
         }}
       />
       <Slider

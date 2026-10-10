@@ -28,7 +28,7 @@ import type { RoofStyle } from '../../app/maps/cityDoc';
 import type { BrushMode } from '../../app/maps/elevation';
 import type { DoorKind } from '../../app/maps/rooms';
 import type { PathStyle } from '../../app/maps/shapes';
-import type { TerrainId } from '../../app/maps/terrain';
+import type { TerrainRef } from '../../app/maps/terrain';
 
 export type Tool =
   | 'select'
@@ -143,7 +143,7 @@ export interface BrushSettings {
   /** 0.1–1. */
   opacity: number;
   /** The terrain brush paints a texture. */
-  texture?: TerrainId;
+  texture?: TerrainRef;
 }
 
 /** Tools that have settings in the side panel. */
@@ -180,7 +180,7 @@ export interface FogSettings {
 
 /** The terrain shape tool: what the area is, and how its edge looks. */
 export interface AreaSettings {
-  texture: TerrainId;
+  texture: TerrainRef;
   edge: 'none' | 'ink' | 'shore';
   /** 0 straight corners, 1 fully rounded. */
   smooth: number;
@@ -218,12 +218,14 @@ export interface BuildingSettings {
 /** The room and door tools. */
 export interface RoomSettings {
   shape: 'rect' | 'polygon';
-  floor: TerrainId;
+  floor: TerrainRef;
   wallStyle: 'stone' | 'cave' | 'wood';
   /** Wall thickness in map pixels. */
   wall: number;
   smooth: number;
   doorKind: DoorKind;
+  /** A pack's wall strip for walls and room walls; absent: the drawn style. */
+  wallTexture?: string;
 }
 
 /** The elevation brush: what it does, how wide, how hard. */

@@ -3,7 +3,7 @@ import type { Elevation } from './elevation';
 import { pointInPolygon } from './polygon';
 import type { RouteDash } from './lettering';
 import type { Door } from './rooms';
-import type { TerrainId } from './terrain';
+import type { TerrainRef } from './terrain';
 import type { MapScale, TravelSpeed } from './travel';
 
 /**
@@ -77,9 +77,15 @@ type MapItemBody =
       brush: 'pen' | 'terrain';
       opacity: number;
       /** A terrain stroke painted with a texture (see `terrain.ts`) rather than a colour. */
-      texture?: TerrainId;
+      texture?: TerrainRef;
     }
-  | { kind: 'wall'; id: string; points: number[] }
+  | {
+      kind: 'wall';
+      id: string;
+      points: number[];
+      /** A pack's wall strip (`pack:<id>:<path>`); absent: a drawn ink line. */
+      texture?: string;
+    }
   /** A closed area of terrain (land, water, a forest floor) with a rounded outline. */
   | {
       kind: 'shape';
@@ -88,7 +94,7 @@ type MapItemBody =
       points: number[];
       /** 0 straight corners, 1 fully rounded. */
       smooth: number;
-      texture?: TerrainId;
+      texture?: TerrainRef;
       color: string;
       /** 0.1–1. */
       opacity: number;
@@ -127,7 +133,7 @@ type MapItemBody =
       /** Keep clear of roads, rivers and water (auto), or not. */
       avoid: 'auto' | 'none';
       /** Only on these kinds of ground. */
-      onlyOn?: TerrainId[];
+      onlyOn?: TerrainRef[];
     }
   /**
    * A district of a town: from its outline, streets cut it into blocks and each block is divided
@@ -173,10 +179,12 @@ type MapItemBody =
       points: number[];
       /** 0 straight walls, up to 1 a rounded cave. */
       smooth: number;
-      floor: TerrainId;
+      floor: TerrainRef;
       /** Wall thickness, in map pixels. */
       wall: number;
       wallStyle: 'stone' | 'cave' | 'wood';
+      /** A pack's wall strip for the walls, instead of the drawn style. */
+      wallTexture?: string;
       doors?: Door[];
     }
   /** A road, trail, river or fence along control points. */

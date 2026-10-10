@@ -52,6 +52,7 @@ import { encodeHeights, heightAt, heightsOf, paintHeights } from '../../app/maps
 import { generateArchipelago } from '../../app/maps/islandgen';
 import { defaultLabelText, targetLine } from '../../app/maps/labels';
 import { doorOnWall, generateCave, generateDungeon, roomOutline } from '../../app/maps/rooms';
+import { isPortalPicture, portalOnWalls } from '../../app/maps/portal';
 import {
   DEFAULT_SCATTER,
   FURNISH_PRESETS,
@@ -463,6 +464,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             floor: roomSet.floor,
             wall: roomSet.wall,
             wallStyle: roomSet.wallStyle,
+            ...(roomSet.wallTexture ? { wallTexture: roomSet.wallTexture } : {}),
           }),
         );
         setSelected(id);
@@ -540,7 +542,12 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       const item: MapItem =
         tool === 'route'
           ? { kind: 'route', id: itemId(doc), points: wall, label: 'Route', color: ROUTE_COLOR }
-          : { kind: 'wall', id: itemId(doc), points: wall };
+          : {
+              kind: 'wall',
+              id: itemId(doc),
+              points: wall,
+              ...(roomSet.wallTexture ? { texture: roomSet.wallTexture } : {}),
+            };
       commit((d) => add(d, layer.id, item));
     }
     setWall(null);
@@ -600,6 +607,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             floor: roomSet.floor,
             wall: roomSet.wall,
             wallStyle: roomSet.wallStyle,
+            ...(roomSet.wallTexture ? { wallTexture: roomSet.wallTexture } : {}),
             ...(room.doors.length
               ? {
                   doors: room.doors.map((door) => ({
@@ -817,7 +825,9 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       case 'stamp': {
         if (!stamp || !canDraw) return;
         const size = grid.size;
-        const at = snapCell(p);
+        // A door or a window of a pack goes onto the nearest wall, turned along it.
+        const onWall = isPortalPicture(stamp) ? portalOnWalls(doc, p, size * 0.75) : null;
+        const at = onWall ?? snapCell(p);
         place({
           kind: 'stamp',
           id: itemId(doc),
@@ -826,7 +836,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           y: at.y,
           w: stampSquares ? stampSquares.w * size : stampAspect >= 1 ? size * stampAspect : size,
           h: stampSquares ? stampSquares.h * size : stampAspect >= 1 ? size : size / stampAspect,
-          rotation: 0,
+          rotation: onWall ? Math.round((onWall.angle * 180) / Math.PI) : 0,
         });
         return;
       }
@@ -1330,6 +1340,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           floor: roomSet.floor,
           wall: roomSet.wall,
           wallStyle: roomSet.wallStyle,
+          ...(roomSet.wallTexture ? { wallTexture: roomSet.wallTexture } : {}),
         });
         return;
       }

@@ -17,7 +17,8 @@ const WALL_COLORS = { stone: 0x4a4540, cave: 0x3b3128, wood: 0x5c4026 } as const
 export const doorWidth = (room: Room): number => Math.max(24, room.wall * 5.5);
 
 /** The walls: a thick line along the outline (the inner half is covered by the floor). */
-export function roomWallView(room: Room): Container {
+export function roomWallView(room: Room, strips?: Container | null): Container {
+  if (strips) return strips;
   const g = new Graphics();
   const outline = roomOutline(room.points, room.smooth);
   if (outline.length < 6) return g;
