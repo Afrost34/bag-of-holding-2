@@ -51,14 +51,8 @@ import {
 import { encodeHeights, heightAt, heightsOf, paintHeights } from '../../app/maps/elevation';
 import { generateArchipelago } from '../../app/maps/islandgen';
 import { defaultLabelText, targetLine } from '../../app/maps/labels';
-import {
-  doorOnWall,
-  generateCave,
-  generateDungeon,
-  isPortalPicture,
-  portalOnWalls,
-  roomOutline,
-} from '../../app/maps/rooms';
+import { doorOnWall, generateCave, generateDungeon, roomOutline } from '../../app/maps/rooms';
+import { isPortalPicture, portalOnWalls } from '../../app/maps/portal';
 import {
   DEFAULT_SCATTER,
   FURNISH_PRESETS,
