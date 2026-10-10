@@ -31,6 +31,7 @@ import {
 } from './model';
 import { pinIconSvg } from './pinIcons';
 import { glyphAspect, glyphIdOf, glyphTexture, isGlyphRef } from './glyphs';
+import { itemBox } from './arrange';
 import { buildingView, districtView } from './cityView';
 import { roomDoorsView, roomFloorView, roomWallView } from './roomView';
 import { roomOutline } from './rooms';
@@ -1144,6 +1145,31 @@ export class MapScene {
       color: SELECT_COLOR,
       width: w * 1.5,
     });
+  }
+
+  /** Several items picked: a box round each (no handles). */
+  selectMany(items: readonly MapItem[]): void {
+    const g = this.selection.clear();
+    this.requestRender();
+    const w = 2 / this.zoom;
+    for (const item of items) {
+      const b = itemBox(item);
+      g.rect(b.x0 - 3, b.y0 - 3, b.x1 - b.x0 + 6, b.y1 - b.y0 + 6).stroke({
+        color: SELECT_COLOR,
+        width: w * 1.5,
+      });
+    }
+  }
+
+  /** Moves the drawn items (while dragging a group) by this much, without a new map. */
+  nudgeBy(items: readonly MapItem[], dx: number, dy: number): void {
+    for (const item of items) {
+      const view = this.nodes.get(item.id)?.view;
+      if (!view) continue;
+      if ('x' in item) view.position.set(item.x + dx, item.y + dy);
+      else view.position.set(dx, dy);
+    }
+    this.requestRender();
   }
 
   /** Moves the drawn item (while dragging) without a new map. */

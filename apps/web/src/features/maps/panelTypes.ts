@@ -27,6 +27,8 @@ export interface MapPanelsProps {
   tool: Tool;
   setTool: (t: Tool) => void;
   selected: MapItem | null;
+  /** Every picked item (the one in `selected` and those added with Shift). */
+  selectedIds: string[];
   onDeselect: () => void;
   layerId: string;
   setLayerId: (id: string) => void;

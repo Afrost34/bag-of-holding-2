@@ -13,7 +13,7 @@ import {
   Undo2,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
 import { useCampaigns } from '../../app/campaigns/store';
 import { entityPath } from '../../app/data/entities';
@@ -36,6 +36,17 @@ import {
   rotatePoints,
   type DistrictSettings,
 } from '../../app/maps/cityDoc';
+import {
+  addMirrored,
+  constrainAngle,
+  itemsWithIds,
+  MIRRORS,
+  moveItems,
+  nearestVertex,
+  removeItems,
+  translateItem,
+  type Mirror,
+} from '../../app/maps/arrange';
 import { generateArchipelago } from '../../app/maps/islandgen';
 import { doorOnWall, generateCave, generateDungeon, roomOutline } from '../../app/maps/rooms';
 import {
@@ -52,7 +63,6 @@ import { TERRAINS } from '../../app/maps/terrain';
 import { snapToCell, snapToCorner, templateOutline, type Point } from '../../app/maps/geometry';
 import {
   addFog,
-  addItem,
   artHash,
   findItem,
   hasArt,
@@ -60,7 +70,6 @@ import {
   itemId,
   mapKind,
   rectPoints,
-  removeItem,
   setActiveVariant,
   updateItem,
   type MapDoc,
@@ -100,6 +109,7 @@ import { ExportDialog } from './ExportDialog';
 import { MapPanels } from './MapPanels';
 import { PinHover } from '../../app/maps/PinHover';
 import {
+  TOOL_GROUP,
   TOOLS_WITH_SETTINGS,
   toolsFor,
   type AreaSettings,
@@ -210,6 +220,9 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     taper: true,
   });
   const [snap, setSnap] = useState(true);
+  const [mirror, setMirror] = useState<Mirror>('off');
+  /** Items picked besides `selected` (Shift+click). */
+  const [group, setGroup] = useState<string[]>([]);
   const [viewing, setViewing] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [wall, setWall] = useState<number[] | null>(null);
@@ -254,8 +267,10 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   useEffect(() => {
     scene?.setDoc(doc);
     const found = selected ? findItem(doc, selected) : undefined;
-    scene?.select(found?.item ?? null);
-  }, [scene, doc, selected]);
+    const more = itemsWithIds(doc, group);
+    if (found && more.length > 0) scene?.selectMany([found.item, ...more]);
+    else scene?.select(found?.item ?? null);
+  }, [scene, doc, selected, group]);
 
   // A few seconds after the art last changed, the Creator makes the flat picture other devices
   // (a phone without the packs) show instead of drawing it.
@@ -334,9 +349,25 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     scene?.drawMeasure(points, line ? (line.split(' · ')[0] ?? line) : null);
   };
 
+  /** An item added to the layer, with its mirrored copies when a mirror is on. */
+  const add = (d: MapDoc, layerId: string, item: MapItem): MapDoc =>
+    addMirrored(d, layerId, item, mirror);
+
+  /** A point as the pointer placed it, held to 15° steps with Shift and snapped to other corners. */
+  const pt = (raw: Point, shift: boolean): [number, number] => {
+    let q = raw;
+    if (shift && wall && wall.length >= 2)
+      q = constrainAngle({ x: wall[wall.length - 2] ?? 0, y: wall[wall.length - 1] ?? 0 }, q);
+    if (snap) {
+      const near = nearestVertex(doc, q, 10 / (scene?.zoom ?? 1));
+      if (near) q = near;
+    }
+    return [q.x, q.y];
+  };
+
   const place = (item: MapItem) => {
     if (!layer || layer.locked) return;
-    commit((d) => addItem(d, layer.id, item));
+    commit((d) => add(d, layer.id, item));
     setSelected(item.id);
   };
 
@@ -372,7 +403,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       if (points.length >= 6 && layer) {
         const base = TERRAINS.find((t) => t.id === area.texture)?.base ?? '#5b8a2b';
         commit((d) =>
-          addItem(d, layer.id, {
+          add(d, layer.id, {
             kind: 'shape',
             id: itemId(d),
             points: points.map(Math.round),
@@ -393,7 +424,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       if (points.length >= 6 && layer) {
         const id = itemId(doc);
         commit((d) =>
-          addItem(d, layer.id, {
+          add(d, layer.id, {
             kind: 'room',
             id,
             points,
@@ -414,7 +445,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       if (points.length >= 6 && layer) {
         const id = itemId(doc);
         commit((d) =>
-          addItem(d, layer.id, makeDistrict(id, district, points, Math.floor(Math.random() * 1e9))),
+          add(d, layer.id, makeDistrict(id, district, points, Math.floor(Math.random() * 1e9))),
         );
         setSelected(id);
       }
@@ -427,7 +458,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       if (points.length >= 6 && layer) {
         const id = itemId(doc);
         commit((d) =>
-          addItem(d, layer.id, makeBuilding(id, points, buildingSet.roof, buildingSet.color)),
+          add(d, layer.id, makeBuilding(id, points, buildingSet.roof, buildingSet.color)),
         );
         setSelected(id);
       }
@@ -441,11 +472,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       if (points.length >= enough && layer) {
         const id = itemId(doc);
         commit((d) =>
-          addItem(
-            d,
-            layer.id,
-            makeScatter(id, scatter, { points }, Math.floor(Math.random() * 1e9)),
-          ),
+          add(d, layer.id, makeScatter(id, scatter, { points }, Math.floor(Math.random() * 1e9))),
         );
         setSelected(id);
       }
@@ -461,7 +488,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           pathSet.style === 'river' ? snapRiverEnd(doc, points, 30 / (scene?.zoom ?? 1)) : null;
         if (joined) points = joined.points;
         commit((d) =>
-          addItem(d, layer.id, {
+          add(d, layer.id, {
             kind: 'path',
             id: itemId(d),
             points,
@@ -483,7 +510,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         tool === 'route'
           ? { kind: 'route', id: itemId(doc), points: wall, label: 'Route', color: ROUTE_COLOR }
           : { kind: 'wall', id: itemId(doc), points: wall };
-      commit((d) => addItem(d, layer.id, item));
+      commit((d) => add(d, layer.id, item));
     }
     setWall(null);
     scene?.clearPreview();
@@ -506,7 +533,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         ? { points: [], within: target.id }
         : { points: [], follow: target.id };
     commit((d) =>
-      addItem(d, layer.id, makeScatter(id, settings, where, Math.floor(Math.random() * 1e9))),
+      add(d, layer.id, makeScatter(id, settings, where, Math.floor(Math.random() * 1e9))),
     );
     setSelected(id);
   };
@@ -534,7 +561,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     commit((d) =>
       plan.reduce(
         (acc, room) =>
-          addItem(acc, layer.id, {
+          add(acc, layer.id, {
             kind: 'room',
             id: itemId(acc),
             points: room.points.map(Math.round),
@@ -565,7 +592,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     const radius = (Math.min(el.clientWidth, el.clientHeight) / scene.zoom) * 0.17;
     const points = generateCave(c.x, c.y, radius, Math.floor(Math.random() * 1e9)).map(Math.round);
     commit((d) =>
-      addItem(d, layer.id, {
+      add(d, layer.id, {
         kind: 'room',
         id: itemId(d),
         points,
@@ -622,7 +649,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     commit((d) =>
       islands.reduce(
         (acc, points) =>
-          addItem(acc, layer.id, {
+          add(acc, layer.id, {
             kind: 'shape',
             id: itemId(acc),
             points,
@@ -713,7 +740,22 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         // The Viewer moves what it placed (pins, routes), never the map's art.
         const hit =
           found && !creator && found.kind !== 'pin' && found.kind !== 'route' ? null : found;
-        setSelected(hit?.id ?? null);
+        if (e.shiftKey && creator) {
+          // Shift+click adds an item to the pick, or takes it out.
+          if (hit) {
+            const ids = selected ? [selected, ...group] : [];
+            const next = ids.includes(hit.id) ? ids.filter((x) => x !== hit.id) : [...ids, hit.id];
+            setSelected(next[0] ?? null);
+            setGroup(next.slice(1));
+          }
+          return;
+        }
+        // Dragging one of several picked items moves them all.
+        const inGroup = hit && group.length > 0 && (hit.id === selected || group.includes(hit.id));
+        if (!inGroup) {
+          setSelected(hit?.id ?? null);
+          setGroup([]);
+        }
         drag.current = hit ? { mode: 'move', ...base, item: hit } : { mode: 'pan', ...base };
         return;
       }
@@ -753,7 +795,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       case 'route':
         // Stops are where they are clicked: a route follows roads and coasts, not the grid.
         if (!canDraw) return;
-        setWall((w) => [...(w ?? []), p.x, p.y]);
+        setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey)]);
         return;
       case 'text':
         place({
@@ -781,7 +823,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       case 'room':
         if (!canDraw) return;
         if (roomSet.shape === 'rect') drag.current = { mode: 'room', ...base, start: snapPoint(p) };
-        else setWall((w) => [...(w ?? []), p.x, p.y]);
+        else setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey)]);
         return;
       case 'door': {
         // A door goes on the nearest wall of any room within reach; one already there is removed.
@@ -828,7 +870,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           return;
         }
         if (buildingSet.shape === 'rect') drag.current = { mode: 'building', ...base };
-        else setWall((w) => [...(w ?? []), p.x, p.y]);
+        else setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey)]);
         return;
       }
       case 'area':
@@ -836,7 +878,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       case 'scatter':
       case 'district':
         // Organic outlines: the points are where they are clicked, not on the grid.
-        if (canDraw) setWall((w) => [...(w ?? []), p.x, p.y]);
+        if (canDraw) setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey)]);
         return;
       case 'fog':
         if (fog.shape === 'polygon') setWall((w) => [...(w ?? []), p.x, p.y]);
@@ -879,7 +921,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         tool === 'room')
     ) {
       const closed = tool !== 'path' && (tool !== 'scatter' || scatter.mode === 'area');
-      const control = [...wall, p.x, p.y];
+      const control = [...wall, ...pt(p, e.shiftKey)];
       const line = splinePoints(
         control,
         closed,
@@ -936,6 +978,11 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         if (!d.item) return;
         const dx = p.x - d.start.x;
         const dy = p.y - d.start.y;
+        if (group.length > 0 && (d.item.id === selected || group.includes(d.item.id))) {
+          scene.nudgeBy(itemsWithIds(doc, [selected ?? '', ...group]), dx, dy);
+          d.last = p;
+          return;
+        }
         const positioned = 'x' in d.item;
         const target = positioned ? snapMoved(d.item, dx, dy) : { x: dx, y: dy };
         scene.nudge(d.item.id, target.x, target.y);
@@ -1095,13 +1142,18 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         const dx = p.x - d.start.x;
         const dy = p.y - d.start.y;
         if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+        if (group.length > 0 && (item.id === selected || group.includes(item.id))) {
+          const ids = [selected ?? '', ...group];
+          commit((doc2) => moveItems(doc2, ids, Math.round(dx), Math.round(dy)));
+          return;
+        }
         commit((doc2) =>
           updateItem(doc2, item.id, (i) => {
             if ('x' in i) {
               const at = snapMoved(i, dx, dy);
               return { ...i, x: Math.round(at.x), y: Math.round(at.y) };
             }
-            return { ...i, points: i.points.map((v, k) => Math.round(v + (k % 2 ? dy : dx))) };
+            return translateItem(i, Math.round(dx), Math.round(dy));
           }),
         );
         return;
@@ -1112,7 +1164,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         const points = simplify(d.points ?? []);
         if (!layer) return;
         commit((doc2) =>
-          addItem(doc2, layer.id, {
+          add(doc2, layer.id, {
             kind: 'stroke',
             id: itemId(doc2),
             points,
@@ -1246,6 +1298,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
 
   // Keyboard: tools, undo, delete, rotate and resize the picked item.
   const selectedItem = selected ? findItem(doc, selected)?.item : undefined;
+  // Items undone or removed drop out of the pick.
+  const liveGroup = group.filter((id) => findItem(doc, id));
   // An item undone or removed is no longer picked (and does not come back picked on redo).
   if (selected && !selectedItem) setSelected(null);
   useEffect(() => {
@@ -1282,6 +1336,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           cancelWall();
         else if (wall) finishWall();
         setSelected(null);
+        setGroup([]);
         setMeasured([]);
         scene?.clearPreview();
         if (viewing) setViewing(false);
@@ -1292,8 +1347,10 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         return;
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selected) {
-        commit((d) => removeItem(d, selected));
+        const ids = [selected, ...group];
+        commit((d) => removeItems(d, ids));
         setSelected(null);
+        setGroup([]);
         return;
       }
       if (selectedItem?.kind === 'stamp') {
@@ -1391,6 +1448,23 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           >
             <Expand className="h-4 w-4" aria-hidden />
           </Button>
+          {creator && (
+            <select
+              aria-label="Mirror"
+              title="Draw on both sides of the middle of the map"
+              value={mirror}
+              onChange={(e) => {
+                setMirror(e.target.value as Mirror);
+              }}
+              className="rounded-md border border-border bg-surface px-2 py-1.5 text-sm"
+            >
+              {MIRRORS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          )}
           {(doc.variants?.length ?? 0) > 0 && (
             <select
               aria-label="Variant"
@@ -1506,29 +1580,33 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             aria-orientation="vertical"
             className="flex flex-col gap-1 overflow-y-auto border-r border-border bg-surface p-1"
           >
-            {tools.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                aria-label={t.label}
-                aria-pressed={tool === t.id}
-                title={`${t.label} (${t.key.toUpperCase()})`}
-                onClick={() => {
-                  if (wall) finishWall();
-                  setTool(t.id);
-                  setMeasured([]);
-                  scene?.clearPreview();
-                  if (TOOLS_WITH_SETTINGS.has(t.id)) setPanelOpen(true);
-                }}
-                className={cn(
-                  'rounded-md p-2',
-                  tool === t.id
-                    ? 'bg-accent text-accent-fg'
-                    : 'text-muted hover:bg-sunken hover:text-text',
+            {tools.map((t, index) => (
+              <Fragment key={t.id}>
+                {index > 0 && TOOL_GROUP[t.id] !== TOOL_GROUP[tools[index - 1]?.id ?? t.id] && (
+                  <div role="separator" className="mx-1 my-0.5 h-px bg-border" />
                 )}
-              >
-                <t.icon className="h-5 w-5" aria-hidden />
-              </button>
+                <button
+                  type="button"
+                  aria-label={t.label}
+                  aria-pressed={tool === t.id}
+                  title={`${t.label} (${t.key.toUpperCase()})`}
+                  onClick={() => {
+                    if (wall) finishWall();
+                    setTool(t.id);
+                    setMeasured([]);
+                    scene?.clearPreview();
+                    if (TOOLS_WITH_SETTINGS.has(t.id)) setPanelOpen(true);
+                  }}
+                  className={cn(
+                    'rounded-md p-2',
+                    tool === t.id
+                      ? 'bg-accent text-accent-fg'
+                      : 'text-muted hover:bg-sunken hover:text-text',
+                  )}
+                >
+                  <t.icon className="h-5 w-5" aria-hidden />
+                </button>
+              </Fragment>
             ))}
           </div>
         )}
@@ -1618,6 +1696,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             tool={tool}
             setTool={setTool}
             selected={selectedItem ?? null}
+            selectedIds={selectedItem ? [selectedItem.id, ...liveGroup] : []}
             onDeselect={() => {
               setSelected(null);
             }}

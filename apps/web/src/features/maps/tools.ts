@@ -75,6 +75,31 @@ export const TOOLS: { id: Tool; label: string; icon: LucideIcon; key: string }[]
   { id: 'fog', label: 'Fog', icon: CloudFog, key: 'f' },
 ];
 
+/** Tools that belong together sit together in the tool bar, with a rule between groups. */
+export const TOOL_GROUP: Record<Tool, number> = {
+  select: 0,
+  pan: 0,
+  stamp: 1,
+  pen: 1,
+  terrain: 1,
+  eraser: 1,
+  area: 2,
+  path: 2,
+  scatter: 2,
+  district: 3,
+  building: 3,
+  room: 3,
+  door: 3,
+  wall: 3,
+  text: 4,
+  measure: 4,
+  calibrate: 4,
+  template: 5,
+  pin: 5,
+  route: 5,
+  fog: 5,
+};
+
 /** The Creator draws the map; the Viewer uses it (pins, routes, ranges). Both can measure. */
 export type MapMode = 'creator' | 'viewer';
 

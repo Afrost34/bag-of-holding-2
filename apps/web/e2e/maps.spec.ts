@@ -1111,3 +1111,47 @@ test('rooms with walls and doors, a generated dungeon and a cave', async ({ page
   await page.waitForTimeout(800);
   await canvas.screenshot({ path: testInfo.outputPath('dungeon.png') });
 });
+
+test('mirrored drawing, and several items picked to line up', async ({ page }) => {
+  test.skip(isPhone(page), 'Drawn on the desktop.');
+  test.setTimeout(90_000);
+  await newMap(page, 'Twin Halls');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  const counts = async () =>
+    page
+      .getByRole('region', { name: 'Layers' })
+      .getByRole('listitem')
+      .evaluateAll((items) =>
+        items.reduce((n, li) => n + Number(li.querySelector('span')?.textContent ?? 0), 0),
+      );
+  const drag = async (x0: number, y0: number, x1: number, y1: number) => {
+    await page.mouse.move(box.x + x0, box.y + y0);
+    await page.mouse.down();
+    await page.mouse.move(box.x + x1, box.y + y1, { steps: 5 });
+    await page.mouse.up();
+  };
+  // Drawn once, made four times.
+  await page.getByLabel('Mirror').selectOption('xy');
+  await tool(page, 'Brush').click();
+  await drag(120, 120, 200, 180);
+  await page.getByRole('tab', { name: 'Layers' }).click();
+  await expect.poll(counts).toBe(4);
+  await page.getByLabel('Mirror').selectOption('off');
+  // Two rooms, both picked, then lined up by their left edges.
+  await tool(page, 'Room').click();
+  await drag(200, 250, 280, 310);
+  await drag(300, 330, 380, 400);
+  await tool(page, 'Select and move').click();
+  await page.mouse.click(box.x + 240, box.y + 280);
+  await page.keyboard.down('Shift');
+  await page.mouse.click(box.x + 340, box.y + 365);
+  await page.keyboard.up('Shift');
+  const arrange = page.getByRole('region', { name: 'Selection' });
+  await expect(arrange).toBeVisible();
+  await arrange.getByRole('button', { name: 'Align left edges' }).click();
+  await arrange.getByRole('button', { name: 'Remove the 2 items' }).click();
+  await page.getByRole('tab', { name: 'Layers' }).click();
+  await expect.poll(counts).toBe(4);
+});

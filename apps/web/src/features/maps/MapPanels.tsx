@@ -1,6 +1,7 @@
 import { cn } from '@boh/ui';
 import { X } from 'lucide-react';
 import { useState } from 'react';
+import { ArrangePanel } from './ArrangePanel';
 import { ItemSettings } from './ItemSettings';
 import { FogPanel } from './FogPanel';
 import { Layers } from './LayersPanel';
@@ -72,6 +73,7 @@ export function MapPanels(props: MapPanelsProps) {
         </button>
       </div>
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
+        {props.selectedIds.length > 1 && <ArrangePanel {...props} />}
         {(tool === 'pen' || tool === 'terrain' || tool === 'eraser' || tool === 'template') && (
           <ToolSettings {...props} />
         )}
