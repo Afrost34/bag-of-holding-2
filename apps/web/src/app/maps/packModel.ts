@@ -107,7 +107,34 @@ export function fuzzyIncludes(hay: string, word: string): boolean {
   return false;
 }
 
+/** The folders a picture sits in, lower case: `Desert/Town/Well_1x1.webp` is `desert`, `town`. */
+const folderTags = (path: string): string[] =>
+  path
+    .split('/')
+    .slice(0, -1)
+    .map((s) => s.replace(/^!/, '').replace(/_/g, ' ').toLowerCase());
+
+/**
+ * The tags of a set of pictures: the names of the folders they are in, most used first (a pack
+ * without a tag file is tagged by how it is sorted). Names used by a single picture are left out.
+ */
+export function packTags(
+  entries: readonly Pick<PackEntry, 'path'>[],
+  max = 60,
+): { tag: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const e of entries)
+    for (const t of new Set(folderTags(e.path))) counts.set(t, (counts.get(t) ?? 0) + 1);
+  return [...counts]
+    .filter(([, n]) => n > 1)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'en'))
+    .slice(0, max)
+    .map(([tag, count]) => ({ tag, count }));
+}
+
 export interface FindOptions<E> {
+  /** Only pictures in a folder of this name (see `packTags`). */
+  tag?: string;
   /** Letters in order rather than the exact word. */
   fuzzy?: boolean;
   /** Only these (the pictures the map uses). */
@@ -132,9 +159,10 @@ export function findPackEntries<E extends Pick<PackEntry, 'path'>>(
   for (const e of entries) {
     if (!e.path.startsWith(lead)) continue;
     if (options.only && !options.only(e)) continue;
+    if (options.tag && !folderTags(e.path).includes(options.tag)) continue;
     if (wanted.length === 0) {
       // A folder shows what is directly in it; the pictures a map uses show wherever they are.
-      if (!options.only && e.path.slice(lead.length).includes('/')) continue;
+      if (!options.only && !options.tag && e.path.slice(lead.length).includes('/')) continue;
     } else {
       const hay = e.path.slice(lead.length).toLowerCase();
       const match = options.fuzzy ? fuzzyIncludes : (h: string, w: string) => h.includes(w);

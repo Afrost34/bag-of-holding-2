@@ -447,6 +447,14 @@ test('asset packs are imported as zips, browsed with previews, and their stamps 
   await expect(pictures.getByRole('button')).toHaveCount(1);
   await page.getByLabel('Fuzzy search').uncheck();
   await page.getByLabel('Find a pack picture').fill('');
+  // Tags are the folder names.
+  await page.getByRole('button', { name: 'Tags', exact: true }).click();
+  await page
+    .getByRole('list', { name: 'Pack tags' })
+    .getByRole('button', { name: /^desert/ })
+    .click();
+  await expect(pictures.getByRole('button')).toHaveCount(2);
+  await page.getByRole('button', { name: 'All', exact: true }).click();
   // Importing the same zip again adds nothing.
   await page.getByRole('tab', { name: 'Stamps', exact: true }).click();
   const again = page.waitForEvent('filechooser');

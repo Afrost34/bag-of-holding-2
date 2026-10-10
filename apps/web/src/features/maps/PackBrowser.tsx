@@ -6,6 +6,7 @@ import { packThumbUrl, usePacks, entryRef, type ImportProgress } from '../../app
 import {
   displayName,
   findPackEntries,
+  packTags,
   foldersUnder,
   squaresOf,
   type PackEntry,
@@ -75,7 +76,8 @@ export function PackBrowser({
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [managing, setManaging] = useState(false);
-  const [view, setView] = useState<'all' | 'used'>('all');
+  const [view, setView] = useState<'all' | 'used' | 'tags'>('all');
+  const [tag, setTag] = useState<string | null>(null);
   const [fuzzy, setFuzzy] = useState(false);
   const search = useDeferredValue(query);
   useEffect(() => {
@@ -86,14 +88,16 @@ export function PackBrowser({
   const options = useMemo(
     () => ({
       fuzzy,
+      ...(view === 'tags' && tag ? { tag } : {}),
       ...(view === 'used' && used ? { only: (e: PackEntry) => used.has(entryRef(e)) } : {}),
     }),
-    [fuzzy, view, used],
+    [fuzzy, view, used, tag],
   );
   const found = useMemo(
     () => findPackEntries(entries, prefix, search, limit, options),
     [entries, prefix, search, limit, options],
   );
+  const tags = useMemo(() => (view === 'tags' ? packTags(entries) : []), [entries, view]);
   const crumbs = prefix ? prefix.split('/') : [];
 
   const choose = () => {
@@ -224,11 +228,12 @@ export function PackBrowser({
             />
           </label>
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            <div role="group" aria-label="Pictures shown" className="flex gap-1">
+            <div role="group" aria-label="Pictures shown" className="flex flex-wrap gap-1">
               {(
                 [
                   ['all', 'All'],
                   ['used', `Used on this map${used ? ` (${String(used.size)})` : ''}`],
+                  ['tags', 'Tags'],
                 ] as const
               ).map(([id, label]) => (
                 <button
@@ -261,6 +266,30 @@ export function PackBrowser({
               Fuzzy search
             </label>
           </div>
+          {view === 'tags' && (
+            <ul aria-label="Pack tags" className="flex flex-wrap gap-1">
+              {tags.map((t) => (
+                <li key={t.tag}>
+                  <button
+                    type="button"
+                    aria-pressed={tag === t.tag}
+                    onClick={() => {
+                      setTag(tag === t.tag ? null : t.tag);
+                      setLimit(PAGE);
+                    }}
+                    className={cn(
+                      'rounded-full border px-2 py-0.5 text-xs',
+                      tag === t.tag
+                        ? 'border-accent bg-accent-soft font-medium'
+                        : 'border-border hover:border-accent',
+                    )}
+                  >
+                    {t.tag} <span className="text-muted">{t.count.toLocaleString('en')}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           <nav aria-label="Pack folders" className="flex flex-wrap items-center gap-0.5 text-xs">
             <button
               type="button"
@@ -289,7 +318,7 @@ export function PackBrowser({
               </span>
             ))}
           </nav>
-          {folders.length > 0 && search.trim() === '' && (
+          {folders.length > 0 && search.trim() === '' && view !== 'tags' && (
             <ul aria-label="Folders" className="flex flex-wrap gap-1">
               {folders.map((f) => (
                 <li key={f.name}>

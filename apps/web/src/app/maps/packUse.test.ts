@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { addItem, newMap } from './model';
-import { fuzzyIncludes, findPackEntries } from './packModel';
+import { fuzzyIncludes, findPackEntries, packTags } from './packModel';
 import { usedPackRefs } from './packUse';
 
 describe('searching packs', () => {
@@ -64,5 +64,31 @@ describe('the pictures a map uses', () => {
       'pack:a:Forest/Oak_1x1.webp',
       'pack:b:Textures/Sand.webp',
     ]);
+  });
+});
+
+describe('tags from folders', () => {
+  const entries = [
+    { path: 'Forest/Trees/Oak_1x1.webp' },
+    { path: 'Forest/Trees/Pine_1x1.webp' },
+    { path: 'Forest/Rocks/Moss_1x1.webp' },
+    { path: 'Desert/Town/Well_2x2.webp' },
+    { path: 'Desert/Town/Cart_3x1.webp' },
+    { path: 'Desert/Single/Lone_1x1.webp' },
+  ];
+
+  it('are the folder names, most used first, without those of one picture', () => {
+    expect(packTags(entries)).toEqual([
+      { tag: 'desert', count: 3 },
+      { tag: 'forest', count: 3 },
+      { tag: 'town', count: 2 },
+      { tag: 'trees', count: 2 },
+    ]);
+  });
+
+  it('find the pictures in a folder of that name, at any depth', () => {
+    expect(findPackEntries(entries, '', '', 10, { tag: 'trees' }).total).toBe(2);
+    expect(findPackEntries(entries, '', 'well', 10, { tag: 'town' }).total).toBe(1);
+    expect(findPackEntries(entries, '', '', 10, { tag: 'desert' }).total).toBe(3);
   });
 });
