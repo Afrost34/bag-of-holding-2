@@ -893,3 +893,78 @@ test('the Creator makes a flat picture of the art that the Viewer shows', async 
     1,
   );
 });
+
+test('terrain shapes, islands, roads and rivers are drawn and edited', async ({
+  page,
+}, testInfo) => {
+  test.skip(isPhone(page), 'Drawn on the desktop.');
+  test.setTimeout(90_000);
+  await newMap(page, 'The Isles', 'World or city map');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  const at = (x: number, y: number) => ({ x: box.x + x, y: box.y + y });
+  const click = async (x: number, y: number) => {
+    await page.mouse.click(at(x, y).x, at(x, y).y);
+  };
+  const counts = async () =>
+    page
+      .getByRole('region', { name: 'Layers' })
+      .getByRole('listitem')
+      .evaluateAll((items) =>
+        items.reduce((n, li) => n + Number(li.querySelector('span')?.textContent ?? 0), 0),
+      );
+
+  // The sea, then land with a coast.
+  await tool(page, 'Terrain shape').click();
+  await page
+    .getByRole('radiogroup', { name: 'Terrain' })
+    .getByRole('radio', { name: 'Water' })
+    .click();
+  await page.getByRole('button', { name: 'Cover the whole map' }).click();
+  await page
+    .getByRole('radiogroup', { name: 'Terrain' })
+    .getByRole('radio', { name: 'Grass' })
+    .click();
+  await page.getByRole('button', { name: 'Generate an island' }).click();
+  await waitForSaved(page, 'maps', '"kind":"shape"');
+  // A shape of its own, point by point; Enter closes it.
+  await click(120, 120);
+  await click(300, 100);
+  await click(340, 220);
+  await click(180, 260);
+  await page.keyboard.press('Enter');
+  // A river from the hills towards the sea, and a road.
+  await tool(page, 'Road or river').click();
+  await page.getByLabel('Path kind').selectOption('river');
+  await click(200, 140);
+  await click(260, 200);
+  await click(300, 330);
+  await page.keyboard.press('Enter');
+  await page.getByLabel('Path kind').selectOption('road');
+  await click(100, 300);
+  await click(250, 280);
+  await click(400, 330);
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'maps', '"style":"river"');
+  await waitForSaved(page, 'maps', '"style":"road"');
+  await page.getByRole('tab', { name: 'Layers' }).click();
+  // Sea, island, hand-drawn shape, river, road.
+  await expect.poll(counts).toBe(5);
+  await page.waitForTimeout(500);
+  await canvas.screenshot({ path: testInfo.outputPath('isles.png') });
+
+  // Picked, a shape shows its settings and handles; Escape while drawing cancels.
+  await tool(page, 'Select and move').click();
+  await click(150, 170);
+  await expect(page.getByRole('region', { name: 'Terrain shape' })).toBeVisible();
+  await tool(page, 'Road or river').click();
+  await click(50, 50);
+  await click(80, 90);
+  await page.keyboard.press('Escape');
+  await page.getByRole('tab', { name: 'Layers' }).click();
+  await expect.poll(counts).toBe(5);
+  // Undo takes the road back.
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect.poll(counts).toBe(4);
+});

@@ -9,13 +9,16 @@ import {
   PaintRoller,
   Route,
   Ruler,
+  Shapes,
   Spline,
+  Waves,
   Stamp,
   Triangle,
   Type,
   type LucideIcon,
 } from 'lucide-react';
 import type { MapKind, TemplateShape } from '../../app/maps/model';
+import type { PathStyle } from '../../app/maps/shapes';
 import type { TerrainId } from '../../app/maps/terrain';
 
 export type Tool =
@@ -32,6 +35,8 @@ export type Tool =
   | 'template'
   | 'pin'
   | 'fog'
+  | 'area'
+  | 'path'
   | 'calibrate';
 
 /** The tool bar, in order; calibrate lives in the grid panel. */
@@ -42,6 +47,8 @@ export const TOOLS: { id: Tool; label: string; icon: LucideIcon; key: string }[]
   { id: 'pen', label: 'Brush', icon: Brush, key: 'b' },
   { id: 'terrain', label: 'Terrain brush', icon: PaintRoller, key: 'g' },
   { id: 'eraser', label: 'Eraser', icon: Eraser, key: 'e' },
+  { id: 'area', label: 'Terrain shape', icon: Shapes, key: 'a' },
+  { id: 'path', label: 'Road or river', icon: Waves, key: 'l' },
   { id: 'wall', label: 'Wall', icon: Spline, key: 'w' },
   { id: 'text', label: 'Text', icon: Type, key: 't' },
   { id: 'measure', label: 'Measure', icon: Ruler, key: 'm' },
@@ -61,6 +68,8 @@ const CREATOR_TOOLS = new Set<Tool>([
   'pen',
   'terrain',
   'eraser',
+  'area',
+  'path',
   'wall',
   'text',
   'measure',
@@ -97,6 +106,8 @@ export const TOOLS_WITH_SETTINGS = new Set<Tool>([
   'eraser',
   'template',
   'fog',
+  'area',
+  'path',
 ]);
 
 export interface TemplateSettings {
@@ -111,4 +122,32 @@ export const PEN_COLORS = ['#111111', '#b91c1c', '#1d4ed8', '#15803d', '#7c3aed'
 export interface FogSettings {
   mode: 'hide' | 'reveal';
   shape: 'rect' | 'polygon';
+}
+
+/** The terrain shape tool: what the area is, and how its edge looks. */
+export interface AreaSettings {
+  texture: TerrainId;
+  edge: 'none' | 'ink' | 'shore';
+  /** 0 straight corners, 1 fully rounded. */
+  smooth: number;
+  opacity: number;
+}
+
+/** The road and river tool. */
+export interface PathSettings {
+  style: PathStyle;
+  width: number;
+  smooth: number;
+  /** Rivers widen along their way. */
+  taper: boolean;
+}
+
+/** A random island or archipelago, placed in the middle of the view. */
+export interface IslandRequest {
+  /** Mean radius as a fraction of the map's shorter side. */
+  size: number;
+  ruggedness: number;
+  elongation: number;
+  count: number;
+  seed: number;
 }

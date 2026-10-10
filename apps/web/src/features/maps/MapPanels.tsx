@@ -8,6 +8,7 @@ import { MapSettings } from './MapSettings';
 import { type MapPanelsProps, type Tab } from './panelTypes';
 import { PinCategories } from './PinPanels';
 import { StampLibrary } from './StampLibrary';
+import { ShapePanel } from './ShapePanel';
 import { ToolSettings } from './ToolSettings';
 
 /** The editor's side panel: what the tool draws, then stamps, layers, grid or the picked item. */
@@ -72,6 +73,7 @@ export function MapPanels(props: MapPanelsProps) {
           <ToolSettings {...props} />
         )}
         {tool === 'fog' && <FogPanel {...props} />}
+        {(tool === 'area' || tool === 'path') && <ShapePanel {...props} />}
         {tab === 'stamps' && <StampLibrary selected={props.stamp} onPick={props.setStamp} />}
         {tab === 'layers' && <Layers {...props} />}
         {tab === 'pins' && <PinCategories doc={props.doc} commit={props.commit} />}

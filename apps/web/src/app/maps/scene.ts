@@ -15,6 +15,7 @@ import { fileUrl, stampFile } from './assets';
 import { scaleBarLabel, scaleBarSpec } from './scaleBar';
 import { arcLayout, dashSegments, dotsAlong, type RouteDash } from './lettering';
 import { hexCorners, templateOutline, type Point } from './geometry';
+import { bounds } from './spline';
 import { resizedView, type ViewBase } from './view';
 import { hiddenFromPlayers } from './pinLink';
 import {
@@ -29,6 +30,8 @@ import {
   type MapItem,
 } from './model';
 import { pinIconSvg } from './pinIcons';
+import { pathLine, pathView, shapeOutline, shapeView } from './shapes';
+import { pointInPolygon } from './polygon';
 import { terrainTile, type TerrainId } from './terrain';
 
 /**
@@ -487,7 +490,7 @@ export class MapScene {
         if (node?.item === item && node.look === look && node.view.parent === view) return;
         if (node) node.view.destroy({ children: true });
         const fresh = this.drawItem(item, doc);
-        fresh.cullable = true;
+        fresh.cullable = item.kind !== 'path' && item.kind !== 'shape';
         if (this.hideAnnotations && (item.kind === 'pin' || item.kind === 'route'))
           fresh.visible = false;
         this.nodes.set(item.id, { item, view: fresh, look });
@@ -765,6 +768,10 @@ export class MapScene {
           opacity: item.opacity,
           texture: item.texture,
         });
+      case 'shape':
+        return shapeView(item, item.texture ? terrainPattern(item.texture) : null);
+      case 'path':
+        return pathView(item);
       case 'wall': {
         const g = new Graphics();
         const p = item.points;
@@ -926,6 +933,19 @@ export class MapScene {
           if (nearPolyline(p, item.points, tolerance)) return item;
           continue;
         }
+        if (item.kind === 'shape') {
+          // A shape that covers most of the map is a backdrop (an ocean): a click does not pick it.
+          const outline = shapeOutline(item);
+          const b = bounds(outline);
+          if ((b.x1 - b.x0) * (b.y1 - b.y0) > this.doc.width * this.doc.height * 0.8) continue;
+          if (pointInPolygon(p, outline)) return item;
+          continue;
+        }
+        if (item.kind === 'path') {
+          const tolerance = item.width / 2 + 6 / this.zoom;
+          if (nearPolyline(p, pathLine(item), tolerance)) return item;
+          continue;
+        }
         if (item.kind === 'stamp') {
           const a = (-item.rotation * Math.PI) / 180;
           const dx = p.x - item.x;
@@ -968,6 +988,17 @@ export class MapScene {
         ];
       });
       g.poly(corners.flat()).stroke({ color: SELECT_COLOR, width: w * 1.5 });
+      return;
+    }
+    if (item.kind === 'shape' || item.kind === 'path') {
+      // The outline, and a handle on each control point to drag.
+      const line = item.kind === 'shape' ? shapeOutline(item) : pathLine(item);
+      if (line.length >= 4)
+        g.poly(line, item.kind === 'shape').stroke({ color: SELECT_COLOR, width: w });
+      for (let i = 0; i + 1 < item.points.length; i += 2)
+        g.circle(item.points[i] ?? 0, item.points[i + 1] ?? 0, 5 / this.zoom)
+          .fill({ color: 0xffffff })
+          .stroke({ color: SELECT_COLOR, width: w });
       return;
     }
     const view = this.nodes.get(item.id)?.view;
