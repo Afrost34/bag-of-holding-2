@@ -109,6 +109,7 @@ import {
 } from './editorModel';
 import { DeleteMap, NameInput } from './EditorParts';
 import { ExportDialog } from './ExportDialog';
+import { BottomBar } from './BottomBar';
 import { MapSearch } from './MapSearch';
 import { MapPanels } from './MapPanels';
 import { PinHover } from '../../app/maps/PinHover';
@@ -224,7 +225,23 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     smooth: 0.6,
     taper: true,
   });
-  const [snap, setSnap] = useState(true);
+  const [snap, setSnapState] = useState(() => {
+    try {
+      return localStorage.getItem('boh.map.snap') !== 'off';
+    } catch {
+      return true;
+    }
+  });
+  const setSnap = (on: boolean) => {
+    setSnapState(on);
+    try {
+      localStorage.setItem('boh.map.snap', on ? 'on' : 'off');
+    } catch {
+      /* a private window: the choice lasts until the page closes */
+    }
+  };
+  const [zoom, setZoom] = useState(1);
+  const [cursorSquare, setCursorSquare] = useState<{ col: number; row: number } | null>(null);
   const [mirror, setMirror] = useState<Mirror>('off');
   const [elev, setElev] = useState<ElevationBrush>({ mode: 'raise', radius: 160, strength: 0.5 });
   /** The heights being painted, before the stroke is kept. */
@@ -966,6 +983,10 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       return;
     }
     const p = scene.toMap(screen.x, screen.y);
+    const col = Math.floor((p.x - grid.offsetX) / grid.size) + 1;
+    const row = Math.floor((p.y - grid.offsetY) / grid.size) + 1;
+    setCursorSquare((c) => (c?.col === col && c.row === row ? c : { col, row }));
+    setZoom(scene.zoom);
     if (tool === 'measure' && measured.length > 0 && !drag.current)
       drawMeasured([...measured, measureAt(p)]);
     if (wall && tool === 'route')
@@ -1385,6 +1406,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       e.preventDefault();
       const r = el.getBoundingClientRect();
       scene.zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015));
+      setZoom(scene.zoom);
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => {
@@ -1475,6 +1497,14 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             i.kind === 'building' ? { ...i, points: rotatePoints(i.points, turn) } : i,
           ),
         );
+        return;
+      }
+      if (e.key === 'g' || e.key === 'G') {
+        commit((d) => ({ ...d, grid: { ...d.grid, visible: !d.grid.visible } }));
+        return;
+      }
+      if (e.key === 's' || e.key === 'S') {
+        setSnap(!snap);
         return;
       }
       const t = tools.find((x) => x.key === e.key.toLowerCase());
@@ -1748,9 +1778,19 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
               e.preventDefault();
             }}
           />
+          <BottomBar
+            gridVisible={grid.visible}
+            onGrid={(visible) => {
+              commit((d) => ({ ...d, grid: { ...d.grid, visible } }));
+            }}
+            snap={snap}
+            onSnap={setSnap}
+            zoom={zoom}
+            square={cursorSquare}
+          />
           <PinHover scene={scene} host={host} campaignId={doc.campaign} />
           {loadingPicture && (
-            <p className="pointer-events-none absolute bottom-2 left-2 rounded-md bg-surface/90 px-3 py-1 text-sm text-muted shadow-card">
+            <p className="pointer-events-none absolute bottom-12 left-2 rounded-md bg-surface/90 px-3 py-1 text-sm text-muted shadow-card">
               Loading the picture…
             </p>
           )}

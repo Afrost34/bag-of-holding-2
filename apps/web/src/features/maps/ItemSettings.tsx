@@ -66,6 +66,22 @@ export function ItemSettings({
   };
   return (
     <Section title={titles[item.kind]}>
+      {item.kind !== 'route' && item.kind !== 'pin' && item.kind !== 'template' && (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={item.under === true}
+            onChange={(e) => {
+              const under = e.target.checked;
+              set((i) => {
+                const { under: _u, ...rest } = i;
+                return under ? { ...rest, under: true } : rest;
+              });
+            }}
+          />
+          Under the layer's other items
+        </label>
+      )}
       {item.kind === 'route' && <RouteSettings item={item} doc={doc} set={set} />}
       {(item.kind === 'shape' || item.kind === 'path') && (
         <ShapeItemSettings

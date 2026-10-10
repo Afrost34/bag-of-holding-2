@@ -1360,3 +1360,31 @@ test('a pin leads to a board of the campaign', async ({ page }) => {
   await page.getByLabel('Page', { exact: true }).selectOption({ label: 'Session One' });
   await waitForSaved(page, 'campaigns/rust-and-sunfire/maps', '"page":"/boards/');
 });
+
+test('the bottom bar shows the grid and snap, G and S switch them, and items can go under the others', async ({
+  page,
+}) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Bar');
+  const bar = page.getByRole('toolbar', { name: 'Map bar' });
+  const grid = bar.getByRole('button', { name: 'Grid' });
+  const snap = bar.getByRole('button', { name: 'Snap' });
+  await expect(grid).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('g');
+  await expect(grid).toHaveAttribute('aria-pressed', 'false');
+  await expect(snap).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('s');
+  await expect(snap).toHaveAttribute('aria-pressed', 'false');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  await page.mouse.move(box.x + 300, box.y + 200);
+  await expect(bar.getByLabel('Square under the cursor')).not.toHaveText('–');
+  await tool(page, 'Wall').click();
+  await page.mouse.click(box.x + 200, box.y + 200);
+  await page.mouse.dblclick(box.x + 400, box.y + 200);
+  await tool(page, 'Select and move').click();
+  await page.mouse.click(box.x + 300, box.y + 200);
+  await page.getByLabel("Under the layer's other items").check();
+  await waitForSaved(page, 'maps', '"under":true');
+});
