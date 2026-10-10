@@ -873,13 +873,17 @@ test('the Creator makes a flat picture of the art that the Viewer shows', async 
     .poll(
       () =>
         page.evaluate(async () => {
-          const root = await navigator.storage.getDirectory();
-          const assets = await (
-            await (await root.getDirectoryHandle('user-data')).getDirectoryHandle('maps')
-          ).getDirectoryHandle('assets');
-          const names: string[] = [];
-          for await (const [name] of assets.entries()) names.push(name);
-          return names.some((n) => /^render-.*.webp$/.test(n));
+          try {
+            const root = await navigator.storage.getDirectory();
+            const assets = await (
+              await (await root.getDirectoryHandle('user-data')).getDirectoryHandle('maps')
+            ).getDirectoryHandle('assets');
+            for await (const [name] of assets.entries())
+              if (name.startsWith('render-') && name.endsWith('.webp')) return true;
+          } catch {
+            // The folder is not there yet.
+          }
+          return false;
         }),
       { timeout: 45_000 },
     )
