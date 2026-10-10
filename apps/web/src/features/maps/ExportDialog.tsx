@@ -2,7 +2,18 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@boh/ui';
 import { Download, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import type { MapDoc } from '../../app/maps/model';
 import type { MapScene } from '../../app/maps/scene';
+import { buildUvtt } from '../../app/maps/uvtt';
+
+/** A blob as base64 text (for the picture inside a .dd2vtt file). */
+async function base64Of(blob: Blob): Promise<string> {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000)
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(binary);
+}
 
 /** Sizes offered, against the map's own; the largest a browser can draw is about 16k pixels. */
 const SIZES = [0.25, 0.5, 1, 1.5, 2] as const;
@@ -17,6 +28,7 @@ const PREVIEW = 960;
  */
 export function ExportDialog({
   scene,
+  doc,
   name,
   width,
   height,
@@ -25,6 +37,7 @@ export function ExportDialog({
   onClose,
 }: {
   scene: MapScene;
+  doc: MapDoc;
   name: string;
   width: number;
   height: number;
@@ -44,6 +57,8 @@ export function ExportDialog({
   const [withSecretPins, setWithSecretPins] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  // A picture, or a Universal VTT file (the picture with the walls and doors, for a virtual tabletop).
+  const [format, setFormat] = useState<'png' | 'uvtt'>('png');
 
   useEffect(() => {
     let live = true;
@@ -65,11 +80,22 @@ export function ExportDialog({
   const save = async () => {
     setExporting(true);
     try {
-      const blob = await scene.exportPng({ withGrid, withSecretPins, pinScale, scale });
-      const url = URL.createObjectURL(blob);
+      const uvtt = format === 'uvtt';
+      const blob = await scene.exportPng({
+        withGrid: uvtt ? false : withGrid,
+        withSecretPins: uvtt ? false : withSecretPins,
+        pinScale: uvtt ? 0.001 : pinScale,
+        scale,
+      });
+      const file = uvtt
+        ? new Blob([JSON.stringify(buildUvtt(doc, await base64Of(blob), doc.grid.size * scale))], {
+            type: 'application/json',
+          })
+        : blob;
+      const url = URL.createObjectURL(file);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${name || 'map'}.png`;
+      a.download = `${name || 'map'}.${uvtt ? 'dd2vtt' : 'png'}`;
       a.click();
       setTimeout(() => {
         URL.revokeObjectURL(url);
@@ -114,6 +140,20 @@ export function ExportDialog({
             )}
           </div>
           <div className="flex flex-wrap items-end gap-3 text-sm">
+            <label className="flex flex-col gap-1">
+              <span className="font-medium">Format</span>
+              <select
+                aria-label="Export format"
+                value={format}
+                onChange={(e) => {
+                  setFormat(e.target.value === 'uvtt' ? 'uvtt' : 'png');
+                }}
+                className={field}
+              >
+                <option value="png">Picture (PNG)</option>
+                <option value="uvtt">Universal VTT (.dd2vtt): picture, walls and doors</option>
+              </select>
+            </label>
             <label className="flex flex-col gap-1">
               <span className="font-medium">Size</span>
               <select

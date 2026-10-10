@@ -12,6 +12,7 @@ import {
   type IslandRequest,
   type PathSettings,
   type RoomSettings,
+  type SplatSettings,
   type MapMode,
   type TemplateSettings,
   type Tool,
@@ -38,8 +39,8 @@ export interface MapPanelsProps {
   setStamp: (path: string, aspect: number, squares?: { w: number; h: number }) => void;
   brush: BrushSettings;
   setBrush: (b: BrushSettings) => void;
-  terrain: BrushSettings;
-  setTerrain: (b: BrushSettings) => void;
+  splatSet: SplatSettings;
+  setSplatSet: (s: SplatSettings) => void;
   /** The eraser's width, in map pixels. */
   eraser: number;
   setEraser: (w: number) => void;

@@ -65,6 +65,7 @@ import {
 import { bakeMap } from '../../app/maps/render';
 import { PATH_STYLES } from '../../app/maps/shapes';
 import { nearestOnPolyline, splinePoints } from '../../app/maps/spline';
+import { addSplatStroke, type SplatStroke } from '../../app/maps/splat';
 import { TERRAINS } from '../../app/maps/terrain';
 import { snapToCell, snapToCorner, templateOutline, type Point } from '../../app/maps/geometry';
 import {
@@ -127,6 +128,7 @@ import {
   type IslandRequest,
   type PathSettings,
   type RoomSettings,
+  type SplatSettings,
   type MapMode,
   type TemplateSettings,
   type Tool,
@@ -189,11 +191,11 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   const [stampAspect, setStampAspect] = useState(1);
   const [stampSquares, setStampSquares] = useState<{ w: number; h: number } | null>(null);
   const [brush, setBrush] = useState<BrushSettings>({ color: '#111111', width: 6, opacity: 1 });
-  const [terrain, setTerrain] = useState<BrushSettings>({
-    color: '#5b8a2b',
-    width: 120,
-    opacity: 1,
-    texture: 'grass',
+  const [splatSet, setSplatSet] = useState<SplatSettings>({
+    slot: 0,
+    radius: 120,
+    hardness: 0.4,
+    erase: false,
   });
   const [eraser, setEraser] = useState(60);
   const [template, setTemplate] = useState<TemplateSettings>({
@@ -840,8 +842,20 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         });
         return;
       }
+      case 'terrain': {
+        // Terrain is painted on the map itself, not on a layer: it is under every layer.
+        const stroke: SplatStroke = {
+          slot: Math.min(splatSet.slot, (doc.splat?.slots.length ?? 4) - 1),
+          points: [p.x, p.y],
+          radius: splatSet.radius,
+          hardness: splatSet.hardness,
+          ...(splatSet.erase || e.altKey ? { erase: true } : {}),
+        };
+        drag.current = { mode: 'splat', ...base, points: [p.x, p.y], splat: stroke };
+        scene.paintSplat(stroke);
+        return;
+      }
       case 'pen':
-      case 'terrain':
         if (!canDraw) return;
         drag.current = { mode: 'stroke', ...base, points: [p.x, p.y] };
         scene.previewStroke([p.x, p.y], strokeStyle());
@@ -1085,6 +1099,21 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         d.last = p;
         return;
       }
+      case 'splat': {
+        const stroke = d.splat;
+        if (!stroke) return;
+        const native = e.nativeEvent;
+        const events = 'getCoalescedEvents' in native ? native.getCoalescedEvents() : [];
+        const r = host.current?.getBoundingClientRect();
+        for (const ev of events.length ? events : [e.nativeEvent]) {
+          const q = scene.toMap(ev.clientX - (r?.left ?? 0), ev.clientY - (r?.top ?? 0));
+          const pts = d.points ?? [];
+          const last = pts.slice(-2);
+          pts.push(q.x, q.y);
+          scene.paintSplat({ ...stroke, points: [...last, q.x, q.y] });
+        }
+        return;
+      }
       case 'stroke':
       case 'erase': {
         // Every point the pointer went through since the last event, for smooth fast strokes
@@ -1216,13 +1245,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
 
   /** How the brush in hand paints. */
   const strokeStyle = (): StrokeStyle => {
-    const s = tool === 'terrain' ? terrain : brush;
-    return {
-      color: s.color,
-      width: s.width,
-      opacity: s.opacity,
-      texture: tool === 'terrain' ? s.texture : undefined,
-    };
+    return { color: brush.color, width: brush.width, opacity: brush.opacity, texture: undefined };
   };
 
   /** The eraser's path, as a see-through band its width. */
@@ -1280,6 +1303,14 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         );
         return;
       }
+      case 'splat': {
+        const stroke = d.splat;
+        if (!stroke) return;
+        const kept: SplatStroke = { ...stroke, points: simplify(d.points ?? stroke.points) };
+        scene.adoptSplatStroke(kept);
+        commit((doc2) => ({ ...doc2, splat: addSplatStroke(doc2.splat, kept) }));
+        return;
+      }
       case 'stroke': {
         scene.clearPreview();
         const s = strokeStyle();
@@ -1292,7 +1323,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             points,
             color: s.color,
             width: s.width,
-            brush: tool === 'terrain' ? 'terrain' : 'pen',
+            brush: 'pen',
             opacity: s.opacity,
             ...(s.texture ? { texture: s.texture } : {}),
           }),
@@ -1721,6 +1752,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           {exporting && scene && (
             <ExportDialog
               scene={scene}
+              doc={doc}
               name={doc.name}
               width={doc.width}
               height={doc.height}
@@ -1903,8 +1935,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             }}
             brush={brush}
             setBrush={setBrush}
-            terrain={terrain}
-            setTerrain={setTerrain}
+            splatSet={splatSet}
+            setSplatSet={setSplatSet}
             eraser={eraser}
             setEraser={setEraser}
             template={template}

@@ -161,6 +161,28 @@ test('a map is drawn with stamps, brushes, walls, text, templates and pins, then
   await download.saveAs(file);
   expect(pngSize(readFileSync(file))).toEqual({ width: 1400, height: 1050 });
 
+  // The same map as a Universal VTT file: the picture with the walls drawn above, in squares.
+  await page.getByRole('button', { name: 'Export PNG' }).click();
+  await exportDialog.getByLabel('Export format').selectOption('uvtt');
+  await exportDialog.getByLabel('Export size').selectOption('0.25');
+  const [vtt] = await Promise.all([
+    page.waitForEvent('download'),
+    exportDialog.getByRole('button', { name: 'Export' }).click(),
+  ]);
+  expect(vtt.suggestedFilename()).toBe('Cragmaw Hideout.dd2vtt');
+  const vttFile = testInfo.outputPath('map.dd2vtt');
+  await vtt.saveAs(vttFile);
+  const uvtt = JSON.parse(readFileSync(vttFile, 'utf8')) as {
+    format: number;
+    resolution: { map_size: { x: number } };
+    line_of_sight: unknown[];
+    image: string;
+  };
+  expect(uvtt.format).toBe(0.3);
+  expect(uvtt.resolution.map_size.x).toBe(40);
+  expect(uvtt.line_of_sight.length).toBeGreaterThan(0);
+  expect(uvtt.image.length).toBeGreaterThan(100);
+
   // Kept after a reload.
   await page.reload();
   await page.getByRole('tab', { name: 'Layers' }).click();
@@ -324,12 +346,8 @@ test('terrain textures, the eraser, and pins in categories', async ({ page }, te
         items.reduce((n, li) => n + Number(li.querySelector('span')?.textContent ?? 0), 0),
       );
 
-  // A river painted with the water texture.
-  await tool(page, 'Terrain brush').click();
-  await page
-    .getByRole('radiogroup', { name: 'Terrain' })
-    .getByRole('radio', { name: 'Water' })
-    .click();
+  // A river drawn with the brush.
+  await tool(page, 'Brush').click();
   await drag([80, 250], [600, 260]);
   // The eraser cuts it in two.
   await tool(page, 'Eraser').click();
@@ -1419,7 +1437,38 @@ test('a texture of an imported pack paints terrain', async ({ page }) => {
   await page.mouse.down();
   await page.mouse.move(box.x + 500, box.y + 260, { steps: 6 });
   await page.mouse.up();
-  await waitForSaved(page, 'maps', '"texture":"pack:');
+  await waitForSaved(page, 'maps', '"slots":["pack:');
+});
+
+test('terrain is painted in slots with a soft brush, filled, and changed with its texture', async ({
+  page,
+}) => {
+  test.skip(isPhone(page), 'The Creator is used on the desktop.');
+  await newMap(page, 'Splat');
+  const box = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
+  if (!box) throw new Error('no canvas');
+  await tool(page, 'Terrain brush').click();
+  const slots = page.getByRole('radiogroup', { name: 'Terrain slots' });
+  await expect(slots.getByRole('radio')).toHaveCount(4);
+  await page.getByRole('button', { name: 'Fill the map' }).click();
+  await waitForSaved(page, 'maps', '"fill":true');
+  await slots.getByRole('radio', { name: 'Slot 4' }).click();
+  await page.mouse.move(box.x + 200, box.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 500, box.y + 260, { steps: 8 });
+  await page.mouse.up();
+  await waitForSaved(page, 'maps', '"slot":3');
+  // Changing the texture of the slot changes everything painted with it.
+  await page
+    .getByRole('radiogroup', { name: 'Terrain' })
+    .getByRole('radio', { name: 'Lava' })
+    .click();
+  await waitForSaved(page, 'maps', '"slots":["grass","dirt","sand","lava"]');
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await page.getByRole('button', { name: 'Add a slot' }).click();
+  await expect(slots.getByRole('radio')).toHaveCount(5);
 });
 
 test('walls are made of a pack strip, and its doors snap onto them', async ({ page }, testInfo) => {

@@ -228,6 +228,15 @@ export interface RoomSettings {
   wallTexture?: string;
 }
 
+/** The terrain brush: which slot, how wide, how soft, and whether it rubs paint off. */
+export interface SplatSettings {
+  slot: number;
+  radius: number;
+  /** 0 soft, 1 hard. */
+  hardness: number;
+  erase: boolean;
+}
+
 /** The elevation brush: what it does, how wide, how hard. */
 export interface ElevationBrush {
   mode: BrushMode;

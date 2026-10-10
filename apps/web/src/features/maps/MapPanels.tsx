@@ -11,6 +11,7 @@ import { type MapPanelsProps, type Tab } from './panelTypes';
 import { PinCategories } from './PinPanels';
 import { StampLibrary } from './StampLibrary';
 import { BuildingPanel, DistrictPanel } from './CityPanel';
+import { SplatPanel } from './SplatPanel';
 import { WallPanel } from './WallStrips';
 import { RoomPanel } from './RoomPanel';
 import { ScatterPanel } from './ScatterPanel';
@@ -94,9 +95,10 @@ export function MapPanels(props: MapPanelsProps) {
       </div>
       <div ref={scroller} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
         {props.selectedIds.length > 1 && <ArrangePanel {...props} />}
-        {(tool === 'pen' || tool === 'terrain' || tool === 'eraser' || tool === 'template') && (
+        {(tool === 'pen' || tool === 'eraser' || tool === 'template') && (
           <ToolSettings {...props} />
         )}
+        {tool === 'terrain' && <SplatPanel {...props} />}
         {tool === 'fog' && <FogPanel {...props} />}
         {(tool === 'area' || tool === 'path') && <ShapePanel {...props} />}
         {tool === 'scatter' && <ScatterPanel {...props} />}

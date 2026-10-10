@@ -3,6 +3,7 @@ import type { Elevation } from './elevation';
 import { pointInPolygon } from './polygon';
 import type { RouteDash } from './lettering';
 import type { Door } from './rooms';
+import { parseSplat, type Splat } from './splat';
 import type { TerrainRef } from './terrain';
 import type { MapScale, TravelSpeed } from './travel';
 
@@ -367,6 +368,8 @@ export interface MapDoc {
   scaleBar?: 'plain' | 'fantasy';
   /** Heights under the map, shown as hill shading (absent: flat). */
   elevation?: Elevation;
+  /** Terrain painted with the soft brush: up to eight textures and the strokes (absent: none). */
+  splat?: Splat;
   /** The paper under the map (absent: parchment). */
   paper?: MapPaper;
   /** Where it is filed in the maps list ('Battle maps/Dungeons'). */
@@ -683,6 +686,7 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
   }
   if (!isObj(json)) return null;
   const g = isObj(json.grid) ? json.grid : {};
+  const splat = parseSplat(json.splat);
   const type: GridType = g.type === 'hex' ? 'hex' : 'square';
   const drawn = (Array.isArray(json.layers) ? json.layers : []).flatMap((l): Layer[] =>
     isObj(l) && typeof l.id === 'string'
@@ -742,6 +746,7 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
     name: typeof json.name === 'string' ? json.name : 'Map',
     ...(json.pinStyle === 'fantasy' ? { pinStyle: 'fantasy' as const } : {}),
     ...(PAPERS.some((p) => p.id === json.paper) ? { paper: json.paper as MapPaper } : {}),
+    ...(splat ? { splat } : {}),
     ...(isObj(json.elevation) &&
     typeof json.elevation.data === 'string' &&
     num(json.elevation.w, 0) > 0 &&
@@ -882,6 +887,7 @@ export function artHash(doc: MapDoc): string {
     doc.height,
     doc.paper ?? '',
     doc.elevation ?? null,
+    doc.splat ?? null,
     doc.layers.map((l) => [l.id, l.visible, l.picture ?? null, l.items.filter(isArt)]),
     (doc.variants ?? []).map((v) => [v.id, v.layers]),
   ]);
@@ -893,6 +899,7 @@ export function artHash(doc: MapDoc): string {
 /** Whether the map has anything to draw (a blank map needs no flat picture). */
 export const hasArt = (doc: MapDoc): boolean =>
   doc.elevation !== undefined ||
+  (doc.splat?.strokes.length ?? 0) > 0 ||
   doc.layers.some((l) => l.picture !== undefined || l.items.some(isArt));
 
 /** A layer that holds items (not a picture): where things can be drawn. */

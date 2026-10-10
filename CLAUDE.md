@@ -142,6 +142,11 @@ furniture) are items made from a seed and re-made when what they react to change
 into `map-assets/` (OPFS) and read in place; they are never synced. Stamps are named `pack:<id>:<path>` or
 `glyph:<name>` (drawn in code).
 
+Terrain is painted into `MapDoc.splat` (ADR 0012): strokes into up to eight texture slots, drawn by
+`splatView.ts`. A map has no type, only a size; `Grid.visible` shows or hides the grid. Textures are
+`TerrainRef` (built-in id or `pack:...`); walls can use a pack strip (`wallStrip.ts`) and pack doors snap to
+walls (`portal.ts`).
+
 ## Pitfalls already met
 
 - `pnpm e2e` runs on the production build. Playwright reuses a preview server that is already

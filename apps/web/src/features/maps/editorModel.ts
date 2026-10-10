@@ -9,6 +9,7 @@ import {
   type MapItem,
 } from '../../app/maps/model';
 import { isTied } from '../../app/maps/scatterDoc';
+import type { SplatStroke } from '../../app/maps/splat';
 import { nearestOnPolyline, splinePoints } from '../../app/maps/spline';
 import { formatDistance, routeLength, speedsOf, travelTimes } from '../../app/maps/travel';
 
@@ -32,6 +33,7 @@ export interface Drag {
     | 'pan'
     | 'move'
     | 'stroke'
+    | 'splat'
     | 'erase'
     | 'measure'
     | 'template'
@@ -46,6 +48,8 @@ export interface Drag {
   last: Point;
   item?: MapItem;
   points?: number[];
+  /** The terrain stroke being painted (mode `splat`). */
+  splat?: SplatStroke;
   /** The control point being dragged (mode `vertex`). */
   index?: number;
 }

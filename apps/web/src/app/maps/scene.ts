@@ -44,6 +44,8 @@ import { districtGeo, districtOutline } from './cityDoc';
 import { isTied, obstacleSignature, pieceBox, scatterLine, scatterOf } from './scatterDoc';
 import { pathLine, pathView, shapeOutline, shapeView } from './shapes';
 import { pointInPolygon } from './polygon';
+import { SplatView } from './splatView';
+import type { SplatStroke } from './splat';
 import { stripSegments } from './wallStrip';
 import { isPackTexture, TERRAINS, terrainTile, type TerrainRef } from './terrain';
 
@@ -405,6 +407,8 @@ export class MapScene {
   /** Where the doors of a layer's rooms go: over everything else on it. */
   private topHolders = new Map<string, Container>();
   private doc: MapDoc | null = null;
+  /** The terrain painted with the soft brush (see `splat.ts`). */
+  private readonly splatView = new SplatView();
   private backgroundKey = '';
   private paper: Graphics | null = null;
   /** Pictures loaded (background and picture layers), by asset path. */
@@ -446,6 +450,7 @@ export class MapScene {
     this.overlay.addChild(this.strokePreview, this.preview, this.selection, this.previewText);
     this.world.addChild(
       this.background,
+      this.splatView.container,
       this.renderView,
       this.layers,
       this.elevationView,
@@ -701,6 +706,7 @@ export class MapScene {
         this.pictureViews.delete(key);
       }
     this.drawFog(doc);
+    this.drawSplat(doc);
     this.drawElevation(doc.elevation);
     this.drawRender(doc);
     this.applyVisibility(doc);
@@ -732,6 +738,35 @@ export class MapScene {
       .fill({ color: Number.parseInt(paper.color.replace('#', ''), 16) });
     this.background.addChild(this.paper);
     this.requestRender();
+  }
+
+  private drawSplat(doc: MapDoc): void {
+    const slots = doc.splat?.slots ?? [];
+    this.splatView.update(
+      doc.splat,
+      doc.width,
+      doc.height,
+      (i) => {
+        const ref = slots[i];
+        if (!ref) return null;
+        if (!isPackTexture(ref)) return { texture: Texture.from(terrainTile(ref)), scale: 1 };
+        const texture = packTexture(ref);
+        return texture
+          ? { texture, scale: (doc.grid.size * PACK_TEXTURE_SQUARES) / Math.max(1, texture.width) }
+          : null;
+      },
+      String(packTexturesReady) + '|' + String(doc.grid.size),
+    );
+  }
+
+  /** A terrain stroke painted while it is drawn; `adoptSplatStroke` when it is kept in the map. */
+  paintSplat(stroke: SplatStroke): void {
+    this.splatView.paintLive(stroke);
+    this.requestRender();
+  }
+
+  adoptSplatStroke(stroke: SplatStroke): void {
+    this.splatView.adopt(stroke);
   }
 
   /**

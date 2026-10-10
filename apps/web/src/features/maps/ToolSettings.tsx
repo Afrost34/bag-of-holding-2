@@ -2,8 +2,7 @@
 import { cn } from '@boh/ui';
 import { useMemo } from 'react';
 import { type TemplateShape } from '../../app/maps/model';
-import { TERRAINS, terrainTile } from '../../app/maps/terrain';
-import { PackTextures } from './PackTextures';
+import { type TERRAINS, terrainTile } from '../../app/maps/terrain';
 import { Section } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
 import { PEN_COLORS } from './tools';
@@ -12,8 +11,6 @@ export function ToolSettings({
   tool,
   brush,
   setBrush,
-  terrain,
-  setTerrain,
   eraser,
   setEraser,
   template,
@@ -77,77 +74,45 @@ export function ToolSettings({
         <p className="text-xs text-muted">Drag from where it starts towards where it points.</p>
       </Section>
     );
-  const terrainTool = tool === 'terrain';
-  const s = terrainTool ? terrain : brush;
-  const set = terrainTool ? setTerrain : setBrush;
+  const s = brush;
+  const set = setBrush;
   return (
-    <Section title={terrainTool ? 'Terrain brush' : 'Brush'}>
-      {terrainTool ? (
-        <>
-          <div className="grid grid-cols-3 gap-1" role="radiogroup" aria-label="Terrain">
-            {TERRAINS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                role="radio"
-                aria-checked={s.texture === t.id}
-                onClick={() => {
-                  set({ ...s, texture: t.id, color: t.base });
-                }}
-                className={cn(
-                  'overflow-hidden rounded-md border-2 text-left text-xs',
-                  s.texture === t.id ? 'border-accent' : 'border-border',
-                )}
-              >
-                <TerrainSwatch id={t.id} />
-                <span className="block truncate px-1 py-0.5">{t.name}</span>
-              </button>
-            ))}
-          </div>
-          <PackTextures
-            value={s.texture}
-            onPick={(texture) => {
-              set({ ...s, texture, color: '#9a958d' });
+    <Section title="Brush">
+      <div className="flex flex-wrap items-center gap-1" role="radiogroup" aria-label="Colour">
+        {PEN_COLORS.map((c) => (
+          <button
+            key={c}
+            type="button"
+            role="radio"
+            aria-checked={s.color === c}
+            aria-label={c}
+            title={c}
+            onClick={() => {
+              set({ ...s, color: c });
             }}
+            className={cn(
+              'h-7 w-7 rounded-full border-2',
+              s.color === c ? 'border-accent' : 'border-border',
+            )}
+            style={{ background: c }}
           />
-        </>
-      ) : (
-        <div className="flex flex-wrap items-center gap-1" role="radiogroup" aria-label="Colour">
-          {PEN_COLORS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              role="radio"
-              aria-checked={s.color === c}
-              aria-label={c}
-              title={c}
-              onClick={() => {
-                set({ ...s, color: c });
-              }}
-              className={cn(
-                'h-7 w-7 rounded-full border-2',
-                s.color === c ? 'border-accent' : 'border-border',
-              )}
-              style={{ background: c }}
-            />
-          ))}
-          <input
-            type="color"
-            aria-label="Another colour"
-            value={s.color}
-            onChange={(e) => {
-              set({ ...s, color: e.target.value });
-            }}
-            className="h-7 w-9 cursor-pointer rounded border border-border bg-surface"
-          />
-        </div>
-      )}
+        ))}
+        <input
+          type="color"
+          aria-label="Another colour"
+          value={s.color}
+          onChange={(e) => {
+            set({ ...s, color: e.target.value });
+          }}
+          className="h-7 w-9 cursor-pointer rounded border border-border bg-surface"
+        />
+      </div>
       <label className="block text-sm">
         Width: {s.width}
         <input
           type="range"
-          min={terrainTool ? 20 : 1}
-          max={terrainTool ? 400 : 40}
+          min={1}
+          max={40}
           value={s.width}
           onChange={(e) => {
             set({ ...s, width: Number(e.target.value) });
