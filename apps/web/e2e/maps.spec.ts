@@ -1930,14 +1930,25 @@ test('rooms that touch are merged into one', async ({ page }) => {
     await page.mouse.move(box.x + x1, box.y + y1, { steps: 5 });
     await page.mouse.up();
   };
+  // Counted from the saved file; a file caught mid-save is counted as the next poll finds it.
   const rooms = () =>
     page.evaluate(async () => {
-      const root = await navigator.storage.getDirectory();
-      const dir = await (await root.getDirectoryHandle('user-data')).getDirectoryHandle('maps');
       let n = 0;
-      for await (const entry of dir.values())
-        if (entry.kind === 'file')
-          n += ((await (await entry.getFile()).text()).match(/"kind":"room"/g) ?? []).length;
+      try {
+        const root = await navigator.storage.getDirectory();
+        const dir = await (await root.getDirectoryHandle('user-data')).getDirectoryHandle('maps');
+        for await (const entry of dir.values()) {
+          if (entry.kind !== 'file') continue;
+          try {
+            const text = await (await entry.getFile()).text();
+            n += (text.match(/"kind":"room"/g) ?? []).length;
+          } catch {
+            return -1;
+          }
+        }
+      } catch {
+        return -1;
+      }
       return n;
     });
   await tool(page, 'Room').click();
