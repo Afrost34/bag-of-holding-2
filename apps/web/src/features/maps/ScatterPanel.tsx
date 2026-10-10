@@ -24,6 +24,7 @@ interface Controls {
   rotation: 'none' | 'random' | 'along' | 'quarter';
   rotMin?: number | undefined;
   rotMax?: number | undefined;
+  overlap?: number | undefined;
   cluster: number;
   offset: number;
   sides: 'center' | 'both' | 'left' | 'right';
@@ -173,6 +174,17 @@ function ScatterControls({
         step={1}
         onChange={(spacing) => {
           onChange({ spacing });
+        }}
+      />
+      <Slider
+        label="Overlap"
+        value={value.overlap ?? 0}
+        min={0}
+        max={0.8}
+        step={0.05}
+        display={`${String(Math.round((value.overlap ?? 0) * 100))}%`}
+        onChange={(overlap) => {
+          onChange({ overlap });
         }}
       />
       <div className="grid grid-cols-2 gap-2">

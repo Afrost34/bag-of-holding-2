@@ -1612,6 +1612,20 @@ test('the terrain brush has a soft edge, and [ ] size it', async ({ page }) => {
   const box = await canvas.boundingBox();
   if (!box) throw new Error('no canvas');
   await tool(page, 'Terrain brush').click();
+  // The textures used last are slots to pick from.
+  await page
+    .getByRole('radiogroup', { name: 'Terrain' })
+    .getByRole('radio', { name: 'Lava' })
+    .click();
+  await expect(page.getByRole('button', { name: 'Slot 1: Lava' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await page.getByRole('button', { name: 'Slot 2: Grass' }).click();
+  await expect(page.getByRole('button', { name: 'Slot 1: Grass' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   const width = page.getByText(/^Width: \d+$/);
   const before = Number((await width.textContent())?.replace(/\D/g, ''));
   await page.keyboard.press(']');

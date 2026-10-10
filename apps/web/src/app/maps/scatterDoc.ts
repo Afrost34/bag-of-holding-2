@@ -152,7 +152,8 @@ export function scatterSetup(
       mode: item.mode,
       line: scatterLine(doc, item),
       seed: item.seed,
-      spacing: item.spacing,
+      // Overlap shrinks the room each piece keeps round it (a packed forest, a crowd).
+      spacing: Math.max(2, item.spacing * (1 - (item.overlap ?? 0))),
       sizeMin: item.sizeMin,
       sizeMax: item.sizeMax,
       weights: item.pieces.map((p) => p.weight),
@@ -461,6 +462,7 @@ export interface ScatterSettings {
   rotation: 'none' | 'random' | 'along' | 'quarter';
   rotMin?: number | undefined;
   rotMax?: number | undefined;
+  overlap?: number | undefined;
   cluster: number;
   offset: number;
   sides: 'center' | 'both' | 'left' | 'right';
@@ -513,6 +515,7 @@ export function makeScatter(
     rotation: s.rotation,
     ...(s.rotMin !== undefined ? { rotMin: s.rotMin } : {}),
     ...(s.rotMax !== undefined ? { rotMax: s.rotMax } : {}),
+    ...(s.overlap ? { overlap: s.overlap } : {}),
     cluster: s.cluster,
     offset: Math.round(s.offset * s.scale),
     sides: s.sides,

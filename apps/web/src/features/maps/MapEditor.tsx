@@ -105,6 +105,8 @@ import {
   minPoints,
   nearestHandle,
   pushRecent,
+  pushSlot,
+  DEFAULT_SLOTS,
   type HotStamp,
   removeVertex,
   ROUTE_COLOR,
@@ -301,6 +303,29 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       localStorage.setItem('boh.map.hotbar', JSON.stringify(next));
     } catch {
       /* a private window: the bar lasts until the page closes */
+    }
+  };
+  /** The terrain textures used last: Dungeondraft's slots, kept on this device. */
+  const [slots, setSlotsState] = useState<string[]>(() => {
+    try {
+      const parsed: unknown = JSON.parse(localStorage.getItem('boh.map.slots') ?? 'null');
+      if (Array.isArray(parsed) && parsed.every((x) => typeof x === 'string') && parsed.length > 0)
+        return parsed.slice(0, 8);
+    } catch {
+      /* none kept yet */
+    }
+    return DEFAULT_SLOTS;
+  });
+  const pickTerrain = (b: BrushSettings) => {
+    setTerrain(b);
+    if (b.texture && b.texture !== terrain.texture) {
+      const next = pushSlot(slots, b.texture);
+      setSlotsState(next);
+      try {
+        localStorage.setItem('boh.map.slots', JSON.stringify(next));
+      } catch {
+        /* a private window: the slots last until the page closes */
+      }
     }
   };
   const [zoom, setZoom] = useState(1);
@@ -2164,7 +2189,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             brush={brush}
             setBrush={setBrush}
             terrain={terrain}
-            setTerrain={setTerrain}
+            setTerrain={pickTerrain}
+            terrainSlots={slots}
             eraser={eraser}
             setEraser={setEraser}
             template={template}

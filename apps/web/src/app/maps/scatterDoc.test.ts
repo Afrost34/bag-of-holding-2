@@ -316,3 +316,15 @@ describe('one piece per click', () => {
     ).toBeNull();
   });
 });
+
+describe('overlap', () => {
+  it('packs more pieces into the same area', () => {
+    const { doc } = base();
+    const settings = settingsFromPreset(forest);
+    const area = { points: square(100, 100, 600) };
+    const loose = makeScatter('a', settings, area, 4);
+    const packed = makeScatter('b', { ...settings, overlap: 0.6 }, area, 4);
+    expect(packed.overlap).toBe(0.6);
+    expect(scatterOf(doc, packed).length).toBeGreaterThan(scatterOf(doc, loose).length * 1.5);
+  });
+});

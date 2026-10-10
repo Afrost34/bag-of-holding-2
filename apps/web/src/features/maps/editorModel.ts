@@ -276,3 +276,11 @@ export interface HotStamp {
 export function pushRecent(list: readonly HotStamp[], item: HotStamp, max = 9): HotStamp[] {
   return [item, ...list.filter((x) => x.ref !== item.ref)].slice(0, max);
 }
+
+/** The terrain slots after a texture is picked: it goes first, once, and the list keeps `max`. */
+export function pushSlot(list: readonly string[], ref: string, max = 8): string[] {
+  return [ref, ...list.filter((x) => x !== ref)].slice(0, max);
+}
+
+/** The slots a new device starts with. */
+export const DEFAULT_SLOTS = ['grass', 'dirt', 'sand', 'water'];

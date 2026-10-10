@@ -144,6 +144,8 @@ type MapItemBody =
       /** Random turning between these (degrees); all the way round when absent. */
       rotMin?: number;
       rotMax?: number;
+      /** 0–0.8: how far pieces may overlap (packed tight); 0 keeps them apart. */
+      overlap?: number;
       /** 0 even, 1 groves with clearings. */
       cluster: number;
       offset: number;

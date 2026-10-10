@@ -44,6 +44,8 @@ export interface MapPanelsProps {
   setBrush: (b: BrushSettings) => void;
   terrain: BrushSettings;
   setTerrain: (b: BrushSettings) => void;
+  /** The textures used last (eight), as slots to pick from. */
+  terrainSlots: string[];
   /** The eraser's width, in map pixels. */
   eraser: number;
   setEraser: (w: number) => void;
