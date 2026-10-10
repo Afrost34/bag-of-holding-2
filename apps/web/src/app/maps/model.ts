@@ -209,6 +209,12 @@ export type MapItem =
       rotation?: number;
       /** −100 (a bowl) to 100 (an arch): see `arcLayout`. */
       curve?: number;
+      /** A path or shape (by id) the lettering runs along: `x`, `y` and `curve` are then not used. */
+      follow?: string;
+      /** Where the middle of the label sits along it: 0 (start) to 1 (end). */
+      along?: number;
+      /** How far to the side of the line it stands (negative: above). */
+      lift?: number;
     }
   | {
       kind: 'template';
@@ -255,6 +261,15 @@ export interface PinCategory {
 }
 
 export type MapItemKind = MapItem['kind'];
+
+/** The paper a map is drawn on. */
+export const PAPERS = [
+  { id: 'parchment', name: 'Parchment', color: '#f3efe6' },
+  { id: 'aged', name: 'Aged paper', color: '#e7d8b4' },
+  { id: 'clean', name: 'Clean white', color: '#ffffff' },
+  { id: 'night', name: 'Night', color: '#1f2636' },
+] as const;
+export type MapPaper = (typeof PAPERS)[number]['id'];
 
 /** A picture in the map assets; the layer shows it from the map's top-left corner. */
 export interface LayerPicture {
@@ -338,6 +353,8 @@ export interface MapDoc {
   pinStyle?: 'fantasy';
   /** A scale bar in the bottom-left corner: plain, or as on an old map (absent: none). */
   scaleBar?: 'plain' | 'fantasy';
+  /** The paper under the map (absent: parchment). */
+  paper?: MapPaper;
   /** Where it is filed in the maps list ('Battle maps/Dungeons'). */
   folder?: string;
   /** Words to find it by ('tavern', 'night'). */
@@ -662,6 +679,7 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
     name: typeof json.name === 'string' ? json.name : 'Map',
     ...(json.kind === 'battle' || json.kind === 'world' ? { kind: json.kind } : {}),
     ...(json.pinStyle === 'fantasy' ? { pinStyle: 'fantasy' as const } : {}),
+    ...(PAPERS.some((p) => p.id === json.paper) ? { paper: json.paper as MapPaper } : {}),
     ...(json.scaleBar === 'plain' || json.scaleBar === 'fantasy'
       ? { scaleBar: json.scaleBar }
       : {}),
@@ -781,6 +799,7 @@ export function artHash(doc: MapDoc): string {
   const text = JSON.stringify([
     doc.width,
     doc.height,
+    doc.paper ?? '',
     doc.layers.map((l) => [l.id, l.visible, l.picture ?? null, l.items.filter(isArt)]),
     (doc.variants ?? []).map((v) => [v.id, v.layers]),
   ]);
