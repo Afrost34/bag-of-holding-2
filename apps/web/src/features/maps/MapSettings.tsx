@@ -3,7 +3,7 @@ import { Button } from '@boh/ui';
 import { Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import { useEncounters } from '../../app/encounters/store';
-import { mapFolders, mapKind, type MapDoc } from '../../app/maps/model';
+import { mapFolders, mapKind, PAPERS, type MapDoc, type MapPaper } from '../../app/maps/model';
 import { useMaps } from '../../app/maps/store';
 import { DEFAULT_SPEEDS, scaleForWidth, type DistanceUnit } from '../../app/maps/travel';
 import { NumberField, Section } from './PanelParts';
@@ -228,6 +228,26 @@ export function MapSettings({ doc, commit, setTool, snap, setSnap }: MapPanelsPr
         >
           <option value="battle">Battle map</option>
           <option value="world">World or city map</option>
+        </select>
+      </Section>
+      <Section title="Paper">
+        <select
+          value={doc.paper ?? 'parchment'}
+          aria-label="Kind of paper"
+          onChange={(e) => {
+            const paper = e.target.value as MapPaper;
+            commit((d) => {
+              const { paper: _old, ...rest } = d;
+              return paper === 'parchment' ? rest : { ...rest, paper };
+            });
+          }}
+          className={field}
+        >
+          {PAPERS.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
         </select>
       </Section>
       <Section title="Pins">

@@ -21,6 +21,7 @@ import { hiddenFromPlayers } from './pinLink';
 import {
   artHash,
   fogHides,
+  PAPERS,
   isArt,
   itemShown,
   layerShown,
@@ -32,6 +33,7 @@ import {
 import { pinIconSvg } from './pinIcons';
 import { glyphAspect, glyphIdOf, glyphTexture, isGlyphRef } from './glyphs';
 import { itemBox } from './arrange';
+import { alongLayout, targetLine } from './labels';
 import { buildingView, districtView } from './cityView';
 import { roomDoorsView, roomFloorView, roomWallView } from './roomView';
 import { roomOutline } from './rooms';
@@ -131,7 +133,10 @@ const usesFantasyFont = (doc: MapDoc) =>
  * Text on the map: bold with a white rim, or lettered as on an old map (the fantasy font on a
  * parchment halo), spaced out, turned and bent along an arc.
  */
-function textView(item: Extract<MapItem, { kind: 'text' }>): Container {
+function textView(
+  item: Extract<MapItem, { kind: 'text' }>,
+  line: readonly number[] | null = null,
+): Container {
   const fantasy = item.font === 'fantasy';
   const style = {
     fontFamily: fantasy ? FANTASY_FONT : 'Merriweather, Georgia, serif',
@@ -145,6 +150,29 @@ function textView(item: Extract<MapItem, { kind: 'text' }>): Container {
   };
   const spacing = ((item.spacing ?? 0) / 100) * item.size;
   const holder = new Container();
+  if (line && line.length >= 4) {
+    // Set along a river, a road or a coast: each letter on the line, turned with it.
+    const letters = Array.from(
+      new Intl.Segmenter().segment(item.text),
+      (g) => new Text({ text: g.segment, style }),
+    );
+    const placed = alongLayout(
+      letters.map((t) => t.width),
+      spacing,
+      line,
+      item.along ?? 0.5,
+      item.lift ?? -item.size * 0.6,
+    );
+    letters.forEach((t, i) => {
+      const p = placed[i];
+      if (!p) return;
+      t.anchor.set(0.5);
+      t.position.set(p.x, p.y);
+      t.rotation = p.angle;
+      holder.addChild(t);
+    });
+    return holder;
+  }
   holder.position.set(item.x, item.y);
   holder.rotation = ((item.rotation ?? 0) * Math.PI) / 180;
   const curve = item.curve ?? 0;
@@ -473,7 +501,9 @@ export class MapScene {
     const pictureKeys = new Set<string>();
     // What scatter reacts to (roads, rivers, shapes): scatter is made again when it changes.
     const obstacles = doc.layers.some((l) =>
-      l.items.some((i) => i.kind === 'scatter' || i.kind === 'district'),
+      l.items.some(
+        (i) => i.kind === 'scatter' || i.kind === 'district' || (i.kind === 'text' && i.follow),
+      ),
     )
       ? obstacleSignature(doc)
       : '';
@@ -515,11 +545,13 @@ export class MapScene {
         const look =
           item.kind === 'scatter' || item.kind === 'district'
             ? obstacles
-            : item.kind === 'pin'
-              ? JSON.stringify([pinStyle(doc, item), doc.pinStyle ?? '', fantasyFontReady])
-              : item.kind === 'text' && item.font === 'fantasy'
-                ? String(fantasyFontReady)
-                : '';
+            : item.kind === 'text' && item.follow
+              ? obstacles + String(fantasyFontReady)
+              : item.kind === 'pin'
+                ? JSON.stringify([pinStyle(doc, item), doc.pinStyle ?? '', fantasyFontReady])
+                : item.kind === 'text' && item.font === 'fantasy'
+                  ? String(fantasyFontReady)
+                  : '';
         if (node?.item === item && node.look === look && node.view.parent === view) return;
         if (node) {
           node.view.destroy({ children: true });
@@ -577,12 +609,15 @@ export class MapScene {
 
   /** The paper the map is on; pictures are layers of their own. */
   private drawBackground(doc: MapDoc): void {
-    const key = String(doc.width) + 'x' + String(doc.height);
+    const paper = PAPERS.find((p) => p.id === doc.paper) ?? PAPERS[0];
+    const key = String(doc.width) + 'x' + String(doc.height) + paper.id;
     if (key === this.backgroundKey) return;
     this.backgroundKey = key;
     this.background.removeChildren();
     this.paper?.destroy();
-    this.paper = new Graphics().rect(0, 0, doc.width, doc.height).fill({ color: 0xf3efe6 });
+    this.paper = new Graphics()
+      .rect(0, 0, doc.width, doc.height)
+      .fill({ color: Number.parseInt(paper.color.replace('#', ''), 16) });
     this.background.addChild(this.paper);
     this.requestRender();
   }
@@ -885,7 +920,7 @@ export class MapScene {
       case 'route':
         return routeView(item.points, item.color, routeWidth(doc), item.dash);
       case 'text':
-        return textView(item);
+        return textView(item, item.follow ? targetLine(doc, item.follow) : null);
       case 'template': {
         const g = new Graphics();
         const o = templateOutline(item.shape, item, item.feet, item.angle, grid);

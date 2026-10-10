@@ -48,6 +48,7 @@ import {
   type Mirror,
 } from '../../app/maps/arrange';
 import { generateArchipelago } from '../../app/maps/islandgen';
+import { defaultLabelText, targetLine } from '../../app/maps/labels';
 import { doorOnWall, generateCave, generateDungeon, roomOutline } from '../../app/maps/rooms';
 import {
   DEFAULT_SCATTER,
@@ -58,7 +59,7 @@ import {
 } from '../../app/maps/scatterDoc';
 import { bakeMap } from '../../app/maps/render';
 import { PATH_STYLES } from '../../app/maps/shapes';
-import { splinePoints } from '../../app/maps/spline';
+import { nearestOnPolyline, splinePoints } from '../../app/maps/spline';
 import { TERRAINS } from '../../app/maps/terrain';
 import { snapToCell, snapToCorner, templateOutline, type Point } from '../../app/maps/geometry';
 import {
@@ -797,18 +798,35 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         if (!canDraw) return;
         setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey)]);
         return;
-      case 'text':
+      case 'text': {
+        // Clicked on a river, road or coast: the label runs along it.
+        const on = scene.hit(p);
+        const target = on && (on.kind === 'path' || on.kind === 'shape') ? on : null;
         place({
           kind: 'text',
           id: itemId(doc),
           x: p.x,
           y: p.y,
-          text: 'Text',
-          size: Math.round(grid.size * 0.6),
+          text: target ? defaultLabelText(target) : 'Text',
+          size: Math.round(
+            target
+              ? Math.max(grid.size * 0.5, Math.min(doc.width, doc.height) / 32)
+              : mapKind(doc) === 'world'
+                ? Math.max(grid.size * 0.6, Math.min(doc.width, doc.height) / 45)
+                : grid.size * 0.6,
+          ),
           color: '#111111',
+          ...(target
+            ? {
+                follow: target.id,
+                along: nearestOnPolyline(targetLine(doc, target.id) ?? [], p).t,
+              }
+            : {}),
         });
         setPanelOpen(true);
         return;
+      }
+
       case 'pin':
         place({ kind: 'pin', id: itemId(doc), x: p.x, y: p.y, label: 'Pin' });
         setPanelOpen(true);

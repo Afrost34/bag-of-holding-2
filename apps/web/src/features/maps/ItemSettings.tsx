@@ -177,7 +177,7 @@ export function ItemSettings({
               />
             </label>
           </div>
-          <TextLettering item={item} set={set} />
+          <TextLettering item={item} doc={doc} set={set} />
         </>
       )}
       {item.kind === 'stroke' && (

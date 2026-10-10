@@ -1155,3 +1155,36 @@ test('mirrored drawing, and several items picked to line up', async ({ page }) =
   await page.getByRole('tab', { name: 'Layers' }).click();
   await expect.poll(counts).toBe(4);
 });
+
+test('a label runs along a river, and the paper can be changed', async ({ page }, testInfo) => {
+  test.skip(isPhone(page), 'Drawn on the desktop.');
+  test.setTimeout(60_000);
+  await newMap(page, 'The Silverrun', 'World or city map');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  const click = async (x: number, y: number) => {
+    await page.mouse.click(box.x + x, box.y + y);
+  };
+  await tool(page, 'Road or river').click();
+  await page.getByLabel('Path kind').selectOption('river');
+  await click(100, 200);
+  await click(250, 150);
+  await click(420, 260);
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'maps', '"style":"river"');
+  // Clicking the river with the Text tool makes a label that follows it.
+  await tool(page, 'Text').click();
+  await click(250, 150);
+  await waitForSaved(page, 'maps', '"text":"River"');
+  await waitForSaved(page, 'maps', '"follow"');
+  await expect(page.getByLabel('Label runs along')).toHaveValue(/.+/);
+  await page.getByRole('region', { name: 'Text' }).getByLabel('Text').fill('Silverrun');
+  await waitForSaved(page, 'maps', '"text":"Silverrun"');
+  // Another paper.
+  await page.getByRole('tab', { name: 'Map' }).click();
+  await page.getByLabel('Kind of paper').selectOption('night');
+  await waitForSaved(page, 'maps', '"paper":"night"');
+  await page.waitForTimeout(600);
+  await canvas.screenshot({ path: testInfo.outputPath('silverrun.png') });
+});
