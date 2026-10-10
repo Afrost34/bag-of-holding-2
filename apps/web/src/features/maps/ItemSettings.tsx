@@ -12,6 +12,7 @@ import {
   type TemplateShape,
 } from '../../app/maps/model';
 import { useMaps } from '../../app/maps/store';
+import { ITEM_TITLES } from './editorModel';
 import { NumberField, Section } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
 import { WallStrips } from './WallStrips';
@@ -51,23 +52,8 @@ export function ItemSettings({
     commit((d) => updateItem(d, item.id, change));
   };
   const layer = doc.layers.find((l) => l.items.some((i) => i.id === item.id));
-  const titles: Record<MapItem['kind'], string> = {
-    stamp: 'Stamp',
-    stroke: 'Brush stroke',
-    wall: 'Wall',
-    route: 'Route',
-    text: 'Text',
-    template: 'Spell template',
-    pin: 'Pin',
-    shape: 'Terrain shape',
-    path: 'Road or river',
-    scatter: 'Scatter',
-    district: 'District',
-    building: 'Building',
-    room: 'Room',
-  };
   return (
-    <Section title={titles[item.kind]}>
+    <Section title={ITEM_TITLES[item.kind]}>
       {item.kind !== 'route' && item.kind !== 'pin' && item.kind !== 'template' && (
         <label className="flex items-center gap-2 text-sm">
           <input

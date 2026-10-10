@@ -212,3 +212,27 @@ export const withPoints = (i: MapItem, points: number[]): MapItem =>
 
 /** How rounded an item's outline is (buildings are straight-sided). */
 export const smoothOf = (i: PointItem): number => (i.kind === 'building' ? 0 : i.smooth);
+
+/** What an item is called in the panels and the status bar. */
+export const ITEM_TITLES: Record<MapItem['kind'], string> = {
+  stamp: 'Stamp',
+  stroke: 'Brush stroke',
+  wall: 'Wall',
+  route: 'Route',
+  text: 'Text',
+  template: 'Spell template',
+  pin: 'Pin',
+  shape: 'Terrain shape',
+  path: 'Road or river',
+  scatter: 'Scatter',
+  district: 'District',
+  building: 'Building',
+  room: 'Room',
+};
+
+/** The selected item in the bar under the map: its kind, and its text or pin name. */
+export function selectedName(item: MapItem): string {
+  const title = ITEM_TITLES[item.kind];
+  if (item.kind === 'text' && item.text) return `${title}: ${item.text.slice(0, 24)}`;
+  return title;
+}

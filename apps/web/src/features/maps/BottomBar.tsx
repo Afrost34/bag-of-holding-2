@@ -9,6 +9,8 @@ export function BottomBar({
   onSnap,
   zoom,
   square,
+  hint,
+  selectedName,
 }: {
   gridVisible: boolean;
   onGrid: (visible: boolean) => void;
@@ -18,6 +20,10 @@ export function BottomBar({
   zoom: number;
   /** The square under the cursor (column, row), counted from 1. */
   square: { col: number; row: number } | null;
+  /** What the current tool does. */
+  hint: string | null;
+  /** The selected item, by name. */
+  selectedName: string | null;
 }) {
   const toggle = (on: boolean) =>
     cn(
@@ -52,6 +58,16 @@ export function BottomBar({
       >
         <Magnet className="h-4 w-4" aria-hidden /> Snap
       </button>
+      {selectedName && (
+        <span className="rounded bg-sunken px-1.5 py-0.5 text-xs font-medium" aria-label="Selected">
+          {selectedName}
+        </span>
+      )}
+      {hint && (
+        <span className="hidden min-w-0 flex-1 truncate text-xs text-muted @2xl:block" title={hint}>
+          {hint}
+        </span>
+      )}
       <span
         className="ml-auto text-xs text-muted tabular-nums"
         aria-label="Square under the cursor"

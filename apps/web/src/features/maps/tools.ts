@@ -79,23 +79,23 @@ export const TOOLS: { id: Tool; label: string; icon: LucideIcon; key: string }[]
   { id: 'fog', label: 'Fog', icon: CloudFog, key: 'f' },
 ];
 
-/** Tools that belong together sit together in the tool bar, with a rule between groups. */
+/** Tools that belong together sit together in the tool bar, under a heading (Dungeondraft's tabs). */
 export const TOOL_GROUP: Record<Tool, number> = {
   select: 0,
   pan: 0,
-  stamp: 1,
   pen: 1,
   terrain: 1,
+  area: 1,
+  path: 1,
+  elevation: 1,
   eraser: 1,
-  area: 2,
-  path: 2,
-  scatter: 2,
-  elevation: 2,
-  district: 3,
-  building: 3,
-  room: 3,
-  door: 3,
-  wall: 3,
+  district: 2,
+  building: 2,
+  room: 2,
+  door: 2,
+  wall: 2,
+  stamp: 3,
+  scatter: 3,
   text: 4,
   measure: 4,
   calibrate: 4,
@@ -103,6 +103,35 @@ export const TOOL_GROUP: Record<Tool, number> = {
   pin: 5,
   route: 5,
   fog: 5,
+};
+
+/** The heading above each group of the tool bar. */
+export const GROUP_LABELS = ['Move', 'Terrain', 'Design', 'Objects', 'Notes', 'Play'] as const;
+
+/** What a tool does and how to use it: shown in the bar under the map. */
+export const TOOL_HINTS: Record<Tool, string> = {
+  select: 'Click to select, drag to move, drag the handles to change points. Delete removes.',
+  pan: 'Drag to move the map; scroll to zoom.',
+  stamp: 'Pick a picture in the library, then click to place it. A mirrors, scroll turns.',
+  pen: 'Drag to paint with the brush. Alt erases.',
+  terrain: 'Drag to paint the ground with the chosen texture.',
+  eraser: 'Drag over what you want to take away.',
+  area: 'Click to place points; double-click or Enter to close the shape.',
+  path: 'Click to place points; double-click or Enter to finish the road or river.',
+  elevation: 'Drag to raise or lower the ground.',
+  scatter: 'Drag to scatter the chosen pictures along the stroke.',
+  district: 'Click the corners of the district; double-click or Enter to finish.',
+  building: 'Click the corners of the building; double-click or Enter to finish.',
+  room: 'Click the corners of the room; double-click or Enter to finish.',
+  door: 'Click a wall to put a door on it.',
+  wall: 'Click to add corners; double-click or Enter to finish the wall.',
+  text: 'Click where the text goes.',
+  measure: 'Click the start, then the end. Escape clears.',
+  calibrate: 'Drag over one grid cell of the picture.',
+  template: 'Drag to place a spell template.',
+  pin: 'Click to drop a pin.',
+  route: 'Click the stops of the route; double-click or Enter to finish.',
+  fog: 'Click the corners of an area; double-click or Enter to finish.',
 };
 
 /** The Creator draws the map; the Viewer uses it (pins, routes, ranges). Both can measure. */

@@ -108,6 +108,7 @@ import {
   snapRiverEnd,
   withPoints,
   type Drag,
+  selectedName,
 } from './editorModel';
 import { DeleteMap, NameInput } from './EditorParts';
 import { ExportDialog } from './ExportDialog';
@@ -117,6 +118,8 @@ import { MapPanels } from './MapPanels';
 import { PinHover } from '../../app/maps/PinHover';
 import {
   TOOL_GROUP,
+  GROUP_LABELS,
+  TOOL_HINTS,
   TOOLS_WITH_SETTINGS,
   toolsFor,
   type AreaSettings,
@@ -1757,8 +1760,14 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           >
             {tools.map((t, index) => (
               <Fragment key={t.id}>
-                {index > 0 && TOOL_GROUP[t.id] !== TOOL_GROUP[tools[index - 1]?.id ?? t.id] && (
-                  <div role="separator" className="mx-1 my-0.5 h-px bg-border" />
+                {(index === 0 || TOOL_GROUP[t.id] !== TOOL_GROUP[tools[index - 1]?.id ?? t.id]) && (
+                  <div
+                    role="separator"
+                    aria-label={GROUP_LABELS[TOOL_GROUP[t.id]]}
+                    className="mt-1 border-t border-border px-0.5 pt-1 text-center text-[9px] font-semibold tracking-wide text-muted uppercase first:mt-0 first:border-t-0 first:pt-0"
+                  >
+                    {GROUP_LABELS[TOOL_GROUP[t.id]]}
+                  </div>
                 )}
                 <button
                   type="button"
@@ -1827,6 +1836,12 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             onSnap={setSnap}
             zoom={zoom}
             square={cursorSquare}
+            hint={
+              viewing
+                ? null
+                : `${tools.find((t) => t.id === tool)?.label ?? ''}: ${TOOL_HINTS[tool]}`
+            }
+            selectedName={selectedItem ? selectedName(selectedItem) : null}
           />
           <PinHover scene={scene} host={host} campaignId={doc.campaign} />
           {loadingPicture && (
