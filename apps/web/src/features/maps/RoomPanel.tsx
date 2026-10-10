@@ -3,6 +3,7 @@ import { Button, cn } from '@boh/ui';
 import { Dices, Mountain, Pickaxe } from 'lucide-react';
 import { useState } from 'react';
 import { type MapItem } from '../../app/maps/model';
+import { FURNISH_PRESETS } from '../../app/maps/scatterDoc';
 import { DOOR_KINDS, type DoorKind } from '../../app/maps/rooms';
 import { Section } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
@@ -184,9 +185,11 @@ export function RoomPanel(props: MapPanelsProps) {
 export function RoomItemSettings({
   item,
   set,
+  onFurnish,
 }: {
   item: Extract<MapItem, { kind: 'room' }>;
   set: (change: (i: MapItem) => MapItem) => void;
+  onFurnish: (preset: string) => void;
 }) {
   const change = (patch: Partial<Extract<MapItem, { kind: 'room' }>>) => {
     set((i) => (i.kind === 'room' ? { ...i, ...patch } : i));
@@ -226,6 +229,24 @@ export function RoomItemSettings({
           change({ smooth });
         }}
       />
+      <div role="group" aria-label="Furnish" className="space-y-1">
+        <p className="text-sm font-medium">Furnish it as…</p>
+        <div className="flex flex-wrap gap-1">
+          {FURNISH_PRESETS.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              title={p.hint}
+              onClick={() => {
+                onFurnish(p.id);
+              }}
+              className="rounded-md border border-border px-2 py-1 text-sm hover:bg-sunken"
+            >
+              {p.name}
+            </button>
+          ))}
+        </div>
+      </div>
       <p className="text-xs text-muted">
         {(item.doors?.length ?? 0) === 0
           ? 'No doors yet: use the Door tool.'

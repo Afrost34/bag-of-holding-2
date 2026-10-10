@@ -53,6 +53,7 @@ import { defaultLabelText, targetLine } from '../../app/maps/labels';
 import { doorOnWall, generateCave, generateDungeon, roomOutline } from '../../app/maps/rooms';
 import {
   DEFAULT_SCATTER,
+  FURNISH_PRESETS,
   makeScatter,
   SCATTER_PRESETS,
   settingsFromPreset,
@@ -108,6 +109,7 @@ import {
 } from './editorModel';
 import { DeleteMap, NameInput } from './EditorParts';
 import { ExportDialog } from './ExportDialog';
+import { MapSearch } from './MapSearch';
 import { MapPanels } from './MapPanels';
 import { PinHover } from '../../app/maps/PinHover';
 import {
@@ -629,6 +631,22 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         }),
       ),
     );
+  };
+
+  /** A room furnished: a scatter of furniture tied to it, so it follows when the room changes. */
+  const furnishRoom = (roomId: string, presetId: string) => {
+    const preset = FURNISH_PRESETS.find((p) => p.id === presetId);
+    if (!preset || !layer || layer.locked) return;
+    const id = itemId(doc);
+    const settings = settingsFromPreset(preset, doc.grid.size / 70);
+    commit((d) =>
+      add(
+        d,
+        layer.id,
+        makeScatter(id, settings, { points: [], within: roomId }, Math.floor(Math.random() * 1e9)),
+      ),
+    );
+    setSelected(id);
   };
 
   /** Drops the points placed so far without making anything. */
@@ -1518,6 +1536,15 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           >
             <Expand className="h-4 w-4" aria-hidden />
           </Button>
+          {!creator && (
+            <MapSearch
+              doc={doc}
+              onPick={(hit) => {
+                scene?.centerOn(hit.at);
+                if (hit.kind === 'pin') setSelected(hit.id);
+              }}
+            />
+          )}
           {creator && (
             <select
               aria-label="Mirror"
@@ -1810,6 +1837,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             scatter={scatter}
             setScatter={setScatter}
             onScatterOn={scatterOn}
+            onFurnish={furnishRoom}
             area={area}
             setArea={setArea}
             pathSet={pathSet}

@@ -475,6 +475,16 @@ export class MapScene {
     this.requestRender();
   }
 
+  /** Brings a map point to the middle of the view, zoomed in a little if the map is far out. */
+  centerOn(p: Point, minZoom = 0.35): void {
+    const zoom = Math.max(this.zoom, minZoom);
+    this.setView(
+      this.app.screen.width / 2 - p.x * zoom,
+      this.app.screen.height / 2 - p.y * zoom,
+      zoom,
+    );
+  }
+
   /** The whole map in view. */
   fit(): void {
     if (!this.doc) return;

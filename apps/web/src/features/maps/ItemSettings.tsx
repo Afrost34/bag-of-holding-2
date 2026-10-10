@@ -29,6 +29,7 @@ export function ItemSettings({
   onDeselect,
   onMeasureFrom,
   onScatterOn,
+  onFurnish,
   stamp,
 }: MapPanelsProps & { item: MapItem }) {
   // Selectors return what the stores hold; lists are made from it here (a new array from a
@@ -77,7 +78,15 @@ export function ItemSettings({
       )}
       {item.kind === 'district' && <DistrictItemSettings item={item} set={set} commit={commit} />}
       {item.kind === 'building' && <BuildingItemSettings item={item} set={set} />}
-      {item.kind === 'room' && <RoomItemSettings item={item} set={set} />}
+      {item.kind === 'room' && (
+        <RoomItemSettings
+          item={item}
+          set={set}
+          onFurnish={(preset) => {
+            onFurnish(item.id, preset);
+          }}
+        />
+      )}
       {item.kind === 'scatter' && (
         <ScatterItemSettings item={item} stamp={stamp} set={set} commit={commit} />
       )}

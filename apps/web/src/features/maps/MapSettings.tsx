@@ -2,6 +2,7 @@
 import { Button } from '@boh/ui';
 import { Plus, X } from 'lucide-react';
 import { useState } from 'react';
+import { useCampaigns } from '../../app/campaigns/store';
 import { useEncounters } from '../../app/encounters/store';
 import { mapFolders, mapKind, PAPERS, type MapDoc, type MapPaper } from '../../app/maps/model';
 import { useMaps } from '../../app/maps/store';
@@ -146,6 +147,8 @@ function ScaleAndTravel({ doc, commit }: Pick<MapPanelsProps, 'doc' | 'commit'>)
 /** Where the map is filed in the maps list, and the words to find it by. */
 function Filing({ doc, commit }: Pick<MapPanelsProps, 'doc' | 'commit'>) {
   const all = useMaps((s) => s.maps);
+  const campaigns = useCampaigns((s) => s.campaigns);
+  const [moving, setMoving] = useState(false);
   const [folder, setFolder] = useState(doc.folder ?? '');
   const [tags, setTags] = useState((doc.tags ?? []).join(', '));
   const save = () => {
@@ -173,6 +176,33 @@ function Filing({ doc, commit }: Pick<MapPanelsProps, 'doc' | 'commit'>) {
   };
   return (
     <Section title="Filed under">
+      <label className="block text-sm">
+        Lives in
+        <select
+          value={doc.campaign ?? ''}
+          aria-label="Where the map lives"
+          disabled={moving}
+          onChange={(e) => {
+            const to = e.target.value || undefined;
+            setMoving(true);
+            void useMaps
+              .getState()
+              .move(doc.id, to)
+              .finally(() => {
+                setMoving(false);
+              });
+          }}
+          className={field}
+        >
+          <option value="">The library (no campaign)</option>
+          {campaigns.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        {moving && <span className="text-xs text-muted">Moving the map and its pictures…</span>}
+      </label>
       <label className="block text-sm">
         Folder
         <input
