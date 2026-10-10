@@ -8,6 +8,7 @@ import {
   type MapDoc,
   type MapItem,
 } from '../../app/maps/model';
+import { reattachDoors, roomOutline } from '../../app/maps/rooms';
 import { isTied } from '../../app/maps/scatterDoc';
 import { nearestOnPolyline, splinePoints } from '../../app/maps/spline';
 import { formatDistance, routeLength, speedsOf, travelTimes } from '../../app/maps/travel';
@@ -209,16 +210,30 @@ export const minPoints = (i: PointItem): number => (isClosedItem(i) ? 3 : 2);
 
 /** The same item with other control points. */
 export const withPoints = (i: MapItem, points: number[]): MapItem =>
-  i.kind === 'shape' ||
-  i.kind === 'path' ||
-  i.kind === 'scatter' ||
-  i.kind === 'district' ||
-  i.kind === 'building' ||
-  i.kind === 'room' ||
-  i.kind === 'wall' ||
-  i.kind === 'route'
-    ? { ...i, points }
-    : i;
+  // The doors of a room follow its walls.
+  i.kind === 'room'
+    ? {
+        ...i,
+        points,
+        ...(i.doors
+          ? {
+              doors: reattachDoors(
+                i.doors,
+                roomOutline(i.points, i.smooth),
+                roomOutline(points, i.smooth),
+              ),
+            }
+          : {}),
+      }
+    : i.kind === 'shape' ||
+        i.kind === 'path' ||
+        i.kind === 'scatter' ||
+        i.kind === 'district' ||
+        i.kind === 'building' ||
+        i.kind === 'wall' ||
+        i.kind === 'route'
+      ? { ...i, points }
+      : i;
 
 /** How rounded an item's outline is (buildings are straight-sided). */
 export const smoothOf = (i: PointItem): number =>
