@@ -4,7 +4,9 @@ import {
   DISTRICT_STYLES,
   districtOutline,
   roofColorOf,
+  shadedHalf,
   type BuildingItem,
+  type RoofLook,
   type DistrictItem,
 } from './cityDoc';
 import { centroid, longestEdge, splitPolygon } from './polyclip';
@@ -24,8 +26,15 @@ export function drawRoof(
   poly: number[],
   roofColor: string,
   roof: BuildingItem['roof'],
+  look: RoofLook = {},
 ): void {
   if (poly.length < 6) return;
+  if (look.hide) {
+    // No roof: the floor inside, with walls round it.
+    g.poly(poly).fill({ color: 0xd8c9a6 });
+    g.poly(poly).stroke({ color: INK, width: 3, alpha: 0.9, join: 'miter' });
+    return;
+  }
   const base = color(roofColor);
   g.poly(poly).fill({ color: base });
   if (roof !== 'flat') {
@@ -33,9 +42,12 @@ export function drawRoof(
     const c = centroid(poly);
     // The half away from the sun, darker.
     const [a, b] = splitPolygon(poly, c, edge.angle);
-    const shaded = Math.sin(edge.angle) >= 0 ? b : a;
+    const shaded = shadedHalf(a, b, edge.angle, look.sun) === 'b' ? b : a;
     if (shaded.length >= 6)
-      g.poly(shaded).fill({ color: 0x000000, alpha: roof === 'thatch' ? 0.16 : 0.24 });
+      g.poly(shaded).fill({
+        color: 0x000000,
+        alpha: (roof === 'thatch' ? 0.16 : 0.24) * (look.sun?.strength ?? 1),
+      });
     const half = edge.length * 0.42;
     const dx = Math.cos(edge.angle) * half;
     const dy = Math.sin(edge.angle) * half;
@@ -49,14 +61,14 @@ export function drawRoof(
   g.poly(poly).stroke({ color: INK, width: 1.3, alpha: 0.8, join: 'round' });
 }
 
-export function buildingView(item: BuildingItem): Container {
+export function buildingView(item: BuildingItem, look: RoofLook = {}): Container {
   const g = new Graphics();
-  drawRoof(g, item.points, item.color, item.roof);
+  drawRoof(g, item.points, item.color, item.roof, look);
   return g;
 }
 
 /** A district: street ground, the yards of its blocks, its buildings, and the wall if it has one. */
-export function districtView(item: DistrictItem, geo: DistrictGeo): Container {
+export function districtView(item: DistrictItem, geo: DistrictGeo, look: RoofLook = {}): Container {
   const holder = new Container();
   const style = DISTRICT_STYLES[item.style];
   const outline = districtOutline(item);
@@ -77,7 +89,7 @@ export function districtView(item: DistrictItem, geo: DistrictGeo): Container {
   holder.addChild(ground);
   const houses = new Graphics();
   for (const b of geo.buildings)
-    drawRoof(houses, b.poly, roofColorOf(item.style, b.tone), style.roof);
+    drawRoof(houses, b.poly, roofColorOf(item.style, b.tone), style.roof, look);
   holder.addChild(houses);
   if (item.wall && outline.length >= 6) {
     const wall = new Graphics();

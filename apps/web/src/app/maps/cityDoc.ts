@@ -390,3 +390,38 @@ export function rotatePoints(points: readonly number[], degrees: number): number
   }
   return out;
 }
+
+/** How a roof is lit: the sun (see `MapDoc.sun`) and whether the roofs are left off. */
+export interface RoofLook {
+  hide?: boolean | undefined;
+  sun?: { angle: number; strength: number } | undefined;
+}
+
+/**
+ * Which of the two halves of a roof, split along its ridge, is away from the sun: its centre is
+ * the farther one from where the sun is. With no sun set, the old rule (the sun in the west).
+ */
+export function shadedHalf(
+  a: readonly number[],
+  b: readonly number[],
+  edgeAngle: number,
+  sun?: { angle: number },
+): 'a' | 'b' {
+  if (!sun) return Math.sin(edgeAngle) >= 0 ? 'b' : 'a';
+  const centre = (p: readonly number[]) => {
+    let x = 0;
+    let y = 0;
+    const n = p.length / 2;
+    for (let i = 0; i + 1 < p.length; i += 2) {
+      x += p[i] ?? 0;
+      y += p[i + 1] ?? 0;
+    }
+    return { x: x / n, y: y / n };
+  };
+  const rad = (sun.angle * Math.PI) / 180;
+  const lit = (p: readonly number[]) => {
+    const c = centre(p);
+    return c.x * Math.cos(rad) + c.y * Math.sin(rad);
+  };
+  return lit(a) >= lit(b) ? 'b' : 'a';
+}

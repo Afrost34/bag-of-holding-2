@@ -1,4 +1,4 @@
-import { Grid3x3, Magnet } from 'lucide-react';
+import { Grid3x3, Home, Magnet } from 'lucide-react';
 import { cn } from '@boh/ui';
 
 /** Dungeondraft's bottom bar: the grid and snap switches, the zoom and the square under the cursor. */
@@ -7,6 +7,8 @@ export function BottomBar({
   onGrid,
   snap,
   onSnap,
+  roofs,
+  onRoofs,
   zoom,
   square,
   hint,
@@ -16,6 +18,9 @@ export function BottomBar({
   onGrid: (visible: boolean) => void;
   snap: boolean;
   onSnap: (snap: boolean) => void;
+  /** Roofs shown; null when the map has no buildings. */
+  roofs: boolean | null;
+  onRoofs: (shown: boolean) => void;
   /** 1 = 100%. */
   zoom: number;
   /** The square under the cursor (column, row), counted from 1. */
@@ -58,6 +63,19 @@ export function BottomBar({
       >
         <Magnet className="h-4 w-4" aria-hidden /> Snap
       </button>
+      {roofs !== null && (
+        <button
+          type="button"
+          aria-pressed={roofs}
+          title="Show the roofs of the buildings"
+          className={toggle(roofs)}
+          onClick={() => {
+            onRoofs(!roofs);
+          }}
+        >
+          <Home className="h-4 w-4" aria-hidden /> Roofs
+        </button>
+      )}
       {selectedName && (
         <span className="rounded bg-sunken px-1.5 py-0.5 text-xs font-medium" aria-label="Selected">
           {selectedName}

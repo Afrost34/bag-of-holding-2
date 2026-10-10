@@ -1917,6 +1917,19 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             }}
             snap={snap}
             onSnap={setSnap}
+            roofs={
+              doc.layers.some((l) =>
+                l.items.some((i) => i.kind === 'building' || i.kind === 'district'),
+              )
+                ? doc.hideRoofs !== true
+                : null
+            }
+            onRoofs={(shown) => {
+              commit((d) => {
+                const { hideRoofs: _old, ...rest } = d;
+                return shown ? rest : { ...rest, hideRoofs: true };
+              });
+            }}
             zoom={zoom}
             square={cursorSquare}
             hint={

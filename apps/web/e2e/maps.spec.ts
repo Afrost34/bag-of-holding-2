@@ -1650,3 +1650,28 @@ test('a hole is cut out of a terrain shape and filled again', async ({ page }, t
   await page.getByRole('button', { name: 'Fill the 1 hole' }).click();
   await expect(page.getByRole('button', { name: 'Fill the 1 hole' })).toHaveCount(0);
 });
+
+test('roofs can be hidden, and the sun moves their shade', async ({ page }, testInfo) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  test.setTimeout(90_000);
+  await newMap(page, 'Roofs');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const bar = page.getByRole('toolbar', { name: 'Map bar' });
+  // The Roofs switch is there once the map has buildings.
+  await expect(bar.getByRole('button', { name: 'Roofs' })).toHaveCount(0);
+  await tool(page, 'District').click();
+  await page.getByRole('button', { name: 'Generate a walled town' }).click();
+  await waitForSaved(page, 'maps', '"wall":true');
+  const roofs = bar.getByRole('button', { name: 'Roofs' });
+  await expect(roofs).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('tab', { name: 'Map' }).click();
+  await page.getByLabel('Sun direction').fill('0');
+  await waitForSaved(page, 'maps', '"sun":{"angle":0');
+  await page.waitForTimeout(800);
+  await canvas.screenshot({ path: testInfo.outputPath('sun.png') });
+  await roofs.click();
+  await expect(roofs).toHaveAttribute('aria-pressed', 'false');
+  await waitForSaved(page, 'maps', '"hideRoofs":true');
+  await page.waitForTimeout(800);
+  await canvas.screenshot({ path: testInfo.outputPath('hidden.png') });
+});

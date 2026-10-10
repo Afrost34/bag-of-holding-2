@@ -657,15 +657,19 @@ export class MapScene {
         seen.add(item.id);
         const node = this.nodes.get(item.id);
         const look =
-          item.kind === 'scatter' || item.kind === 'district'
-            ? obstacles
-            : item.kind === 'text' && item.follow
-              ? obstacles + String(fantasyFontReady)
-              : item.kind === 'pin'
-                ? JSON.stringify([pinStyle(doc, item), doc.pinStyle ?? '', fantasyFontReady])
-                : item.kind === 'text' && item.font === 'fantasy'
-                  ? String(fantasyFontReady)
-                  : packLook(item);
+          item.kind === 'building'
+            ? JSON.stringify([doc.hideRoofs ?? false, doc.sun ?? null])
+            : item.kind === 'district'
+              ? obstacles + JSON.stringify([doc.hideRoofs ?? false, doc.sun ?? null])
+              : item.kind === 'scatter'
+                ? obstacles
+                : item.kind === 'text' && item.follow
+                  ? obstacles + String(fantasyFontReady)
+                  : item.kind === 'pin'
+                    ? JSON.stringify([pinStyle(doc, item), doc.pinStyle ?? '', fantasyFontReady])
+                    : item.kind === 'text' && item.font === 'fantasy'
+                      ? String(fantasyFontReady)
+                      : packLook(item);
         const home = item.under === true && walls ? walls : view;
         if (node?.item === item && node.look === look && node.view.parent === home) return;
         if (node) {
@@ -1051,9 +1055,9 @@ export class MapScene {
       case 'room':
         return roomFloorView(item, terrainPattern(item.floor), floorColor(item.floor));
       case 'district':
-        return districtView(item, districtGeo(doc, item));
+        return districtView(item, districtGeo(doc, item), { hide: doc.hideRoofs, sun: doc.sun });
       case 'building':
-        return buildingView(item);
+        return buildingView(item, { hide: doc.hideRoofs, sun: doc.sun });
       case 'scatter':
         return this.scatterView(item, doc);
       case 'shape':

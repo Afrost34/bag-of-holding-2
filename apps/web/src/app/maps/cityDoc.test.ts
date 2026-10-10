@@ -10,6 +10,7 @@ import {
   makeDistrict,
   rectangleFootprint,
   rotatePoints,
+  shadedHalf,
   settingsFromStyle,
   type DistrictItem,
 } from './cityDoc';
@@ -129,5 +130,23 @@ describe('towns and buildings', () => {
       480, 290, 520, 290, 520, 310, 480, 310,
     ]);
     expect(libraryId(['b1', 'b2'])).toBe('b3');
+  });
+});
+
+describe('the shade of a roof', () => {
+  // A roof split into a half on the left (x 0–50) and one on the right (x 50–100).
+  const left = [0, 0, 50, 0, 50, 40, 0, 40];
+  const right = [50, 0, 100, 0, 100, 40, 50, 40];
+
+  it('is the half away from the sun', () => {
+    // The sun in the east (0°): the left half is in shade.
+    expect(shadedHalf(left, right, 0, { angle: 0 })).toBe('a');
+    // In the west (180°): the right half is.
+    expect(shadedHalf(left, right, 0, { angle: 180 })).toBe('b');
+  });
+
+  it('keeps the old rule when the map sets no sun', () => {
+    expect(shadedHalf(left, right, 0.3)).toBe('b');
+    expect(shadedHalf(left, right, -0.3)).toBe('a');
   });
 });

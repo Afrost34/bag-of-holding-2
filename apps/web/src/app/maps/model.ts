@@ -378,6 +378,10 @@ export interface MapDoc {
   pinStyle?: 'fantasy';
   /** A scale bar in the bottom-left corner: plain, or as on an old map (absent: none). */
   scaleBar?: 'plain' | 'fantasy';
+  /** Roofs left off, showing the floors of the buildings (the Viewer shows what is inside). */
+  hideRoofs?: boolean;
+  /** Where the sun is (degrees: 0 east, 90 south, 180 west, 270 north) and how dark the shade is (0–1). */
+  sun?: { angle: number; strength: number };
   /** Heights under the map, shown as hill shading (absent: flat). */
   elevation?: Elevation;
   /** The paper under the map (absent: parchment). */
@@ -774,6 +778,10 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
       : {}),
     ...(json.scaleBar === 'plain' || json.scaleBar === 'fantasy'
       ? { scaleBar: json.scaleBar }
+      : {}),
+    ...(json.hideRoofs === true ? { hideRoofs: true } : {}),
+    ...(isObj(json.sun)
+      ? { sun: { angle: num(json.sun.angle, 180), strength: num(json.sun.strength, 1) } }
       : {}),
     createdAt: typeof json.createdAt === 'string' ? json.createdAt : '',
     updatedAt: typeof json.updatedAt === 'string' ? json.updatedAt : '',
