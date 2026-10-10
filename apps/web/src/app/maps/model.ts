@@ -103,6 +103,8 @@ type MapItemBody =
       opacity: number;
       /** A shore glow with wave lines, an ink line, or none. */
       edge: 'none' | 'ink' | 'shore';
+      /** Areas cut out of it (a lake in a forest): control points of each, as the outline's. */
+      holes?: number[][];
     }
   /**
    * Pieces (trees, rocks, mountains) scattered from a seed over an area or along a line, kept

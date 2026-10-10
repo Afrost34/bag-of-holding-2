@@ -70,6 +70,29 @@ describe('scatter in a map', () => {
     expect(list.every((p) => p.x > 200 && p.x < 500 && p.y > 200 && p.y < 500)).toBe(true);
   });
 
+  it('keeps out of the holes of a shape it fills', () => {
+    const start = base();
+    const { layer } = start;
+    let doc = start.doc;
+    doc = addItem(doc, layer, {
+      kind: 'shape',
+      id: 'land',
+      points: square(0, 0, 800),
+      smooth: 0,
+      texture: 'grass',
+      color: '#5b8a2b',
+      opacity: 1,
+      edge: 'none',
+      holes: [square(300, 300, 200)],
+    });
+    const wood = makeScatter('w', settingsFromPreset(forest), { points: [], within: 'land' }, 5);
+    doc = addItem(doc, layer, wood);
+    const list = scatterOf(doc, wood);
+    expect(list.length).toBeGreaterThan(10);
+    expect(list.some((p) => p.x > 300 && p.x < 500 && p.y > 300 && p.y < 500)).toBe(false);
+    expect(list.some((p) => p.x < 300)).toBe(true);
+  });
+
   it('keeps clear of a road, and follows it when moved', () => {
     const start = base();
     const { layer } = start;

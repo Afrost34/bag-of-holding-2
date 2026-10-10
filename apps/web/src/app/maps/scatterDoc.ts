@@ -50,6 +50,7 @@ export const isTied = (item: ScatterItem): boolean => Boolean(item.within ?? ite
 interface Ground {
   texture: TerrainRef | undefined;
   outline: number[];
+  holes: number[][];
   box: { x0: number; y0: number; x1: number; y1: number };
 }
 
@@ -60,7 +61,10 @@ function grounds(doc: MapDoc): Ground[] {
     for (const item of layer.items)
       if (item.kind === 'shape') {
         const outline = splinePoints(item.points, true, item.smooth);
-        out.push({ texture: item.texture, outline, box: bounds(outline) });
+        const holes = (item.holes ?? [])
+          .filter((h) => h.length >= 6)
+          .map((h) => splinePoints(h, true, item.smooth));
+        out.push({ texture: item.texture, outline, holes, box: bounds(outline) });
       }
   return out;
 }
@@ -70,7 +74,8 @@ function terrainAt(list: readonly Ground[], x: number, y: number): TerrainRef | 
   let found: TerrainRef | undefined | null = null;
   for (const g of list) {
     if (x < g.box.x0 || x > g.box.x1 || y < g.box.y0 || y > g.box.y1) continue;
-    if (pointInPolygon({ x, y }, g.outline)) found = g.texture;
+    if (pointInPolygon({ x, y }, g.outline) && !g.holes.some((h) => pointInPolygon({ x, y }, h)))
+      found = g.texture;
   }
   return found;
 }
@@ -122,6 +127,19 @@ export function scatterSetup(
   doc: MapDoc,
   item: ScatterItem,
 ): { spec: ScatterSpec; obstacles: Obstacles; allowed: (x: number, y: number) => boolean } {
+  const rules = placementRules(doc, {
+    avoid: item.avoid,
+    onlyOn: item.onlyOn,
+    skipPath: item.follow,
+  });
+  // Scattered over a shape with holes, it keeps out of them.
+  const target = item.within ? allItems(doc).find((i) => i.id === item.within) : undefined;
+  const holes =
+    target?.kind === 'shape'
+      ? (target.holes ?? [])
+          .filter((h) => h.length >= 6)
+          .map((h) => splinePoints(h, true, target.smooth))
+      : [];
   return {
     spec: {
       mode: item.mode,
@@ -141,11 +159,11 @@ export function scatterSetup(
       clearance: item.clearance,
       max: 6000,
     },
-    ...placementRules(doc, {
-      avoid: item.avoid,
-      onlyOn: item.onlyOn,
-      skipPath: item.follow,
-    }),
+    obstacles: {
+      lines: rules.obstacles.lines,
+      polygons: [...rules.obstacles.polygons, ...holes],
+    },
+    allowed: rules.allowed,
   };
 }
 
@@ -163,7 +181,8 @@ export function obstacleSignature(doc: MapDoc): string {
   for (const layer of doc.layers)
     for (const i of layer.items)
       if (i.kind === 'path') parts.push([i.id, i.points, i.smooth, i.style, i.width]);
-      else if (i.kind === 'shape') parts.push([i.id, i.points, i.smooth, i.texture ?? '']);
+      else if (i.kind === 'shape')
+        parts.push([i.id, i.points, i.smooth, i.texture ?? '', i.holes ?? []]);
       else if (i.kind === 'building') parts.push([i.id, i.points]);
   const text = JSON.stringify(parts);
   let h = 0x811c9dc5;

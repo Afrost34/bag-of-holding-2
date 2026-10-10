@@ -1,6 +1,6 @@
 /** Settings of the terrain shape and road/river tools, the island generator, and picked shapes. */
 import { Button, cn } from '@boh/ui';
-import { Dices, PaintBucket, Trees } from 'lucide-react';
+import { Dices, PaintBucket, Scissors, Trees } from 'lucide-react';
 import { useState } from 'react';
 import { type MapItem } from '../../app/maps/model';
 import { PATH_ENDS, type PathEnd } from '../../app/maps/pathEnds';
@@ -333,11 +333,14 @@ export function ShapeItemSettings({
   item,
   set,
   onScatter,
+  onCutHole,
 }: {
   item: Extract<MapItem, { kind: 'shape' | 'path' }>;
   set: (change: (i: MapItem) => MapItem) => void;
   /** Trees, rocks… inside this shape, or along this path. */
   onScatter: () => void;
+  /** Draw an area to cut out of this shape. */
+  onCutHole: () => void;
 }) {
   if (item.kind === 'shape')
     return (
@@ -391,6 +394,23 @@ export function ShapeItemSettings({
             set((i) => (i.kind === 'shape' ? { ...i, opacity } : i));
           }}
         />
+        <Button variant="ghost" onClick={onCutHole}>
+          <Scissors className="h-4 w-4" aria-hidden /> Cut a hole
+        </Button>
+        {(item.holes?.length ?? 0) > 0 && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              set((i) => {
+                if (i.kind !== 'shape') return i;
+                const { holes: _holes, ...rest } = i;
+                return rest;
+              });
+            }}
+          >
+            Fill the {item.holes?.length} {item.holes?.length === 1 ? 'hole' : 'holes'}
+          </Button>
+        )}
         <Button variant="ghost" onClick={onScatter}>
           <Trees className="h-4 w-4" aria-hidden /> Scatter inside this
         </Button>

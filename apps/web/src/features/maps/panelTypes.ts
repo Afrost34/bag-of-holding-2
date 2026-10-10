@@ -63,6 +63,8 @@ export interface MapPanelsProps {
   onGenerateTown: () => void;
   scatter: ScatterSettings;
   setScatter: (s: ScatterSettings) => void;
+  /** Draw an area to cut out of the picked shape (a lake in a forest). */
+  onCutHole: (shapeId: string) => void;
   /** Scatter inside the picked shape, or along the picked path. */
   onScatterOn: (item: MapItem) => void;
   /** Scatter with a set of pack pictures: the Scatter tool takes them as its mix. */

@@ -26,6 +26,10 @@ const color = (hex: string): number => Number.parseInt(hex.replace('#', ''), 16)
 /** The rounded outline of a shape, as x, y pairs. */
 export const shapeOutline = (item: Shape): number[] => splinePoints(item.points, true, item.smooth);
 
+/** The rounded outlines of the holes cut in a shape. */
+export const shapeHoles = (item: Shape): number[][] =>
+  (item.holes ?? []).filter((h) => h.length >= 6).map((h) => splinePoints(h, true, item.smooth));
+
 /** The rounded line of a path. */
 export const pathLine = (item: Path): number[] => {
   if (!item.loop || item.points.length < 6) return splinePoints(item.points, false, item.smooth);
@@ -62,8 +66,13 @@ export function shapeView(item: Shape, pattern: FillPattern | null): Container {
         g.poly(growPolygon(outline, step * k)).stroke({ color: 0xffffff, width: 1.4, alpha });
     }
     g.poly(outline).fill(pattern ? { fill: pattern } : { color: color(item.color) });
-    if (item.edge !== 'none')
+    const holes = shapeHoles(item);
+    for (const hole of holes) g.poly(hole).cut();
+    if (item.edge !== 'none') {
       g.poly(outline).stroke({ color: 0x2b2118, width: 1.8, alpha: 0.75, join: 'round' });
+      for (const hole of holes)
+        g.poly(hole).stroke({ color: 0x2b2118, width: 1.8, alpha: 0.75, join: 'round' });
+    }
   }
   g.alpha = item.opacity;
   return g;

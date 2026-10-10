@@ -1604,3 +1604,36 @@ test('scatter turns its pieces within a range', async ({ page }) => {
   await page.getByLabel('Rotation of pieces').selectOption('none');
   await expect(from).toHaveCount(0);
 });
+
+test('a hole is cut out of a terrain shape and filled again', async ({ page }, testInfo) => {
+  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
+  await newMap(page, 'Lake');
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  const click = async (x: number, y: number) => {
+    await page.mouse.click(box.x + x, box.y + y);
+  };
+  await page.keyboard.press('s');
+  await tool(page, 'Terrain shape').click();
+  await click(100, 100);
+  await click(500, 100);
+  await click(500, 420);
+  await click(100, 420);
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'maps', '"kind":"shape"');
+  await tool(page, 'Select and move').click();
+  await click(150, 150);
+  await page.getByRole('button', { name: 'Cut a hole' }).click();
+  await click(250, 200);
+  await click(380, 200);
+  await click(380, 330);
+  await click(250, 330);
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'maps', '"holes":[[');
+  await page.waitForTimeout(500);
+  await canvas.screenshot({ path: testInfo.outputPath('hole.png') });
+  // The shape is picked again, and the hole can be filled.
+  await page.getByRole('button', { name: 'Fill the 1 hole' }).click();
+  await expect(page.getByRole('button', { name: 'Fill the 1 hole' })).toHaveCount(0);
+});

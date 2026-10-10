@@ -32,6 +32,7 @@ export function ItemSettings({
   onDeselect,
   onMeasureFrom,
   onScatterOn,
+  onCutHole,
   onFurnish,
   stamp,
 }: MapPanelsProps & { item: MapItem }) {
@@ -109,6 +110,9 @@ export function ItemSettings({
           set={set}
           onScatter={() => {
             onScatterOn(item);
+          }}
+          onCutHole={() => {
+            onCutHole(item.id);
           }}
         />
       )}

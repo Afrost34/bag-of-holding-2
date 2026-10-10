@@ -179,7 +179,14 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   const shell = useRef<HTMLDivElement>(null);
   const [scene, setScene] = useState<MapScene | null>(null);
   const creator = mode === 'creator';
-  const [tool, setTool] = useState<Tool>(creator ? 'select' : 'pan');
+  const [tool, setToolNow] = useState<Tool>(creator ? 'select' : 'pan');
+  /** The shape the next area drawn is cut out of, instead of becoming a shape of its own. */
+  const [holeOf, setHoleOf] = useState<string | null>(null);
+  /** Another tool drops a hole that was being drawn. */
+  const setTool = (next: Tool) => {
+    setHoleOf(null);
+    setToolNow(next);
+  };
   /** Where the pointer went down (screen), to tell a click from a drag. */
   const downAt = useRef<Point | null>(null);
   const tools = toolsFor(mode);
@@ -437,6 +444,20 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       if (wall.length >= 6) commit((d) => addFog(d, wall, fog.mode === 'reveal'));
       setWall(null);
       scene?.clearPreview();
+      return;
+    }
+    if (wall && tool === 'area' && holeOf) {
+      const points = dedupePoints(wall).map(Math.round);
+      if (points.length >= 6)
+        commit((d) =>
+          updateItem(d, holeOf, (i) =>
+            i.kind === 'shape' ? { ...i, holes: [...(i.holes ?? []), points] } : i,
+          ),
+        );
+      setHoleOf(null);
+      setWall(null);
+      scene?.clearPreview();
+      setSelected(holeOf);
       return;
     }
     if (wall && tool === 'area') {
@@ -704,6 +725,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
 
   /** Drops the points placed so far without making anything. */
   const cancelWall = () => {
+    setHoleOf(null);
     setWall(null);
     scene?.clearPreview();
   };
@@ -1900,7 +1922,9 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             hint={
               viewing
                 ? null
-                : `${tools.find((t) => t.id === tool)?.label ?? ''}: ${TOOL_HINTS[tool]}`
+                : holeOf
+                  ? 'Cut a hole: click the corners of the area; double-click or Enter to finish, Escape to cancel.'
+                  : `${tools.find((t) => t.id === tool)?.label ?? ''}: ${TOOL_HINTS[tool]}`
             }
             selectedName={selectedItem ? selectedName(selectedItem) : null}
           />
@@ -2001,6 +2025,12 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             scatter={scatter}
             setScatter={setScatter}
             onScatterOn={scatterOn}
+            onCutHole={(id) => {
+              setSelected(null);
+              setWall(null);
+              setTool('area');
+              setHoleOf(id);
+            }}
             onScatterMix={scatterWithPictures}
             onFurnish={furnishRoom}
             area={area}

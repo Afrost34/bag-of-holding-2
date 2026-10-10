@@ -43,7 +43,7 @@ import { roomDoorsView, roomFloorView, roomWallView } from './roomView';
 import { roomOutline } from './rooms';
 import { districtGeo, districtOutline } from './cityDoc';
 import { isTied, obstacleSignature, pieceBox, scatterLine, scatterOf } from './scatterDoc';
-import { pathLine, pathView, shapeOutline, shapeView } from './shapes';
+import { pathLine, pathView, shapeHoles, shapeOutline, shapeView } from './shapes';
 import { pointInPolygon } from './polygon';
 import { stripSegments } from './wallStrip';
 import { isPackTexture, TERRAINS, terrainTile, type TerrainRef } from './terrain';
@@ -1230,7 +1230,8 @@ export class MapScene {
           const outline = shapeOutline(item);
           const b = bounds(outline);
           if ((b.x1 - b.x0) * (b.y1 - b.y0) > this.doc.width * this.doc.height * 0.8) continue;
-          if (pointInPolygon(p, outline)) return item;
+          if (pointInPolygon(p, outline) && !shapeHoles(item).some((h) => pointInPolygon(p, h)))
+            return item;
           continue;
         }
         if (item.kind === 'room') {
