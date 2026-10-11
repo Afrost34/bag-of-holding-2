@@ -74,6 +74,13 @@ import {
 } from '../../app/maps/scatterDoc';
 import { recipeById } from '../../app/maps/dress/recipes';
 import { DEFAULT_DRESS, settingsFor } from '../../app/maps/dress/settings';
+import {
+  addStructure,
+  mergeFootprint,
+  newBuildingSpec,
+  touchesFootprint,
+} from '../../app/maps/structure/structureDoc';
+import { generateOf } from './tools';
 import { useArtPrefs } from '../../app/maps/artPrefs';
 import { bakeMap } from '../../app/maps/render';
 import { PATH_STYLES } from '../../app/maps/shapes';
@@ -129,7 +136,8 @@ import {
   simplify,
   smoothOf,
   snapRiverEnd,
-  withPoints,
+  applyPoints,
+  handlePoints,
   type Drag,
   selectedName,
   MIN_STAMP_SCALE,
@@ -822,6 +830,31 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       scene?.clearPreview();
       return;
     }
+    if (wall && tool === 'building' && buildingSet.whole) {
+      // A whole building: a new one, or the picked one grown by what was drawn.
+      const points = dedupePoints(wall).map(Math.round);
+      if (points.length >= 6) {
+        const picked = selectedItem?.kind === 'structure' ? selectedItem : null;
+        if (picked && touchesFootprint(picked, points, doc.grid.size))
+          commit((d) => mergeFootprint(d, picked.group, points));
+        else {
+          const id = itemId(doc);
+          commit((d) => {
+            const spec = newBuildingSpec(
+              generateOf(buildingSet),
+              packList.entries,
+              Math.floor(Math.random() * 2 ** 31),
+              Math.max(6, Math.round(d.grid.size * 0.17)),
+            );
+            return addStructure(d, { spec, points }, id).doc;
+          });
+          setSelected(id);
+        }
+      }
+      setWall(null);
+      scene?.clearPreview();
+      return;
+    }
     if (wall && tool === 'building') {
       const points = dedupePoints(wall).map(Math.round);
       if (points.length >= 6 && layer) {
@@ -1168,12 +1201,13 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       (e.button === 0 || e.button === 2) &&
       isPointItem(selectedItem)
     ) {
-      const index = nearestHandle(selectedItem.points, p, 10 / scene.zoom);
+      const handles = handlePoints(selectedItem, doc.grid.size);
+      const index = nearestHandle(handles, p, 10 / scene.zoom);
       if (index >= 0) {
         if (e.button === 2) {
-          const points = removeVertex(selectedItem.points, index, minPoints(selectedItem));
-          commit((d) => updateItem(d, selectedItem.id, (i) => withPoints(i, points)));
-        } else drag.current = { mode: 'vertex', ...base, index, points: [...selectedItem.points] };
+          const points = removeVertex(handles, index, minPoints(selectedItem));
+          commit((d) => applyPoints(d, selectedItem.id, points));
+        } else drag.current = { mode: 'vertex', ...base, index, points: [...handles] };
         return;
       }
     }
@@ -1489,7 +1523,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     setZoom(scene.zoom);
     hoverHandle.current =
       creator && tool === 'select' && isPointItem(selectedItem)
-        ? nearestHandle(selectedItem.points, p, 10 / scene.zoom)
+        ? nearestHandle(handlePoints(selectedItem, doc.grid.size), p, 10 / scene.zoom)
         : -1;
     if (tool === 'measure' && measured.length > 0 && !drag.current)
       drawMeasured([...measured, measureAt(p)]);
@@ -1833,7 +1867,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         const item = selectedItem;
         if (!d.points || d.index === undefined || !isPointItem(item)) return;
         const points = d.points.map(Math.round);
-        commit((doc2) => updateItem(doc2, item.id, (i) => withPoints(i, points)));
+        commit((doc2) => applyPoints(doc2, item.id, points));
         return;
       }
       case 'box': {
@@ -2024,12 +2058,12 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         hoverHandle.current >= 0
       ) {
         const points = removeVertex(
-          selectedItem.points,
+          handlePoints(selectedItem, doc.grid.size),
           hoverHandle.current,
           minPoints(selectedItem),
         );
         hoverHandle.current = -1;
-        commit((d) => updateItem(d, selectedItem.id, (i) => withPoints(i, points)));
+        commit((d) => applyPoints(d, selectedItem.id, points));
         return;
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selected) {
@@ -2361,13 +2395,12 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
                 const screen = local(e);
                 const at = scene.toMap(screen.x, screen.y);
                 const points = insertVertex(
-                  selectedItem.points,
+                  handlePoints(selectedItem, doc.grid.size),
                   at,
                   isClosedItem(selectedItem),
                   12 / scene.zoom,
                 );
-                if (points)
-                  commit((d) => updateItem(d, selectedItem.id, (i) => withPoints(i, points)));
+                if (points) commit((d) => applyPoints(d, selectedItem.id, points));
               }
             }}
             onContextMenu={(e) => {

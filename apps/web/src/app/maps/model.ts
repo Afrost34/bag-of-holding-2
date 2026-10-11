@@ -53,6 +53,48 @@ export interface ItemOrder {
   under?: boolean;
 }
 
+/** The pictures a building is made of, picked from the packs by its style (`structure/styles.ts`). */
+export interface StylePalette {
+  /** Floors: pack textures, or drawn ones (`wood`, `stone`) without packs. */
+  floor: TerrainRef;
+  upperFloor: TerrainRef;
+  cellarFloor: TerrainRef;
+  /** A wall strip (`_Path`); the drawn wall when absent. */
+  wall?: string;
+  door?: string;
+  window?: string;
+  stairs?: string;
+  roof?: string;
+}
+
+/** What a generated building is (see `structure/`): the same on every one of its floors. */
+export interface BuildingSpec {
+  type: 'building';
+  name: string;
+  /** The rooms' seed (Roll again changes it). */
+  seed: number;
+  /** The stairwell's seed: kept when the rooms are rolled again (`seed` when absent). */
+  stairSeed?: number;
+  /** What it is for: a tavern, a smithy… (see `structure/archetypes.ts`). */
+  archetype: string;
+  /** Floors above the ground floor (0–3), and a cellar. */
+  upper: number;
+  cellar: boolean;
+  /** How many rooms each floor aims for. */
+  rooms: number;
+  /** The look (see `structure/styles.ts`) and the pictures it picked. */
+  style: string;
+  palette: StylePalette;
+  dressing: 'bare' | 'lived-in' | 'cluttered';
+  condition: 'kept' | 'worn' | 'ruined';
+  roof: 'tiles' | 'thatch' | 'slate' | 'flat';
+  windows: boolean;
+  /** 0–1: walls a little off true, as an old timber house's. */
+  crooked: number;
+  /** Wall thickness (map pixels). */
+  wall: number;
+}
+
 /**
  * Where the pieces of a dress rule go (see `dress/engine.ts`): over an area or line, or, in a room
  * (`dress/interior.ts`), back to a wall, in the corners, in the middle, round the pieces of an
@@ -301,6 +343,29 @@ type MapItemBody =
       /** A pack's wall strip for the walls, instead of the drawn style. */
       wallTexture?: string;
       doors?: Door[];
+    }
+  /**
+   * One floor of a generated building (see `structure/`): the footprint, the settings every floor
+   * shares (`spec`), which floor it is, and the rooms of this floor kept as they are. Its rooms,
+   * walls, doors, windows and stairs are planned from these and drawn as rooms and stamps; "bake"
+   * turns them into those. Every floor of a building is an item of its own, on a layer of its
+   * own, tied by `group`.
+   */
+  | {
+      kind: 'structure';
+      id: string;
+      /** The outer outline (map pixels) on whole grid cells, the same on every floor. */
+      points: number[];
+      /** How far each corner of `points` was dragged (dx, dy pairs): angled walls. */
+      bends?: number[];
+      /** Corners of `points` (by index) cut at 45°. */
+      chamfers?: number[];
+      group: string;
+      /** 0 the ground floor, 1 the first floor up, −1 the cellar. */
+      floor: number;
+      spec: BuildingSpec;
+      /** Rooms of this floor kept as they are (locked, split, merged or given another type). */
+      rooms?: { id: number; cells: string[]; type: string; seed: number }[];
     }
   /** A road, trail, river or fence along control points. */
   | {
@@ -746,6 +811,7 @@ const KINDS = new Set([
   'district',
   'building',
   'room',
+  'structure',
   'route',
   'text',
   'template',

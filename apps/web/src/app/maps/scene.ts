@@ -41,6 +41,7 @@ import { glyphIdOf, glyphTexture, isGlyphRef } from './glyphs';
 import { itemBox } from './arrange';
 import { lightSegments, visibilityPolygon } from './lighting';
 import { mapLights } from './glow';
+import { expandStructures, footprintOf, handlesOf } from './structure/structureDoc';
 import { frameCorners, frameRects, roseShape } from './decor';
 import { contourSegments, heightsOf, shadeImage, type Elevation } from './elevation';
 import { alongLayout, targetLine } from './labels';
@@ -941,7 +942,9 @@ export class MapScene {
         this.topHolders.set(layer.id, tops);
         view.addChild(tops);
       }
-      layer.items.forEach((item, i) => {
+      // A building (structure) is drawn as its rooms and stamps.
+      const drawn = expandStructures(doc, layer.items);
+      drawn.forEach((item, i) => {
         seen.add(item.id);
         const node = this.nodes.get(item.id);
         const look =
@@ -1001,7 +1004,7 @@ export class MapScene {
         else home.addChildAt(fresh, 0);
       });
       // Keep the items in their order within the layer.
-      layer.items.forEach((item, i) => {
+      drawn.forEach((item, i) => {
         const n = this.nodes.get(item.id);
         if (n?.view.parent === view && view.getChildIndex(n.view) !== i + 1)
           view.setChildIndex(n.view, Math.min(i + 1, view.children.length - 1));
@@ -1657,6 +1660,9 @@ export class MapScene {
         });
         return g;
       }
+      case 'structure':
+        // Drawn as its parts (see `expandStructures` in `setDoc`), never as itself.
+        return new Container();
       case 'pin': {
         // A round badge with the icon, on a short stem pointing at the place, then the label.
         const style = pinStyle(doc, item);
@@ -1812,6 +1818,10 @@ export class MapScene {
           if (pointInPolygon(p, outline)) return item;
           continue;
         }
+        if (item.kind === 'structure') {
+          if (pointInPolygon(p, footprintOf(item, this.doc.grid.size))) return item;
+          continue;
+        }
         if (item.kind === 'scatter') {
           const line = scatterLine(this.doc, item);
           if (item.mode === 'area') {
@@ -1887,6 +1897,18 @@ export class MapScene {
       if (outline.length >= 6) g.poly(outline).stroke({ color: SELECT_COLOR, width: w });
       for (let i = 0; i + 1 < item.points.length; i += 2)
         g.circle(item.points[i] ?? 0, item.points[i + 1] ?? 0, 5 / this.zoom)
+          .fill({ color: 0xffffff })
+          .stroke({ color: SELECT_COLOR, width: w });
+      return;
+    }
+    if (item.kind === 'structure' && this.doc) {
+      // The outline as drawn, and a handle on each corner (drag to bend a wall).
+      const cell = this.doc.grid.size;
+      const outline = footprintOf(item, cell);
+      if (outline.length >= 6) g.poly(outline).stroke({ color: SELECT_COLOR, width: w });
+      const handles = handlesOf(item, cell);
+      for (let i = 0; i + 1 < handles.length; i += 2)
+        g.circle(handles[i] ?? 0, handles[i + 1] ?? 0, 5 / this.zoom)
           .fill({ color: 0xffffff })
           .stroke({ color: SELECT_COLOR, width: w });
       return;

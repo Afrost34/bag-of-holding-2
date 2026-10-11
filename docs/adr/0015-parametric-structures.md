@@ -1,0 +1,59 @@
+# 0015 — Whole buildings are structure items, one per floor, planned on grid cells
+
+Date: 2026-10-11 · Status: accepted
+
+## Context
+
+The owner wants to say "a two-floor tavern, eight rooms, rustic" and get a finished building from
+the Forgotten Adventures packs: rooms, walls, doors, windows, stairs, floors to step through, and
+furniture. Until now a building was only a roof outline, and the dungeon generator placed loose
+rooms with no seed kept. The owner chose:
+
+- live, then bake;
+- one layer and variant per floor;
+- floor plans made of merged rectangles, with crooked walls, 45° corners and corners dragged by hand;
+- rooms that can be re-rolled one by one, locked, split and merged.
+
+## Decision
+
+- **A `structure` item per floor**, all tied by `group`. Each floor sits on a layer of its own and
+  has a variant that shows the map's other layers and that floor; Page Up and Page Down step
+  through them. `spec` (a `BuildingSpec`) is the same on every floor: archetype, style, the
+  pictures the style picked (the palette), floors, rooms, windows, crookedness. The footprint
+  (`points`), the dragged corners (`bends`) and the cut corners (`chamfers`) are the same on every
+  floor too.
+- **The plan is on whole grid cells** (`structure/floorplan.ts`, pure):
+  - the stairwell comes first, in the same cells on every floor, from its own seed, so Roll
+    again keeps it;
+  - the free cells are cut across their longer side into rooms of 2 × 2 cells at least;
+  - doors form a spanning tree over the rooms that touch, plus about a fifth more for loops,
+    and a front door on the ground floor;
+  - windows go on the outer walls.
+
+  Rooms are given their types by the archetype's programme, the biggest room first
+  (`archetypes.ts`). Locked rooms (`rooms` on the item) are kept and the rest is cut again; any
+  change to one room freezes the floor as it is.
+
+- **Bent walls without losing joins.** The footprint stays on cells. Dragged corners and
+  crookedness move every point of the plan by inverse-distance weighting of the corner offsets,
+  so walls, doors and stairs stay joined. Cut corners replace a corner by two points, in the
+  footprint and in the room that has that corner. The editor shows handles on the corners as
+  drawn, and a drag becomes that corner's bend.
+- **Drawn as ordinary items.** `structureParts` turns a floor into rooms (floor, outer wall,
+  doorways), walls between rooms (drawn over the floors, because touching rooms otherwise share
+  a floor), and door, window and stair stamps. The ids are fixed, so the scene redraws only what
+  changed. The scene, the lights and the flat render draw these parts. **Bake** puts the same
+  parts on the map in its place, so live and baked always match.
+- **Styles** (`styles.ts`) name the pictures with `Wanted` queries: floors (ground, upper,
+  cellar), wall strip, door, window, stairs, roof. They are picked once, when the building is
+  made; Pick again picks afresh. Without packs a building is drawn (drawn floors, ink walls,
+  drawn doors). A door picture stands in a `gap` doorway, a new door kind with nothing drawn.
+- A building moves by whole squares with all its floors, and its locked rooms move with it.
+
+## Consequences
+
+- Furniture (PR 8) is laid per room from its type's interior recipe, from the room's seed.
+- Roofs, more styles, dungeons, ships and docks are new specs and planners on the same item and
+  drawing path.
+- Tests check that plans tile the footprint, that every room is reachable, that the stairs line
+  up, that locks survive Roll again, and that baking keeps every part.

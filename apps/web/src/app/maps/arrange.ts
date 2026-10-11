@@ -1,6 +1,7 @@
 import { newId } from '../cards/model';
 import { addItem, itemId, itemShown, layerShown, type MapDoc, type MapItem } from './model';
 import { bounds } from './spline';
+import { moveStructure } from './structure/structureDoc';
 
 /**
  * Working with several items at once, and drawing symmetrically: where an item is, moving it,
@@ -162,11 +163,22 @@ export function distributeItems(doc: MapDoc, ids: readonly string[], axis: 'x' |
 }
 
 function applyMoves(doc: MapDoc, moves: ReadonlyMap<string, [number, number]>): MapDoc {
+  // A building moves with all its floors, by whole squares (its rooms are on the grid).
+  const groups = new Map<string, [number, number]>();
+  for (const l of doc.layers)
+    for (const i of l.items) {
+      const m = moves.get(i.id);
+      if (i.kind === 'structure' && m) groups.set(i.group, m);
+    }
   return {
     ...doc,
     layers: doc.layers.map((l) => ({
       ...l,
       items: l.items.map((i) => {
+        if (i.kind === 'structure') {
+          const g = groups.get(i.group);
+          return g ? moveStructure(i, g[0], g[1], doc.grid.size) : i;
+        }
         const m = moves.get(i.id);
         return m && (m[0] !== 0 || m[1] !== 0) ? translateItem(i, m[0], m[1]) : i;
       }),

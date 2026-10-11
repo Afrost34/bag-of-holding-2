@@ -273,7 +273,34 @@ export interface IslandRequest {
   seed: number;
 }
 
-/** The building tool: a roof over a footprint; or one placed from the library. */
+/** How the building tool makes a whole building (rooms, floors): see `structure/`. */
+export interface GenerateSettings {
+  archetype: string;
+  style: string;
+  upper: number;
+  cellar: boolean;
+  rooms: number;
+  windows: boolean;
+  crooked: number;
+}
+
+export const DEFAULT_GENERATE: GenerateSettings = {
+  archetype: 'tavern',
+  style: 'timber',
+  upper: 1,
+  cellar: true,
+  rooms: 4,
+  windows: true,
+  crooked: 0,
+};
+
+/** The building tool's whole-building settings, kept per device, with the defaults filled in. */
+export const generateOf = (s: { generate?: GenerateSettings | undefined }): GenerateSettings => ({
+  ...DEFAULT_GENERATE,
+  ...s.generate,
+});
+
+/** The building tool: a whole building, or a roof over a footprint; or one placed from the library. */
 export interface BuildingSettings {
   roof: RoofStyle;
   color: string;
@@ -281,6 +308,9 @@ export interface BuildingSettings {
   roofTexture?: string;
   /** A saved building to place with a click, or null to draw. */
   libraryId: string | null;
+  /** Draw whole buildings (rooms, doors, floors) rather than roofs. */
+  whole?: boolean;
+  generate?: GenerateSettings;
 }
 
 /** The room and door tools. */

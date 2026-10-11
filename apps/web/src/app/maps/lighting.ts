@@ -1,6 +1,7 @@
 import { layerShown, type MapDoc } from './model';
 import { roomOutline } from './rooms';
 import { splinePoints } from './spline';
+import { expandStructures } from './structure/structureDoc';
 
 /**
  * Lights (Dungeondraft's light tool and environment): what blocks light, and the area a light
@@ -75,7 +76,8 @@ export function lightSegments(doc: MapDoc): Segment[] {
   const out: Segment[] = [];
   for (const layer of doc.layers) {
     if (!layerShown(doc, layer) || layer.picture) continue;
-    for (const item of layer.items) {
+    // A building's rooms block light as rooms do.
+    for (const item of expandStructures(doc, layer.items)) {
       if (item.kind === 'stamp' && item.blockLight) {
         // Its outline: the picture's box, turned.
         const a = (item.rotation * Math.PI) / 180;

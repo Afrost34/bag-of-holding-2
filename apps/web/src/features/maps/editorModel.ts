@@ -5,9 +5,11 @@ import {
   itemId,
   layerShown,
   removeItem,
+  updateItem,
   type MapDoc,
   type MapItem,
 } from '../../app/maps/model';
+import { handlesOf, syncFootprint, withHandles } from '../../app/maps/structure/structureDoc';
 import { reattachDoors, roomOutline } from '../../app/maps/rooms';
 import { isTied } from '../../app/maps/scatterDoc';
 import { nearestOnPolyline, splinePoints } from '../../app/maps/spline';
@@ -184,7 +186,18 @@ export function snapRiverEnd(
 /** Items drawn from control points the user can drag (a scatter tied to another item has none). */
 export type PointItem = Extract<
   MapItem,
-  { kind: 'shape' | 'path' | 'scatter' | 'district' | 'building' | 'room' | 'wall' | 'route' }
+  {
+    kind:
+      | 'shape'
+      | 'path'
+      | 'scatter'
+      | 'district'
+      | 'building'
+      | 'room'
+      | 'wall'
+      | 'route'
+      | 'structure';
+  }
 >;
 
 export const isPointItem = (i: MapItem | null | undefined): i is PointItem =>
@@ -196,7 +209,22 @@ export const isPointItem = (i: MapItem | null | undefined): i is PointItem =>
     i.kind === 'room' ||
     i.kind === 'wall' ||
     i.kind === 'route' ||
+    i.kind === 'structure' ||
     (i.kind === 'scatter' && !isTied(i)));
+
+/**
+ * Where an item's handles are: its control points, or for a building its corners as drawn
+ * (dragging one bends the walls; see `structure/structureDoc.ts`).
+ */
+export const handlePoints = (i: PointItem, cell: number): number[] =>
+  i.kind === 'structure' ? handlesOf(i, cell) : i.points;
+
+/** New handle positions kept on an item; a building gives them to each of its floors. */
+export function applyPoints(doc: MapDoc, id: string, points: number[]): MapDoc {
+  const changed = updateItem(doc, id, (i) => withPoints(i, points, doc.grid.size));
+  const item = changed.layers.flatMap((l) => l.items).find((i) => i.id === id);
+  return item?.kind === 'structure' ? syncFootprint(changed, id) : changed;
+}
 
 /** A closed outline (a shape, a scatter over an area) rather than an open line. */
 export const isClosedItem = (i: PointItem): boolean =>
@@ -208,36 +236,40 @@ export const isClosedItem = (i: PointItem): boolean =>
 /** The least points a closed outline or an open line keeps. */
 export const minPoints = (i: PointItem): number => (isClosedItem(i) ? 3 : 2);
 
-/** The same item with other control points. */
-export const withPoints = (i: MapItem, points: number[]): MapItem =>
-  // The doors of a room follow its walls.
-  i.kind === 'room'
-    ? {
-        ...i,
-        points,
-        ...(i.doors
-          ? {
-              doors: reattachDoors(
-                i.doors,
-                roomOutline(i.points, i.smooth),
-                roomOutline(points, i.smooth),
-              ),
-            }
-          : {}),
-      }
-    : i.kind === 'shape' ||
-        i.kind === 'path' ||
-        i.kind === 'scatter' ||
-        i.kind === 'district' ||
-        i.kind === 'building' ||
-        i.kind === 'wall' ||
-        i.kind === 'route'
-      ? { ...i, points }
-      : i;
+/** The same item with other control points (a building: its corners dragged, `cell` the grid). */
+export const withPoints = (i: MapItem, points: number[], cell = 70): MapItem =>
+  i.kind === 'structure'
+    ? withHandles(i, points, cell)
+    : // The doors of a room follow its walls.
+      i.kind === 'room'
+      ? {
+          ...i,
+          points,
+          ...(i.doors
+            ? {
+                doors: reattachDoors(
+                  i.doors,
+                  roomOutline(i.points, i.smooth),
+                  roomOutline(points, i.smooth),
+                ),
+              }
+            : {}),
+        }
+      : i.kind === 'shape' ||
+          i.kind === 'path' ||
+          i.kind === 'scatter' ||
+          i.kind === 'district' ||
+          i.kind === 'building' ||
+          i.kind === 'wall' ||
+          i.kind === 'route'
+        ? { ...i, points }
+        : i;
 
 /** How rounded an item's outline is (buildings are straight-sided). */
 export const smoothOf = (i: PointItem): number =>
-  i.kind === 'building' || i.kind === 'wall' || i.kind === 'route' ? 0 : i.smooth;
+  i.kind === 'building' || i.kind === 'wall' || i.kind === 'route' || i.kind === 'structure'
+    ? 0
+    : i.smooth;
 
 /** What an item is called in the panels and the status bar. */
 export const ITEM_TITLES: Record<MapItem['kind'], string> = {
@@ -254,6 +286,7 @@ export const ITEM_TITLES: Record<MapItem['kind'], string> = {
   district: 'District',
   building: 'Building',
   room: 'Room',
+  structure: 'Building plan',
   light: 'Light',
 };
 
