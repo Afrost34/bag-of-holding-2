@@ -1,8 +1,13 @@
 /** Scatter: presets, the pieces scattered, and the settings of a scatter you picked. */
 import { Button, cn } from '@boh/ui';
 import { Dices, Layers, Trash2 } from 'lucide-react';
+import { useEffect, useMemo } from 'react';
+import { useShowDrawn } from '../../app/maps/artPrefs';
+import { availablePresets, presetRefs, type PackPreset } from '../../app/maps/packDefaults';
+import { usePacks } from '../../app/maps/packs';
 import {
   bakeScatter,
+  mixSettings,
   SCATTER_PRESETS,
   settingsFromPreset,
   type ScatterItem,
@@ -90,10 +95,15 @@ function Pieces({
     else if (pieces.length > 1) onChange(pieces.filter((p) => p.ref !== ref));
   };
   const custom = pieces.filter((p) => !isGlyphRef(p.ref));
+  const drawn = useShowDrawn();
   return (
     <fieldset className="space-y-1.5">
       <legend className="text-sm font-medium">Pieces</legend>
-      <div className="flex flex-wrap gap-1" role="group" aria-label="Built-in pieces">
+      <div
+        className={cn('flex flex-wrap gap-1', !drawn && 'hidden')}
+        role="group"
+        aria-label="Built-in pieces"
+      >
         {GLYPHS.map((g) => {
           const ref = glyphRef(g.id);
           return (
@@ -341,10 +351,65 @@ function ScatterControls({
 }
 
 /** The panel of the Scatter tool: pick a preset, adjust it, then draw where it goes. */
-export function ScatterPanel({ scatter, setScatter, stamp }: MapPanelsProps) {
+export function ScatterPanel({ scatter, setScatter, stamp, doc }: MapPanelsProps) {
+  const drawn = useShowDrawn();
+  const { entries } = usePacks();
+  const packPresets = useMemo(() => availablePresets(entries), [entries]);
+  const applyPackPreset = (p: PackPreset) => {
+    const refs = presetRefs(entries, p);
+    const mix = mixSettings(refs, scatter, doc.grid.size);
+    setScatter({
+      ...mix,
+      preset: p.id,
+      mode: p.mode,
+      spacing: Math.max(8, Math.round((mix.spacing / 1.1) * p.spacing)),
+      rotation: p.mode === 'along' ? 'along' : 'random',
+    });
+  };
+  // With packs imported (and no drawn art asked for) the tool opens on the packs' forest.
+  const first = packPresets[0];
+  const onGlyphs = scatter.pieces.every((x) => isGlyphRef(x.ref));
+  useEffect(() => {
+    if (!drawn && first && onGlyphs) applyPackPreset(first);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawn, first?.id, onGlyphs]);
   return (
     <Section title="Scatter">
-      <div role="radiogroup" aria-label="Scatter preset" className="grid grid-cols-2 gap-1">
+      {packPresets.length > 0 && (
+        <div role="radiogroup" aria-label="Pack scatter preset" className="grid grid-cols-2 gap-1">
+          {packPresets.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              role="radio"
+              aria-checked={scatter.preset === p.id}
+              title={p.hint}
+              onClick={() => {
+                applyPackPreset(p);
+              }}
+              className={cn(
+                'rounded-md border px-2 py-1.5 text-left text-sm',
+                scatter.preset === p.id
+                  ? 'border-accent bg-accent-soft font-medium'
+                  : 'border-border text-muted hover:bg-sunken',
+              )}
+            >
+              {p.name}
+              <span className="block text-[11px] font-normal text-muted">{p.hint}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {packPresets.length === 0 && !drawn && (
+        <p className="text-xs text-muted">
+          Import an asset pack to scatter its trees, rocks and flowers.
+        </p>
+      )}
+      <div
+        role="radiogroup"
+        aria-label="Scatter preset"
+        className={cn('grid grid-cols-2 gap-1', !drawn && 'hidden')}
+      >
         {SCATTER_PRESETS.map((p) => (
           <button
             key={p.id}

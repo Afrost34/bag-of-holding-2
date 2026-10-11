@@ -7,6 +7,7 @@ import {
   parsePackRef,
   type PackEntry,
 } from './packModel';
+import { classify } from './packCategories';
 import { readZipEntry, readZipIndex } from './zip';
 
 /**
@@ -114,9 +115,19 @@ export const usePacks = create<PacksStore>()((set, get) => ({
     for (const meta of metas) {
       const rows = await readJson<IndexRow[]>(folder, `${meta.id}.index.json`);
       for (const [path, offset, compressed, size, method] of rows ?? []) {
-        if (seen.has(path)) continue;
-        seen.add(path);
-        entries.push({ pack: meta.id, path, offset, compressed, size, method });
+        // The same picture in two packs (or as .png in one and .webp in another) is kept once.
+        const key = path.replace(/.[a-z0-9]+$/i, '');
+        if (seen.has(key)) continue;
+        seen.add(key);
+        entries.push({
+          pack: meta.id,
+          path,
+          offset,
+          compressed,
+          size,
+          method,
+          cat: classify(path),
+        });
       }
     }
     entries.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));

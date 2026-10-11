@@ -14,12 +14,31 @@ import { PinCategories } from './PinPanels';
 import { StampLibrary } from './StampLibrary';
 import { BuildingPanel, DistrictPanel } from './CityPanel';
 import { WallPanel } from './WallStrips';
+import { PortalPanel } from './PortalPanel';
 import { RoomPanel } from './RoomPanel';
 import { ScatterPanel } from './ScatterPanel';
 import { ShapePanel } from './ShapePanel';
 import { ToolSettings } from './ToolSettings';
 
 /** The editor's side panel: what the tool draws, then stamps, layers, grid or the picked item. */
+const WIDTH_KEY = 'boh.map.panel-width';
+const clampWidth = (w: number) => Math.min(640, Math.max(260, Math.round(w)));
+function readWidth(): number {
+  try {
+    const stored = Number(localStorage.getItem(WIDTH_KEY));
+    return stored > 0 ? clampWidth(stored) : 340;
+  } catch {
+    return 340;
+  }
+}
+function saveWidth(w: number): void {
+  try {
+    localStorage.setItem(WIDTH_KEY, String(w));
+  } catch {
+    /* a private window: the width lasts until the page closes */
+  }
+}
+
 export function MapPanels(props: MapPanelsProps) {
   const { open, onClose, selected, tool, mode } = props;
   const creator = mode === 'creator';
@@ -27,6 +46,9 @@ export function MapPanels(props: MapPanelsProps) {
   const [tab, setTab] = useState<Tab>(creator ? 'stamps' : 'pins');
   // Another tool or tab shows from its top, not from where the last one was scrolled to.
   const scroller = useRef<HTMLDivElement>(null);
+  // The panel's width, dragged by its left edge and kept on this device.
+  const [width, setWidth] = useState(readWidth);
+  const drag = useRef<{ x: number; width: number } | null>(null);
   // Tools with settings of their own do not also show the stamp library under them (Scatter keeps
   // it, to add a stamp to the mix).
   const ownsPanel = ![
@@ -60,12 +82,42 @@ export function MapPanels(props: MapPanelsProps) {
   return (
     <aside
       aria-label="Map panels"
+      style={{ width }}
       className={cn(
-        'flex w-80 shrink-0 flex-col border-l border-border bg-surface',
+        'relative flex shrink-0 flex-col border-l border-border bg-surface',
         'max-lg:absolute max-lg:inset-y-0 max-lg:right-0 max-lg:z-20 max-lg:max-w-[90vw] max-lg:shadow-card',
         !open && 'max-lg:hidden',
       )}
     >
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize the panel"
+        aria-valuenow={width}
+        aria-valuemin={260}
+        aria-valuemax={640}
+        tabIndex={0}
+        title="Drag to resize the panel"
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId);
+          drag.current = { x: e.clientX, width };
+        }}
+        onPointerMove={(e) => {
+          if (drag.current) setWidth(clampWidth(drag.current.width + drag.current.x - e.clientX));
+        }}
+        onPointerUp={() => {
+          drag.current = null;
+          saveWidth(width);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            const next = clampWidth(width + (e.key === 'ArrowLeft' ? 24 : -24));
+            setWidth(next);
+            saveWidth(next);
+          }
+        }}
+        className="absolute inset-y-0 -left-1 z-10 hidden w-2 cursor-col-resize hover:bg-accent/30 focus-visible:bg-accent/40 lg:block"
+      />
       <div className="flex items-center gap-1 border-b border-border px-2 pt-2">
         <div role="tablist" aria-label="Panels" className="flex flex-1 gap-1">
           {tabs.map((t) => (
@@ -106,7 +158,8 @@ export function MapPanels(props: MapPanelsProps) {
         {tool === 'scatter' && <ScatterPanel {...props} />}
         {tool === 'elevation' && <ElevationPanel {...props} />}
         {tool === 'district' && <DistrictPanel {...props} />}
-        {(tool === 'room' || tool === 'door') && <RoomPanel {...props} />}
+        {tool === 'room' && <RoomPanel {...props} />}
+        {tool === 'door' && <PortalPanel {...props} />}
         {tool === 'building' && <BuildingPanel {...props} />}
         {tool === 'wall' && <WallPanel {...props} />}
         {tab === 'stamps' && !ownsPanel && (

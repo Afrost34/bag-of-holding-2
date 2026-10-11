@@ -93,6 +93,7 @@ export function RoomPanel(props: MapPanelsProps) {
     <>
       <Section title="Room">
         <TerrainPicker
+          cats={['floors']}
           value={roomSet.floor}
           onPick={(floor) => {
             setRoomSet({ ...roomSet, floor });
@@ -205,6 +206,7 @@ export function RoomItemSettings({
   return (
     <>
       <TerrainPicker
+        cats={['floors']}
         value={item.floor}
         onPick={(floor) => {
           change({ floor });

@@ -1,8 +1,11 @@
 /** The settings of the current map maker tool (stamps, brushes, eraser, templates). */
 import { cn } from '@boh/ui';
 import { useMemo } from 'react';
+import { useShowDrawn } from '../../app/maps/artPrefs';
+import { entryRef, usePacks } from '../../app/maps/packs';
 import { type TemplateShape } from '../../app/maps/model';
 import { TERRAINS, terrainTile, type TerrainRef } from '../../app/maps/terrain';
+import { Preview } from './PackBrowser';
 import { PackTextures } from './PackTextures';
 import { Section } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
@@ -20,6 +23,9 @@ export function ToolSettings({
   template,
   setTemplate,
 }: MapPanelsProps) {
+  const drawn = useShowDrawn();
+  const { entries } = usePacks();
+  const packEntries = useMemo(() => new Map(entries.map((e) => [entryRef(e), e])), [entries]);
   if (tool === 'eraser')
     return (
       <Section title="Eraser">
@@ -88,6 +94,7 @@ export function ToolSettings({
           <div role="group" aria-label="Terrain slots" className="flex flex-wrap gap-1">
             {terrainSlots.map((ref, i) => {
               const known = TERRAINS.find((t) => t.id === ref);
+              const slotEntry = packEntries.get(ref);
               return (
                 <button
                   key={ref}
@@ -107,31 +114,39 @@ export function ToolSettings({
                     s.texture === ref ? 'border-accent' : 'border-border',
                   )}
                 >
-                  {known ? <TerrainSwatch id={known.id} /> : <span>pack</span>}
+                  {known ? (
+                    <TerrainSwatch id={known.id} />
+                  ) : slotEntry ? (
+                    <Preview entry={slotEntry} />
+                  ) : (
+                    <span>pack</span>
+                  )}
                 </button>
               );
             })}
           </div>
-          <div className="grid grid-cols-3 gap-1" role="radiogroup" aria-label="Terrain">
-            {TERRAINS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                role="radio"
-                aria-checked={s.texture === t.id}
-                onClick={() => {
-                  set({ ...s, texture: t.id, color: t.base });
-                }}
-                className={cn(
-                  'overflow-hidden rounded-md border-2 text-left text-xs',
-                  s.texture === t.id ? 'border-accent' : 'border-border',
-                )}
-              >
-                <TerrainSwatch id={t.id} />
-                <span className="block truncate px-1 py-0.5">{t.name}</span>
-              </button>
-            ))}
-          </div>
+          {drawn && (
+            <div className="grid grid-cols-3 gap-1" role="radiogroup" aria-label="Terrain">
+              {TERRAINS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={s.texture === t.id}
+                  onClick={() => {
+                    set({ ...s, texture: t.id, color: t.base });
+                  }}
+                  className={cn(
+                    'overflow-hidden rounded-md border-2 text-left text-xs',
+                    s.texture === t.id ? 'border-accent' : 'border-border',
+                  )}
+                >
+                  <TerrainSwatch id={t.id} />
+                  <span className="block truncate px-1 py-0.5">{t.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
           <PackTextures
             value={s.texture}
             onPick={(texture) => {

@@ -13,7 +13,10 @@ import {
   Undo2,
   X,
 } from 'lucide-react';
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { defaultSlots } from '../../app/maps/packDefaults';
+import { usePacks } from '../../app/maps/packs';
+import { isPackTexture, type TerrainRef } from '../../app/maps/terrain';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
 import { useCampaigns } from '../../app/campaigns/store';
 import { entityPath } from '../../app/data/entities';
@@ -121,13 +124,12 @@ import {
 import { DeleteMap, NameInput } from './EditorParts';
 import { ExportDialog } from './ExportDialog';
 import { BottomBar } from './BottomBar';
+import { ToolRail } from './ToolRail';
 import { Hotbar } from './Hotbar';
 import { MapSearch } from './MapSearch';
 import { MapPanels } from './MapPanels';
 import { PinHover } from '../../app/maps/PinHover';
 import {
-  TOOL_GROUP,
-  GROUP_LABELS,
   TOOL_HINTS,
   TOOLS_WITH_SETTINGS,
   toolsFor,
@@ -211,11 +213,11 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   const [stampAspect, setStampAspect] = useState(1);
   const [stampSquares, setStampSquares] = useState<{ w: number; h: number } | null>(null);
   const [brush, setBrush] = useState<BrushSettings>({ color: '#111111', width: 6, opacity: 1 });
-  const [terrain, setTerrain] = useState<BrushSettings>({
+  // No texture yet means the first slot (a pack's grass once packs are imported, else the drawn one).
+  const [terrainState, setTerrain] = useState<BrushSettings>({
     color: '#5b8a2b',
     width: 120,
     opacity: 1,
-    texture: 'grass',
   });
   const [eraser, setEraser] = useState(60);
   const [template, setTemplate] = useState<TemplateSettings>({
@@ -306,7 +308,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     }
   };
   /** The terrain textures used last: Dungeondraft's slots, kept on this device. */
-  const [slots, setSlotsState] = useState<string[]>(() => {
+  const [slotsChosen, setSlotsState] = useState<string[] | null>(() => {
     try {
       const parsed: unknown = JSON.parse(localStorage.getItem('boh.map.slots') ?? 'null');
       if (Array.isArray(parsed) && parsed.every((x) => typeof x === 'string') && parsed.length > 0)
@@ -314,8 +316,19 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     } catch {
       /* none kept yet */
     }
-    return DEFAULT_SLOTS;
+    return null;
   });
+  // Until slots are chosen they are the packs' grass, dirt, rock, sand… (or the drawn ones).
+  const packList = usePacks();
+  const packSlots = useMemo(() => defaultSlots(packList.entries), [packList.entries]);
+  const slots = slotsChosen ?? (packSlots.length > 0 ? packSlots : DEFAULT_SLOTS);
+  const terrain: BrushSettings = terrainState.texture
+    ? terrainState
+    : {
+        ...terrainState,
+        texture: (slots[0] ?? 'grass') as TerrainRef,
+        color: isPackTexture(slots[0] ?? '') ? '#9a958d' : '#5b8a2b',
+      };
   const pickTerrain = (b: BrushSettings) => {
     setTerrain(b);
     if (b.texture && b.texture !== terrain.texture) {
@@ -1047,6 +1060,23 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         else setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey)]);
         return;
       case 'door': {
+        // A door or window picked from a pack goes onto the nearest wall, turned along it.
+        if (stamp && isPortalPicture(stamp)) {
+          if (!canDraw) return;
+          const onWall = portalOnWalls(doc, p, grid.size * 0.75);
+          if (!onWall) return;
+          place({
+            kind: 'stamp',
+            id: itemId(doc),
+            stamp,
+            x: onWall.x,
+            y: onWall.y,
+            w: stampSquares ? stampSquares.w * grid.size : grid.size,
+            h: stampSquares ? stampSquares.h * grid.size : grid.size,
+            rotation: Math.round((onWall.angle * 180) / Math.PI),
+          });
+          return;
+        }
         // A door goes on the nearest wall of any room within reach; one already there is removed.
         let best: { id: string; x: number; y: number; angle: number; reach: number } | null = null;
         for (const l of doc.layers)
@@ -1902,8 +1932,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
               }}
             >
               <Swords className="h-4 w-4" aria-hidden />
-              <span className="hidden sm:inline">Run {encounter.name}</span>
-              <span className="sr-only sm:hidden">Run {encounter.name}</span>
+              <span className="hidden 2xl:inline">Run {encounter.name}</span>
+              <span className="sr-only 2xl:hidden">Run {encounter.name}</span>
             </Button>
           )}
           {!creator && (
@@ -1914,8 +1944,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
               }}
             >
               <Cast className="h-4 w-4" aria-hidden />
-              <span className="hidden sm:inline">Show to players</span>
-              <span className="sr-only sm:hidden">Show to players</span>
+              <span className="hidden 2xl:inline">Show to players</span>
+              <span className="sr-only 2xl:hidden">Show to players</span>
             </Button>
           )}
           {creator ? (
@@ -1924,8 +1954,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
               className="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-muted hover:bg-sunken hover:text-text"
             >
               <Eye className="h-4 w-4" aria-hidden />
-              <span className="hidden sm:inline">View map</span>
-              <span className="sr-only sm:hidden">View map</span>
+              <span className="hidden 2xl:inline">View map</span>
+              <span className="sr-only 2xl:hidden">View map</span>
             </AppLink>
           ) : (
             <AppLink
@@ -1933,14 +1963,14 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
               className="inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-muted hover:bg-sunken hover:text-text"
             >
               <Paintbrush className="h-4 w-4" aria-hidden />
-              <span className="hidden sm:inline">Edit map</span>
-              <span className="sr-only sm:hidden">Edit map</span>
+              <span className="hidden 2xl:inline">Edit map</span>
+              <span className="sr-only 2xl:hidden">Edit map</span>
             </AppLink>
           )}
           <Button variant="ghost" onClick={toggleView}>
             <Maximize className="h-4 w-4" aria-hidden />
-            <span className="hidden sm:inline">Full page</span>
-            <span className="sr-only sm:hidden">Full page</span>
+            <span className="hidden 2xl:inline">Full page</span>
+            <span className="sr-only 2xl:hidden">Full page</span>
           </Button>
           <Button
             variant="ghost"
@@ -1950,8 +1980,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             }}
           >
             <Download className="h-4 w-4" aria-hidden />
-            <span className="hidden sm:inline">Export PNG</span>
-            <span className="sr-only sm:hidden">Export PNG</span>
+            <span className="hidden 2xl:inline">Export PNG</span>
+            <span className="sr-only 2xl:hidden">Export PNG</span>
           </Button>
           {exporting && scene && (
             <ExportDialog
@@ -1984,47 +2014,17 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       )}
       <div className="relative flex min-h-0 flex-1">
         {!viewing && (
-          <div
-            role="toolbar"
-            aria-label="Map tools"
-            aria-orientation="vertical"
-            className="flex flex-col gap-1 overflow-y-auto border-r border-border bg-surface p-1"
-          >
-            {tools.map((t, index) => (
-              <Fragment key={t.id}>
-                {(index === 0 || TOOL_GROUP[t.id] !== TOOL_GROUP[tools[index - 1]?.id ?? t.id]) && (
-                  <div
-                    role="separator"
-                    aria-label={GROUP_LABELS[TOOL_GROUP[t.id]]}
-                    className="mt-1 border-t border-border px-0.5 pt-1 text-center text-[9px] font-semibold tracking-wide text-muted uppercase first:mt-0 first:border-t-0 first:pt-0"
-                  >
-                    {GROUP_LABELS[TOOL_GROUP[t.id]]}
-                  </div>
-                )}
-                <button
-                  type="button"
-                  aria-label={t.label}
-                  aria-pressed={tool === t.id}
-                  title={`${t.label} (${t.key.toUpperCase()})`}
-                  onClick={() => {
-                    if (wall) finishWall();
-                    setTool(t.id);
-                    setMeasured([]);
-                    scene?.clearPreview();
-                    if (TOOLS_WITH_SETTINGS.has(t.id)) setPanelOpen(true);
-                  }}
-                  className={cn(
-                    'rounded-md p-2',
-                    tool === t.id
-                      ? 'bg-accent text-accent-fg'
-                      : 'text-muted hover:bg-sunken hover:text-text',
-                  )}
-                >
-                  <t.icon className="h-5 w-5" aria-hidden />
-                </button>
-              </Fragment>
-            ))}
-          </div>
+          <ToolRail
+            tools={tools}
+            tool={tool}
+            onPick={(id) => {
+              if (wall) finishWall();
+              setTool(id);
+              setMeasured([]);
+              scene?.clearPreview();
+              if (TOOLS_WITH_SETTINGS.has(id)) setPanelOpen(true);
+            }}
+          />
         )}
         <div className="relative min-w-0 flex-1">
           <div

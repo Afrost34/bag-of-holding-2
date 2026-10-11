@@ -48,6 +48,7 @@ import { districtGeo, districtOutline } from './cityDoc';
 import { isTied, obstacleSignature, pieceBox, scatterLine, scatterOf } from './scatterDoc';
 import { pathLine, pathView, shapeHoles, shapeOutline, shapeView } from './shapes';
 import { pointInPolygon } from './polygon';
+import { PIXELS_PER_SQUARE } from './packCategories';
 import { stripSegments } from './wallStrip';
 import { isPackTexture, TERRAINS, terrainTile, type TerrainRef } from './terrain';
 
@@ -267,7 +268,6 @@ let packTexturesReady = 0;
 let onPackTexture: (() => void) | null = null;
 /** The grid of the map being drawn: a pack texture spans a few of its squares. */
 let patternGrid = 70;
-const PACK_TEXTURE_SQUARES = 5;
 
 /** The look of an item that depends on pack pictures still arriving. */
 const packLook = (item: MapItem): string => {
@@ -340,7 +340,8 @@ function terrainPattern(ref: TerrainRef): FillPattern {
   let t = terrainPatterns.get(key);
   if (!t) {
     t = new FillPattern(loaded, 'repeat');
-    const k = (patternGrid * PACK_TEXTURE_SQUARES) / Math.max(1, loaded.width);
+    // The art is drawn at 200 pixels to the grid square: a 1000 px tile covers five squares.
+    const k = patternGrid / PIXELS_PER_SQUARE;
     t.setTransform(new Matrix().scale(k, k));
     terrainPatterns.set(key, t);
   }

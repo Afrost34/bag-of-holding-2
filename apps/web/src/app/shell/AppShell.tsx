@@ -30,6 +30,8 @@ export function AppShell() {
   useScrollMemory(mainRef);
   // The player window (a second window the DM shows things in) is not a full app.
   const player = href.split(/[?#]/, 1)[0] === PLAYER_ROUTE;
+  // The map Creator needs the room: the sidebar shrinks to its icons while a map is edited.
+  const inMapCreator = /^\/maps\/(?!packs)[^/?#]+(\/edit)?([?#]|$)/.test(href);
 
   // The open campaign decides which sources are on and whose notes show, on every page.
   useEffect(() => {
@@ -61,7 +63,11 @@ export function AppShell() {
 
   return (
     <div className="flex h-full overflow-hidden">
-      <Sidebar className="hidden md:flex" collapsed={collapsed} onToggleCollapsed={toggle} />
+      <Sidebar
+        className="hidden md:flex"
+        collapsed={collapsed || inMapCreator}
+        onToggleCollapsed={toggle}
+      />
 
       <ConfirmHost />
       <div className="flex min-w-0 flex-1 flex-col">

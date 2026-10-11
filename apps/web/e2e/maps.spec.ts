@@ -1445,7 +1445,7 @@ test('a texture of an imported pack paints terrain', async ({ page }) => {
   await newMap(page, 'Pack Meadow');
   const zip = Buffer.from(
     zipSync({
-      'FA_Assets_Webp/Woodlands/!Wilderness/Textures/Grass/Grass_A_01.png': [PIXEL, { level: 0 }],
+      'FA_Assets_Webp/Woodlands/!Wilderness/Textures/Grass/Grass_A_01.jpg': [PIXEL, { level: 0 }],
       'FA_Assets_Webp/Woodlands/!Wilderness/Flora/Oak_A1_1x1.png': [PIXEL, { level: 0 }],
     }),
   );
@@ -1963,4 +1963,58 @@ test('rooms that touch are merged into one', async ({ page }) => {
   await page.mouse.up();
   await page.getByRole('button', { name: 'Merge the rooms into one' }).click();
   await expect.poll(rooms).toBe(1);
+});
+
+test('packs come first: sorted categories, scatter presets from the pack, the contents page', async ({
+  page,
+}) => {
+  test.skip(isPhone(page), 'The Creator is used on the desktop.');
+  test.setTimeout(60_000);
+  await installData(page);
+  await newMap(page, 'Sorted');
+  const zip = Buffer.from(
+    zipSync({
+      'FA_Assets_Webp/Woodlands/!Wilderness/Textures/Grass/Grass_A_01.jpg': [PIXEL, { level: 0 }],
+      ...Object.fromEntries(
+        [1, 2, 3].flatMap((i) => [
+          [
+            `FA_Assets_Webp/Woodlands/!Wilderness/Flora/Trees/Tree_Green_C${String(i)}_5x5.png`,
+            [PIXEL, { level: 0 }],
+          ],
+          [
+            `FA_Assets_Webp/Woodlands/!Wilderness/Flora/Bushes/Bush_Red_B${String(i)}_2x2.png`,
+            [PIXEL, { level: 0 }],
+          ],
+        ]),
+      ),
+    }),
+  );
+  await tool(page, 'Stamp').click();
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Import packs (zip)' }).click();
+  await (await chooser).setFiles({ name: 'Woods.zip', mimeType: 'application/zip', buffer: zip });
+  await expect(page.getByRole('status').filter({ hasText: '1 added' })).toBeVisible();
+  // The object library is sorted by category.
+  const categories = page.getByRole('group', { name: 'Categories' });
+  await expect(categories.getByRole('button', { name: /Trees/ })).toBeVisible();
+  await expect(categories.getByRole('button', { name: /Bushes/ })).toBeVisible();
+  // Scatter offers presets made from the pack, not drawn ones.
+  await tool(page, 'Scatter').click();
+  await expect(
+    page
+      .getByRole('radiogroup', { name: 'Pack scatter preset' })
+      .getByRole('radio', { name: /Forest/ }),
+  ).toBeVisible();
+  await expect(page.getByRole('radiogroup', { name: 'Scatter preset', exact: true })).toBeHidden();
+  // The contents page shows how the pack was sorted.
+  await page.goto('./#/maps/packs');
+  await expect(page.getByRole('heading', { name: 'Pack contents' })).toBeVisible();
+  await page.getByRole('button', { name: /^Trees/ }).click();
+  await expect(
+    page.getByRole('list', { name: 'Samples of Trees' }).getByRole('listitem'),
+  ).toHaveCount(3);
+  await expect(page.getByRole('button', { name: /^Ground textures/ })).toBeVisible();
+  // The drawn art comes back with the switch.
+  await page.getByLabel(/Also offer the simple drawn art/).check();
+  await page.goBack();
 });

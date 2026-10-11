@@ -151,6 +151,7 @@ function NavItem({ module, active, collapsed, onNavigate, children }: NavItemPro
     <AppLink
       to={module.path}
       aria-current={active ? 'page' : undefined}
+      {...(collapsed ? { 'aria-label': module.label } : {})}
       {...(onNavigate ? { onNavigate } : {})}
       className={cn(
         'relative flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium transition-colors',
