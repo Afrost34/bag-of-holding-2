@@ -109,27 +109,38 @@ export function ItemSettings({
             />
             Close the loop
           </label>
-          {!item.texture && (
-            <label className="block text-sm">
-              Corners
-              <select
-                aria-label="Wall corners"
-                value={item.joint ?? 'round'}
-                onChange={(e) => {
-                  const sharp = e.target.value === 'sharp';
-                  set((i) => {
-                    if (i.kind !== 'wall') return i;
-                    const { joint: _j, ...rest } = i;
-                    return sharp ? { ...rest, joint: 'sharp' } : rest;
-                  });
-                }}
-                className={field}
-              >
-                <option value="round">Rounded</option>
-                <option value="sharp">Sharp</option>
-              </select>
-            </label>
-          )}
+          <label className="block text-sm">
+            Corners
+            <select
+              aria-label="Wall corners"
+              value={
+                item.texture
+                  ? item.joint === 'round'
+                    ? 'round'
+                    : 'sharp'
+                  : (item.joint ?? 'round')
+              }
+              onChange={(e) => {
+                const joint = e.target.value === 'sharp' ? 'sharp' : 'round';
+                set((i) => {
+                  if (i.kind !== 'wall') return i;
+                  const { joint: _j, ...rest } = i;
+                  // A drawn wall is rounded unless told otherwise; a pack wall is square unless rounded.
+                  return i.texture
+                    ? joint === 'round'
+                      ? { ...rest, joint: 'round' }
+                      : rest
+                    : joint === 'sharp'
+                      ? { ...rest, joint: 'sharp' }
+                      : rest;
+                });
+              }}
+              className={field}
+            >
+              <option value="round">Rounded</option>
+              <option value="sharp">Sharp</option>
+            </select>
+          </label>
         </>
       )}
       {item.kind === 'wall' && (

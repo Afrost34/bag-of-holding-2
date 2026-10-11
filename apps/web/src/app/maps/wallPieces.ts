@@ -23,6 +23,8 @@ export interface PieceSpec {
 
 export interface WallPieces {
   corner?: PieceSpec;
+  /** A rounded corner (a quarter circle), where a set has one. */
+  roundCorner?: PieceSpec;
   diagonal?: PieceSpec;
   ending?: PieceSpec;
   /** The T piece (arms west, east and south) and the cross, where walls meet. */
@@ -38,11 +40,15 @@ export function piecesFor(stripFile: string, siblings: readonly string[]): WallP
     const mine = siblings.filter((f) => f.startsWith(prefix)).sort();
     const rest = (re: RegExp) => mine.find((f) => re.test(f.slice(prefix.length)));
     const corner = rest(/^Corner_[A-E]_1x1\./i);
+    const round = rest(/^Corner_F_2x2\./i);
+    const diagonal = rest(/^Connector_DIAG_A_1x1\./i);
     const ending = rest(/^Ending_[A-Z]\d?_1x1\./i);
     const tee = rest(/^Joint_B_1x1\./i);
     const cross = rest(/^Joint_A_1x1\./i);
     return {
       ...(corner ? { corner: { file: corner, squares: 1, arms: [0, 90] } } : {}),
+      ...(round ? { roundCorner: { file: round, squares: 2, arms: [0, 90] } } : {}),
+      ...(diagonal ? { diagonal: { file: diagonal, squares: 1, arms: [0, 135] } } : {}),
       ...(ending ? { ending: { file: ending, squares: 1, arms: [0] } } : {}),
       ...(tee ? { tee } : {}),
       ...(cross ? { cross } : {}),
@@ -67,7 +73,7 @@ export function piecesFor(stripFile: string, siblings: readonly string[]): WallP
 }
 
 export interface PiecePlace {
-  kind: 'corner' | 'diagonal' | 'ending' | 'tee' | 'cross';
+  kind: 'corner' | 'roundCorner' | 'diagonal' | 'ending' | 'tee' | 'cross';
   x: number;
   y: number;
   /** Degrees, clockwise, from the picture as drawn. */
@@ -105,6 +111,8 @@ export function placePieces(
   points: readonly number[],
   closed: boolean,
   pieces: WallPieces,
+  /** Right-angle turns take the set's rounded corner, if it has one. */
+  round = false,
 ): PiecePlace[] {
   const n = Math.floor(points.length / 2);
   const out: PiecePlace[] = [];
@@ -120,13 +128,43 @@ export function placePieces(
     if (hasPrev && hasNext) {
       const toPrev = angle(here, prev);
       const toNext = angle(here, next);
-      for (const kind of ['corner', 'diagonal'] as const) {
+      // The inside angle of the turn: 180 is straight on, 90 a right angle.
+      const inside = Math.min(mod360(toNext - toPrev), mod360(toPrev - toNext));
+      const wanted: ('corner' | 'roundCorner' | 'diagonal')[] = round
+        ? ['roundCorner', 'corner', 'diagonal']
+        : ['corner', 'diagonal'];
+      let placed = false;
+      for (const kind of wanted) {
         const spec = pieces[kind];
         if (!spec) continue;
         const turn = alignArms(spec.arms, toPrev, toNext);
         if (turn === null) continue;
         out.push({ kind, x: here.x, y: here.y, rotation: Math.round(turn) });
+        placed = true;
         break;
+      }
+      // Another angle: the nearest piece, turned to share the bisector of the turn.
+      if (!placed && inside >= 70 && inside <= 160) {
+        let best: {
+          kind: 'corner' | 'roundCorner' | 'diagonal';
+          spec: PieceSpec;
+          gap: number;
+        } | null = null;
+        for (const kind of wanted) {
+          const spec = pieces[kind];
+          const b0 = spec?.arms[0];
+          const b1 = spec?.arms[1];
+          if (!spec || b0 === undefined || b1 === undefined) continue;
+          const gap = Math.abs(mod360(b1 - b0) - inside);
+          if (!best || gap < best.gap) best = { kind, spec, gap };
+        }
+        const b0 = best?.spec.arms[0];
+        const b1 = best?.spec.arms[1];
+        if (best && b0 !== undefined && b1 !== undefined) {
+          const first = mod360(toNext - toPrev) <= 180 ? toPrev : toNext;
+          const turn = mod360(first + inside / 2 - (b0 + mod360(b1 - b0) / 2));
+          out.push({ kind: best.kind, x: here.x, y: here.y, rotation: Math.round(turn) });
+        }
       }
     } else if ((hasPrev || hasNext) && pieces.ending) {
       const other = hasNext ? next : prev;
