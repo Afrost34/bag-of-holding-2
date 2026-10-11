@@ -22,6 +22,7 @@ describe('the pieces of a wall set', () => {
   it('finds the corner, ending and joints of a stone set, and nothing of another', () => {
     expect(piecesFor(files[0] ?? '', files)).toEqual({
       corner: { file: 'Wall_Stone_Earthy_B1_Corner_A_1x1.webp', squares: 1, arms: [0, 90] },
+      roundCorner: { file: 'Wall_Stone_Earthy_B1_Corner_F_2x2.webp', squares: 2, arms: [0, 90] },
       ending: { file: 'Wall_Stone_Earthy_B1_Ending_A_1x1.webp', squares: 1, arms: [0] },
       tee: 'Wall_Stone_Earthy_B1_Joint_B_1x1.webp',
       cross: 'Wall_Stone_Earthy_B1_Joint_A_1x1.webp',
@@ -90,9 +91,33 @@ describe('where pieces stand on a wall', () => {
     // West arm and a north-east arm as drawn: a wall coming from the west going north-east.
     const out = placePieces([-100, 0, 0, 0, 70, -70], false, WOOD);
     expect(out.find((p) => p.kind === 'diagonal')).toMatchObject({ x: 0, y: 0, rotation: 0 });
+    // A turn that is almost straight takes no piece.
     expect(
-      placePieces([0, 0, 100, 0, 150, 60], false, STONE).filter((p) => p.kind === 'corner'),
+      placePieces([0, 0, 100, 0, 200, 10], false, STONE).filter((p) => p.kind === 'corner'),
     ).toEqual([]);
+  });
+
+  it('turns the nearest piece to the bisector at another angle', () => {
+    // East then a 60-degree turn: an inside angle of 120, nearest a right angle: a corner turned to share the bisector.
+    const out = placePieces([0, 0, 100, 0, 150, 87], false, STONE).find((p) => p.kind === 'corner');
+    expect(out).toMatchObject({ x: 100, y: 0 });
+    // Arms at 180 (back) and 60 (on): the bisector points at 120; the corner's own bisector is 45.
+    expect(out?.rotation).toBe(75);
+  });
+
+  it('uses the rounded corner of a stone set when asked, and its diagonal connector at 45', () => {
+    const set: WallPieces = {
+      corner: { file: 'c', squares: 1, arms: [0, 90] },
+      roundCorner: { file: 'r', squares: 2, arms: [0, 90] },
+      diagonal: { file: 'd', squares: 1, arms: [0, 135] },
+    };
+    const turn = [0, 0, 100, 0, 100, 100];
+    expect(placePieces(turn, false, set, true).find((p) => p.x === 100)?.kind).toBe('roundCorner');
+    expect(placePieces(turn, false, set, false).find((p) => p.x === 100)?.kind).toBe('corner');
+    // East then north-east: the inside angle is 135.
+    expect(placePieces([-100, 0, 0, 0, 70, -70], false, set).find((p) => p.x === 0)?.kind).toBe(
+      'diagonal',
+    );
   });
 
   it('closes a loop without endings', () => {

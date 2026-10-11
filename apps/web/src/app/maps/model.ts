@@ -111,7 +111,7 @@ type MapItemBody =
       /** The last point joins the first: a closed wall. */
       loop?: boolean;
       /** How corners of a drawn wall look: rounded (absent) or sharp. */
-      joint?: 'sharp';
+      joint?: 'sharp' | 'round';
     }
   /** A closed area of terrain (land, water, a forest floor) with a rounded outline. */
   | {
