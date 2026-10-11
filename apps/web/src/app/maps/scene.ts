@@ -379,25 +379,32 @@ export function stripWallView(
     const dir = parsed.path.slice(0, cut);
     const set = piecesFor(parsed.path.slice(cut), filesBeside(parsed.pack, dir));
     // Where other walls meet this one the junction piece stands, not a corner or an ending.
-    const own = placePieces(points, closed).filter(
+    const own = placePieces(points, closed, set).filter(
       (p) => !junctions.all.some((j) => Math.hypot(j.x - p.x, j.y - p.y) <= 4),
     );
     for (const place of [...own, ...junctions.mine]) {
-      const file =
+      const spec =
         place.kind === 'corner'
           ? set.corner
-          : place.kind === 'ending'
-            ? set.ending
-            : place.kind === 'tee'
-              ? set.tee
-              : set.cross;
+          : place.kind === 'diagonal'
+            ? set.diagonal
+            : place.kind === 'ending'
+              ? set.ending
+              : undefined;
+      const file = spec?.file ?? (place.kind === 'tee' ? set.tee : set.cross);
       const piece = file ? packTexture(packRef(parsed.pack, dir + file)) : null;
       if (!piece) continue;
+      const size = (spec?.squares ?? 1) * gridSize;
       const sprite = new Sprite(piece);
       sprite.anchor.set(0.5);
-      sprite.width = gridSize;
-      sprite.height = gridSize;
-      sprite.position.set(place.x, place.y);
+      sprite.width = size;
+      sprite.height = size;
+      // A cap that sticks out is pulled back towards the wall.
+      const pull = (spec?.shift ?? 0) * gridSize;
+      sprite.position.set(
+        place.x + (place.along?.x ?? 0) * pull,
+        place.y + (place.along?.y ?? 0) * pull,
+      );
       sprite.angle = place.rotation;
       holder.addChild(sprite);
     }
