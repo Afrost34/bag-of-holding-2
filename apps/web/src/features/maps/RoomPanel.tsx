@@ -98,6 +98,7 @@ export function RoomPanel(props: MapPanelsProps) {
   return (
     <>
       <Section title="Room">
+        <ShapePicker draw={draw} setDraw={setDraw} />
         <TerrainPicker
           cats={['floors']}
           value={roomSet.floor}
@@ -118,6 +119,27 @@ export function RoomPanel(props: MapPanelsProps) {
             setRoomSet(wallTexture ? { ...rest, wallTexture } : rest);
           }}
         />
+        <Slider
+          label="Wall thickness"
+          value={roomSet.wall}
+          min={3}
+          max={40}
+          step={1}
+          onChange={(wall) => {
+            setRoomSet({ ...roomSet, wall });
+          }}
+        />
+        <Slider
+          label="Roundness"
+          value={roomSet.smooth}
+          min={0}
+          max={1}
+          step={0.05}
+          display={`${String(Math.round(roomSet.smooth * 100))}%`}
+          onChange={(smooth) => {
+            setRoomSet({ ...roomSet, smooth });
+          }}
+        />
         <Button
           variant="ghost"
           title="Click the outline of a cave: rounded, with a cliff rim and an earthen floor from your packs"
@@ -134,28 +156,6 @@ export function RoomPanel(props: MapPanelsProps) {
         >
           <Mountain className="h-4 w-4" aria-hidden /> Cave brush (an outline, rounded)
         </Button>
-        <Slider
-          label="Wall thickness"
-          value={roomSet.wall}
-          min={3}
-          max={40}
-          step={1}
-          onChange={(wall) => {
-            setRoomSet({ ...roomSet, wall });
-          }}
-        />
-        <ShapePicker draw={draw} setDraw={setDraw} />
-        <Slider
-          label="Roundness"
-          value={roomSet.smooth}
-          min={0}
-          max={1}
-          step={0.05}
-          display={`${String(Math.round(roomSet.smooth * 100))}%`}
-          onChange={(smooth) => {
-            setRoomSet({ ...roomSet, smooth });
-          }}
-        />
         <p className="text-xs text-muted">
           Rooms that touch join up into one floor. Pick a room to drag its corners; use the Door
           tool to cut doors.
