@@ -214,3 +214,17 @@ export function presetRefs(entries: readonly Pickable[], p: PackPreset): string[
 export function availablePresets(entries: readonly Pickable[]): PackPreset[] {
   return PACK_PRESETS.filter((p) => pickMany(entries, p.want, 3).length >= 3);
 }
+
+/** The floor and the wall a new room starts with: cobblestone and a grey stone wall strip. */
+export function defaultRoomStyle(entries: readonly Pickable[]): { floor?: string; wall?: string } {
+  const floor =
+    pickOne(entries, { cats: ['floors'], words: ['cobblestone'], not: ['overlay'] }) ??
+    pickOne(entries, { cats: ['floors'], not: ['overlay'] });
+  const wall =
+    pickOne(entries, { cats: ['walls'], words: ['wall_stone'] }) ??
+    pickOne(entries, { cats: ['walls'] });
+  return {
+    ...(floor ? { floor: refOf(floor) } : {}),
+    ...(wall ? { wall: refOf(wall) } : {}),
+  };
+}

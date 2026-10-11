@@ -68,6 +68,8 @@ type MapItemBody =
       rotation: number;
       flipX?: boolean;
       flipY?: boolean;
+      /** Multiplies the picture's colours (a darker wood, a greener leaf); absent: as drawn. */
+      tint?: string;
       /** A soft shadow under it. */
       shadow?: boolean;
       /** Walls of light: it casts shadows from lights. */
@@ -191,6 +193,8 @@ type MapItemBody =
       points: number[];
       roof: 'tiles' | 'thatch' | 'slate' | 'flat';
       color: string;
+      /** A roof texture of a pack, instead of the plain colour. */
+      roofTexture?: string;
       name?: string;
     }
   /**
@@ -219,6 +223,8 @@ type MapItemBody =
       smooth: number;
       style: 'road' | 'trail' | 'river' | 'fence' | 'wall';
       width: number;
+      /** A pack picture it is drawn with: a strip, or a ground texture laid along it. */
+      texture?: string;
       color: string;
       /** A river that widens along its way (default); false keeps one width. */
       taper?: boolean;

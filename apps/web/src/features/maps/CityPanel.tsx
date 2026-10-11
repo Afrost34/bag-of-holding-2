@@ -14,6 +14,7 @@ import {
   type RoofStyle,
 } from '../../app/maps/cityDoc';
 import { type MapItem } from '../../app/maps/model';
+import { AssetGrid } from './AssetGrid';
 import { Section } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
 
@@ -243,11 +244,15 @@ export function DistrictPanel({ district, setDistrict, onGenerateTown }: MapPane
 function RoofPicker({
   roof,
   color,
+  texture,
   onChange,
+  onTexture,
 }: {
   roof: RoofStyle;
   color: string;
+  texture: string | undefined;
   onChange: (patch: { roof?: RoofStyle; color?: string }) => void;
+  onTexture: (texture: string | undefined) => void;
 }) {
   return (
     <>
@@ -296,6 +301,27 @@ function RoofPicker({
           className="h-7 w-9 cursor-pointer rounded border border-border bg-surface"
         />
       </div>
+      <AssetGrid
+        cats={['roofs']}
+        label="Roof textures"
+        value={texture}
+        columns={3}
+        onPick={(_, ref) => {
+          onTexture(ref);
+        }}
+        emptyHint="No roof textures yet. Import an asset pack for tile, hay and slate roofs."
+      />
+      {texture && (
+        <button
+          type="button"
+          className="text-xs text-accent-ink underline"
+          onClick={() => {
+            onTexture(undefined);
+          }}
+        >
+          Back to the plain colour
+        </button>
+      )}
     </>
   );
 }
@@ -337,8 +363,13 @@ export function BuildingPanel({ buildingSet, setBuildingSet }: MapPanelsProps) {
       <RoofPicker
         roof={buildingSet.roof}
         color={buildingSet.color}
+        texture={buildingSet.roofTexture}
         onChange={(patch) => {
           setBuildingSet({ ...buildingSet, ...patch });
+        }}
+        onTexture={(roofTexture) => {
+          const { roofTexture: _r, ...rest } = buildingSet;
+          setBuildingSet(roofTexture ? { ...rest, roofTexture } : rest);
         }}
       />
       <p className="text-xs text-muted">
@@ -491,8 +522,16 @@ export function BuildingItemSettings({
       <RoofPicker
         roof={item.roof}
         color={item.color}
+        texture={item.roofTexture}
         onChange={(patch) => {
           set((i) => (i.kind === 'building' ? { ...i, ...patch } : i));
+        }}
+        onTexture={(roofTexture) => {
+          set((i) => {
+            if (i.kind !== 'building') return i;
+            const { roofTexture: _r, ...rest } = i;
+            return roofTexture ? { ...rest, roofTexture } : rest;
+          });
         }}
       />
       <label className="block text-sm">

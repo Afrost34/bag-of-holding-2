@@ -11,6 +11,7 @@ import { TERRAINS, type TerrainRef } from '../../app/maps/terrain';
 import { Section } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
 import { PackTextures } from './PackTextures';
+import { PathTextures } from './PathTextures';
 import { TerrainSwatch } from './ToolSettings';
 
 const EDGES = [
@@ -233,6 +234,13 @@ export function ShapePanel(props: MapPanelsProps) {
             ))}
           </select>
         </label>
+        <PathTextures
+          value={pathSet.texture}
+          onPick={(texture) => {
+            const { texture: _t, ...rest } = pathSet;
+            setPathSet(texture ? { ...rest, texture } : rest);
+          }}
+        />
         <Slider
           label="Width"
           value={pathSet.width}
@@ -329,7 +337,12 @@ export function ShapePanel(props: MapPanelsProps) {
           with Select to drag its points (double-click an edge to add one, right-click a point to
           remove it).
         </p>
-        <Button variant="ghost" onClick={onFillMap}>
+        <Button
+          variant="ghost"
+          onClick={() => {
+            onFillMap();
+          }}
+        >
           <PaintBucket className="h-4 w-4" aria-hidden /> Cover the whole map
         </Button>
       </Section>
@@ -464,6 +477,16 @@ export function ShapeItemSettings({
           ))}
         </select>
       </label>
+      <PathTextures
+        value={item.texture}
+        onPick={(texture) => {
+          set((i) => {
+            if (i.kind !== 'path') return i;
+            const { texture: _t, ...rest } = i;
+            return texture ? { ...rest, texture } : rest;
+          });
+        }}
+      />
       <Slider
         label="Width"
         value={item.width}

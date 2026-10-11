@@ -49,7 +49,7 @@ import { isTied, obstacleSignature, pieceBox, scatterLine, scatterOf } from './s
 import { pathLine, pathView, shapeHoles, shapeOutline, shapeView } from './shapes';
 import { pointInPolygon } from './polygon';
 import { PIXELS_PER_SQUARE } from './packCategories';
-import { stripSegments } from './wallStrip';
+import { isWallStrip, stripSegments } from './wallStrip';
 import { isPackTexture, TERRAINS, terrainTile, type TerrainRef } from './terrain';
 
 /**
@@ -273,7 +273,13 @@ let patternGrid = 70;
 const packLook = (item: MapItem): string => {
   const refs = [
     item.kind === 'room' ? item.floor : 'texture' in item ? item.texture : undefined,
-    item.kind === 'room' ? item.wallTexture : item.kind === 'wall' ? item.texture : undefined,
+    item.kind === 'room'
+      ? item.wallTexture
+      : item.kind === 'wall'
+        ? item.texture
+        : item.kind === 'building'
+          ? item.roofTexture
+          : undefined,
   ];
   return refs.some((r) => r && isPackTexture(r))
     ? String(packTexturesReady) + '|' + String(patternGrid)
@@ -293,6 +299,30 @@ export function packTexture(ref: string): Texture | null {
     });
   }
   return loaded ?? null;
+}
+
+/**
+ * A road, trail, fence or cliff drawn with a pack picture: a strip (a name ending in _Path) is
+ * repeated along the line, a ground texture is laid along it. Null while the picture loads.
+ */
+function packPathView(item: Extract<MapItem, { kind: 'path' }>): Container | null {
+  const ref = item.texture;
+  if (!ref) return null;
+  const line = pathLine(item);
+  if (line.length < 4) return null;
+  if (isWallStrip(ref)) return stripWallView(line, item.loop === true, ref, item.width);
+  if (!packTexture(ref)) return null;
+  const g = new Graphics();
+  g.moveTo(line[0] ?? 0, line[1] ?? 0);
+  for (let i = 2; i + 1 < line.length; i += 2) g.lineTo(line[i] ?? 0, line[i + 1] ?? 0);
+  if (item.loop === true) g.closePath();
+  g.stroke({
+    fill: terrainPattern(ref as TerrainRef),
+    width: item.width,
+    cap: 'round',
+    join: 'round',
+  });
+  return g;
 }
 
 /**
@@ -1249,6 +1279,7 @@ export class MapScene {
           sprite.anchor.set(0.5);
           sprite.width = item.w;
           sprite.height = item.h;
+          if (item.tint) sprite.tint = colorOf(item.tint);
           if (item.flipX) sprite.scale.x *= -1;
           if (item.flipY) sprite.scale.y *= -1;
           if (item.shadow) {
@@ -1289,7 +1320,13 @@ export class MapScene {
       case 'district':
         return districtView(item, districtGeo(doc, item), { hide: doc.hideRoofs, sun: doc.sun });
       case 'building':
-        return buildingView(item, { hide: doc.hideRoofs, sun: doc.sun });
+        return buildingView(
+          item,
+          { hide: doc.hideRoofs, sun: doc.sun },
+          item.roofTexture && isPackTexture(item.roofTexture)
+            ? terrainPattern(item.roofTexture)
+            : null,
+        );
       case 'light': {
         // A small sun with a ring at its range: for placing and moving it, not for the picture.
         const holder = new Container();
@@ -1318,8 +1355,13 @@ export class MapScene {
         return this.scatterView(item, doc);
       case 'shape':
         return shapeView(item, item.texture ? terrainPattern(item.texture) : null);
-      case 'path':
+      case 'path': {
+        if (item.texture && isPackTexture(item.texture)) {
+          const picture = packPathView(item);
+          if (picture) return picture;
+        }
         return pathView(item);
+      }
       case 'wall': {
         if (item.texture && isPackTexture(item.texture)) {
           const strips = stripWallView(item.points, item.loop === true, item.texture, grid.size);

@@ -13,7 +13,7 @@ import {
   Undo2,
   X,
 } from 'lucide-react';
-import { defaultSlots } from '../../app/maps/packDefaults';
+import { defaultRoomStyle, defaultSlots } from '../../app/maps/packDefaults';
 import { usePacks } from '../../app/maps/packs';
 import { isPackTexture, type TerrainRef } from '../../app/maps/terrain';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -240,7 +240,9 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     color: '#b5543a',
     libraryId: null,
   });
-  const [roomSet, setRoomSet] = useState<RoomSettings>({
+  // Until a room style is chosen it is the packs' cobblestone floor and stone wall strip.
+  const [roomPicked, setRoomPicked] = useState(false);
+  const [roomState, setRoomState] = useState<RoomSettings>({
     shape: 'rect',
     floor: 'stone',
     wallStyle: 'stone',
@@ -248,12 +250,22 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     smooth: 0,
     doorKind: 'door',
   });
-  const [area, setArea] = useState<AreaSettings>({
+  const setRoomSet = (r: RoomSettings) => {
+    setRoomPicked(true);
+    setRoomState(r);
+  };
+  const [areaState, setAreaState] = useState<AreaSettings>({
     texture: 'grass',
     edge: 'shore',
     smooth: 0.8,
     opacity: 1,
   });
+  // Until a shape texture is picked it is the first terrain slot.
+  const [areaPicked, setAreaPicked] = useState(false);
+  const setArea = (a: AreaSettings) => {
+    if (a.texture !== areaState.texture) setAreaPicked(true);
+    setAreaState(a);
+  };
   const [pathSet, setPathSet] = useState<PathSettings>({
     style: 'road',
     width: 24,
@@ -322,6 +334,18 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   const packList = usePacks();
   const packSlots = useMemo(() => defaultSlots(packList.entries), [packList.entries]);
   const slots = slotsChosen ?? (packSlots.length > 0 ? packSlots : DEFAULT_SLOTS);
+  const packRoom = useMemo(() => defaultRoomStyle(packList.entries), [packList.entries]);
+  const roomSet: RoomSettings = roomPicked
+    ? roomState
+    : {
+        ...roomState,
+        ...(packRoom.floor ? { floor: packRoom.floor as TerrainRef } : {}),
+        ...(packRoom.wall ? { wallTexture: packRoom.wall } : {}),
+      };
+  const area: AreaSettings =
+    areaPicked || !isPackTexture(slots[0] ?? '')
+      ? areaState
+      : { ...areaState, texture: slots[0] as TerrainRef };
   const terrain: BrushSettings = terrainState.texture
     ? terrainState
     : {
@@ -604,7 +628,10 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       if (points.length >= 6 && layer) {
         const id = itemId(doc);
         commit((d) =>
-          add(d, layer.id, makeBuilding(id, points, buildingSet.roof, buildingSet.color)),
+          add(d, layer.id, {
+            ...makeBuilding(id, points, buildingSet.roof, buildingSet.color),
+            ...(buildingSet.roofTexture ? { roofTexture: buildingSet.roofTexture } : {}),
+          }),
         );
         setSelected(id);
       }
@@ -647,6 +674,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             ...(pathSet.start !== 'hard' ? { start: pathSet.start } : {}),
             ...(pathSet.end !== 'hard' ? { end: pathSet.end } : {}),
             ...(pathSet.loop ? { loop: true } : {}),
+            ...(pathSet.texture ? { texture: pathSet.texture } : {}),
           }),
         );
       }
@@ -757,6 +785,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         floor: roomSet.floor === 'stone' ? 'dirt' : roomSet.floor,
         wall: roomSet.wall,
         wallStyle: 'cave',
+        ...(roomSet.wallTexture ? { wallTexture: roomSet.wallTexture } : {}),
       }),
     );
   };
@@ -847,16 +876,16 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   };
 
   /** The whole map covered with the chosen terrain, under everything else on the layer. */
-  const fillMap = () => {
+  const fillMap = (texture: TerrainRef = area.texture) => {
     if (!layer || layer.locked) return;
-    const base = TERRAINS.find((t) => t.id === area.texture)?.base ?? '#5b8a2b';
+    const base = TERRAINS.find((t) => t.id === texture)?.base ?? '#9a958d';
     commit((d) => {
       const shape: MapItem = {
         kind: 'shape',
         id: itemId(d),
         points: [0, 0, d.width, 0, d.width, d.height, 0, d.height],
         smooth: 0,
-        texture: area.texture,
+        texture,
         color: base,
         opacity: 1,
         edge: 'none',
@@ -1542,8 +1571,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         const h = Math.abs(p.y - d.start.y);
         if (w < 6 || h < 6 || !layer) return;
         const id = itemId(doc);
-        place(
-          makeBuilding(
+        place({
+          ...makeBuilding(
             id,
             rectangleFootprint(
               Math.round((p.x + d.start.x) / 2),
@@ -1554,7 +1583,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             buildingSet.roof,
             buildingSet.color,
           ),
-        );
+          ...(buildingSet.roofTexture ? { roofTexture: buildingSet.roofTexture } : {}),
+        });
         return;
       }
       case 'vertex': {
