@@ -203,6 +203,7 @@ export function newBuildingSpec(
   options: RecipeOptions,
 ): BuildingSpec {
   const archetype = archetypeById(settings.archetype);
+  const style = styleById(settings.style);
   const name = settings.name?.trim() ?? '';
   return {
     type: 'building',
@@ -215,9 +216,13 @@ export function newBuildingSpec(
     style: settings.style,
     palette: resolveStyle(styleById(settings.style), entries),
     dressing: settings.dressing ?? 'lived-in',
-    condition: settings.condition ?? 'kept',
+    // A style that starts ruined (Heliark ruins) is ruined unless asked for worse or better.
+    condition:
+      (settings.condition ?? 'kept') === 'kept'
+        ? (style.condition ?? 'kept')
+        : (settings.condition ?? 'kept'),
     ...pickFurnishing({ archetype: archetype.id }, entries, options),
-    roof: settings.style === 'shack' ? 'thatch' : settings.style === 'stone' ? 'slate' : 'tiles',
+    roof: style.roofKind,
     windows: settings.windows,
     crooked: Math.max(0, Math.min(1, settings.crooked)),
     wall,
@@ -228,7 +233,91 @@ export function newBuildingSpec(
 const floorFor = (palette: StylePalette, floor: number) =>
   floor < 0 ? palette.cellarFloor : floor > 0 ? palette.upperFloor : palette.floor;
 
+/** Whether a floor is drawn under its roof (the map's roofs are shown, and it is not a cellar). */
+export const roofedOver = (doc: MapDoc, item: StructureItem): boolean =>
+  item.floor >= 0 && doc.hideRoofs !== true;
+
 const parts = new WeakMap<StructureItem, { key: string; items: MapItem[] }>();
+
+/** Styles whose walls are drawn as wood without packs. */
+const WOODEN = new Set(['timber', 'shack', 'arctic']);
+
+/** Working rooms: on the ground floor they get the style's hard floor (flagstone, metal…). */
+const HARD_ROOMS = new Set([
+  'kitchen',
+  'storage',
+  'smithy',
+  'workshop',
+  'armory',
+  'prison',
+  'guardhouse',
+  'barracks',
+  'temple',
+  'shrine',
+  'crypt',
+]);
+
+/** Rooms with a hearth: a chimney stands on the roof above them. */
+const HEARTHS = new Set(['kitchen', 'tavern', 'smithy', 'living-room', 'guardhouse']);
+
+/** Roof colours when no pack texture was picked. */
+const ROOF_COLORS: Record<BuildingSpec['roof'], string> = {
+  tiles: '#9a4b36',
+  thatch: '#b39252',
+  slate: '#5d6670',
+  flat: '#7a7064',
+};
+
+/**
+ * The roof over a floor (shown while the map's roofs are, so Hide roofs shows the rooms), with a
+ * chimney over each hearth: in the hearth room's cell nearest the outer wall.
+ */
+function roofParts(item: StructureItem, plan: FloorPlan, cell: number, unit: number): MapItem[] {
+  const spec = item.spec;
+  const footprint = footprintOf(item, cell);
+  const out: MapItem[] = [
+    {
+      kind: 'building',
+      id: `${item.id}~roof`,
+      points: footprint.map(Math.round),
+      roof: spec.roof,
+      color: ROOF_COLORS[spec.roof],
+      ...(spec.palette.roof ? { roofTexture: spec.palette.roof } : {}),
+      ...(spec.name ? { name: spec.name } : {}),
+    },
+  ];
+  const chimney = spec.palette.chimney;
+  if (!chimney) return out;
+  const bend = bender(item, cell);
+  const all = plan.rooms.flatMap((r) => r.cells.map(parseCell));
+  const cx = all.reduce((a, c) => a + c[0], 0) / Math.max(1, all.length);
+  const cy = all.reduce((a, c) => a + c[1], 0) / Math.max(1, all.length);
+  for (const room of plan.rooms) {
+    if (!HEARTHS.has(room.type)) continue;
+    let best: [number, number] | null = null;
+    let far = -1;
+    for (const c of room.cells.map(parseCell)) {
+      const d = Math.hypot(c[0] + 0.5 - cx, c[1] + 0.5 - cy);
+      if (d > far) {
+        far = d;
+        best = c;
+      }
+    }
+    if (!best) continue;
+    const [x, y] = bend((best[0] + 0.5) * cell, (best[1] + 0.5) * cell);
+    out.push({
+      kind: 'stamp',
+      id: `${item.id}~ch${String(room.id)}`,
+      stamp: chimney,
+      x: Math.round(x),
+      y: Math.round(y),
+      w: Math.round(unit),
+      h: Math.round(unit),
+      rotation: 0,
+    });
+  }
+  return out;
+}
 
 /**
  * A floor as ordinary items: a room for each room of the plan (its floor, walls and doorways,
@@ -238,7 +327,8 @@ const parts = new WeakMap<StructureItem, { key: string; items: MapItem[] }>();
 export function structureParts(doc: MapDoc, item: StructureItem): MapItem[] {
   const cell = doc.grid.size;
   const unit = stampUnit(doc);
-  const key = `${String(cell)}|${String(unit)}`;
+  const roofed = roofedOver(doc, item);
+  const key = `${String(cell)}|${String(unit)}|${String(roofed)}`;
   const known = parts.get(item);
   if (known?.key === key) return known.items;
   const plan = planOf(item, cell);
@@ -246,7 +336,7 @@ export function structureParts(doc: MapDoc, item: StructureItem): MapItem[] {
   const cut = cutCorners(item);
   const palette = item.spec.palette;
   const packDoor = palette.door !== undefined;
-  const wood = item.spec.style === 'timber' || item.spec.style === 'shack';
+  const wood = WOODEN.has(item.spec.style);
   const out: MapItem[] = [];
   plan.rooms.forEach((room, i) => {
     const outline = moved(chamfer(traceCells(new Set(room.cells), cell), cut, cell), bend);
@@ -261,16 +351,21 @@ export function structureParts(doc: MapDoc, item: StructureItem): MapItem[] {
       id: `${item.id}~r${String(room.id)}`,
       points: outline,
       smooth: 0,
-      floor: floorFor(palette, item.floor),
+      floor:
+        item.floor === 0 && palette.hardFloor && HARD_ROOMS.has(room.type)
+          ? palette.hardFloor
+          : floorFor(palette, item.floor),
       wall: item.spec.wall,
       wallStyle: wood ? 'wood' : 'stone',
       ...(palette.wall ? { wallTexture: palette.wall } : {}),
-      ...(doors.length ? { doors } : {}),
+      // Doorways are drawn over everything on the layer, the roof too: none while it is on.
+      ...(doors.length && !roofed ? { doors } : {}),
     };
     out.push(r);
   });
   // Furniture, room by room, on the floors and under the walls between rooms.
-  plan.rooms.forEach((room, i) => {
+  // Under the roof only the outer walls stay (they cast shadows outside).
+  (roofed ? [] : plan.rooms).forEach((room, i) => {
     const r = out[i];
     if (r?.kind !== 'room') return;
     const doors = plan.doors
@@ -286,7 +381,7 @@ export function structureParts(doc: MapDoc, item: StructureItem): MapItem[] {
   // Walls between rooms (touching rooms would otherwise share a floor), over the floors, open
   // where a door is.
   let wallNo = 0;
-  for (const seg of plan.walls)
+  for (const seg of roofed ? [] : plan.walls)
     for (const piece of openings(seg, plan.doors, cell * 0.9)) {
       const [ax, ay] = bend(piece[0] ?? 0, piece[1] ?? 0);
       const [bx, by] = bend(piece[2] ?? 0, piece[3] ?? 0);
@@ -318,7 +413,7 @@ export function structureParts(doc: MapDoc, item: StructureItem): MapItem[] {
       rotation: Math.round(((rotation * 180) / Math.PI + 360) % 360),
     };
   };
-  if (palette.stairs && plan.stairs.length > 0) {
+  if (palette.stairs && plan.stairs.length > 0 && !roofed) {
     const cells = plan.stairs.map(parseCell);
     const xs = cells.map((c) => c[0]);
     const ys = cells.map((c) => c[1]);
@@ -336,16 +431,18 @@ export function structureParts(doc: MapDoc, item: StructureItem): MapItem[] {
       }),
     );
   }
-  if (palette.door)
+  // Under the roof, doors and windows are hidden with the rooms (they would stick out of the eaves).
+  if (palette.door && !roofed)
     plan.doors.forEach((d, k) => {
       const [x, y] = bend(d.x, d.y);
       out.push(stamp(`d${String(k)}`, palette.door ?? '', x, y, d.angle));
     });
-  if (palette.window)
+  if (palette.window && !roofed)
     plan.windows.forEach((w, k) => {
       const [x, y] = bend(w.x, w.y);
       out.push(stamp(`w${String(k)}`, palette.window ?? '', x, y, w.angle));
     });
+  if (roofed) out.push(...roofParts(item, plan, cell, unit));
   parts.set(item, { key, items: out });
   return out;
 }
@@ -880,6 +977,7 @@ export function neighbours(item: StructureItem, cell: number, roomId: number): P
 export function bakeStructure(doc: MapDoc, group: string): MapDoc {
   const floors = new Set(floorsOf(doc, group).map((f) => f.id));
   if (floors.size === 0) return doc;
+  const open: MapDoc = { ...doc, hideRoofs: true };
   const taken = new Set(allItems(doc).map((i) => i.id));
   const fresh = (base: string) => {
     let n = 0;
@@ -894,7 +992,8 @@ export function bakeStructure(doc: MapDoc, group: string): MapDoc {
       ...l,
       items: l.items.flatMap((i) =>
         i.kind === 'structure' && floors.has(i.id)
-          ? structureParts(doc, i).map((p) => ({ ...p, id: fresh(i.id) }))
+          ? // Baked without its roof: a baked roof would hide the rooms for good.
+            structureParts(open, i).map((p) => ({ ...p, id: fresh(i.id) }))
           : [i],
       ),
     })),

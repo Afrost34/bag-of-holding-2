@@ -59,12 +59,16 @@ export interface StylePalette {
   floor: TerrainRef;
   upperFloor: TerrainRef;
   cellarFloor: TerrainRef;
+  /** The ground floor of working rooms (kitchen, storage, smithy…), when the style has one. */
+  hardFloor?: TerrainRef;
   /** A wall strip (`_Path`); the drawn wall when absent. */
   wall?: string;
   door?: string;
   window?: string;
   stairs?: string;
   roof?: string;
+  /** A chimney stamp on the roof over each hearth. */
+  chimney?: string;
 }
 
 /** What a generated building is (see `structure/`): the same on every one of its floors. */

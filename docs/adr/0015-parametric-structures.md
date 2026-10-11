@@ -48,6 +48,16 @@ rooms with no seed kept. The owner chose:
   cellar), wall strip, door, window, stairs, roof. They are picked once, when the building is
   made; Pick again picks afresh. Without packs a building is drawn (drawn floors, ink walls,
   drawn doors). A door picture stands in a `gap` doorway, a new door kind with nothing drawn.
+  Eleven styles: the Core ones (stone, timber, brick, shack) and the settlement sets (desert
+  adobe, dwarven, drow, arctic, industrial), plus Rust and Heliark ruins for Rust & Sunfire. A
+  query's words are "any of"; a preference order is a list of queries. Working rooms on the
+  ground floor (kitchen, storage, smithy…) get the style's hard floor.
+- **Roofs.** Every floor but the cellar has a roof part (a `building` item over the footprint, so
+  it lies on its slopes like any roof; flat for desert and metal styles) and a chimney stamp over
+  each hearth room. The map's Roofs switch takes it off. While the roof is on, the floor draws
+  only its rooms' outer walls (no doorways, furniture, inner walls, stairs, doors or windows: they
+  would show through or over the eaves), and its lamps give no light. Bake bakes with the roof
+  off.
 - A building moves by whole squares with all its floors, and its locked rooms move with it.
 
 - **Furniture** (`structure/furnish.ts`): each room type's interior recipe is resolved once, when

@@ -330,7 +330,8 @@ export function StructureItemSettings({
           onChange={(e) => {
             const style = e.target.value;
             const palette = resolveStyle(styleById(style), entries);
-            changeAll((i) => ({ ...i, spec: { ...i.spec, style, palette } }));
+            const roof = styleById(style).roofKind;
+            changeAll((i) => ({ ...i, spec: { ...i.spec, style, palette, roof } }));
           }}
           className={field}
         >
