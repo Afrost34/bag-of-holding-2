@@ -153,7 +153,11 @@ function cut(region: readonly string[], rand: () => number): string[][] | null {
 }
 
 /** The free cells cut into about `target` rooms, the biggest region cut first. */
-function cutRooms(free: ReadonlySet<string>, target: number, rand: () => number): string[][] {
+export function cutRooms(
+  free: ReadonlySet<string>,
+  target: number,
+  rand: () => number,
+): string[][] {
   let regions = components(free);
   // Scraps too small for a room join the room they touch most, later.
   const scraps = regions.filter((r) => !roomy(r));
@@ -395,11 +399,31 @@ export function planFloor(req: FloorRequest): FloorPlan {
     })),
   ].sort((a, b) => a.id - b.id);
   const doorRand = seeded((req.seed * 31 + req.floor * 7919 + 104729) >>> 0);
+  const joined = joinRooms(rooms, req.cell, req.footprint, doorRand, {
+    entrance: req.entrance,
+    windows: req.windows,
+  });
+  return { rooms, stairs, ...joined };
+}
+
+/**
+ * The walls between rooms that touch, the doors joining them (a tree over the rooms, so every
+ * room is reachable, and about a fifth more for loops), a front door on the outer wall of the
+ * biggest room (`entrance`) and windows along the outer walls (`windows`). Shared by building
+ * floors and dungeons.
+ */
+export function joinRooms(
+  rooms: readonly PlanRoom[],
+  cell: number,
+  footprint: readonly number[],
+  doorRand: () => number,
+  options: { entrance: boolean; windows: boolean },
+): Pick<FloorPlan, 'doors' | 'windows' | 'walls'> {
   const roomOf = new Map<string, number>();
   rooms.forEach((r, i) => {
     for (const c of r.cells) roomOf.set(c, i);
   });
-  const { inner, outer } = sides(roomOf, req.cell);
+  const { inner, outer } = sides(roomOf, cell);
 
   // Walls between rooms, clipped to the footprint.
   const walls: number[][] = [];
@@ -407,7 +431,7 @@ export function planFloor(req: FloorRequest): FloorPlan {
     const first = run[0];
     const last = run[run.length - 1];
     if (!first || !last) continue;
-    walls.push(...clipSegment([first.x0, first.y0, last.x1, last.y1], req.footprint));
+    walls.push(...clipSegment([first.x0, first.y0, last.x1, last.y1], footprint));
   }
 
   // Doors: a tree over the rooms that touch (every room reachable), and a few more for loops.
@@ -448,7 +472,7 @@ export function planFloor(req: FloorRequest): FloorPlan {
 
   // The front door: on the longest outer side of the biggest room (not the stairwell).
   const outerRuns = runs(outer.map((s) => ({ ...s, b: -1 })));
-  if (req.entrance) {
+  if (options.entrance) {
     const order = rooms
       .map((r, i) => ({ i, size: r.type === 'stairs' ? -1 : r.cells.length }))
       .sort((p, q) => q.size - p.size);
@@ -457,7 +481,7 @@ export function planFloor(req: FloorRequest): FloorPlan {
       const run = theirs[0];
       const side = run ? doorAt(run, doorRand) : undefined;
       if (side) {
-        doors.push({ ...onWall(req.footprint, middle(side)), outer: true, rooms: [i] });
+        doors.push({ ...onWall(footprint, middle(side)), outer: true, rooms: [i] });
         break;
       }
     }
@@ -465,17 +489,17 @@ export function planFloor(req: FloorRequest): FloorPlan {
 
   // Windows: every few squares along the outer walls, clear of doors and corners.
   const windows: PlanWindow[] = [];
-  if (req.windows)
+  if (options.windows)
     for (const run of outerRuns) {
       if (rooms[run[0]?.a ?? -1]?.type === 'stairs') continue;
       for (let k = 1; k < run.length - 1; k += 3) {
         const side = run[k];
         if (!side) continue;
         const at = middle(side);
-        if (doors.some((d) => Math.hypot(d.x - at.x, d.y - at.y) < req.cell * 1.5)) continue;
-        windows.push(onWall(req.footprint, at));
+        if (doors.some((d) => Math.hypot(d.x - at.x, d.y - at.y) < cell * 1.5)) continue;
+        windows.push(onWall(footprint, at));
       }
     }
 
-  return { rooms, doors, windows, stairs, walls };
+  return { doors, windows, walls };
 }

@@ -9,10 +9,12 @@ import {
   type Variant,
 } from '../model';
 import { squaresOf, parsePackRef } from '../packModel';
+import { pointAlong, polylineLength } from '../spline';
 import { seeded } from '../terrain';
 import { stampUnit } from '../units';
-import { cellKey, cellsInPolygon, parseCell, traceCells } from './cells';
+import { cellKey, cellsInPolygon, components, parseCell, traceCells } from './cells';
 import { archetypeById } from './archetypes';
+import { planDungeon } from './dungeonplan';
 import { planFloor, type FloorPlan, type PlanRoom } from './floorplan';
 import { kitParts } from '../kits/kitDoc';
 import { pickFurnishing, roomFurniture } from './furnish';
@@ -141,18 +143,28 @@ const plans = new WeakMap<StructureItem, { cell: number; plan: FloorPlan }>();
 export function planOf(item: StructureItem, cell: number): FloorPlan {
   const known = plans.get(item);
   if (known?.cell === cell) return known.plan;
-  const plan = planFloor({
-    footprint: item.points,
-    cell,
-    seed: item.spec.seed,
-    ...(item.spec.stairSeed !== undefined ? { stairSeed: item.spec.stairSeed } : {}),
-    floor: item.floor,
-    rooms: item.spec.rooms,
-    locked: item.rooms ?? [],
-    stairs: item.spec.upper > 0 || item.spec.cellar,
-    entrance: item.floor === 0,
-    windows: item.spec.windows && item.floor >= 0,
-  });
+  const layout = archetypeById(item.spec.archetype).layout;
+  const plan = layout
+    ? planDungeon({
+        footprint: item.points,
+        cell,
+        seed: item.spec.seed,
+        rooms: item.spec.rooms,
+        layout,
+        locked: item.rooms ?? [],
+      })
+    : planFloor({
+        footprint: item.points,
+        cell,
+        seed: item.spec.seed,
+        ...(item.spec.stairSeed !== undefined ? { stairSeed: item.spec.stairSeed } : {}),
+        floor: item.floor,
+        rooms: item.spec.rooms,
+        locked: item.rooms ?? [],
+        stairs: item.spec.upper > 0 || item.spec.cellar,
+        entrance: item.floor === 0,
+        windows: item.spec.windows && item.floor >= 0,
+      });
   const typed = { ...plan, rooms: withTypes(plan.rooms, item.spec.archetype, item.floor) };
   plans.set(item, { cell, plan: typed });
   return typed;
@@ -211,8 +223,9 @@ export function newBuildingSpec(
     name: name.length > 0 ? name : archetype.name,
     seed,
     archetype: archetype.id,
-    upper: Math.max(0, Math.min(3, settings.upper)),
-    cellar: settings.cellar,
+    // A dungeon is one floor, underground, without windows.
+    upper: archetype.layout ? 0 : Math.max(0, Math.min(3, settings.upper)),
+    cellar: archetype.layout ? false : settings.cellar,
     rooms: Math.max(1, settings.rooms),
     style: settings.style,
     palette: resolveStyle(styleById(settings.style), entries),
@@ -224,7 +237,7 @@ export function newBuildingSpec(
         : (settings.condition ?? 'kept'),
     ...pickFurnishing({ archetype: archetype.id }, entries, options),
     roof: style.roofKind,
-    windows: settings.windows,
+    windows: archetype.layout ? false : settings.windows,
     crooked: Math.max(0, Math.min(1, settings.crooked)),
     wall,
   };
@@ -236,8 +249,32 @@ const floorFor = (palette: StylePalette, floor: number) =>
 
 /** Whether a floor is drawn under its roof (the map's roofs are shown, and it is not a cellar). */
 export const roofedOver = (doc: MapDoc, item: StructureItem): boolean =>
-  item.floor >= 0 && doc.hideRoofs !== true;
+  item.floor >= 0 && doc.hideRoofs !== true && !isDungeon(item.spec);
 
+/** A dungeon or cave (an archetype with a dungeon layout): one floor, underground, no roof. */
+export const isDungeon = (spec: BuildingSpec): boolean =>
+  archetypeById(spec.archetype).layout !== undefined;
+
+/**
+ * A cave's rim from its cells' stair-stepped outline: a point every one and a half squares along
+ * it, each nudged a little at random, so the rounded wall reads as rock rather than as a grid.
+ */
+export function caveRim(outline: readonly number[], cell: number, seed: number): number[] {
+  if (outline.length < 6) return [...outline];
+  const ring = [...outline, outline[0] ?? 0, outline[1] ?? 0];
+  const length = polylineLength(ring);
+  const count = Math.max(6, Math.round(length / (cell * 1.5)));
+  const rand = seeded(seed);
+  const out: number[] = [];
+  for (let i = 0; i < count; i++) {
+    const at = pointAlong(ring, (i / count) * length);
+    out.push(
+      Math.round(at.x + (rand() - 0.5) * cell * 0.5),
+      Math.round(at.y + (rand() - 0.5) * cell * 0.5),
+    );
+  }
+  return out;
+}
 const parts = new WeakMap<StructureItem, { key: string; items: MapItem[] }>();
 
 /** Styles whose walls are drawn as wood without packs. */
@@ -343,36 +380,56 @@ export function structureParts(doc: MapDoc, item: StructureItem): MapItem[] {
   const packDoor = palette.door !== undefined;
   const wood = WOODEN.has(item.spec.style);
   const out: MapItem[] = [];
-  plan.rooms.forEach((room, i) => {
-    const outline = moved(chamfer(traceCells(new Set(room.cells), cell), cut, cell), bend);
-    const doors = plan.doors
-      .filter((d) => d.rooms[0] === i)
-      .map((d) => {
-        const [x, y] = bend(d.x, d.y);
-        return { x, y, angle: d.angle, kind: packDoor ? ('gap' as const) : ('door' as const) };
+  const cave = archetypeById(item.spec.archetype).layout === 'caves';
+  // Each room's floor outline (furniture is laid inside it).
+  const outlines = plan.rooms.map((room) =>
+    moved(chamfer(traceCells(new Set(room.cells), cell), cut, cell), bend),
+  );
+  // Caverns open into each other: one rounded room for each cave, its rim a cave wall.
+  if (cave)
+    components(new Set(plan.rooms.flatMap((r) => r.cells))).forEach((group, n) => {
+      out.push({
+        kind: 'room',
+        id: `${item.id}~cave${String(n)}`,
+        points: caveRim(moved(traceCells(new Set(group), cell), bend), cell, item.spec.seed + n),
+        smooth: 0.75,
+        floor: floorFor(palette, item.floor),
+        wall: item.spec.wall,
+        wallStyle: 'cave',
+        ...(palette.wall ? { wallTexture: palette.wall } : {}),
       });
-    const r: RoomItem = {
-      kind: 'room',
-      id: `${item.id}~r${String(room.id)}`,
-      points: outline,
-      smooth: 0,
-      floor:
-        item.floor === 0 && palette.hardFloor && HARD_ROOMS.has(room.type)
-          ? palette.hardFloor
-          : floorFor(palette, item.floor),
-      wall: item.spec.wall,
-      wallStyle: wood ? 'wood' : 'stone',
-      ...(palette.wall ? { wallTexture: palette.wall } : {}),
-      // Doorways are drawn over everything on the layer, the roof too: none while it is on.
-      ...(doors.length && !roofed ? { doors } : {}),
-    };
-    out.push(r);
-  });
+    });
+  else
+    plan.rooms.forEach((room, i) => {
+      const outline = outlines[i] ?? [];
+      const doors = plan.doors
+        .filter((d) => d.rooms[0] === i)
+        .map((d) => {
+          const [x, y] = bend(d.x, d.y);
+          return { x, y, angle: d.angle, kind: packDoor ? ('gap' as const) : ('door' as const) };
+        });
+      const r: RoomItem = {
+        kind: 'room',
+        id: `${item.id}~r${String(room.id)}`,
+        points: outline,
+        smooth: 0,
+        floor:
+          item.floor === 0 && palette.hardFloor && HARD_ROOMS.has(room.type)
+            ? palette.hardFloor
+            : floorFor(palette, item.floor),
+        wall: item.spec.wall,
+        wallStyle: wood ? 'wood' : 'stone',
+        ...(palette.wall ? { wallTexture: palette.wall } : {}),
+        // Doorways are drawn over everything on the layer, the roof too: none while it is on.
+        ...(doors.length && !roofed ? { doors } : {}),
+      };
+      out.push(r);
+    });
   // Furniture, room by room, on the floors and under the walls between rooms.
   // Under the roof only the outer walls stay (they cast shadows outside).
   (roofed ? [] : plan.rooms).forEach((room, i) => {
-    const r = out[i];
-    if (r?.kind !== 'room') return;
+    const outline = outlines[i];
+    if (!outline) return;
     const doors = plan.doors
       .filter((d) => d.rooms.includes(i))
       .map((d) => {
@@ -380,7 +437,7 @@ export function structureParts(doc: MapDoc, item: StructureItem): MapItem[] {
         return { x, y };
       });
     out.push(
-      ...roomFurniture(doc, item.spec, room, r.points, doors, `${item.id}~f${String(room.id)}.`),
+      ...roomFurniture(doc, item.spec, room, outline, doors, `${item.id}~f${String(room.id)}.`),
     );
   });
   // Walls between rooms (touching rooms would otherwise share a floor), over the floors, open

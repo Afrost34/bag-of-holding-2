@@ -64,7 +64,8 @@ import {
 import { encodeHeights, heightAt, heightsOf, paintHeights } from '../../app/maps/elevation';
 import { generateArchipelago } from '../../app/maps/islandgen';
 import { defaultLabelText, targetLine } from '../../app/maps/labels';
-import { doorOnWall, generateCave, generateDungeon, roomOutline } from '../../app/maps/rooms';
+import { doorOnWall, generateCave, roomOutline } from '../../app/maps/rooms';
+import { archetypeById } from '../../app/maps/structure/archetypes';
 import { isPortalPicture, portalOnWalls } from '../../app/maps/portal';
 import {
   makeScatter,
@@ -993,51 +994,49 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     setSelected(id);
   };
 
-  /** A dungeon filling the view: rooms and corridors with doors, on the active layer. */
-  const generateDungeonHere = (rooms: number) => {
+  /**
+   * A dungeon filling the view, kept live (a one-floor structure: rooms, corridors, doors and
+   * furniture from its kind, rolled again or baked like a building; ADR 0015).
+   */
+  const generateDungeonHere = (rooms: number, archetypeId: string) => {
     const el = host.current;
     if (!scene || !el || !layer || layer.locked) return;
     const tl = scene.toMap(0, 0);
     const br = scene.toMap(el.clientWidth, el.clientHeight);
+    const c = grid.size;
     const x0 = Math.max(0, tl.x);
     const y0 = Math.max(0, tl.y);
     const x1 = Math.min(doc.width, br.x);
     const y1 = Math.min(doc.height, br.y);
     const margin = Math.min(x1 - x0, y1 - y0) * 0.06;
-    const plan = generateDungeon({
-      x: Math.round(x0 + margin),
-      y: Math.round(y0 + margin),
-      width: Math.max(grid.size * 8, x1 - x0 - margin * 2),
-      height: Math.max(grid.size * 8, y1 - y0 - margin * 2),
-      cell: grid.size,
-      rooms,
-      seed: Math.floor(Math.random() * 1e9),
+    // Whole cells, at least 8 by 8.
+    const gx0 = Math.ceil((x0 + margin) / c) * c;
+    const gy0 = Math.ceil((y0 + margin) / c) * c;
+    const gx1 = Math.max(gx0 + 8 * c, Math.floor((x1 - margin) / c) * c);
+    const gy1 = Math.max(gy0 + 8 * c, Math.floor((y1 - margin) / c) * c);
+    const points = [gx0, gy0, gx1, gy0, gx1, gy1, gx0, gy1];
+    const archetype = archetypeById(archetypeId);
+    const id = itemId(doc);
+    commit((d) => {
+      const spec = newBuildingSpec(
+        {
+          ...generateOf(buildingSet),
+          archetype: archetype.id,
+          style: archetype.style,
+          rooms,
+          upper: 0,
+          cellar: false,
+          windows: false,
+          crooked: 0,
+        },
+        packList.entries,
+        Math.floor(Math.random() * 2 ** 31),
+        Math.max(8, Math.round(d.grid.size * 0.32)),
+        { unit: stampUnit(d), drawn: drawnArt },
+      );
+      return addStructure(d, { spec, points }, id).doc;
     });
-    commit((d) =>
-      plan.reduce(
-        (acc, room) =>
-          add(acc, layer.id, {
-            kind: 'room',
-            id: itemId(acc),
-            points: room.points.map(Math.round),
-            smooth: 0,
-            floor: roomSet.floor,
-            wall: roomSet.wall,
-            wallStyle: roomSet.wallStyle,
-            ...(roomSet.wallTexture ? { wallTexture: roomSet.wallTexture } : {}),
-            ...(room.doors.length
-              ? {
-                  doors: room.doors.map((door) => ({
-                    ...door,
-                    x: Math.round(door.x),
-                    y: Math.round(door.y),
-                  })),
-                }
-              : {}),
-          }),
-        d,
-      ),
-    );
+    setSelected(id);
   };
 
   /** A cave in the middle of the view. */

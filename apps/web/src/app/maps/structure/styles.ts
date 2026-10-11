@@ -284,6 +284,27 @@ export const STYLES: readonly Style[] = [
     condition: 'ruined',
     drawn: { floor: 'stone', upperFloor: 'stone', cellarFloor: 'stone' },
   },
+  {
+    id: 'cave',
+    name: 'Cave',
+    hint: 'rough cave walls, a cave or dirt floor',
+    floor: [
+      { cats: ['floors', 'terrain'], words: ['cave'], not: ['overlay'] },
+      { cats: ['terrain'], words: ['dirt'], not: ['overlay', 'gravel'] },
+    ],
+    upperFloor: [],
+    cellarFloor: [],
+    hardFloor: [],
+    // A cave cliff strip round the caverns, as the Room tool's caves.
+    wall: [{ cats: ['cliffs'], words: ['cave', '_path'], not: ['stalagmite'] }],
+    door: [],
+    window: [],
+    stairs: [],
+    roof: [],
+    roofKind: 'flat',
+    chimney: [],
+    drawn: { floor: 'dirt', upperFloor: 'dirt', cellarFloor: 'dirt' },
+  },
 ];
 
 const FIRST = STYLES[0];

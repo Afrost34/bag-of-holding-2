@@ -8,10 +8,14 @@ import type { TerrainRef } from '../../app/maps/terrain';
 import { type MapItem } from '../../app/maps/model';
 import { FURNISH_RECIPES } from '../../app/maps/dress/recipes';
 import { DOOR_KINDS, type DoorKind } from '../../app/maps/rooms';
+import { ARCHETYPES } from '../../app/maps/structure/archetypes';
 import { Section, ShapePicker } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
 import { Slider, TerrainPicker } from './ShapePanel';
 import { WallStrips } from './WallStrips';
+
+/** The kinds of dungeon the generator makes (archetypes with a dungeon layout). */
+const DUNGEONS = ARCHETYPES.filter((a) => a.layout !== undefined);
 
 type WallStyle = 'stone' | 'cave' | 'wood';
 const WALL_STYLES: { id: WallStyle; name: string }[] = [
@@ -78,6 +82,7 @@ function DoorKinds({ value, onChange }: { value: DoorKind; onChange: (k: DoorKin
 export function RoomPanel(props: MapPanelsProps) {
   const { tool, roomSet, setRoomSet, onGenerateDungeon, onGenerateCave, draw, setDraw } = props;
   const [rooms, setRooms] = useState(7);
+  const [kind, setKind] = useState('dungeon');
   const packEntries = usePacks((s) => s.entries);
   const caveWall = useMemo(() => defaultCaveWall(packEntries), [packEntries]);
   const caveFloor = useMemo(() => defaultCaveFloor(packEntries), [packEntries]);
@@ -162,12 +167,29 @@ export function RoomPanel(props: MapPanelsProps) {
         </p>
       </Section>
       <Section title="Generate">
+        <label className="block text-sm">
+          Kind of dungeon
+          <select
+            value={kind}
+            aria-label="Kind of dungeon"
+            onChange={(e) => {
+              setKind(e.target.value);
+            }}
+            className={field}
+          >
+            {DUNGEONS.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}: {a.hint}
+              </option>
+            ))}
+          </select>
+        </label>
         <Slider label="Rooms" value={rooms} min={3} max={16} step={1} onChange={setRooms} />
         <div className="flex flex-wrap gap-2">
           <Button
             variant="ghost"
             onClick={() => {
-              onGenerateDungeon(rooms);
+              onGenerateDungeon(rooms, kind);
             }}
           >
             <Pickaxe className="h-4 w-4" aria-hidden /> Generate a dungeon
@@ -177,8 +199,8 @@ export function RoomPanel(props: MapPanelsProps) {
           </Button>
         </div>
         <p className="flex items-center gap-1 text-xs text-muted">
-          <Dices className="h-3 w-3" aria-hidden /> Each click is new; it fills what you see, with
-          the floor and walls above.
+          <Dices className="h-3 w-3" aria-hidden /> Each click is new; it fills what you see. Pick
+          it to keep rooms, roll again, change room types, or bake it.
         </p>
       </Section>
     </>

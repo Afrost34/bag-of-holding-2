@@ -79,3 +79,16 @@ rooms with no seed kept. The owner chose:
   drawing path.
 - Tests check that plans tile the footprint, that every room is reachable, that the stairs line
   up, that locks survive Roll again, and that baking keeps every part.
+
+## Dungeons (PR 12)
+
+- A dungeon is a one-floor structure whose archetype has a `layout` (`archetypes.ts`): its plan
+  comes from `dungeonplan.ts` instead of the building planner, in the same shape (rooms on cells,
+  doors, walls), so types, furniture, locks, Roll again and Bake work as for buildings. Corridors
+  are rooms of type `corridor`. Dungeons have no roof, stairs or windows.
+- Layouts: rooms joined by corridors two cells wide; packed rooms; the Heliark facility (a spine
+  corridor and cross corridors, the blocks cut into rooms); caves (a cellular automaton, split
+  into caverns that open into each other and are drawn as one rounded room with a cave rim).
+- Room roles have recipes: treasury, machine room, collapsed room, corridor, cavern, cave camp,
+  lair. The Room tool's "Generate a dungeon" makes one of the four kinds, filling the view; the
+  old one-shot generator is gone.
