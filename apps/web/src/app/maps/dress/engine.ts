@@ -12,6 +12,7 @@ import {
 import { bounds, nearestOnPolyline } from '../spline';
 import { seeded } from '../terrain';
 import { faintTint } from '../randomize';
+import { INTERIOR_PLACES, placeInterior, type Placed } from './interior';
 
 /**
  * The dress engine: the pieces of a dressing, rule by rule. Each rule places its pieces by
@@ -41,6 +42,10 @@ export interface DressTarget {
   cell: number;
   /** Half the width of a piece on the map (pack pictures take theirs from their name); half its size when absent. */
   reach?: (rule: DressRule, piece: Instance) => number;
+  /** The width and height of a piece on the map; a square of its size when absent. */
+  box?: (rule: DressRule, piece: Instance) => { w: number; h: number };
+  /** Doorways of the room a dressing furnishes: kept clear. */
+  doors?: readonly { x: number; y: number }[];
 }
 
 /** Most pieces a rule makes, so a huge area stays quick. */
@@ -151,12 +156,49 @@ function placeRule(rule: DressRule, target: DressTarget, r: number): Instance[] 
   }
 }
 
+/** The width and height of a piece: from the target (pack sizes), else a square of its size. */
+const boxSize = (target: DressTarget, rule: DressRule, p: Instance) =>
+  target.box ? target.box(rule, p) : { w: p.size, h: p.size };
+
 /** The pieces of every rule, in rule order, each rule's back to front. */
 export function dressPieces(rules: readonly DressRule[], target: DressTarget): DressInstance[] {
   const out: DressInstance[] = [];
+  // Every rule's pieces as boxes, by rule: interior rules keep clear of them and anchor to them.
+  const boxes: Placed[][] = [];
   rules.forEach((rule, r) => {
-    if (rule.pieces.length === 0 || target.line.length < 4) return;
+    if (rule.pieces.length === 0 || target.line.length < 4) {
+      boxes.push([]);
+      return;
+    }
     const rand = seeded(ruleSeed(target.seed, r) ^ 0x68e31da4);
+    if (INTERIOR_PLACES.has(rule.place)) {
+      const placed =
+        target.mode === 'area'
+          ? placeInterior(
+              rule,
+              {
+                outline: target.line,
+                doors: target.doors ?? [],
+                cell: target.cell,
+                rand: seeded(ruleSeed(target.seed, r) ^ 0x1b873593),
+                boxOf: (rl, piece, size) =>
+                  boxSize(target, rl, { x: 0, y: 0, angle: 0, size, piece }),
+                placed: boxes,
+              },
+              rules,
+            )
+          : [];
+      boxes.push(rule.floor ? placed.map((p) => ({ ...p, soft: true })) : placed);
+      out.push(
+        ...placed.map(({ inst }): DressInstance => {
+          const d: DressInstance = { ...inst, rule: r };
+          if (rule.flip && rand() < 0.5) d.flip = true;
+          if (rule.tint && rule.tint > 0 && rand() < rule.tint) d.tint = faintTint(rand(), rand());
+          return d;
+        }),
+      );
+      return;
+    }
     let list = placeRule(rule, target, r);
     if (rule.falloff && rule.falloff > 0) {
       const reach = rule.falloff * rule.spacing * 4;
@@ -203,6 +245,12 @@ export function dressPieces(rules: readonly DressRule[], target: DressTarget): D
         return inst;
       })
       .sort((a, b) => a.y - b.y);
+    boxes.push(
+      placed.map((inst) => ({
+        inst,
+        box: { ...boxSize(target, rule, inst), x: inst.x, y: inst.y, angle: inst.angle },
+      })),
+    );
     out.push(...placed);
   });
   return out;

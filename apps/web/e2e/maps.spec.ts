@@ -1275,8 +1275,8 @@ test('a room is furnished, and the Viewer finds pins by name', async ({ page }, 
   await page.mouse.move(box.x + 360, box.y + 300, { steps: 6 });
   await page.mouse.up();
   await waitForSaved(page, 'maps', '"kind":"room"');
-  // The room is picked: furnish it as a tavern.
-  await page.getByRole('button', { name: 'Tavern' }).click();
+  // The room is picked: furnish it as a tavern's common room.
+  await page.getByRole('button', { name: 'Common room' }).click();
   await waitForSaved(page, 'maps', '"within"');
   await waitForSaved(page, 'maps', 'glyph:table');
   await page.waitForTimeout(800);

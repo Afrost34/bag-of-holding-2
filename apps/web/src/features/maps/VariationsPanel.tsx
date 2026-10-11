@@ -1,6 +1,7 @@
 /** Breaking up copies of the picked stamps: Randomize, and Swap material. */
 import { Button } from '@boh/ui';
-import { Shuffle } from 'lucide-react';
+import { Shuffle, UtensilsCrossed } from 'lucide-react';
+import { dressTables, isTable } from '../../app/maps/dress/tables';
 import { useEffect, useMemo, useState } from 'react';
 import type { MapDoc } from '../../app/maps/model';
 import { folderIndex } from '../../app/maps/packNames';
@@ -37,10 +38,13 @@ export function VariationsPanel({
   const [options, setOptions] = useState<RandomizeOptions>(DEFAULT_RANDOMIZE);
   const index = useMemo(() => folderIndex(entries), [entries]);
   const materials = useMemo(() => materialChoices(doc, ids, index), [doc, ids, index]);
-  const anyStamp = doc.layers.some((l) =>
-    l.items.some((i) => i.kind === 'stamp' && ids.includes(i.id)),
+  const picked = doc.layers.flatMap((l) =>
+    l.items.filter(
+      (i): i is Extract<typeof i, { kind: 'stamp' }> => i.kind === 'stamp' && ids.includes(i.id),
+    ),
   );
-  if (!anyStamp) return null;
+  if (picked.length === 0) return null;
+  const tables = picked.filter(isTable);
   return (
     <div role="group" aria-label="Variations" className="space-y-2">
       <h3 className="font-serif text-sm font-semibold">Variations</h3>
@@ -68,6 +72,26 @@ export function VariationsPanel({
       >
         <Shuffle className="h-4 w-4" aria-hidden /> Randomize
       </Button>
+      {tables.length > 0 && entries.length > 0 && (
+        <Button
+          variant="ghost"
+          title="A plate or mug in front of each chair beside the table, and something in the middle"
+          onClick={() => {
+            const seed = Math.floor(Math.random() * 2 ** 31);
+            commit((d) =>
+              dressTables(
+                d,
+                tables.map((t) => t.id),
+                entries,
+                seed,
+              ),
+            );
+          }}
+        >
+          <UtensilsCrossed className="h-4 w-4" aria-hidden /> Dress{' '}
+          {tables.length === 1 ? 'this table' : `these ${String(tables.length)} tables`}
+        </Button>
+      )}
       {materials.length > 0 && (
         <div role="group" aria-label="Swap material" className="space-y-1">
           <p className="text-xs text-muted">Swap colour or material:</p>

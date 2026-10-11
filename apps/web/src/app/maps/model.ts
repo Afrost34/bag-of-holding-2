@@ -53,8 +53,24 @@ export interface ItemOrder {
   under?: boolean;
 }
 
-/** Where the pieces of a dress rule go (see `dress/engine.ts`). */
-export type DressPlace = 'area' | 'along' | 'edge' | 'cluster' | 'grid';
+/**
+ * Where the pieces of a dress rule go (see `dress/engine.ts`): over an area or line, or, in a room
+ * (`dress/interior.ts`), back to a wall, in the corners, in the middle, round the pieces of an
+ * earlier rule (chairs round tables), on them (candles on tables), or a place setting on the
+ * table in front of each chair (`setting`).
+ */
+export type DressPlace =
+  | 'area'
+  | 'along'
+  | 'edge'
+  | 'cluster'
+  | 'grid'
+  | 'wall'
+  | 'corner'
+  | 'centre'
+  | 'around'
+  | 'on'
+  | 'setting';
 
 /** One rule of a dressing: which pictures, where, how many, how turned. */
 export interface DressRule {
@@ -92,6 +108,16 @@ export interface DressRule {
   tint?: number;
   /** Kept clear of the pieces of the rules before it (undergrowth between the trees). */
   apart?: boolean;
+  /** Most pieces this rule places (all that fit when absent); for `on`, how many on each anchor. */
+  count?: number;
+  /** The earlier rule (by index) whose pieces `around`, `on` and `setting` relate to. */
+  anchor?: number;
+  /** 0–1: the share of the free places along the walls that get a piece (1 when absent). */
+  fill?: number;
+  /** Degrees a piece may be turned off square (chairs pulled out, clutter): 0 when absent. */
+  loose?: number;
+  /** Lies flat on the floor (a rug): later furniture may stand on it. */
+  floor?: boolean;
 }
 
 export interface WaterLook {

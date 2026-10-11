@@ -5,9 +5,11 @@ import { parsePackRef, squaresOf } from './packModel';
 import { insetPolygon } from './polyclip';
 import { pointInPolygon } from './polygon';
 import { pickIndex, randomAngle, type Instance, type Obstacles } from './scatter';
-import { bounds, growPolygon, splinePoints } from './spline';
+import { bounds, growPolygon, nearestOnPolyline, splinePoints } from './spline';
 import { seeded, type TerrainRef } from './terrain';
 import { dressPieces, type DressInstance, type DressTarget } from './dress/engine';
+import { INTERIOR_PLACES } from './dress/interior';
+import { isPortalPicture } from './portal';
 
 /**
  * A dressing (scatter item) on its map: the outline it fills or the line it follows (its own
@@ -35,8 +37,12 @@ export function scatterLine(doc: MapDoc, item: ScatterItem): number[] {
     // A room: its floor, a little in from the walls.
     if (target?.kind === 'room') {
       const floor = splinePoints(target.points, true, target.smooth);
-      // In from the walls by half a piece too, so furniture does not spill over them.
-      const inset = target.wall * 1.2 + Math.max(largestGlyph(item), doc.grid.size) * 0.5;
+      // Furniture placed against the walls needs the floor up to the wall's inner face; pieces
+      // scattered over the floor keep half a piece in, so they do not spill over the walls.
+      const interior = item.rules.some((r) => INTERIOR_PLACES.has(r.place));
+      const inset = interior
+        ? target.wall * 0.6
+        : target.wall * 1.2 + Math.max(largestGlyph(item), doc.grid.size) * 0.5;
       return insetPolygon(floor, inset) ?? growPolygon(floor, -target.wall * 1.4);
     }
   }
@@ -157,7 +163,28 @@ export function dressTarget(doc: MapDoc, item: ScatterItem): DressTarget {
     clearance: item.clearance,
     cell: doc.grid.size,
     reach: (rule, piece) => pieceBox(doc, rule, piece).w / 2,
+    box: (rule, piece) => pieceBox(doc, rule, piece),
+    ...(target?.kind === 'room' ? { doors: roomDoors(doc, target) } : {}),
   };
+}
+
+/**
+ * The doorways of a room: its own doors, and pack door pictures standing on its walls (the Door
+ * tool puts those on any wall).
+ */
+export function roomDoors(
+  doc: MapDoc,
+  room: Extract<MapItem, { kind: 'room' }>,
+): { x: number; y: number }[] {
+  const outline = splinePoints(room.points, true, room.smooth);
+  const ring = outline.length >= 4 ? [...outline, outline[0] ?? 0, outline[1] ?? 0] : outline;
+  const near = room.wall + doc.grid.size * 0.5;
+  const portals = allItems(doc).flatMap((i) =>
+    i.kind === 'stamp' && isPortalPicture(i.stamp) && nearestOnPolyline(ring, i).dist <= near
+      ? [{ x: i.x, y: i.y }]
+      : [],
+  );
+  return [...(room.doors ?? []).map((d) => ({ x: d.x, y: d.y })), ...portals];
 }
 
 /** The pieces of a dressing, rule by rule. */
@@ -178,7 +205,8 @@ export function obstacleSignature(doc: MapDoc): string {
       else if (i.kind === 'shape')
         parts.push([i.id, i.points, i.smooth, i.texture ?? '', i.holes ?? []]);
       else if (i.kind === 'building') parts.push([i.id, i.points]);
-      else if (i.kind === 'room') parts.push([i.id, i.points, i.smooth, i.wall]);
+      else if (i.kind === 'room') parts.push([i.id, i.points, i.smooth, i.wall, i.doors ?? []]);
+      else if (i.kind === 'stamp' && isPortalPicture(i.stamp)) parts.push([i.id, i.x, i.y]);
   const text = JSON.stringify(parts);
   let h = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0;

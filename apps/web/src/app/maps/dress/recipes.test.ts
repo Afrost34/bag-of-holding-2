@@ -44,16 +44,33 @@ describe('recipes on the real packs', () => {
       expect(fromPacks(recipe(id), FA_ENTRIES), id).toBe(true);
   });
 
-  it('furnishes from the packs', () => {
-    for (const id of ['tavern', 'storage', 'study']) {
-      const rules = recipeRules(recipe(id), FA_ENTRIES, { unit: 70 });
+  it('makes clutter piles from the packs', () => {
+    expect(fromPacks(recipe('pile'), FA_ENTRIES)).toBe(true);
+    expect(fromPacks(recipe('gear'), FA_ENTRIES)).toBe(true);
+    expect(recipeRules(recipe('pile'), FA_ENTRIES, { unit: 70 })[0]?.place).toBe('cluster');
+  });
+
+  it('furnishes every room type from the packs, every rule finding pictures', () => {
+    expect(FURNISH_RECIPES.length).toBeGreaterThanOrEqual(20);
+    for (const r of FURNISH_RECIPES) {
+      const rules = recipeRules(r, FA_ENTRIES, { unit: 70 });
+      expect(rules, r.id).toHaveLength(r.rules.length);
       expect(
-        rules[0]?.pieces.every((p) => p.ref.startsWith('pack:')),
-        id,
+        rules.every((x) => x.pieces.every((p) => p.ref.startsWith('pack:'))),
+        r.id,
       ).toBe(true);
-      expect(rules[0]?.rotation).toBe('quarter');
     }
-    expect(FURNISH_RECIPES.map((r) => r.id)).toContain('bedroom');
+  });
+
+  it('turns anchors into rule numbers, and drops a rule whose anchor found nothing', () => {
+    const tavern = recipeRules(recipe('tavern'), FA_ENTRIES, { unit: 70 });
+    expect(tavern[1]?.place).toBe('around');
+    expect(tavern[1]?.anchor).toBe(0);
+    expect(tavern[2]?.anchor).toBe(1);
+    // Without tables there are no seats round them, nor settings in front of the seats.
+    const noTables = FA_ENTRIES.filter((e) => !e.path.includes('_Tables/'));
+    const rules = recipeRules(recipe('tavern'), noTables, { unit: 70 });
+    expect(rules.some((r) => r.place === 'around' || r.place === 'setting')).toBe(false);
   });
 
   it('falls back on glyphs, standing up, when the packs have nothing', () => {

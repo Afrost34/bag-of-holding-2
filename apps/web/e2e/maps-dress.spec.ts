@@ -124,3 +124,55 @@ test('a forest recipe lays trees, then undergrowth at its edge, from the pack', 
   await page.getByRole('button', { name: 'Roll again' }).click();
   await waitForSaved(page, 'maps', '"from":"forest:trees"');
 });
+
+const CORE = '!Core_Settlements/';
+/** Real furniture names: a common room's tables, seats, tableware and storage. */
+const FURNITURE = [
+  'Furniture/Tables/Rectangle_Tables/Table_Rectangle_Wood_Red_F_2x1.png',
+  'Furniture/Seating/Chairs/Chair_Wood_Dark_E_1x1.png',
+  'Furniture/Seating/Stools/Stool_Fabric_Green_Wood_Dark_B1_1x1.png',
+  'Furniture/Seating/Benches/Bench_Wood_Ashen_D1_2x1.png',
+  'Clutter/Food/Prepared_Meals/Dishes/Plates/Plate_Metal_Gray_Filled_B1_1x1.png',
+  'Lightsources/Candles/Arranged_Candles/Candles_Yellow_Arranged_A1_1x1.png',
+  'Decor/Storage/Barrels/Filled/Barrel_Wood_Walnut_Water_Clear_B1_1x1.png',
+  'Decor/Storage/Boxes_and_Crates/Crates/Crate_Wood_Light_A_1x1.png',
+].map((p) => CORE + p);
+
+test('a room is furnished from the pack: tables down the middle, seats round them, a setting at each', async ({
+  page,
+}, testInfo) => {
+  test.skip(isPhone(page), 'The Creator is used on the desktop.');
+  test.setTimeout(90_000);
+  await installData(page);
+  await newMap(page, 'Gull and Anchor');
+  await tool(page, 'Stamp').click();
+  await importPack(page, FURNITURE);
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  await tool(page, 'Room').click();
+  await page.mouse.move(box.x + 80, box.y + 60);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 560, box.y + 420, { steps: 8 });
+  await page.mouse.up();
+  await waitForSaved(page, 'maps', '"kind":"room"');
+  await page.getByRole('button', { name: 'Common room' }).click();
+  await waitForSaved(page, 'maps', '"recipe":"tavern"');
+  await waitForSaved(page, 'maps', '"place":"around"');
+  await waitForSaved(page, 'maps', '"place":"setting"');
+  await page.waitForTimeout(800);
+  await canvas.screenshot({ path: testInfo.outputPath('common-room.png') });
+
+  // A table put down by hand gets something in the middle.
+  await tool(page, 'Stamp').click();
+  await page.getByLabel('Find a pack picture').fill('table rectangle');
+  await page
+    .getByRole('list', { name: 'Pack pictures' })
+    .getByRole('button', { name: 'Table Rectangle Wood Red F' })
+    .click();
+  await page.mouse.click(box.x + 700, box.y + 500);
+  await tool(page, 'Select and move').click();
+  await page.mouse.click(box.x + 700, box.y + 500);
+  await page.getByRole('button', { name: 'Dress this table' }).click();
+  await waitForSaved(page, 'maps', 'Candles_Yellow_Arranged_A1_1x1');
+});
