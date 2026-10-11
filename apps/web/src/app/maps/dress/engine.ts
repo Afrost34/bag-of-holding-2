@@ -191,7 +191,7 @@ export function dressPieces(rules: readonly DressRule[], target: DressTarget): D
       boxes.push(rule.floor ? placed.map((p) => ({ ...p, soft: true })) : placed);
       out.push(
         ...placed.map(({ inst }): DressInstance => {
-          const d: DressInstance = { ...inst, rule: r };
+          const d: DressInstance = { ...inst, angle: inst.angle + turnOf(rule), rule: r };
           if (rule.flip && rand() < 0.5) d.flip = true;
           if (rule.tint && rule.tint > 0 && rand() < rule.tint) d.tint = faintTint(rand(), rand());
           return d;
@@ -239,7 +239,7 @@ export function dressPieces(rules: readonly DressRule[], target: DressTarget): D
     }
     const placed = list
       .map((p): DressInstance => {
-        const inst: DressInstance = { ...p, rule: r };
+        const inst: DressInstance = { ...p, angle: p.angle + turnOf(rule), rule: r };
         if (rule.flip && rand() < 0.5) inst.flip = true;
         if (rule.tint && rule.tint > 0 && rand() < rule.tint) inst.tint = faintTint(rand(), rand());
         return inst;
@@ -253,8 +253,16 @@ export function dressPieces(rules: readonly DressRule[], target: DressTarget): D
     );
     out.push(...placed);
   });
-  return out;
+  // Rules drawn beneath the others (shadows) come first, keeping their own order.
+  if (!rules.some((r) => r.beneath)) return out;
+  return [
+    ...out.filter((p) => rules[p.rule]?.beneath),
+    ...out.filter((p) => !rules[p.rule]?.beneath),
+  ];
 }
+
+/** A rule's fixed turn, in radians. */
+const turnOf = (rule: DressRule): number => ((rule.turn ?? 0) * Math.PI) / 180;
 
 function lineLength(line: readonly number[]): number {
   let total = 0;

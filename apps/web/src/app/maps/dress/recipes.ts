@@ -4,6 +4,7 @@ import { pickMany } from '../packDefaults';
 import { packRef, squaresOf, type PackEntry } from '../packModel';
 import { INTERIOR_PLACES } from './interior';
 import { INTERIOR_RECIPES } from './interiors';
+import { NATURE_RECIPES } from './nature';
 import type { Recipe, RecipeGroup, RecipeRule } from './recipeTypes';
 
 export type { Recipe, RecipeGroup, RecipeRule } from './recipeTypes';
@@ -56,40 +57,8 @@ function simple(
 }
 
 export const RECIPES: readonly Recipe[] = [
-  // Nature
-  {
-    id: 'forest',
-    name: 'Forest',
-    hint: 'trees, undergrowth at the edge',
-    group: 'Nature',
-    mode: 'area',
-    rules: [
-      {
-        key: 'trees',
-        place: 'area',
-        want: { cats: ['trees'], not: NOT_TREE_PARTS },
-        max: 12,
-        glyphs: [g('tree', 3), g('pine'), g('bush')],
-        glyphSpacing: 46,
-        glyphSize: [42, 70],
-        spacing: 0.75,
-        rotation: 'random',
-        cluster: 0.15,
-        flip: true,
-      },
-      {
-        key: 'undergrowth',
-        place: 'edge',
-        want: { cats: ['bushes', 'plants'], anyWords: ['bush', 'fern', 'shrub', 'grass'] },
-        max: 10,
-        spacing: 1.1,
-        depth: 3,
-        rotation: 'random',
-        apart: true,
-        flip: true,
-      },
-    ],
-  },
+  // Nature: the biome brushes (`nature.ts`), then single kinds of plant or rock.
+  ...NATURE_RECIPES,
   simple('trees', 'Trees', 'trees only', 'Nature', {
     want: { cats: ['trees'], not: NOT_TREE_PARTS },
     max: 12,
@@ -254,6 +223,77 @@ export const RECIPES: readonly Recipe[] = [
     spacing: 1,
     rotation: 'along',
   }),
+  // Edges: softening the hard line of a road, a wall, a shape or a shore.
+  simple('weed-edge', 'Weedy edge', 'weeds and grass along a road or wall', 'Edges', {
+    place: 'along',
+    want: {
+      cats: ['plants'],
+      anyWords: ['/weed_edges/', '/long_grass/', '/grass/'],
+      not: ['overlay', 'shadow'],
+    },
+    max: 10,
+    spacing: 0.7,
+    sides: 'both',
+    offset: 0.6,
+    jitter: 0.4,
+    rotation: 'random',
+    flip: true,
+    tint: 0.25,
+  }),
+  simple(
+    'shore',
+    'Shore and reeds',
+    'reeds, lily pads and stones at the edge of water',
+    'Edges',
+    {
+      place: 'edge',
+      want: {
+        cats: ['plants', 'waterfx'],
+        anyWords: ['/cattails/', '/lilypads/', 'reed'],
+        not: ['overlay'],
+      },
+      max: 10,
+      spacing: 0.8,
+      depth: 1.5,
+      rotation: 'random',
+      cluster: 0.4,
+      flip: true,
+    },
+    { onlyOn: ['water'] },
+  ),
+  simple('rocky-edge', 'Rocky edge', 'stones and pebbles along a line', 'Edges', {
+    place: 'along',
+    want: { cats: ['rocks'], anyWords: ['/stones/', '/pebbles/'], not: ['ore', 'crystal'] },
+    max: 12,
+    spacing: 0.9,
+    sides: 'both',
+    offset: 0.5,
+    jitter: 0.5,
+    rotation: 'random',
+  }),
+  simple('tracks', 'Tracks', 'footprints or paw prints along a path', 'Edges', {
+    place: 'along',
+    want: { cats: ['decor'], words: ['/tracks/', '_wolf_'], not: ['overlay'] },
+    max: 4,
+    spacing: 0.6,
+    sides: 'both',
+    offset: 0.2,
+    jitter: 0.05,
+    rotation: 'along',
+    // The prints point up in their pictures; laid along the line they point the way it goes.
+    turn: 90,
+  }),
+  simple('boot-tracks', 'Boot prints', 'people walked this way', 'Edges', {
+    place: 'along',
+    want: { cats: ['decor'], words: ['/tracks/'], anyWords: ['_foot_', 'boot'], not: ['large'] },
+    max: 4,
+    spacing: 0.5,
+    sides: 'both',
+    offset: 0.18,
+    jitter: 0.05,
+    rotation: 'along',
+    turn: 90,
+  }),
   // Clutter and decay
   simple('pile', 'Storage pile', 'crates, barrels and sacks in heaps', 'Clutter', {
     place: 'cluster',
@@ -367,6 +407,9 @@ export function resolveRule(
     ...(rule.fill !== undefined ? { fill: rule.fill } : {}),
     ...(rule.loose ? { loose: rule.loose } : {}),
     ...(rule.floor ? { floor: true } : {}),
+    ...(rule.beneath ? { beneath: true } : {}),
+    ...(rule.fit ? { fit: true } : {}),
+    ...(rule.turn ? { turn: rule.turn } : {}),
   } satisfies Partial<DressRule>;
   // Interiors space pieces by a gap (in squares) between them, not by a spacing of centres.
   const interior = INTERIOR_PLACES.has(rule.place);
@@ -433,14 +476,15 @@ export function recipeRules(
 }
 
 /**
- * Whether the recipe can be made from the packs: its first rule finds at least three pictures
- * (a room: one of its rules finds a picture that is not a rug).
+ * Whether the recipe can be made from the packs: its first rule finds at least two pictures, so
+ * a dressing is not one picture over and over (a room: one of its rules finds a picture that is
+ * not a rug).
  */
 export function fromPacks(recipe: Recipe, entries: readonly Pickable[]): boolean {
   if (recipe.room)
     return recipe.rules.some((r) => !r.floor && r.want && pickMany(entries, r.want, 1).length > 0);
   const first = recipe.rules[0];
-  return Boolean(first?.want && pickMany(entries, first.want, 3).length >= 3);
+  return Boolean(first?.want && pickMany(entries, first.want, 2).length >= 2);
 }
 
 /** Whether the recipe has drawn glyphs to stand in. */

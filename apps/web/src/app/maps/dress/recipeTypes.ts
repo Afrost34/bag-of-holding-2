@@ -47,6 +47,9 @@ export interface RecipeRule {
   fill?: number;
   loose?: number;
   floor?: boolean;
+  beneath?: boolean;
+  fit?: boolean;
+  turn?: number;
 }
 
 export interface Recipe {

@@ -18,16 +18,19 @@ const recipe = (id: string) => {
 };
 
 describe('recipes on the real packs', () => {
-  it('makes a forest of trees with undergrowth, leaving out tree shadows', () => {
+  it('makes a forest of trees, their shadows apart from them, undergrowth and clearings', () => {
     const rules = recipeRules(recipe('forest'), FA_ENTRIES, { unit: 70 });
-    expect(rules.map((r) => r.place)).toEqual(['area', 'edge']);
+    expect(rules.map((r) => r.place)).toEqual(['area', 'area', 'on', 'edge', 'cluster']);
     const trees = rules[0];
     expect(trees?.pieces.length).toBeGreaterThanOrEqual(3);
     expect(trees?.pieces.some((p) => p.ref.includes('Shadow'))).toBe(false);
-    expect(trees?.from).toBe('forest:trees');
+    expect(trees?.from).toBe('forest:canopy');
     // The typical tree is 5 squares wide: 5 × 70 × 0.75.
     expect(trees?.spacing).toBe(263);
-    expect(rules[1]?.apart).toBe(true);
+    // The shadows are tree shadows, on the trees, as wide as them, beneath them.
+    expect(rules[2]?.pieces.every((p) => p.ref.includes('Tree_Shadow'))).toBe(true);
+    expect(rules[2]).toMatchObject({ anchor: 0, fit: true, beneath: true });
+    expect(rules[3]?.apart).toBe(true);
   });
 
   it('finds every nature recipe the packs have pictures for', () => {
