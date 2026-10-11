@@ -396,7 +396,7 @@ export function stripWallView(
  * A texture, repeating across the map (so strokes side by side join up). A picture of a pack is
  * loaded first: until it is there the pattern is a plain stone one, and the item is drawn again.
  */
-function terrainPattern(ref: TerrainRef): FillPattern {
+function terrainPattern(ref: TerrainRef, tile = 1): FillPattern {
   if (!isPackTexture(ref)) {
     let t = terrainPatterns.get(ref);
     if (!t) {
@@ -407,12 +407,12 @@ function terrainPattern(ref: TerrainRef): FillPattern {
   }
   const loaded = packTexture(ref);
   if (!loaded) return terrainPattern('stone');
-  const key = ref + '|' + String(patternGrid);
+  const key = ref + '|' + String(patternGrid) + '|' + String(tile);
   let t = terrainPatterns.get(key);
   if (!t) {
     t = new FillPattern(loaded, 'repeat');
     // The art is drawn at 200 pixels to the grid square: a 1000 px tile covers five squares.
-    const k = patternGrid / PIXELS_PER_SQUARE;
+    const k = (patternGrid / PIXELS_PER_SQUARE) * tile;
     t.setTransform(new Matrix().scale(k, k));
     terrainPatterns.set(key, t);
   }
@@ -425,6 +425,8 @@ export interface StrokeStyle {
   width: number;
   opacity: number;
   texture?: TerrainRef | undefined;
+  /** Texture tile size, as a multiple of the picture's own. */
+  tile?: number | undefined;
   /** 0–1: the edge fades out. */
   soft?: number | undefined;
   /** A dark line round the stroke. */
@@ -459,7 +461,9 @@ function strokeView(points: readonly number[], style: StrokeStyle): Container {
   }
   trace();
   line.stroke({
-    ...(style.texture ? { fill: terrainPattern(style.texture) } : { color: colorOf(style.color) }),
+    ...(style.texture
+      ? { fill: terrainPattern(style.texture, style.tile) }
+      : { color: colorOf(style.color) }),
     width: style.width,
     cap: 'round',
     join: 'round',
@@ -1366,6 +1370,7 @@ export class MapScene {
           width: item.width,
           opacity: item.opacity,
           texture: item.texture,
+          tile: item.tile,
           soft: item.soft,
           border: item.border,
         });
@@ -1408,7 +1413,7 @@ export class MapScene {
       case 'scatter':
         return this.scatterView(item, doc);
       case 'shape':
-        return shapeView(item, item.texture ? terrainPattern(item.texture) : null);
+        return shapeView(item, item.texture ? terrainPattern(item.texture, item.tile) : null);
       case 'path': {
         if (item.texture && isPackTexture(item.texture)) {
           const picture = packPathView(item);

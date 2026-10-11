@@ -12,6 +12,9 @@
  * Other packs fall back on the words in their folders; what nothing matches is `other`.
  */
 
+/** Changes when the sorting rules do: packs sorted by an older version are sorted again. */
+export const SORTER_VERSION = 1;
+
 export type CategoryId =
   | 'terrain'
   | 'water'

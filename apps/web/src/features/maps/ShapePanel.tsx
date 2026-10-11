@@ -413,6 +413,17 @@ export function ShapeItemSettings({
           ))}
         </div>
         <Slider
+          label="Texture size"
+          value={item.tile ?? 1}
+          min={0.25}
+          max={4}
+          step={0.05}
+          display={`×${(item.tile ?? 1).toFixed(2)}`}
+          onChange={(tile) => {
+            set((i) => (i.kind === 'shape' ? { ...i, tile } : i));
+          }}
+        />
+        <Slider
           label="Roundness"
           value={item.smooth}
           min={0}

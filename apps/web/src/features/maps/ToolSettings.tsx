@@ -1,6 +1,7 @@
 /** The settings of the current map maker tool (stamps, brushes, eraser, templates). */
 import { Button, cn } from '@boh/ui';
-import { PaintBucket } from 'lucide-react';
+import { PaintBucket, Waves } from 'lucide-react';
+import { defaultWater } from '../../app/maps/packDefaults';
 import { useMemo } from 'react';
 import { useShowDrawn } from '../../app/maps/artPrefs';
 import { entryRef, usePacks } from '../../app/maps/packs';
@@ -28,6 +29,7 @@ export function ToolSettings({
   const drawn = useShowDrawn();
   const { entries } = usePacks();
   const packEntries = useMemo(() => new Map(entries.map((e) => [entryRef(e), e])), [entries]);
+  const water = useMemo(() => defaultWater(entries), [entries]);
   if (tool === 'eraser')
     return (
       <Section title="Eraser">
@@ -200,6 +202,33 @@ export function ToolSettings({
           className="w-full"
         />
       </label>
+      {terrainTool && (
+        <label className="block text-sm">
+          Texture size: ×{(s.tile ?? 1).toFixed(2)}
+          <input
+            type="range"
+            aria-label="Texture size"
+            min={0.25}
+            max={4}
+            step={0.05}
+            value={s.tile ?? 1}
+            onChange={(e) => {
+              set({ ...s, tile: Number(e.target.value) });
+            }}
+            className="w-full"
+          />
+        </label>
+      )}
+      {terrainTool && water && (
+        <Button
+          variant="ghost"
+          onClick={() => {
+            set({ ...s, texture: water as TerrainRef, color: '#9a958d', soft: 0.45 });
+          }}
+        >
+          <Waves className="h-4 w-4" aria-hidden /> Water brush
+        </Button>
+      )}
       {terrainTool && (
         <Button
           variant="ghost"

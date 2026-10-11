@@ -1446,6 +1446,10 @@ test('a texture of an imported pack paints terrain', async ({ page }) => {
   const zip = Buffer.from(
     zipSync({
       'FA_Assets_Webp/Woodlands/!Wilderness/Textures/Grass/Grass_A_01.jpg': [PIXEL, { level: 0 }],
+      'FA_Assets_Webp/Aquatic/!Wilderness/Textures/Water/Water_Still_A_01.jpg': [
+        PIXEL,
+        { level: 0 },
+      ],
       'FA_Assets_Webp/Woodlands/!Wilderness/Flora/Oak_A1_1x1.png': [PIXEL, { level: 0 }],
     }),
   );
@@ -1459,8 +1463,9 @@ test('a texture of an imported pack paints terrain', async ({ page }) => {
   await expect(page.getByRole('status').filter({ hasText: '1 added' })).toBeVisible();
   await tool(page, 'Terrain brush').click();
   const textures = page.getByRole('list', { name: 'Pack textures' });
-  // Only the texture, not the 1×1 oak.
-  await expect(textures.getByRole('button')).toHaveCount(1);
+  // The grass and the water, not the 1×1 oak.
+  await expect(textures.getByRole('button')).toHaveCount(2);
+
   await textures.getByRole('button', { name: 'Grass A 01' }).click();
   const box = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
   if (!box) throw new Error('no canvas');
@@ -1472,6 +1477,19 @@ test('a texture of an imported pack paints terrain', async ({ page }) => {
   // Fill covers the whole map with the chosen texture.
   await page.getByRole('button', { name: 'Fill the whole map' }).click();
   await waitForSaved(page, 'maps', '"kind":"shape"');
+  // The texture's tiles can be made bigger, and the water brush starts from the pack's water.
+  await page.getByLabel('Texture size').fill('2');
+  await page.mouse.move(box.x + 200, box.y + 300);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 450, box.y + 330, { steps: 6 });
+  await page.mouse.up();
+  await waitForSaved(page, 'maps', '"tile":2');
+  await page.getByRole('button', { name: 'Water brush' }).click();
+  await page.mouse.move(box.x + 200, box.y + 400);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 450, box.y + 430, { steps: 6 });
+  await page.mouse.up();
+  await waitForSaved(page, 'maps', '"soft":0.45');
 });
 
 test('walls are made of a pack strip, and its doors snap onto them', async ({ page }, testInfo) => {

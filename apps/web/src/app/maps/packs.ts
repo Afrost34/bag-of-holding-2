@@ -7,7 +7,7 @@ import {
   parsePackRef,
   type PackEntry,
 } from './packModel';
-import { classify } from './packCategories';
+import { classify, SORTER_VERSION, type CategoryId } from './packCategories';
 import { readZipEntry, readZipIndex } from './zip';
 
 /**
@@ -32,11 +32,21 @@ export interface PackMeta {
   files: number;
   bytes: number;
   importedAt: string;
+  /** The version of the sorting rules the index was made with. */
+  sorter?: number;
   /** False: its pictures are left out of every tool (it stays on the device). Absent: used. */
   disabled?: boolean;
 }
 
-type IndexRow = [path: string, offset: number, compressed: number, size: number, method: number];
+type IndexRow = [
+  path: string,
+  offset: number,
+  compressed: number,
+  size: number,
+  method: number,
+  /** The category it was sorted into at import (used while `meta.sorter` is current). */
+  cat?: CategoryId,
+];
 
 async function dir(...parts: string[]): Promise<FileSystemDirectoryHandle> {
   let handle = await (
@@ -119,33 +129,20 @@ export const usePacks = create<PacksStore>()((set, get) => ({
     const unlisted: PackEntry[] = [];
     for (const meta of metas) {
       const rows = await readJson<IndexRow[]>(folder, `${meta.id}.index.json`);
-      for (const [path, offset, compressed, size, method] of rows ?? []) {
+      // Sorted at import; sorted again here when the rules have changed since.
+      const current = meta.sorter === SORTER_VERSION;
+      for (const [path, offset, compressed, size, method, stored] of rows ?? []) {
+        const cat = current && stored ? stored : classify(path);
         // A pack switched off keeps its pictures readable (maps may use them) but not listed.
         if (meta.disabled) {
-          unlisted.push({
-            pack: meta.id,
-            path,
-            offset,
-            compressed,
-            size,
-            method,
-            cat: classify(path),
-          });
+          unlisted.push({ pack: meta.id, path, offset, compressed, size, method, cat });
           continue;
         }
         // The same picture in two packs (or as .png in one and .webp in another) is kept once.
         const key = path.replace(/.[a-z0-9]+$/i, '');
         if (seen.has(key)) continue;
         seen.add(key);
-        entries.push({
-          pack: meta.id,
-          path,
-          offset,
-          compressed,
-          size,
-          method,
-          cat: classify(path),
-        });
+        entries.push({ pack: meta.id, path, offset, compressed, size, method, cat });
       }
     }
     entries.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
@@ -203,6 +200,7 @@ export const usePacks = create<PacksStore>()((set, get) => ({
           e.compressed,
           e.size,
           e.method,
+          classify(e.name.slice(cut)),
         ]);
         const meta: PackMeta = {
           id,
@@ -210,6 +208,7 @@ export const usePacks = create<PacksStore>()((set, get) => ({
           files: rows.length,
           bytes: file.size,
           importedAt: new Date().toISOString(),
+          sorter: SORTER_VERSION,
         };
         await writeText(folder, `${id}.index.json`, JSON.stringify(rows));
         // The meta file comes last: a pack without one is an import that did not finish.

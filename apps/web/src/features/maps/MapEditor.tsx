@@ -1504,6 +1504,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       width: s.width,
       opacity: s.opacity,
       texture: tool === 'terrain' ? s.texture : undefined,
+      tile: tool === 'terrain' ? s.tile : undefined,
       soft: tool === 'terrain' ? s.soft : undefined,
       border: tool === 'terrain' ? s.border : undefined,
     };
@@ -1579,6 +1580,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             brush: tool === 'terrain' ? 'terrain' : 'pen',
             opacity: s.opacity,
             ...(s.texture ? { texture: s.texture } : {}),
+            ...(s.tile && s.tile !== 1 ? { tile: s.tile } : {}),
             ...(s.soft ? { soft: s.soft } : {}),
             ...(s.border ? { border: true } : {}),
           }),
@@ -1916,6 +1918,13 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       if ((e.key === 'PageUp' || e.key === 'PageDown') && (doc.variants?.length ?? 0) > 1) {
         e.preventDefault();
         commit((d) => stepVariant(d, e.key === 'PageDown' ? 1 : -1));
+        return;
+      }
+      // Shift+1…9 pick the layer to draw on (Dungeondraft's layer keys).
+      const digit = /^Digit([1-9])$/.exec(e.code);
+      if (e.shiftKey && digit) {
+        const target = drawable[Number(digit[1]) - 1];
+        if (target) setLayerId(target.id);
         return;
       }
       if (placingRef.current && (e.key === 'a' || e.key === 'A')) {
