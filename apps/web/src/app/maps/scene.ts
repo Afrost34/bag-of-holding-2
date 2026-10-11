@@ -49,7 +49,13 @@ import { isTied, obstacleSignature, pieceBox, scatterLine, scatterOf } from './s
 import { pathLine, pathView, shapeHoles, shapeOutline, shapeView } from './shapes';
 import { pointInPolygon } from './polygon';
 import { PIXELS_PER_SQUARE } from './packCategories';
-import { junctionPieces, piecesFor, placePieces, type PiecePlace } from './wallPieces';
+import {
+  junctionPieces,
+  piecesFor,
+  placePieces,
+  type PiecePlace,
+  type PieceSpec,
+} from './wallPieces';
 import { isWallStrip, stripSegments } from './wallStrip';
 import { packRef, parsePackRef, type PackEntry } from './packModel';
 import { usePacks } from './packs';
@@ -365,17 +371,10 @@ export function stripWallView(
   const holder = new Container();
   const k = gridSize / Math.max(1, texture.height);
   const thickness = gridSize * 0.3;
-  for (const s of stripSegments(points, closed, thickness)) {
-    const strip = new TilingSprite({ texture, width: s.length / k, height: texture.height });
-    strip.anchor.set(0, 0.5);
-    strip.scale.set(k);
-    strip.position.set(s.x, s.y);
-    strip.rotation = s.angle;
-    holder.addChild(strip);
-  }
+  // The corners and endings of the same set stand over the joints.
   const parsed = withPieces ? parsePackRef(ref) : null;
+  const drawn: { place: PiecePlace; spec: PieceSpec | undefined; piece: Texture }[] = [];
   if (parsed) {
-    // The corners and endings of the same set stand over the joints.
     const cut = parsed.path.lastIndexOf('/') + 1;
     const dir = parsed.path.slice(0, cut);
     // Some sets keep their strips in a `Paths` folder and the pieces in the one above it.
@@ -405,21 +404,35 @@ export function stripWallView(
                     : undefined;
       const file = spec?.file ?? (place.kind === 'tee' ? set.tee : set.cross);
       const piece = file ? packTexture(packRef(parsed.pack, folderOf(file) + file)) : null;
-      if (!piece) continue;
-      const size = (spec?.squares ?? 1) * gridSize;
-      const sprite = new Sprite(piece);
-      sprite.anchor.set(spec?.pivot?.[0] ?? 0.5, spec?.pivot?.[1] ?? 0.5);
-      sprite.width = size;
-      sprite.height = size;
-      // A cap that sticks out is pulled back towards the wall.
-      const pull = (spec?.shift ?? 0) * gridSize;
-      sprite.position.set(
-        place.x + (place.along?.x ?? 0) * pull,
-        place.y + (place.along?.y ?? 0) * pull,
-      );
-      sprite.angle = place.rotation;
-      holder.addChild(sprite);
+      if (piece) drawn.push({ place, spec, piece });
     }
+  }
+  // A strip stops where a piece stands on its corner, instead of reaching past it.
+  const trims = new Map<number, number>();
+  for (const d of drawn)
+    if (d.place.vertex !== undefined) trims.set(d.place.vertex, (d.spec?.reach ?? 0) * gridSize);
+  for (const s of stripSegments(points, closed, thickness, trims)) {
+    const strip = new TilingSprite({ texture, width: s.length / k, height: texture.height });
+    strip.anchor.set(0, 0.5);
+    strip.scale.set(k);
+    strip.position.set(s.x, s.y);
+    strip.rotation = s.angle;
+    holder.addChild(strip);
+  }
+  for (const { place, spec, piece } of drawn) {
+    const size = (spec?.squares ?? 1) * gridSize;
+    const sprite = new Sprite(piece);
+    sprite.anchor.set(spec?.pivot?.[0] ?? 0.5, spec?.pivot?.[1] ?? 0.5);
+    sprite.width = size;
+    sprite.height = size;
+    // A cap that sticks out is pulled back towards the wall.
+    const pull = (spec?.shift ?? 0) * gridSize;
+    sprite.position.set(
+      place.x + (place.along?.x ?? 0) * pull,
+      place.y + (place.along?.y ?? 0) * pull,
+    );
+    sprite.angle = place.rotation;
+    holder.addChild(sprite);
   }
   return holder;
 }

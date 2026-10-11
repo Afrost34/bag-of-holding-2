@@ -24,3 +24,14 @@ describe('wall strips', () => {
     expect(isWallStrip('A/Cobblestone_A_01.jpg')).toBe(false);
   });
 });
+
+describe('strips at a corner with a piece', () => {
+  it('stop at the vertex instead of reaching past it', () => {
+    const open = stripSegments([0, 0, 100, 0, 100, 100], false, 20);
+    expect(open[0]?.length).toBe(120);
+    const trimmed = stripSegments([0, 0, 100, 0, 100, 100], false, 20, new Map([[1, 0]]));
+    expect(trimmed[0]?.length).toBe(110);
+    expect(trimmed[1]?.x).toBe(100);
+    expect(trimmed[1]?.y).toBe(0);
+  });
+});

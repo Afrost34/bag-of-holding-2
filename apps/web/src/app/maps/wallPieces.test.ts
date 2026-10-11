@@ -23,12 +23,18 @@ describe('the pieces of a wall set', () => {
   it('finds the corner, ending and joints of a stone set, and nothing of another', () => {
     expect(piecesFor(files[0] ?? '', files)).toEqual({
       corner: { file: 'Wall_Stone_Earthy_B1_Corner_A_1x1.webp', squares: 1, arms: [0, 90] },
-      roundCorner: { file: 'Wall_Stone_Earthy_B1_Corner_F_2x2.webp', squares: 2, arms: [0, 90] },
+      roundCorner: {
+        file: 'Wall_Stone_Earthy_B1_Corner_F_2x2.webp',
+        squares: 2,
+        arms: [0, 90],
+        reach: 1,
+      },
       wideCorner: {
         file: 'Wall_Stone_Earthy_B1_Corner_H_3x3.webp',
         squares: 3,
         arms: [0, 90],
         pivot: [1 / 3, 1 / 3],
+        reach: 2,
       },
       ending: { file: 'Wall_Stone_Earthy_B1_Ending_A_1x1.webp', squares: 1, arms: [0] },
       tee: 'Wall_Stone_Earthy_B1_Joint_B_1x1.webp',

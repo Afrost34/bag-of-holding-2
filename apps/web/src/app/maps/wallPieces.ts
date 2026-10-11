@@ -19,6 +19,8 @@ export interface PieceSpec {
   arms: readonly number[];
   /** How far, in squares, it sits towards the wall from the end (a cap that sticks out). */
   shift?: number;
+  /** How far, in squares, its arms run from the vertex: the strips stop there (default: they run up to it). */
+  reach?: number;
   /** Where the wall's vertex is in the picture, as fractions of its width and height (default the middle). */
   pivot?: readonly [number, number];
 }
@@ -69,9 +71,17 @@ export function piecesFor(stripFile: string, siblings: readonly string[]): WallP
     return {
       ...(corner ? { corner: { file: corner, squares: 1, arms: cornerArms } } : {}),
       ...(cornerIn ? { cornerIn: { file: cornerIn, squares: 1, arms: cornerArms } } : {}),
-      ...(round ? { roundCorner: { file: round, squares: 2, arms: [0, 90] } } : {}),
+      ...(round ? { roundCorner: { file: round, squares: 2, arms: [0, 90], reach: 1 } } : {}),
       ...(wide
-        ? { wideCorner: { file: wide, squares: 3, arms: [0, 90], pivot: [1 / 3, 1 / 3] as const } }
+        ? {
+            wideCorner: {
+              file: wide,
+              squares: 3,
+              arms: [0, 90],
+              pivot: [1 / 3, 1 / 3] as const,
+              reach: 2,
+            },
+          }
         : {}),
       ...(diagonal ? { diagonal: { file: diagonal, squares: 1, arms: [0, 135] } } : {}),
       ...(brickDiagonal ? { diagonal: { file: brickDiagonal, squares: 1, arms: [180, 315] } } : {}),
@@ -146,6 +156,8 @@ export interface PiecePlace {
   y: number;
   /** Degrees, clockwise, from the picture as drawn. */
   rotation: number;
+  /** The index of the wall's corner it stands on (not set for junctions). */
+  vertex?: number;
   /** For an ending: the direction towards the wall, a unit vector (the piece may sit a little along it). */
   along?: { x: number; y: number };
 }
@@ -229,6 +241,7 @@ export function placePieces(
           x: here.x,
           y: here.y,
           rotation: Math.round(turn),
+          vertex: i,
         });
         placed = true;
         break;
@@ -253,7 +266,13 @@ export function placePieces(
         if (best && b0 !== undefined && b1 !== undefined) {
           const first = mod360(toNext - toPrev) <= 180 ? toPrev : toNext;
           const turn = mod360(first + inside / 2 - (b0 + mod360(b1 - b0) / 2));
-          out.push({ kind: best.kind, x: here.x, y: here.y, rotation: Math.round(turn) });
+          out.push({
+            kind: best.kind,
+            x: here.x,
+            y: here.y,
+            rotation: Math.round(turn),
+            vertex: i,
+          });
         }
       }
     } else if ((hasPrev || hasNext) && pieces.ending) {
@@ -266,6 +285,7 @@ export function placePieces(
         x: here.x,
         y: here.y,
         rotation: Math.round(mod360(toBody - base)),
+        vertex: i,
         along: { x: (other.x - here.x) / len, y: (other.y - here.y) / len },
       });
     }

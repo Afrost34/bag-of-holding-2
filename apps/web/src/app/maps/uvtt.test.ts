@@ -104,3 +104,68 @@ describe('Universal VTT export', () => {
     expect(u.objects_line_of_sight[0]?.[0]).toEqual({ x: 0.5, y: 0.5 });
   });
 });
+
+describe("what Foundry's dd-import module reads", () => {
+  it('finds every field it uses, in the shape it uses it', () => {
+    let d = addItem(newMap('F', [], '', { w: 10, h: 10 }), 'x', {
+      kind: 'wall',
+      id: 'w',
+      points: [0, 0, 700, 0],
+    });
+    d = {
+      ...d,
+      layers: [
+        {
+          id: 'x',
+          name: 'x',
+          visible: true,
+          locked: false,
+          items: [
+            { kind: 'wall', id: 'w', points: [0, 0, 280, 0, 280, 140] },
+            {
+              kind: 'stamp',
+              id: 'd',
+              stamp: 'pack:p:A/Doors/Door_A_1x1.webp',
+              x: 140,
+              y: 0,
+              w: 70,
+              h: 70,
+              rotation: 0,
+            },
+            {
+              kind: 'light',
+              id: 'l',
+              x: 70,
+              y: 70,
+              range: 140,
+              color: '#aabbcc',
+              intensity: 1,
+              shadows: true,
+            },
+          ],
+        },
+      ],
+    };
+    const u = buildUvtt(d, 'iVBORw0KGgo=', 70);
+    // GetWalls: every sight line has points, read as wallSet[0] and wallSet[length - 1].
+    for (const w of u.line_of_sight) {
+      expect(w.length).toBeGreaterThanOrEqual(2);
+      expect(typeof w[0]?.x).toBe('number');
+      expect(typeof w[w.length - 1]?.y).toBe('number');
+    }
+    // GetDoors: bounds[0], bounds[1] and closed.
+    for (const p of u.portals) {
+      expect(p.bounds).toHaveLength(2);
+      expect(typeof p.closed).toBe('boolean');
+    }
+    // GetLights: colour as "#" + color.substring(2) is a valid colour; range and intensity numbers; inside the map.
+    for (const l of u.lights) {
+      expect('#' + l.color.substring(2)).toMatch(/^#[0-9a-f]{6}$/);
+      expect(l.range).toBeGreaterThan(0);
+      expect(l.position.x).toBeGreaterThanOrEqual(u.resolution.map_origin.x);
+      expect(l.position.x).toBeLessThanOrEqual(u.resolution.map_size.x);
+    }
+    // The image's first bytes say its type (atob(image.substr(0, 8))): a PNG here.
+    expect(atob(u.image.substring(0, 8)).startsWith('\x89PNG')).toBe(true);
+  });
+});

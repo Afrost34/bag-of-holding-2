@@ -15,11 +15,14 @@ export interface StripSegment {
 /**
  * The segments of a wall (x, y pairs; `closed` joins the last to the first), each stretched by half
  * the wall's `thickness` at both ends so that two strips meeting at a right angle make a clean corner.
+ * A vertex in `trims` has a piece of the set standing on it: the strips there are shortened by that
+ * distance (0 to meet it exactly) instead of stretched.
  */
 export function stripSegments(
   points: readonly number[],
   closed: boolean,
   thickness: number,
+  trims: ReadonlyMap<number, number> = new Map(),
 ): StripSegment[] {
   const out: StripSegment[] = [];
   const n = Math.floor(points.length / 2);
@@ -33,12 +36,18 @@ export function stripSegments(
     const length = Math.hypot(bx - ax, by - ay);
     if (length < 0.5) continue;
     const angle = Math.atan2(by - ay, bx - ax);
-    const back = thickness / 2;
+    // Positive: the strip starts (or ends) before the vertex; negative: short of it.
+    const startTrim = trims.get(i);
+    const endTrim = trims.get(j);
+    const back = startTrim === undefined ? thickness / 2 : -startTrim;
+    const forward = endTrim === undefined ? thickness / 2 : -endTrim;
+    const total = length + back + forward;
+    if (total <= 0) continue;
     out.push({
       x: ax - Math.cos(angle) * back,
       y: ay - Math.sin(angle) * back,
       angle,
-      length: length + thickness,
+      length: total,
     });
   }
   return out;
