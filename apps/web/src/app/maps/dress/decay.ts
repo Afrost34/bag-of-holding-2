@@ -20,7 +20,17 @@ const GRIME = '#cfc3ad';
 /** One stamp aged, with numbers from `rand`. */
 export function ageStamp(doc: MapDoc, stamp: Stamp, index: FolderIndex, rand: () => number): Stamp {
   const ref = parsePackRef(stamp.stamp);
-  const broken = ref ? stateVariant(index, ref.pack, ref.path) : null;
+  return ageStampTo(doc, stamp, ref ? stateVariant(index, ref.pack, ref.path) : null, rand);
+}
+
+/** One stamp aged, its broken picture (a path in the same pack) given, or null when it has none. */
+export function ageStampTo(
+  doc: MapDoc,
+  stamp: Stamp,
+  broken: string | null,
+  rand: () => number,
+): Stamp {
+  const ref = parsePackRef(stamp.stamp);
   if (ref && broken) {
     // The broken picture keeps its own size (a barrel on its side is longer), scaled as the
     // whole one was.

@@ -3,7 +3,10 @@ import { Button, cn } from '@boh/ui';
 import { Dices, Layers, Lock, LockOpen, Scissors, Shuffle } from 'lucide-react';
 import { useState } from 'react';
 import { FURNISH_RECIPES } from '../../app/maps/dress/recipes';
-import { updateItem } from '../../app/maps/model';
+import { updateItem, type BuildingSpec } from '../../app/maps/model';
+import { useArtPrefs } from '../../app/maps/artPrefs';
+import { pickFurnishing, roomTypes, withFurnishing } from '../../app/maps/structure/furnish';
+import { stampUnit } from '../../app/maps/units';
 import { usePacks } from '../../app/maps/packs';
 import { ARCHETYPES, archetypeById } from '../../app/maps/structure/archetypes';
 import {
@@ -66,6 +69,67 @@ function Range({
         className="w-full"
       />
     </label>
+  );
+}
+
+const DRESSINGS: { id: BuildingSpec['dressing']; name: string }[] = [
+  { id: 'bare', name: 'None' },
+  { id: 'lived-in', name: 'Lived-in' },
+  { id: 'cluttered', name: 'Cluttered' },
+];
+const CONDITIONS: { id: BuildingSpec['condition']; name: string }[] = [
+  { id: 'kept', name: 'Kept' },
+  { id: 'worn', name: 'Worn' },
+  { id: 'ruined', name: 'Ruined' },
+];
+
+/** How a building's rooms are furnished, and how kept it is. */
+function DressingControls({
+  value,
+  onChange,
+}: {
+  value: Pick<BuildingSpec, 'dressing' | 'condition'>;
+  onChange: (v: Pick<BuildingSpec, 'dressing' | 'condition'>) => void;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <label className="block text-sm">
+        Furniture
+        <select
+          value={value.dressing}
+          aria-label="Furniture"
+          onChange={(e) => {
+            const dressing = DRESSINGS.find((d) => d.id === e.target.value)?.id ?? 'lived-in';
+            onChange({ ...value, dressing });
+          }}
+          className={field}
+        >
+          {DRESSINGS.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="block text-sm">
+        Condition
+        <select
+          value={value.condition}
+          aria-label="Condition"
+          onChange={(e) => {
+            const condition = CONDITIONS.find((c) => c.id === e.target.value)?.id ?? 'kept';
+            onChange({ ...value, condition });
+          }}
+          className={field}
+        >
+          {CONDITIONS.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      </label>
+    </div>
   );
 }
 
@@ -175,6 +239,12 @@ export function GenerateControls({
           onChange({ ...value, crooked });
         }}
       />
+      <DressingControls
+        value={value}
+        onChange={(v) => {
+          onChange({ ...value, ...v });
+        }}
+      />
     </div>
   );
 }
@@ -190,6 +260,8 @@ export function StructureItemSettings({
   commit: MapPanelsProps['commit'];
 }) {
   const { entries } = usePacks();
+  const drawn = useArtPrefs((s) => s.drawnArt);
+  const options = { unit: stampUnit(doc), drawn };
   const cell = doc.grid.size;
   const group = item.group;
   const spec = item.spec;
@@ -231,7 +303,15 @@ export function StructureItemSettings({
           aria-label="Kind of building"
           onChange={(e) => {
             const archetype = e.target.value;
-            changeAll((i) => ({ ...i, spec: { ...i.spec, archetype } }));
+            changeAll((i) => ({
+              ...i,
+              spec: withFurnishing(
+                { ...i.spec, archetype },
+                roomTypes(archetype),
+                entries,
+                options,
+              ),
+            }));
           }}
           className={field}
         >
@@ -312,6 +392,12 @@ export function StructureItemSettings({
           changeAll((i) => ({ ...i, spec: { ...i.spec, crooked } }));
         }}
       />
+      <DressingControls
+        value={spec}
+        onChange={(v) => {
+          changeAll((i) => ({ ...i, spec: { ...i.spec, ...v } }));
+        }}
+      />
       <div className="flex flex-wrap gap-2">
         <Button
           variant="ghost"
@@ -326,10 +412,13 @@ export function StructureItemSettings({
         {entries.length > 0 && (
           <Button
             variant="ghost"
-            title="Pick the floors, walls, doors and windows from the packs again"
+            title="Pick the floors, walls, doors, windows and furniture from the packs again"
             onClick={() => {
               const palette = resolveStyle(styleById(spec.style), entries);
-              changeAll((i) => ({ ...i, spec: { ...i.spec, palette } }));
+              // Every room type in use on any floor, not only the archetype's.
+              const types = floors.flatMap((f) => planOf(f, cell).rooms.map((r) => r.type));
+              const furniture = pickFurnishing(spec, entries, options, types);
+              changeAll((i) => ({ ...i, spec: { ...i.spec, palette, ...furniture } }));
             }}
           >
             <Shuffle className="h-4 w-4" aria-hidden /> Pick again
@@ -413,7 +502,16 @@ export function StructureItemSettings({
                 aria-label="Room type"
                 onChange={(e) => {
                   const type = e.target.value;
-                  changeThis((i) => setRoomType(i, cell, room.id, type));
+                  // The new type's furniture is picked for the whole building (one spec).
+                  commit((d) =>
+                    updateGroup(
+                      updateItem(d, item.id, (i) =>
+                        i.kind === 'structure' ? setRoomType(i, cell, room.id, type) : i,
+                      ),
+                      group,
+                      (i) => ({ ...i, spec: withFurnishing(i.spec, [type], entries, options) }),
+                    ),
+                  );
                 }}
                 className={field}
               >

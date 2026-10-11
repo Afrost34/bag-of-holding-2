@@ -339,6 +339,31 @@ export function mixSettings(
   };
 }
 
+/** A placed piece as a stamp, where it stands; null when its rule is gone. */
+export function instanceStamp(
+  doc: MapDoc,
+  rules: readonly DressRule[],
+  inst: DressInstance,
+  id: string,
+): Extract<MapItem, { kind: 'stamp' }> | null {
+  const rule = rules[inst.rule];
+  if (!rule) return null;
+  const box = pieceBox(doc, rule, inst);
+  return {
+    kind: 'stamp',
+    id,
+    stamp: rule.pieces[inst.piece]?.ref ?? '',
+    x: Math.round(inst.x),
+    // A glyph stands on its base: its centre is above where it stands.
+    y: Math.round(box.base ? inst.y - box.h * 0.42 : inst.y),
+    w: Math.round(box.w),
+    h: Math.round(box.h),
+    rotation: Math.round((inst.angle * 180) / Math.PI) % 360,
+    ...(inst.flip ? { flipX: true } : {}),
+    ...(inst.tint ? { tint: inst.tint } : {}),
+  };
+}
+
 /** The dressing turned into loose stamps, one for each piece, where it stands now. */
 export function bakeScatter(doc: MapDoc, id: string): MapDoc {
   const item = allItems(doc).find((i): i is ScatterItem => i.kind === 'scatter' && i.id === id);
@@ -352,24 +377,8 @@ export function bakeScatter(doc: MapDoc, id: string): MapDoc {
     return candidate;
   };
   const stamps: MapItem[] = scatterOf(doc, item).flatMap((inst) => {
-    const rule = item.rules[inst.rule];
-    if (!rule) return [];
-    const ref = rule.pieces[inst.piece]?.ref ?? '';
-    const box = pieceBox(doc, rule, inst);
-    const stamp: MapItem = {
-      kind: 'stamp',
-      id: fresh(),
-      stamp: ref,
-      x: Math.round(inst.x),
-      // A glyph stands on its base: its centre is above where it stands.
-      y: Math.round(box.base ? inst.y - box.h * 0.42 : inst.y),
-      w: Math.round(box.w),
-      h: Math.round(box.h),
-      rotation: Math.round((inst.angle * 180) / Math.PI) % 360,
-      ...(inst.flip ? { flipX: true } : {}),
-      ...(inst.tint ? { tint: inst.tint } : {}),
-    };
-    return [stamp];
+    const stamp = instanceStamp(doc, item.rules, inst, '');
+    return stamp ? [{ ...stamp, id: fresh() }] : [];
   });
   return {
     ...doc,

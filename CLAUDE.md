@@ -113,29 +113,29 @@ accent-coloured text).
 
 ## Where to look first
 
-| Task                                 | Start in                                                                                                    |
-| ------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| A character choice is missing/wrong  | `packages/rules/src/patches.ts` (by feature name), then `extract/*.ts`                                      |
-| Sheet numbers (AC, saves, spells)    | `packages/rules/src/sheet.ts`; the worker assembles the view in `data.worker.ts`                            |
-| Character builder steps              | `apps/web/src/features/characters/*Step.tsx`, choices via `ChoiceControl`                                   |
-| Printed character sheet              | `features/characters/print/` (`PrintSheet`, `usePrintData`, `sections.ts`)                                  |
-| Board widgets (NPC, names, cards…)   | `app/boards/model.ts` (kinds), `features/boards/widgetBodies.tsx`, `addOptions.ts`                          |
-| A store for a new kind of user file  | copy `app/tables/` (model + test + store); register reload in `app/sync/store.ts`                           |
-| Sync                                 | `packages/storage/src/sync/engine.ts`; app side `app/sync/store.ts`, `app/userStore.ts`                     |
-| Shell: sidebar, tabs, right-click    | `app/shell/` (`contextMenuModel.ts` is the pure part)                                                       |
-| Small text formats (`+2`, `3rd`)     | `app/format.ts` — reuse, don't copy                                                                         |
-| A map tool (Creator or Viewer)       | `features/maps/tools.ts` (tool lists, groups), `MapEditor.tsx` (pointer), a `*Panel.tsx`                    |
-| A new kind of map item               | `app/maps/model.ts` (type + KINDS), `scene.ts` (`drawItem`, `hit`, `select`), `ItemSettings.tsx`            |
-| Map generators and their rules       | pure modules in `app/maps/`: `scatter`, `city`, `rooms`, `islandgen`, `elevation` (all tested)              |
-| Dress tool (scatter): rules, recipes | `app/maps/dress/` (`engine`, `recipes`, `upgrade`; ADR 0014), `features/maps/DressPanel.tsx`                |
-| Furniture in rooms, room types       | `app/maps/dress/interior.ts` (placements), `interiors.ts` (room recipes), `tables.ts`                       |
-| Stamp variations, FA name parts      | `app/maps/packNames.ts`, `randomize.ts`; panel `features/maps/VariationsPanel.tsx`                          |
-| Whole buildings (floors, rooms)      | `app/maps/structure/` (`floorplan`, `structureDoc`, `styles`, `archetypes`; ADR 0015), `StructurePanel.tsx` |
-| Real FA names for tests              | `app/maps/__fixtures__/faNames.ts` (add names a new query needs; never invent them)                         |
-| Stamp packs (zips)                   | `app/maps/zip.ts`, `packs.ts`, `packModel.ts`; browser in `features/maps/PackBrowser.tsx`                   |
-| What a pack picture is (category)    | `app/maps/packCategories.ts` (pure, tested on real FA names); tools' defaults in `packDefaults.ts`          |
-| Lights, shadows, ambient light       | `app/maps/lighting.ts` (pure), `drawLighting` in `scene.ts`, `features/maps/LightPanel.tsx`                 |
-| Path ends, loops, compass, frame     | `app/maps/pathEnds.ts`, `decor.ts`; contour lines and rivers in `elevation.ts`                              |
+| Task                                 | Start in                                                                                                               |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| A character choice is missing/wrong  | `packages/rules/src/patches.ts` (by feature name), then `extract/*.ts`                                                 |
+| Sheet numbers (AC, saves, spells)    | `packages/rules/src/sheet.ts`; the worker assembles the view in `data.worker.ts`                                       |
+| Character builder steps              | `apps/web/src/features/characters/*Step.tsx`, choices via `ChoiceControl`                                              |
+| Printed character sheet              | `features/characters/print/` (`PrintSheet`, `usePrintData`, `sections.ts`)                                             |
+| Board widgets (NPC, names, cards…)   | `app/boards/model.ts` (kinds), `features/boards/widgetBodies.tsx`, `addOptions.ts`                                     |
+| A store for a new kind of user file  | copy `app/tables/` (model + test + store); register reload in `app/sync/store.ts`                                      |
+| Sync                                 | `packages/storage/src/sync/engine.ts`; app side `app/sync/store.ts`, `app/userStore.ts`                                |
+| Shell: sidebar, tabs, right-click    | `app/shell/` (`contextMenuModel.ts` is the pure part)                                                                  |
+| Small text formats (`+2`, `3rd`)     | `app/format.ts` — reuse, don't copy                                                                                    |
+| A map tool (Creator or Viewer)       | `features/maps/tools.ts` (tool lists, groups), `MapEditor.tsx` (pointer), a `*Panel.tsx`                               |
+| A new kind of map item               | `app/maps/model.ts` (type + KINDS), `scene.ts` (`drawItem`, `hit`, `select`), `ItemSettings.tsx`                       |
+| Map generators and their rules       | pure modules in `app/maps/`: `scatter`, `city`, `rooms`, `islandgen`, `elevation` (all tested)                         |
+| Dress tool (scatter): rules, recipes | `app/maps/dress/` (`engine`, `recipes`, `upgrade`; ADR 0014), `features/maps/DressPanel.tsx`                           |
+| Furniture in rooms, room types       | `app/maps/dress/interior.ts` (placements), `interiors.ts` (room recipes), `tables.ts`                                  |
+| Stamp variations, FA name parts      | `app/maps/packNames.ts`, `randomize.ts`; panel `features/maps/VariationsPanel.tsx`                                     |
+| Whole buildings (floors, rooms)      | `app/maps/structure/` (`floorplan`, `structureDoc`, `styles`, `archetypes`, `furnish`; ADR 0015), `StructurePanel.tsx` |
+| Real FA names for tests              | `app/maps/__fixtures__/faNames.ts` (add names a new query needs; never invent them)                                    |
+| Stamp packs (zips)                   | `app/maps/zip.ts`, `packs.ts`, `packModel.ts`; browser in `features/maps/PackBrowser.tsx`                              |
+| What a pack picture is (category)    | `app/maps/packCategories.ts` (pure, tested on real FA names); tools' defaults in `packDefaults.ts`                     |
+| Lights, shadows, ambient light       | `app/maps/lighting.ts` (pure), `drawLighting` in `scene.ts`, `features/maps/LightPanel.tsx`                            |
+| Path ends, loops, compass, frame     | `app/maps/pathEnds.ts`, `decor.ts`; contour lines and rivers in `elevation.ts`                                         |
 
 ## Maps (ADR 0010, 0011, 0012)
 

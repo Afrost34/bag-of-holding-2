@@ -844,7 +844,9 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
               generateOf(buildingSet),
               packList.entries,
               Math.floor(Math.random() * 2 ** 31),
-              Math.max(6, Math.round(d.grid.size * 0.17)),
+              // FA walls are about a third of a square thick.
+              Math.max(8, Math.round(d.grid.size * 0.32)),
+              { unit: stampUnit(d), drawn: drawnArt },
             );
             return addStructure(d, { spec, points }, id).doc;
           });
