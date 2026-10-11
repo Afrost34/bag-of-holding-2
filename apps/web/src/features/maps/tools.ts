@@ -268,6 +268,8 @@ export interface PathSettings {
   texture?: string;
   /** With a picture: as wide as the picture is (its own size on this map), not the width below. */
   fit?: boolean;
+  /** Roads: between the points clicked, the way follows the land (round hills, through passes). */
+  followLand?: boolean;
 }
 
 /** A random island or archipelago, placed in the middle of the view. */

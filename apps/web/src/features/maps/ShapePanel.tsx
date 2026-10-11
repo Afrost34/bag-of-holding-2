@@ -288,6 +288,18 @@ export function ShapePanel(props: MapPanelsProps) {
             Widens downstream (draw from the source to the sea)
           </label>
         )}
+        {pathSet.style !== 'river' && (
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={pathSet.followLand === true}
+              onChange={(e) => {
+                setPathSet({ ...pathSet, followLand: e.target.checked });
+              }}
+            />
+            Follow the land: wind round hills and through passes between the points (with elevation)
+          </label>
+        )}
         <PathEndsFields
           start={pathSet.start}
           end={pathSet.end}

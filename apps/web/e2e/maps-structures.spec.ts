@@ -281,3 +281,19 @@ test('cliffs are laid along the elevation at a chosen height', async ({ page }) 
   await page.getByRole('button', { name: 'Cliffs along this height' }).click();
   await waitForSaved(page, 'maps', '"style":"wall"');
 });
+
+test('a road follows the land between the points clicked', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is used on the desktop.');
+  test.setTimeout(90_000);
+  await newMap(page, 'Pass Road');
+  await tool(page, 'Elevation').click();
+  await page.getByRole('button', { name: 'Generate terrain' }).click();
+  await waitForSaved(page, 'maps', '"elevation"');
+  await tool(page, 'Road or river').click();
+  await page.getByRole('checkbox', { name: /Follow the land/ }).check();
+  const box = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
+  if (!box) throw new Error('no canvas');
+  await page.mouse.click(box.x + box.width * 0.35, box.y + box.height * 0.45);
+  await page.mouse.dblclick(box.x + box.width * 0.65, box.y + box.height * 0.55);
+  await waitForSaved(page, 'maps', '"kind":"path"');
+});

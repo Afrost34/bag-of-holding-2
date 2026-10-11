@@ -28,6 +28,8 @@ Built: every tool in the list below except the two kits under 15.
 Second pass (deeper rules): `ring` and `front` placements, `count` keeping the middle pieces, and
 height/slope bands from the elevation (ADR 0014). The camp, market and graveyard use them; new
 recipes: Stone circle, Highlands by height; forest and mountain biomes thin out on steep ground.
+Roads can follow the land (`landRoute.ts`): A* over the elevation with a slope cost, round hills
+and through passes, never over cliffs or through the sea.
 
 Waiting on the packs: fountains and modular tents need the real file names of `Basin_Parts` and
 `Tents/Modular` in `app/maps/__fixtures__/faNames.ts` (never invented). Copy a listing of those two

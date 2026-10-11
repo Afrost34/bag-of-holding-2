@@ -13,6 +13,7 @@ import {
   Undo2,
   X,
 } from 'lucide-react';
+import { routeOverLand } from '../../app/maps/landRoute';
 import { folderIndex } from '../../app/maps/packNames';
 import { placePrefab, type Prefab } from '../../app/maps/prefabs';
 import {
@@ -928,6 +929,9 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         const joined =
           pathSet.style === 'river' ? snapRiverEnd(doc, points, 30 / (scene?.zoom ?? 1)) : null;
         if (joined) points = joined.points;
+        // A road between the points clicked takes the way a road builder would over the hills.
+        if (pathSet.followLand && pathSet.style !== 'river' && doc.elevation)
+          points = routeOverLand(doc.elevation, points);
         const pathId = itemId(doc);
         const pathWidth =
           pathSet.texture && pathSet.fit !== false

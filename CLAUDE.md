@@ -140,6 +140,7 @@ accent-coloured text).
 | What a pack picture is (category)    | `app/maps/packCategories.ts` (pure, tested on real FA names); tools' defaults in `packDefaults.ts`                                                |
 | Lights, shadows, ambient light       | `app/maps/lighting.ts` (pure), `drawLighting` in `scene.ts`, `features/maps/LightPanel.tsx`                                                       |
 | Path ends, loops, compass, frame     | `app/maps/pathEnds.ts`, `decor.ts`; contour lines and rivers in `elevation.ts`                                                                    |
+| Roads that follow the land           | `app/maps/landRoute.ts` (A* over the elevation, slope cost; Road tool "Follow the land")                                                          |
 
 ## Maps (ADR 0010, 0011, 0012)
 
