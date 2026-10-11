@@ -389,6 +389,19 @@ export const FA_NAMES: readonly string[] = [
   // Docks: cranes, mooring posts
   '!Core_Settlements/Workplace_Equipment/Cranes/Crane_Wood_Walnut_A_2x4.webp',
   'Aquatic/Base_Aquatic_Settlement/Vehicles/Ships/Mooring_Posts/Mooring_Post_Metal_Rusty_B1_1x1.webp',
+  // Settlements: market, camp, graveyard, farm, scrapyard
+  '!Core_Settlements/Structures/Shelters/Tarps/Tarp_Assembled_Metal_Rusty_Beige_A7_2x3.webp',
+  '!Core_Settlements/Structures/Shelters/Awnings/Tarp_Awning_Assembled_Wood_Dark_Beige_A3_2x4.webp',
+  '!Core_Settlements/Structures/Shelters/Tents/Tent_Cloth_Blue_D1_4x4.webp',
+  '!Core_Settlements/Burial_and_Graves/Tombstones/Tombstone_Stone_Volcanic_D2_1x1.webp',
+  '!Core_Settlements/Burial_and_Graves/Graves/Grave_Stone_Volcanic_Double_A_3x3.webp',
+  'Woodlands/!Wilderness/Flora/Trees/Bare_Trees/Bare_Tree_Ashen_A1_8x9.webp',
+  '!Core_Settlements/Workplace_Equipment/Farming/Crops/Turnips/Crops_Turnip_01_A1_1x1.webp',
+  '!Core_Settlements/Natural_Decor/Hay/Hay_Bale_04_B3_1x1.webp',
+  '!Core_Settlements/Vehicles/Carts_and_Wagons/Wheels/Broken/Wheel_Broken_Wood_Walnut_B2_1x2.webp',
+  '!Core_Settlements/Decor/Storage/Barrels/Filled/Barrel_Metal_Rusty_Tar_Opaque_A1_1x1.webp',
+  // Cliffs along a contour
+  'Woodlands/!Wilderness/Elevation/Cliff_Paths/Cliff_Dirt_01_Path_D1.webp',
 ];
 
 /** The names as pack entries of one pack (`fa`), sorted as the importer sorts them. */

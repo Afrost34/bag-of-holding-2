@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  contourLines,
   decodeHeights,
   encodeHeights,
   flatElevation,
@@ -169,5 +170,40 @@ describe('contour lines', () => {
     const flat = new Uint8Array(30 * 30).fill(LAND);
     expect(contourSegments(30, 30, flat, 100)).toEqual([]);
     expect(contourSegments(30, 30, flat, 200)).toEqual([]);
+  });
+});
+
+describe('cliffs along a contour', () => {
+  // A round hill in the middle of a 40 × 40 grid of 10-pixel cells.
+  const w = 40;
+  const h = 40;
+  const heights = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++)
+      heights[y * w + x] = Math.max(0, 200 - Math.hypot(x - 20, y - 20) * 15);
+
+  it('makes one closed line round a hill, at the level asked', () => {
+    const lines = contourLines({ w, h, cell: 10 }, heights, 100, 4);
+    expect(lines).toHaveLength(1);
+    const line = lines[0] ?? [];
+    // Every point is about (200 - 100) / 15 ≈ 6.7 cells from the middle.
+    for (let i = 0; i + 1 < line.length; i += 2)
+      expect(Math.hypot((line[i] ?? 0) / 10 - 20.5, (line[i + 1] ?? 0) / 10 - 20.5)).toBeCloseTo(
+        6.7,
+        0,
+      );
+  });
+
+  it('runs with the high ground on its left', () => {
+    const line = contourLines({ w, h, cell: 10 }, heights, 100, 4)[0] ?? [];
+    // Round a hill with the top on the left (y down): anticlockwise on screen, a negative area.
+    let area = 0;
+    for (let i = 0; i + 3 < line.length; i += 2)
+      area += (line[i] ?? 0) * (line[i + 3] ?? 0) - (line[i + 2] ?? 0) * (line[i + 1] ?? 0);
+    expect(area).toBeLessThan(0);
+  });
+
+  it('leaves out lines shorter than asked', () => {
+    expect(contourLines({ w, h, cell: 10 }, heights, 195, 4)).toHaveLength(0);
   });
 });

@@ -4,6 +4,7 @@ import { pickMany } from '../packDefaults';
 import { packRef, squaresOf, type PackEntry } from '../packModel';
 import { INTERIOR_PLACES } from './interior';
 import { INTERIOR_RECIPES } from './interiors';
+import { SETTLEMENT_RECIPES } from './settlements';
 import { NATURE_RECIPES } from './nature';
 import type { Recipe, RecipeGroup, RecipeRule } from './recipeTypes';
 
@@ -450,6 +451,8 @@ export const RECIPES: readonly Recipe[] = [
   }),
   // A room's furniture (`interiors.ts`)
   ...INTERIOR_RECIPES,
+  // Settlements: market, camp, graveyard, farm, scrapyard (`settlements.ts`).
+  ...SETTLEMENT_RECIPES,
 ];
 
 export const recipeById = (id: string): Recipe | undefined => RECIPES.find((r) => r.id === id);

@@ -3,6 +3,7 @@ import { Button, cn } from '@boh/ui';
 import { Dices, Mountain, Trash2, Waves } from 'lucide-react';
 import { useState } from 'react';
 import {
+  contourLines,
   encodeHeights,
   flatElevation,
   generateHeights,
@@ -12,6 +13,9 @@ import {
   type Elevation,
 } from '../../app/maps/elevation';
 import { addItem, itemId } from '../../app/maps/model';
+import { defaultCliff } from '../../app/maps/packDefaults';
+import { usePacks } from '../../app/maps/packs';
+import { stampUnit } from '../../app/maps/units';
 import { Section } from './PanelParts';
 import { type MapPanelsProps } from './panelTypes';
 import { Slider } from './ShapePanel';
@@ -49,6 +53,33 @@ export function ElevationPanel({ doc, commit, elev, setElev, layerId }: MapPanel
           width: Math.max(14, Math.round(el.cell * 2.2)),
           color: '#3d7fb0',
           taper: true,
+        });
+      return next;
+    });
+  };
+  const [cliffLevel, setCliffLevel] = useState(170);
+  const packEntries = usePacks((s) => s.entries);
+  /** Cliffs where the ground crosses the chosen height, as paths with a cliff strip. */
+  const makeCliffs = () => {
+    const strip = defaultCliff(packEntries);
+    commit((d) => {
+      const el = d.elevation;
+      if (!el) return d;
+      const unit = stampUnit(d);
+      let next = d;
+      for (const points of contourLines(el, heightsOf(el), cliffLevel, 6))
+        next = addItem(next, layerId, {
+          kind: 'path',
+          id: itemId(next),
+          points,
+          smooth: 0.5,
+          style: 'wall',
+          width: Math.round(unit * 1.5),
+          color: '#5b4f43',
+          ...(strip ? { texture: strip } : {}),
+          ...(points[0] === points[points.length - 2] && points[1] === points[points.length - 1]
+            ? { loop: true }
+            : {}),
         });
       return next;
     });
@@ -167,6 +198,25 @@ export function ElevationPanel({ doc, commit, elev, setElev, layerId }: MapPanel
           </Button>
           <p className="text-xs text-muted">
             They start on the high ground and follow the slope to the sea. Pick one to reshape it.
+          </p>
+        </Section>
+      )}
+      {e && (
+        <Section title="Cliffs">
+          <Slider
+            label="Cliff height"
+            value={cliffLevel}
+            min={Math.min(250, e.sea + 5)}
+            max={250}
+            step={5}
+            onChange={setCliffLevel}
+          />
+          <Button variant="ghost" onClick={makeCliffs}>
+            <Mountain className="h-4 w-4" aria-hidden /> Cliffs along this height
+          </Button>
+          <p className="text-xs text-muted">
+            A cliff wherever the ground crosses that height, its top on the high side, drawn with a
+            cliff strip from your packs. Each is a path you can reshape.
           </p>
         </Section>
       )}

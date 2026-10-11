@@ -320,6 +320,81 @@ export function contourSegments(
   return out;
 }
 
+/**
+ * The contour at `level` as whole lines in map pixels (for cliffs along it): the marching-squares
+ * segments chained end to end, every other point kept (the line is rounded when drawn), lines
+ * shorter than `minLength` cells left out. Each runs with the high ground on its left.
+ */
+export function contourLines(
+  e: Pick<Elevation, 'w' | 'h' | 'cell'>,
+  heights: Uint8Array,
+  level: number,
+  minLength: number,
+): number[][] {
+  const segments = contourSegments(e.w, e.h, heights, level);
+  const key = (x: number, y: number) =>
+    `${String(Math.round(x * 100))},${String(Math.round(y * 100))}`;
+  const ends = new Map<string, number[]>();
+  segments.forEach(([x1, y1, x2, y2], i) => {
+    for (const k of [key(x1, y1), key(x2, y2)]) {
+      const list = ends.get(k) ?? [];
+      list.push(i);
+      ends.set(k, list);
+    }
+  });
+  const used = new Set<number>();
+  const lines: number[][] = [];
+  for (let start = 0; start < segments.length; start++) {
+    if (used.has(start)) continue;
+    used.add(start);
+    const first = segments[start];
+    if (!first) continue;
+    // Walk forward from the second end, then backward from the first.
+    const chain: [number, number][] = [
+      [first[0], first[1]],
+      [first[2], first[3]],
+    ];
+    for (const forward of [true, false]) {
+      for (;;) {
+        const tip = forward ? chain[chain.length - 1] : chain[0];
+        if (!tip) break;
+        const next = (ends.get(key(tip[0], tip[1])) ?? []).find((i) => !used.has(i));
+        if (next === undefined) break;
+        used.add(next);
+        const s = segments[next];
+        if (!s) break;
+        const same = key(s[0], s[1]) === key(tip[0], tip[1]);
+        const other: [number, number] = same ? [s[2], s[3]] : [s[0], s[1]];
+        if (forward) chain.push(other);
+        else chain.unshift(other);
+      }
+    }
+    let length = 0;
+    for (let i = 1; i < chain.length; i++) {
+      const a = chain[i - 1];
+      const b = chain[i];
+      if (a && b) length += Math.hypot(b[0] - a[0], b[1] - a[1]);
+    }
+    if (length < minLength) continue;
+    // The high ground on the left: tested a little to the left of the middle segment.
+    const m = Math.floor((chain.length - 1) / 2);
+    const a = chain[m];
+    const b = chain[m + 1] ?? chain[m];
+    if (a && b) {
+      const dx = b[0] - a[0];
+      const dy = b[1] - a[1];
+      const len = Math.hypot(dx, dy) || 1;
+      // Cell x has its middle at x + 0.5.
+      const lx = Math.round((a[0] + b[0]) / 2 + (dy / len) * 0.8 - 0.5);
+      const ly = Math.round((a[1] + b[1]) / 2 - (dx / len) * 0.8 - 0.5);
+      const inside = lx >= 0 && ly >= 0 && lx < e.w && ly < e.h;
+      if (inside && (heights[ly * e.w + lx] ?? 0) < level) chain.reverse();
+    }
+    const keep = chain.filter((_, i) => i % 2 === 0 || i === chain.length - 1);
+    lines.push(keep.flatMap(([x, y]) => [Math.round(x * e.cell), Math.round(y * e.cell)]));
+  }
+  return lines;
+}
 /** Height 0–255 → a colour: deep water to shore, then green lowland, brown hills, white peaks. */
 function tintOf(height: number, sea: number): [number, number, number, number] {
   if (height <= sea) {

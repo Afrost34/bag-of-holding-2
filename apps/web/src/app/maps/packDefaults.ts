@@ -155,6 +155,12 @@ export function defaultCaveWall(entries: readonly Pickable[]): string | undefine
   return e ? refOf(e) : undefined;
 }
 
+/** An open-air cliff strip of the packs (not a cave's), for cliffs along a contour; none without packs. */
+export function defaultCliff(entries: readonly Pickable[]): string | undefined {
+  const e = pickOne(entries, { cats: ['cliffs'], words: ['_path'], not: ['cave', 'burrow'] });
+  return e ? refOf(e) : undefined;
+}
+
 /** The first water texture of the packs, for the water brush; none without packs. */
 export function defaultWater(entries: readonly Pickable[]): string | undefined {
   const e = pickOne(entries, { cats: ['water'], words: ['water'], not: ['overlay', 'opaque'] });

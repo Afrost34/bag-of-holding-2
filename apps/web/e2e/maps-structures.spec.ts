@@ -246,3 +246,14 @@ test('a sky-dock with a ship docked in a berth', async ({ page }) => {
   await page.getByRole('button', { name: 'Dock a ship' }).click();
   await waitForSaved(page, 'maps', '"archetype":"skiff"');
 });
+
+test('cliffs are laid along the elevation at a chosen height', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is used on the desktop.');
+  test.setTimeout(90_000);
+  await newMap(page, 'Highcliff');
+  await tool(page, 'Elevation').click();
+  await page.getByRole('button', { name: 'Generate terrain' }).click();
+  await waitForSaved(page, 'maps', '"elevation"');
+  await page.getByRole('button', { name: 'Cliffs along this height' }).click();
+  await waitForSaved(page, 'maps', '"style":"wall"');
+});

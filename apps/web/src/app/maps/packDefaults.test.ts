@@ -3,6 +3,7 @@ import { classify } from './packCategories';
 import {
   defaultCaveFloor,
   defaultCaveWall,
+  defaultCliff,
   defaultMaterial,
   defaultWater,
   defaultRoomStyle,
@@ -93,5 +94,16 @@ describe('the material brush and the cave', () => {
     expect(defaultCaveFloor(PACK)).toContain('Dirt_A_04');
     expect(defaultMaterial([])).toBeUndefined();
     expect(defaultCaveFloor([])).toBeUndefined();
+  });
+});
+
+describe('a cliff along a contour', () => {
+  it('is an open-air cliff strip, not a cave rim', () => {
+    const cliffs = [
+      'Woodlands/!Wilderness/Elevation/Cliff_Paths/Burrows_Cave_Stone_Earthy_Path_A1.webp',
+      'Woodlands/!Wilderness/Elevation/Cliff_Paths/Cliff_Dirt_01_Path_D3.webp',
+    ].map(e);
+    expect(defaultCliff(cliffs)).toContain('Cliff_Dirt_01_Path');
+    expect(defaultCliff([])).toBeUndefined();
   });
 });
