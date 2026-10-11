@@ -26,6 +26,7 @@ import { ScatterItemSettings } from './ScatterPanel';
 import { LightItemSettings } from './LightPanel';
 import { ShapeItemSettings } from './ShapePanel';
 import { TextLettering } from './TextLettering';
+import { VariationsPanel } from './VariationsPanel';
 
 export function ItemSettings({
   doc,
@@ -283,6 +284,7 @@ export function ItemSettings({
               {flag === 'shadow' ? 'Drop shadow' : 'Blocks light'}
             </label>
           ))}
+          <VariationsPanel doc={doc} ids={[item.id]} commit={commit} />
           <p className="text-xs text-muted">Keys: R turns, [ and ] resize, Delete removes.</p>
         </>
       )}
