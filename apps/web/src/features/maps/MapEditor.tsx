@@ -2443,7 +2443,9 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             }}
             roofs={
               doc.layers.some((l) =>
-                l.items.some((i) => i.kind === 'building' || i.kind === 'district'),
+                l.items.some(
+                  (i) => i.kind === 'building' || i.kind === 'district' || i.kind === 'structure',
+                ),
               )
                 ? doc.hideRoofs !== true
                 : null

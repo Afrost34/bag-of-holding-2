@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FA_ENTRIES } from '../__fixtures__/faNames';
+import { mapLights } from '../glow';
 import { isGlyphRef } from '../glyphs';
 import { newMap, type BuildingSpec, type MapDoc, type MapItem } from '../model';
 import { pointInPolygon } from '../polygon';
@@ -18,8 +19,9 @@ const CELL = 70;
 const OPTIONS = { unit: CELL };
 
 function tavern(
-  more: Partial<Pick<BuildingSpec, 'dressing' | 'condition'>> = {},
+  more: Partial<Pick<BuildingSpec, 'dressing' | 'condition' | 'rooms'>> = {},
   entries = FA_ENTRIES,
+  corners = [2, 2, 12, 2, 12, 10, 2, 10],
 ): { doc: MapDoc; ground: StructureItem } {
   const doc = newMap('Town', [], 'now');
   const spec = newBuildingSpec(
@@ -40,11 +42,12 @@ function tavern(
   );
   const made = addStructure(doc, {
     spec,
-    points: [2, 2, 12, 2, 12, 10, 2, 10].map((v) => v * CELL),
+    points: corners.map((v) => v * CELL),
   });
   const ground = floorsOf(made.doc, made.group).find((f) => f.floor === 0);
   if (!ground) throw new Error('no ground floor');
-  return { doc: made.doc, ground };
+  // Looked at with the roofs off: under a roof the rooms are not furnished on the map.
+  return { doc: { ...made.doc, hideRoofs: true }, ground };
 }
 
 const furniture = (items: readonly MapItem[]) =>
@@ -135,5 +138,14 @@ describe('furnishing a building', () => {
     expect(spec.furnish?.['wizard-lab']?.length).toBeGreaterThan(0);
     expect(spec.furnish?.tavern).toBe(ground.spec.furnish?.tavern);
     expect(withFurnishing(spec, ['tavern'], FA_ENTRIES, OPTIONS)).toBe(spec);
+  });
+});
+
+describe('lights in a building', () => {
+  it('light the rooms when the roofs are off, and not through the roof', () => {
+    const { doc } = tavern({ rooms: 2 }, FA_ENTRIES, [2, 2, 16, 2, 16, 12, 2, 12]);
+    const open = mapLights(doc).length;
+    expect(open).toBeGreaterThan(0);
+    expect(mapLights({ ...doc, hideRoofs: false })).toHaveLength(0);
   });
 });

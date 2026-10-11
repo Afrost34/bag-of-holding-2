@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { FA_ENTRIES } from '../__fixtures__/faNames';
 import { activeVariant, layerShown, newMap, type MapDoc } from '../model';
+import { pointInPolygon } from '../polygon';
 import { roomOutline } from '../rooms';
 import {
   addStructure,
@@ -112,7 +113,9 @@ describe('making a building', () => {
 
 describe('a floor drawn as rooms and stamps', () => {
   it('has a room for each room of the plan, joined by doorways, and stairs', () => {
-    const { doc, id } = tavern([]);
+    const { doc: shown, id } = tavern([]);
+    // Roofs off: under a roof the rooms have no doorways (they would be drawn over the roof).
+    const doc = { ...shown, hideRoofs: true };
     const parts = structureParts(doc, item(doc, id));
     const rooms = parts.filter((p) => p.kind === 'room');
     expect(rooms).toHaveLength(planOf(item(doc, id), CELL).rooms.length);
@@ -124,7 +127,8 @@ describe('a floor drawn as rooms and stamps', () => {
 
   it('with packs: door, window and stair pictures, and gaps in the walls for the doors', () => {
     const { doc, id } = tavern();
-    const parts = structureParts(doc, item(doc, id));
+    // With the roofs off: under a roof the doors and windows are hidden with the rooms.
+    const parts = structureParts({ ...doc, hideRoofs: true }, item(doc, id));
     const stamps = parts.filter((p) => p.kind === 'stamp');
     expect(stamps.some((s) => s.stamp.includes('/Doors/'))).toBe(true);
     expect(stamps.some((s) => s.id.endsWith('~stairs'))).toBe(true);
@@ -134,7 +138,9 @@ describe('a floor drawn as rooms and stamps', () => {
 
   it('bakes into rooms, walls and stamps on each floor, with ids of their own', () => {
     const { doc, group } = tavern();
-    const before = floorsOf(doc, group).map((f) => structureParts(doc, f).length);
+    // Baked as drawn with the roofs off (a baked roof would hide the rooms for good).
+    const open = { ...doc, hideRoofs: true };
+    const before = floorsOf(doc, group).map((f) => structureParts(open, f).length);
     const baked = bakeStructure(doc, group);
     expect(floorsOf(baked, group)).toHaveLength(0);
     const items = baked.layers.flatMap((l) => l.items);
@@ -233,5 +239,45 @@ describe('changing a building', () => {
     expect(moved.rooms?.[0]?.cells[0]).toBe(
       room.cells[0]?.replace(/^(\d+)/, (n) => String(Number(n) + 1)),
     );
+  });
+});
+
+describe('roofs', () => {
+  it('puts a roof over the ground and upper floors, not the cellar, and takes it off with Hide roofs', () => {
+    const { doc, group } = tavern();
+    for (const f of floorsOf(doc, group)) {
+      const roof = structureParts(doc, f).find((p) => p.kind === 'building');
+      if (f.floor < 0) expect(roof).toBeUndefined();
+      else expect(roof?.kind === 'building' && roof.roofTexture).toContain('Roof_Texture');
+    }
+    const open = { ...doc, hideRoofs: true };
+    for (const f of floorsOf(doc, group))
+      expect(structureParts(open, f).some((p) => p.kind === 'building')).toBe(false);
+  });
+
+  it('stands a chimney over each hearth, inside the building', () => {
+    const { doc, id } = tavern();
+    const ground = item(doc, id);
+    const plan = planOf(ground, CELL);
+    const hearths = plan.rooms.filter((r) =>
+      ['kitchen', 'tavern', 'smithy', 'living-room', 'guardhouse'].includes(r.type),
+    );
+    const chimneys = structureParts(doc, ground).filter(
+      (p) => p.kind === 'stamp' && p.stamp.includes('/Chimneys/'),
+    );
+    expect(chimneys.length).toBe(hearths.length);
+    const outline = footprintOf(ground, CELL);
+    for (const c of chimneys) if (c.kind === 'stamp') expect(pointInPolygon(c, outline)).toBe(true);
+  });
+
+  it('gives working rooms on the ground floor the hard floor', () => {
+    const { doc, id } = tavern();
+    const ground = item(doc, id);
+    const plan = planOf(ground, CELL);
+    const kitchen = plan.rooms.find((r) => r.type === 'kitchen');
+    if (!kitchen) throw new Error('no kitchen');
+    const part = structureParts(doc, ground).find((p) => p.id === `${id}~r${String(kitchen.id)}`);
+    expect(part?.kind === 'room' && part.floor).toBe(ground.spec.palette.hardFloor);
+    expect(ground.spec.palette.hardFloor).not.toBe(ground.spec.palette.floor);
   });
 });
