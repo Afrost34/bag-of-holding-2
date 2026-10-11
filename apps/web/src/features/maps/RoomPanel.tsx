@@ -8,7 +8,7 @@ import type { TerrainRef } from '../../app/maps/terrain';
 import { type MapItem } from '../../app/maps/model';
 import { FURNISH_PRESETS } from '../../app/maps/scatterDoc';
 import { DOOR_KINDS, type DoorKind } from '../../app/maps/rooms';
-import { Section } from './PanelParts';
+import { Section, ShapePicker } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
 import { Slider, TerrainPicker } from './ShapePanel';
 import { WallStrips } from './WallStrips';
@@ -76,7 +76,7 @@ function DoorKinds({ value, onChange }: { value: DoorKind; onChange: (k: DoorKin
 
 /** The Room tool, and the Door tool: what a room is like, then draw it; generators. */
 export function RoomPanel(props: MapPanelsProps) {
-  const { tool, roomSet, setRoomSet, onGenerateDungeon, onGenerateCave } = props;
+  const { tool, roomSet, setRoomSet, onGenerateDungeon, onGenerateCave, draw, setDraw } = props;
   const [rooms, setRooms] = useState(7);
   const packEntries = usePacks((s) => s.entries);
   const caveWall = useMemo(() => defaultCaveWall(packEntries), [packEntries]);
@@ -122,9 +122,9 @@ export function RoomPanel(props: MapPanelsProps) {
           variant="ghost"
           title="Click the outline of a cave: rounded, with a cliff rim and an earthen floor from your packs"
           onClick={() => {
+            setDraw({ kind: 'free', sides: draw.sides });
             setRoomSet({
               ...roomSet,
-              shape: 'polygon',
               smooth: 0.8,
               wallStyle: 'cave',
               ...(caveWall ? { wallTexture: caveWall } : {}),
@@ -144,48 +144,21 @@ export function RoomPanel(props: MapPanelsProps) {
             setRoomSet({ ...roomSet, wall });
           }}
         />
-        <div role="radiogroup" aria-label="Room shape" className="grid grid-cols-2 gap-1">
-          {(
-            [
-              ['rect', 'Rectangle (drag)'],
-              ['polygon', 'Outline (click)'],
-            ] as const
-          ).map(([shape, label]) => (
-            <button
-              key={shape}
-              type="button"
-              role="radio"
-              aria-checked={roomSet.shape === shape}
-              onClick={() => {
-                setRoomSet({ ...roomSet, shape });
-              }}
-              className={cn(
-                'rounded-md border px-2 py-1.5 text-sm',
-                roomSet.shape === shape
-                  ? 'border-accent bg-accent-soft font-medium'
-                  : 'border-border text-muted hover:bg-sunken',
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        {roomSet.shape === 'polygon' && (
-          <Slider
-            label="Roundness"
-            value={roomSet.smooth}
-            min={0}
-            max={1}
-            step={0.05}
-            display={`${String(Math.round(roomSet.smooth * 100))}%`}
-            onChange={(smooth) => {
-              setRoomSet({ ...roomSet, smooth });
-            }}
-          />
-        )}
+        <ShapePicker draw={draw} setDraw={setDraw} />
+        <Slider
+          label="Roundness"
+          value={roomSet.smooth}
+          min={0}
+          max={1}
+          step={0.05}
+          display={`${String(Math.round(roomSet.smooth * 100))}%`}
+          onChange={(smooth) => {
+            setRoomSet({ ...roomSet, smooth });
+          }}
+        />
         <p className="text-xs text-muted">
-          Rooms that touch join up into one floor. Rectangles snap to the grid. Pick a room to drag
-          its corners; use the Door tool to cut doors.
+          Rooms that touch join up into one floor. Pick a room to drag its corners; use the Door
+          tool to cut doors.
         </p>
       </Section>
       <Section title="Generate">

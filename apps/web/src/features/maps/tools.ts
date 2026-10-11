@@ -270,9 +270,8 @@ export interface IslandRequest {
   seed: number;
 }
 
-/** The building tool: a rectangle or an outline, with a roof; or one placed from the library. */
+/** The building tool: a roof over a footprint; or one placed from the library. */
 export interface BuildingSettings {
-  shape: 'rect' | 'polygon';
   roof: RoofStyle;
   color: string;
   /** A roof texture of a pack; absent: the plain colour. */
@@ -283,7 +282,6 @@ export interface BuildingSettings {
 
 /** The room and door tools. */
 export interface RoomSettings {
-  shape: 'rect' | 'polygon';
   floor: TerrainRef;
   wallStyle: 'stone' | 'cave' | 'wood';
   /** Wall thickness in map pixels. */

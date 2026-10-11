@@ -1,4 +1,5 @@
 /** Scatter: presets, the pieces scattered, and the settings of a scatter you picked. */
+import { stampUnit } from '../../app/maps/units';
 import { Button, cn } from '@boh/ui';
 import { Dices, Layers, Trash2 } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
@@ -16,7 +17,7 @@ import { glyphRef, GLYPHS, isGlyphRef } from '../../app/maps/glyphs';
 import { displayName, parsePackRef } from '../../app/maps/packModel';
 import { type MapItem } from '../../app/maps/model';
 import { TERRAINS, type TerrainRef } from '../../app/maps/terrain';
-import { Section } from './PanelParts';
+import { Section, ShapePicker } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
 
 /** The settings both a new scatter (the tool) and a picked one share. */
@@ -351,13 +352,13 @@ function ScatterControls({
 }
 
 /** The panel of the Scatter tool: pick a preset, adjust it, then draw where it goes. */
-export function ScatterPanel({ scatter, setScatter, stamp, doc }: MapPanelsProps) {
+export function ScatterPanel({ scatter, setScatter, stamp, doc, draw, setDraw }: MapPanelsProps) {
   const drawn = useShowDrawn();
   const { entries } = usePacks();
   const packPresets = useMemo(() => availablePresets(entries), [entries]);
   const applyPackPreset = (p: PackPreset) => {
     const refs = presetRefs(entries, p);
-    const mix = mixSettings(refs, scatter, doc.grid.size);
+    const mix = mixSettings(refs, scatter, stampUnit(doc));
     setScatter({
       ...mix,
       preset: p.id,
@@ -454,6 +455,7 @@ export function ScatterPanel({ scatter, setScatter, stamp, doc }: MapPanelsProps
         />
         One piece per click (a random one each time)
       </label>
+      {scatter.mode === 'area' && !scatter.single && <ShapePicker draw={draw} setDraw={setDraw} />}
       <ScatterControls
         value={scatter}
         stamp={stamp}

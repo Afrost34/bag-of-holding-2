@@ -1,4 +1,5 @@
-import { generateDistrict, type DistrictGeo, type DistrictSpec } from './city';
+import { generateDistrict, type DistrictGeo, type DistrictSpec, type StreetLayout } from './city';
+import { metersPerPixel } from './units';
 import { generateIsland } from './islandgen';
 import { addItem, type MapDoc, type MapItem } from './model';
 import { centroid } from './polyclip';
@@ -20,6 +21,9 @@ export type RoofStyle = BuildingItem['roof'];
 export interface DistrictStyle {
   name: string;
   hint: string;
+  /** The streets run this way unless asked otherwise. */
+  layout: StreetLayout;
+  /** Real sizes: meters (the lot in square meters). */
   blockSize: number;
   streetWidth: number;
   lotArea: number;
@@ -38,10 +42,11 @@ export const DISTRICT_STYLES: Record<DistrictStyleId, DistrictStyle> = {
   town: {
     name: 'Town',
     hint: 'houses and shops',
-    blockSize: 130,
-    streetWidth: 14,
-    lotArea: 1500,
-    gap: 5,
+    layout: 'grid',
+    blockSize: 38,
+    streetWidth: 4.5,
+    lotArea: 190,
+    gap: 0.9,
     density: 0.95,
     jitter: 0.45,
     plaza: 0,
@@ -53,10 +58,11 @@ export const DISTRICT_STYLES: Record<DistrictStyleId, DistrictStyle> = {
   dense: {
     name: 'Crowded quarter',
     hint: 'small, packed, crooked',
-    blockSize: 100,
-    streetWidth: 10,
-    lotArea: 800,
-    gap: 3,
+    layout: 'organic',
+    blockSize: 28,
+    streetWidth: 3,
+    lotArea: 110,
+    gap: 0.5,
     density: 0.98,
     jitter: 0.7,
     plaza: 0,
@@ -68,10 +74,11 @@ export const DISTRICT_STYLES: Record<DistrictStyleId, DistrictStyle> = {
   noble: {
     name: 'Noble quarter',
     hint: 'big houses with gardens',
-    blockSize: 210,
-    streetWidth: 20,
-    lotArea: 3800,
-    gap: 22,
+    layout: 'grid',
+    blockSize: 62,
+    streetWidth: 7,
+    lotArea: 700,
+    gap: 6,
     density: 0.8,
     jitter: 0.25,
     plaza: 0,
@@ -83,10 +90,11 @@ export const DISTRICT_STYLES: Record<DistrictStyleId, DistrictStyle> = {
   market: {
     name: 'Market quarter',
     hint: 'an open square in the middle',
-    blockSize: 140,
-    streetWidth: 16,
-    lotArea: 1700,
-    gap: 5,
+    layout: 'radial',
+    blockSize: 42,
+    streetWidth: 6,
+    lotArea: 230,
+    gap: 1,
     density: 0.95,
     jitter: 0.4,
     plaza: 0.25,
@@ -98,10 +106,11 @@ export const DISTRICT_STYLES: Record<DistrictStyleId, DistrictStyle> = {
   ward: {
     name: 'Keep or temple ward',
     hint: 'large stone halls',
-    blockSize: 170,
-    streetWidth: 18,
-    lotArea: 2600,
-    gap: 8,
+    layout: 'grid',
+    blockSize: 52,
+    streetWidth: 6,
+    lotArea: 520,
+    gap: 3,
     density: 0.9,
     jitter: 0.15,
     plaza: 0,
@@ -124,6 +133,8 @@ export interface DistrictSettings {
   style: DistrictStyleId;
   /** Multiplies streets and lots: the same style for a village or a capital. */
   scale: number;
+  layout: StreetLayout;
+  /** Meters (the lot: square meters): the map's scale turns them into pixels. */
   blockSize: number;
   streetWidth: number;
   lotArea: number;
@@ -141,6 +152,7 @@ export const settingsFromStyle = (style: DistrictStyleId, scale = 1): DistrictSe
   return {
     style,
     scale,
+    layout: s.layout,
     blockSize: s.blockSize,
     streetWidth: s.streetWidth,
     lotArea: s.lotArea,
@@ -156,13 +168,17 @@ export const settingsFromStyle = (style: DistrictStyleId, scale = 1): DistrictSe
 
 export const DEFAULT_DISTRICT: DistrictSettings = settingsFromStyle('town');
 
-/** A district item from settings and its outline. */
+/**
+ * A district item from settings and its outline. `pxPerMeter` turns the real sizes of the
+ * settings into the map's pixels (see `units.ts`).
+ */
 export function makeDistrict(
   id: string,
   s: DistrictSettings,
   points: number[],
   seed: number,
   smooth = 0.25,
+  pxPerMeter = 1,
 ): DistrictItem {
   return {
     kind: 'district',
@@ -171,10 +187,11 @@ export function makeDistrict(
     smooth,
     seed,
     style: s.style,
-    blockSize: Math.round(s.blockSize * s.scale),
-    streetWidth: Math.round(s.streetWidth * s.scale),
-    lotArea: Math.round(s.lotArea * s.scale * s.scale),
-    gap: Math.round(s.gap * s.scale),
+    ...(s.layout !== 'grid' ? { layout: s.layout } : {}),
+    blockSize: Math.round(s.blockSize * s.scale * pxPerMeter),
+    streetWidth: Math.round(s.streetWidth * s.scale * pxPerMeter * 10) / 10,
+    lotArea: Math.round(s.lotArea * s.scale * s.scale * pxPerMeter * pxPerMeter),
+    gap: Math.round(s.gap * s.scale * pxPerMeter * 10) / 10,
     density: s.density,
     jitter: s.jitter,
     angle: s.angle,
@@ -204,6 +221,7 @@ export function districtSetup(
       jitter: item.jitter,
       angle: item.angle,
       plaza: item.plaza,
+      layout: item.layout ?? 'grid',
       maxBuildings: 5000,
     },
     rules: placementRules(doc, { avoid: item.avoid }),
@@ -367,12 +385,14 @@ export function generateTown(
     ruggedness: 0.25,
     elongation: 0.1,
   });
+  const ppm = 1 / metersPerPixel(doc);
   const outer = makeDistrict(
     id(),
     { ...settingsFromStyle('town', scale), wall: true, plaza: 0.5 },
     outline,
     seed,
     0.5,
+    ppm,
   );
   const inner = makeDistrict(
     id(),
@@ -387,6 +407,7 @@ export function generateTown(
     }),
     seed + 2,
     0.5,
+    ppm,
   );
   return [outer, inner];
 }

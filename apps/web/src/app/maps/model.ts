@@ -6,6 +6,7 @@ import type { PathEnd } from './pathEnds';
 import type { Door } from './rooms';
 import type { TerrainRef } from './terrain';
 import type { MapScale, TravelSpeed } from './travel';
+import { FEET, isStandardCell } from './units';
 
 /**
  * Maps: battle, city and world maps made in the app (prep only: no live play).
@@ -184,6 +185,8 @@ type MapItemBody =
       smooth: number;
       seed: number;
       style: 'town' | 'dense' | 'noble' | 'market' | 'ward';
+      /** How the streets run (a plain grid when absent). */
+      layout?: 'grid' | 'radial' | 'organic' | 'linear';
       blockSize: number;
       streetWidth: number;
       lotArea: number;
@@ -445,6 +448,8 @@ export interface MapDoc {
   tags?: string[];
   /** Its real size (a world or region map): measures say how far and how long. */
   scale?: MapScale;
+  /** Every stamp is placed this many times its true size by default (absent: ×1). */
+  stampScale?: number;
   /** How fast a party goes on this map, for the measure; on foot when absent. */
   travel?: TravelSpeed[];
   /** The campaign it belongs to; absent outside campaigns. Not stored: it is where the file is. */
@@ -539,11 +544,16 @@ export const MAX_SQUARES = 200;
 export const sizeInSquares = (n: number): number =>
   Math.round(Math.min(MAX_SQUARES, Math.max(1, n))) * DEFAULT_GRID.size;
 
+/**
+ * A new blank map `squares` across and down; `cell` is how many meters a square stands for (the
+ * packs' 5 feet when absent: a battle map). A larger cell gives the map a real scale.
+ */
 export function newMap(
   name: string,
   existingIds: readonly string[],
   now: string,
   squares?: { w: number; h: number },
+  cell?: number,
 ): MapDoc {
   const ids: string[] = [];
   const layer = (n: string): Layer => {
@@ -559,7 +569,10 @@ export function newMap(
     updatedAt: now,
     width: sizeInSquares(squares?.w ?? 40),
     height: sizeInSquares(squares?.h ?? 30),
-    grid: { ...DEFAULT_GRID },
+    grid: { ...DEFAULT_GRID, ...(cell && !isStandardCell(cell) ? { feet: cell / FEET } : {}) },
+    ...(cell && !isStandardCell(cell)
+      ? { scale: { unit: 'km' as const, perPixel: cell / 1000 / DEFAULT_GRID.size } }
+      : {}),
     layers: [layer('Ground'), layer('Objects'), layer('Walls and notes')],
   };
 }
@@ -850,6 +863,9 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
     ...(Array.isArray(json.tags)
       ? { tags: json.tags.filter((t): t is string => typeof t === 'string' && t.trim() !== '') }
       : {}),
+    ...(num(json.stampScale, 1) > 0 && num(json.stampScale, 1) !== 1
+      ? { stampScale: num(json.stampScale, 1) }
+      : {}),
     ...(isObj(json.scale) &&
     (json.scale.unit === 'km' || json.scale.unit === 'mi') &&
     num(json.scale.perPixel, 0) > 0
@@ -968,6 +984,7 @@ export function artHash(doc: MapDoc): string {
     doc.frame ?? '',
     doc.hideRoofs ?? false,
     doc.sun ?? null,
+    doc.stampScale ?? 1,
     doc.layers.map((l) => [l.id, l.visible, l.picture ?? null, l.items.filter(isArt)]),
     (doc.variants ?? []).map((v) => [v.id, v.layers]),
   ]);

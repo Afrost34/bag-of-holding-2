@@ -3,6 +3,7 @@ import { Button } from '@boh/ui';
 import { FlipHorizontal2, FlipVertical2, Ruler, Trash2 } from 'lucide-react';
 import { useMemo } from 'react';
 import { orderItem } from '../../app/maps/arrange';
+import { metersPerPixel } from '../../app/maps/units';
 import { useJournal } from '../../app/journal/store';
 import {
   moveItemToLayer,
@@ -167,12 +168,13 @@ export function ItemSettings({
           item={item}
           set={set}
           commit={commit}
+          mpp={metersPerPixel(doc)}
           onCutHole={() => {
             onCutHole(item.id);
           }}
         />
       )}
-      {item.kind === 'building' && <BuildingItemSettings item={item} set={set} />}
+      {item.kind === 'building' &&<BuildingItemSettings item={item} set={set} />}
       {item.kind === 'room' && (
         <RoomItemSettings
           item={item}

@@ -8,7 +8,7 @@ import { PATH_STYLES, type PathStyle } from '../../app/maps/shapes';
 import { useShowDrawn } from '../../app/maps/artPrefs';
 import type { CategoryId } from '../../app/maps/packCategories';
 import { TERRAINS, type TerrainRef } from '../../app/maps/terrain';
-import { Section } from './PanelParts';
+import { Section, ShapePicker } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
 import { PackTextures } from './PackTextures';
 import { PathTextures } from './PathTextures';
@@ -211,7 +211,7 @@ function IslandGenerator({ onGenerate }: Pick<MapPanelsProps, 'onGenerate'>) {
 
 /** The panel of the terrain shape tool and of the road and river tool. */
 export function ShapePanel(props: MapPanelsProps) {
-  const { tool, area, setArea, pathSet, setPathSet, onGenerate, onFillMap } = props;
+  const { tool, area, setArea, pathSet, setPathSet, onGenerate, onFillMap, draw, setDraw } = props;
   if (tool === 'path')
     return (
       <Section title="Road or river">
@@ -293,6 +293,7 @@ export function ShapePanel(props: MapPanelsProps) {
   return (
     <>
       <Section title="Terrain shape">
+        <ShapePicker draw={draw} setDraw={setDraw} />
         <TerrainPicker
           value={area.texture}
           onPick={(texture) => {

@@ -15,7 +15,8 @@ import {
 } from '../../app/maps/cityDoc';
 import { type MapItem } from '../../app/maps/model';
 import { AssetGrid } from './AssetGrid';
-import { Section } from './PanelParts';
+import type { StreetLayout } from '../../app/maps/city';
+import { Section, ShapePicker } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
 
 const ROOF_COLORS = ['#b5543a', '#c9a15a', '#8a6a4a', '#5f6b7a', '#6a6a6a', '#3f6f7a', '#7a8a4a'];
@@ -59,7 +60,10 @@ const percent = (v: number) => `${String(Math.round(v * 100))}%`;
 
 /** The numbers a district is made from, shared by the tool and a picked district. */
 interface DistrictControlsValue {
+  layout: StreetLayout;
+  /** Meters. */
   blockSize: number;
+  /** Meters. */
   streetWidth: number;
   density: number;
   jitter: number;
@@ -78,22 +82,30 @@ function DistrictControls({
 }) {
   return (
     <>
+      <LayoutCards
+        value={value.layout}
+        onPick={(layout) => {
+          onChange({ layout });
+        }}
+      />
       <Slider
         label="Distance between streets"
-        value={value.blockSize}
-        min={40}
-        max={500}
-        step={5}
+        value={Math.round(value.blockSize * 10) / 10}
+        min={10}
+        max={200}
+        step={1}
+        display={`${String(Math.round(value.blockSize))} m`}
         onChange={(blockSize) => {
           onChange({ blockSize });
         }}
       />
       <Slider
         label="Street width"
-        value={value.streetWidth}
-        min={4}
-        max={60}
-        step={1}
+        value={Math.round(value.streetWidth * 10) / 10}
+        min={1}
+        max={25}
+        step={0.5}
+        display={`${String(Math.round(value.streetWidth * 10) / 10)} m`}
         onChange={(streetWidth) => {
           onChange({ streetWidth });
         }}
@@ -167,6 +179,47 @@ function DistrictControls({
   );
 }
 
+const LAYOUTS: { id: StreetLayout; name: string; hint: string }[] = [
+  { id: 'grid', name: 'Grid', hint: 'streets at right angles' },
+  { id: 'radial', name: 'Rings and spokes', hint: 'round a hub' },
+  { id: 'organic', name: 'Winding', hint: 'irregular blocks' },
+  { id: 'linear', name: 'Main street', hint: 'long blocks, side by side' },
+];
+
+/** How the streets run: the four layouts the generator can make. */
+function LayoutCards({
+  value,
+  onPick,
+}: {
+  value: StreetLayout;
+  onPick: (layout: StreetLayout) => void;
+}) {
+  return (
+    <div role="radiogroup" aria-label="Street layout" className="grid grid-cols-2 gap-1">
+      {LAYOUTS.map((l) => (
+        <button
+          key={l.id}
+          type="button"
+          role="radio"
+          aria-checked={value === l.id}
+          onClick={() => {
+            onPick(l.id);
+          }}
+          className={cn(
+            'rounded-md border px-2 py-1.5 text-left text-sm',
+            value === l.id
+              ? 'border-accent bg-accent-soft font-medium'
+              : 'border-border text-muted hover:bg-sunken',
+          )}
+        >
+          {l.name}
+          <span className="block text-[11px] font-normal text-muted">{l.hint}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function StyleCards({
   value,
   onPick,
@@ -203,9 +256,16 @@ function StyleCards({
 }
 
 /** The District tool: pick a style, then draw the outline; or make a whole walled town. */
-export function DistrictPanel({ district, setDistrict, onGenerateTown }: MapPanelsProps) {
+export function DistrictPanel({
+  district,
+  setDistrict,
+  onGenerateTown,
+  draw,
+  setDraw,
+}: MapPanelsProps) {
   return (
     <Section title="District">
+      <ShapePicker draw={draw} setDraw={setDraw} />
       <StyleCards
         value={district.style}
         onPick={(style) => {
@@ -326,39 +386,14 @@ function RoofPicker({
 }
 
 /** The Building tool: a rectangle by dragging, an outline by clicking, or one from the library. */
-export function BuildingPanel({ buildingSet, setBuildingSet }: MapPanelsProps) {
+export function BuildingPanel({ buildingSet, setBuildingSet, draw, setDraw }: MapPanelsProps) {
   const { entries, loaded, load, remove } = useBuildings();
   useEffect(() => {
     if (!loaded) void load();
   }, [loaded, load]);
   return (
     <Section title="Building">
-      <div role="radiogroup" aria-label="Building shape" className="grid grid-cols-2 gap-1">
-        {(
-          [
-            ['rect', 'Rectangle (drag)'],
-            ['polygon', 'Outline (click)'],
-          ] as const
-        ).map(([shape, label]) => (
-          <button
-            key={shape}
-            type="button"
-            role="radio"
-            aria-checked={buildingSet.libraryId === null && buildingSet.shape === shape}
-            onClick={() => {
-              setBuildingSet({ ...buildingSet, shape, libraryId: null });
-            }}
-            className={cn(
-              'rounded-md border px-2 py-1.5 text-sm',
-              buildingSet.libraryId === null && buildingSet.shape === shape
-                ? 'border-accent bg-accent-soft font-medium'
-                : 'border-border text-muted hover:bg-sunken',
-            )}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {buildingSet.libraryId === null && <ShapePicker draw={draw} setDraw={setDraw} />}
       <RoofPicker
         roof={buildingSet.roof}
         color={buildingSet.color}
@@ -374,9 +409,9 @@ export function BuildingPanel({ buildingSet, setBuildingSet }: MapPanelsProps) {
       <p className="text-xs text-muted">
         {buildingSet.libraryId
           ? 'Click on the map to place the saved building.'
-          : buildingSet.shape === 'rect'
-            ? 'Drag a rectangle. Pick it later and press R to turn it.'
-            : 'Click the corners; double-click or Enter finishes, Escape cancels.'}
+          : draw.kind === 'free'
+            ? 'Click the corners; double-click or Enter finishes, Escape cancels.'
+            : 'Drag it out. Pick it later and press R to turn it.'}
       </p>
       {entries.length > 0 && (
         <ul aria-label="Saved buildings" className="space-y-1">
@@ -424,15 +459,32 @@ export function DistrictItemSettings({
   set,
   commit,
   onCutHole,
+  mpp,
 }: {
   item: DistrictItem;
+  /** Meters one pixel of the map covers: the item keeps pixels, the sliders show meters. */
+  mpp: number;
   set: (change: (i: MapItem) => MapItem) => void;
   commit: MapPanelsProps['commit'];
   /** Draw an area to cut out of this district. */
   onCutHole: () => void;
 }) {
   const change = (patch: Partial<DistrictControlsValue>) => {
-    set((i) => (i.kind === 'district' ? { ...i, ...patch } : i));
+    const { blockSize, streetWidth, layout, ...rest } = patch;
+    set((i) => {
+      if (i.kind !== 'district') return i;
+      const { layout: _l, ...base } = i;
+      const chosen = layout ?? i.layout ?? 'grid';
+      return {
+        ...base,
+        ...rest,
+        ...(chosen !== 'grid' ? { layout: chosen } : {}),
+        ...(blockSize !== undefined ? { blockSize: Math.round(blockSize / mpp) } : {}),
+        ...(streetWidth !== undefined
+          ? { streetWidth: Math.round((streetWidth / mpp) * 10) / 10 }
+          : {}),
+      };
+    });
   };
   return (
     <>
@@ -442,7 +494,15 @@ export function DistrictItemSettings({
           set((i) => (i.kind === 'district' ? { ...i, style } : i));
         }}
       />
-      <DistrictControls value={item} onChange={change} />
+      <DistrictControls
+        value={{
+          ...item,
+          layout: item.layout ?? 'grid',
+          blockSize: item.blockSize * mpp,
+          streetWidth: item.streetWidth * mpp,
+        }}
+        onChange={change}
+      />
       {(item.removed?.length ?? 0) > 0 && (
         <p className="text-xs text-muted">
           {item.removed?.length} building{item.removed?.length === 1 ? '' : 's'} erased.{' '}

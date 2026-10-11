@@ -36,7 +36,6 @@ import {
   generateTown,
   makeBuilding,
   makeDistrict,
-  rectangleFootprint,
   rotatePoints,
   type DistrictSettings,
 } from '../../app/maps/cityDoc';
@@ -72,6 +71,8 @@ import { bakeMap } from '../../app/maps/render';
 import { PATH_STYLES } from '../../app/maps/shapes';
 import { nearestOnPolyline, splinePoints } from '../../app/maps/spline';
 import { TERRAINS } from '../../app/maps/terrain';
+import { metersPerPixel, metersToPx, stampUnit } from '../../app/maps/units';
+import { dragBox, FREE_SHAPE, presetOutline, type ShapeChoice } from '../../app/maps/outline';
 import { snapToCell, snapToCorner, templateOutline, type Point } from '../../app/maps/geometry';
 import {
   addFog,
@@ -239,9 +240,20 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   });
   const [fog, setFog] = useState<FogSettings>({ mode: 'hide', shape: 'rect' });
   const [scatter, setScatter] = useState<ScatterSettings>(DEFAULT_SCATTER);
+  /** How each area tool draws: clicked corners, or dragged out as a rectangle, circle… (kept per tool). */
+  const [draws, setDraws] = useState<Partial<Record<Tool, ShapeChoice>>>({
+    room: { kind: 'rect', sides: 6 },
+    building: { kind: 'rect', sides: 6 },
+  });
+  const draw: ShapeChoice = draws[tool] ?? FREE_SHAPE;
+  const setDraw = (c: ShapeChoice) => {
+    setDraws((all) => ({ ...all, [tool]: c }));
+  };
+  /** Whether a press with this tool begins dragging out a preset shape. */
+  const dragsShape = (t: Tool) =>
+    (draws[t]?.kind ?? FREE_SHAPE.kind) !== 'free' && (t !== 'scatter' || scatter.mode === 'area');
   const [district, setDistrict] = useState<DistrictSettings>(DEFAULT_DISTRICT);
   const [buildingSet, setBuildingSet] = useState<BuildingSettings>({
-    shape: 'rect',
     roof: 'tiles',
     color: '#b5543a',
     libraryId: null,
@@ -249,7 +261,6 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   // Until a room style is chosen it is the packs' cobblestone floor and stone wall strip.
   const [roomPicked, setRoomPicked] = useState(false);
   const [roomState, setRoomState] = useState<RoomSettings>({
-    shape: 'rect',
     floor: 'stone',
     wallStyle: 'stone',
     wall: 12,
@@ -642,6 +653,10 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   };
 
   const finishWall = () => {
+    finishFrom(wall);
+  };
+  /** Ends the outline being drawn (clicked corners, or a preset shape's) with the current tool. */
+  const finishFrom = (wall: number[] | null) => {
     if (wall && tool === 'fog') {
       if (wall.length >= 6) commit((d) => addFog(d, wall, fog.mode === 'reveal'));
       setWall(null);
@@ -714,7 +729,18 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       if (points.length >= 6 && layer) {
         const id = itemId(doc);
         commit((d) =>
-          add(d, layer.id, makeDistrict(id, district, points, Math.floor(Math.random() * 1e9))),
+          add(
+            d,
+            layer.id,
+            makeDistrict(
+              id,
+              district,
+              points,
+              Math.floor(Math.random() * 1e9),
+              0.25,
+              1 / metersPerPixel(d),
+            ),
+          ),
         );
         setSelected(id);
       }
@@ -900,7 +926,11 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     const el = host.current;
     if (!scene || !el || !layer || layer.locked) return;
     const c = scene.toMap(el.clientWidth / 2, el.clientHeight / 2);
-    const radius = Math.min(doc.width, doc.height) * 0.22 * district.scale;
+    // A town of about 300 m across (the map's own size if it is smaller): real, whatever the map.
+    const radius = Math.min(
+      metersToPx(doc, 150) * district.scale,
+      Math.min(doc.width, doc.height) * 0.4,
+    );
     const seed = Math.floor(Math.random() * 1e9);
     const first = itemId(doc);
     commit((d) =>
@@ -930,7 +960,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   /** The Scatter tool takes a set of pack pictures as its mix (trees, rocks, a whole folder). */
   const scatterWithPictures = (refs: string[]) => {
     if (refs.length === 0) return;
-    setScatter(mixSettings(refs, scatter, doc.grid.size));
+    setScatter(mixSettings(refs, scatter, stampUnit(doc)));
     setTool('scatter');
     setPanelOpen(true);
   };
@@ -1091,9 +1121,10 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       }
       case 'stamp': {
         if (!stamp || !canDraw) return;
-        const size = grid.size;
+        // True to the map's scale: one square of the pack's art is `size` pixels here.
+        const size = stampUnit(doc);
         // A door or a window of a pack goes onto the nearest wall, turned along it.
-        const onWall = isPortalPicture(stamp) ? portalOnWalls(doc, p, size * 0.75) : null;
+        const onWall = isPortalPicture(stamp) ? portalOnWalls(doc, p, grid.size * 0.75) : null;
         const at = onWall ?? snapCell(p);
         place({
           kind: 'stamp',
@@ -1205,7 +1236,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       }
       case 'room':
         if (!canDraw) return;
-        if (roomSet.shape === 'rect') drag.current = { mode: 'room', ...base, start: snapPoint(p) };
+        if (dragsShape('room')) drag.current = { mode: 'preset', ...base, start: snapPoint(p) };
         else setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey, e.altKey)]);
         return;
       case 'door': {
@@ -1220,8 +1251,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             stamp,
             x: onWall.x,
             y: onWall.y,
-            w: stampSquares ? stampSquares.w * grid.size : grid.size,
-            h: stampSquares ? stampSquares.h * grid.size : grid.size,
+            w: (stampSquares ? stampSquares.w : 1) * stampUnit(doc),
+            h: (stampSquares ? stampSquares.h : 1) * stampUnit(doc),
             rotation: Math.round((onWall.angle * 180) / Math.PI),
           });
           return;
@@ -1269,7 +1300,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           place(makeBuilding(id, placeFootprint(entry, p), entry.roof, entry.color, entry.name));
           return;
         }
-        if (buildingSet.shape === 'rect') drag.current = { mode: 'building', ...base };
+        if (dragsShape('building')) drag.current = { mode: 'preset', ...base, start: snapPoint(p) };
         else setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey, e.altKey)]);
         return;
       }
@@ -1284,13 +1315,16 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           });
           return;
         }
-        if (canDraw) setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey, e.altKey)]);
+        if (canDraw && dragsShape('scatter'))
+          drag.current = { mode: 'preset', ...base, start: snapPoint(p) };
+        else if (canDraw) setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey, e.altKey)]);
         return;
       case 'area':
       case 'path':
       case 'district':
-        // Organic outlines: the points are where they are clicked, not on the grid.
-        if (canDraw) setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey, e.altKey)]);
+        if (canDraw && dragsShape(tool))
+          drag.current = { mode: 'preset', ...base, start: snapPoint(p) };
+        else if (canDraw) setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey, e.altKey)]);
         return;
       case 'fog':
         if (fog.shape === 'polygon') setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey, e.altKey)]);
@@ -1317,8 +1351,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       scene.hideGhost();
       return;
     }
-    const size = grid.size;
-    const onWall = isPortalPicture(stamp) ? portalOnWalls(doc, p, size * 0.75) : null;
+    const size = stampUnit(doc);
+    const onWall = isPortalPicture(stamp) ? portalOnWalls(doc, p, grid.size * 0.75) : null;
     const at = onWall ?? snapCell(p);
     const w =
       (stampSquares ? stampSquares.w * size : stampAspect >= 1 ? size * stampAspect : size) *
@@ -1523,34 +1557,22 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         d.last = p;
         return;
       }
-      case 'room': {
-        const end = snapPoint(p);
+      case 'preset': {
+        const outline = presetOutline(
+          draw,
+          dragBox(d.start, snapPoint(p), e.shiftKey, e.altKey),
+          1,
+        );
         scene.drawPreview((g) => {
-          g.rect(
-            Math.min(d.start.x, end.x),
-            Math.min(d.start.y, end.y),
-            Math.abs(end.x - d.start.x),
-            Math.abs(end.y - d.start.y),
-          )
-            .fill({ color: 0x9a958d, alpha: 0.4 })
-            .stroke({ color: 0x3b82f6, width: 2 / scene.zoom });
+          if (outline) {
+            g.poly(outline)
+              .fill({ color: 0x3b82f6, alpha: 0.18 })
+              .stroke({ color: 0x3b82f6, width: 2 / scene.zoom });
+          }
         });
         d.last = p;
         return;
       }
-      case 'building':
-        scene.drawPreview((g) => {
-          g.rect(
-            Math.min(d.start.x, p.x),
-            Math.min(d.start.y, p.y),
-            Math.abs(p.x - d.start.x),
-            Math.abs(p.y - d.start.y),
-          )
-            .fill({ color: 0xb5543a, alpha: 0.3 })
-            .stroke({ color: 0x3b82f6, width: 2 / scene.zoom });
-        });
-        d.last = p;
-        return;
       case 'vertex': {
         const item = selectedItem;
         if (!d.points || d.index === undefined || !isPointItem(item)) return;
@@ -1709,47 +1731,10 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         );
         return;
       }
-      case 'room': {
+      case 'preset': {
         scene.clearPreview();
-        const end = snapPoint(p);
-        const x0 = Math.min(d.start.x, end.x);
-        const y0 = Math.min(d.start.y, end.y);
-        const w = Math.abs(end.x - d.start.x);
-        const h = Math.abs(end.y - d.start.y);
-        if (w < 8 || h < 8 || !layer) return;
-        const id = itemId(doc);
-        place({
-          kind: 'room',
-          id,
-          points: [x0, y0, x0 + w, y0, x0 + w, y0 + h, x0, y0 + h].map(Math.round),
-          smooth: 0,
-          floor: roomSet.floor,
-          wall: roomSet.wall,
-          wallStyle: roomSet.wallStyle,
-          ...(roomSet.wallTexture ? { wallTexture: roomSet.wallTexture } : {}),
-        });
-        return;
-      }
-      case 'building': {
-        scene.clearPreview();
-        const w = Math.abs(p.x - d.start.x);
-        const h = Math.abs(p.y - d.start.y);
-        if (w < 6 || h < 6 || !layer) return;
-        const id = itemId(doc);
-        place({
-          ...makeBuilding(
-            id,
-            rectangleFootprint(
-              Math.round((p.x + d.start.x) / 2),
-              Math.round((p.y + d.start.y) / 2),
-              Math.round(w),
-              Math.round(h),
-            ),
-            buildingSet.roof,
-            buildingSet.color,
-          ),
-          ...(buildingSet.roofTexture ? { roofTexture: buildingSet.roofTexture } : {}),
-        });
+        const outline = presetOutline(draw, dragBox(d.start, snapPoint(p), e.shiftKey, e.altKey));
+        if (outline && layer) finishFrom(outline.map(Math.round));
         return;
       }
       case 'vertex': {
@@ -2474,6 +2459,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             onFillMap={fillMap}
             snap={snap}
             setSnap={setSnap}
+            draw={draw}
+            setDraw={setDraw}
           />
         )}
       </div>

@@ -32,7 +32,15 @@ export interface DistrictSpec {
   plaza: number;
   /** Most buildings made. */
   maxBuildings: number;
+  /** How the streets run (a plain grid when absent). */
+  layout?: StreetLayout;
 }
+
+/**
+ * How the streets run: a grid, rings and spokes round a hub, winding streets between irregular
+ * blocks, or long blocks along a main street.
+ */
+export type StreetLayout = 'grid' | 'radial' | 'organic' | 'linear';
 
 export interface GeneratedBuilding {
   /** Stable while the streets stay: `column,row,lot`. */
@@ -91,24 +99,47 @@ function subdivide(lot: number[], maxArea: number, seedA: number, seedB: number)
   return out;
 }
 
-export function generateDistrict(
-  spec: DistrictSpec,
-  obstacles: Obstacles,
-  allowed: (x: number, y: number) => boolean = () => true,
-): DistrictGeo {
-  const geo: DistrictGeo = { blocks: [], buildings: [] };
-  if (spec.outline.length < 6 || spec.blockSize < 12) return geo;
+/** One block before the streets are cut from it: a convex outline and where it is in the layout. */
+interface Cell {
+  poly: number[];
+  k: number;
+  m: number;
+}
+
+/** A polygon cut by the half plane `nx·x + ny·y <= d` (a Voronoi cell is cut by the lines half way to its neighbours). */
+function clipHalfPlane(poly: readonly number[], nx: number, ny: number, d: number): number[] {
+  const out: number[] = [];
+  const n = poly.length / 2;
+  for (let i = 0; i < n; i++) {
+    const ax = poly[i * 2] ?? 0;
+    const ay = poly[i * 2 + 1] ?? 0;
+    const bx = poly[((i + 1) % n) * 2] ?? 0;
+    const by = poly[((i + 1) % n) * 2 + 1] ?? 0;
+    const da = nx * ax + ny * ay - d;
+    const db = nx * bx + ny * by - d;
+    if (da <= 0) out.push(ax, ay);
+    if (da <= 0 !== db <= 0) {
+      const t = da / (da - db);
+      out.push(ax + (bx - ax) * t, ay + (by - ay) * t);
+    }
+  }
+  return out;
+}
+
+/** Blocks of a grid, a little crooked with `jitter`; `along` makes them that many times longer along the streets. */
+function gridCells(spec: DistrictSpec, box: ReturnType<typeof bounds>, along: number): Cell[] {
   const theta = (spec.angle * Math.PI) / 180;
   const cos = Math.cos(theta);
   const sin = Math.sin(theta);
-  const size = spec.blockSize;
+  const sizeU = spec.blockSize * along;
+  const sizeV = spec.blockSize;
   const seed = spec.seed | 0;
   // Grid space → map, with each grid corner nudged a little so streets are not ruler-straight.
   const corner = (k: number, m: number): [number, number] => {
-    const u = k * size + (hash01(seed, k, 0, 1) - 0.5) * size * 0.3 * spec.jitter;
-    const v = m * size + (hash01(seed, m, 0, 2) - 0.5) * size * 0.3 * spec.jitter;
-    const du = (hash01(seed, k, m, 3) - 0.5) * size * 0.2 * spec.jitter;
-    const dv = (hash01(seed, k, m, 4) - 0.5) * size * 0.2 * spec.jitter;
+    const u = k * sizeU + (hash01(seed, k, 0, 1) - 0.5) * sizeU * 0.3 * spec.jitter;
+    const v = m * sizeV + (hash01(seed, m, 0, 2) - 0.5) * sizeV * 0.3 * spec.jitter;
+    const du = (hash01(seed, k, m, 3) - 0.5) * sizeU * 0.2 * spec.jitter;
+    const dv = (hash01(seed, k, m, 4) - 0.5) * sizeV * 0.2 * spec.jitter;
     return [(u + du) * cos - (v + dv) * sin, (u + du) * sin + (v + dv) * cos];
   };
   // Which grid cells the outline can touch.
@@ -121,52 +152,153 @@ export function generateDistrict(
     const y = spec.outline[i + 1] ?? 0;
     const u = x * cos + y * sin;
     const v = -x * sin + y * cos;
-    kMin = Math.min(kMin, u / size);
-    kMax = Math.max(kMax, u / size);
-    mMin = Math.min(mMin, v / size);
-    mMax = Math.max(mMax, v / size);
+    kMin = Math.min(kMin, u / sizeU);
+    kMax = Math.max(kMax, u / sizeU);
+    mMin = Math.min(mMin, v / sizeV);
+    mMax = Math.max(mMax, v / sizeV);
   }
   const k0 = Math.floor(kMin) - 1;
   const k1 = Math.ceil(kMax) + 1;
   const m0 = Math.floor(mMin) - 1;
   const m1 = Math.ceil(mMax) + 1;
-  if ((k1 - k0) * (m1 - m0) > 5000) return geo;
-  const box = bounds(spec.outline);
-  const middle = centroid(spec.outline);
-  const radius = Math.sqrt(areaOf(spec.outline) / Math.PI);
-  if (spec.plaza > 0) geo.plaza = { x: middle.x, y: middle.y, r: radius * spec.plaza };
-  const minLot = spec.lotArea * 0.15;
-
+  if ((k1 - k0) * (m1 - m0) > 5000) return [];
+  const cells: Cell[] = [];
   for (let k = k0; k < k1; k++)
     for (let m = m0; m < m1; m++) {
-      const cell = [
+      const poly = [
         ...corner(k, m),
         ...corner(k + 1, m),
         ...corner(k + 1, m + 1),
         ...corner(k, m + 1),
       ];
-      const cb = bounds(cell);
+      const cb = bounds(poly);
       if (cb.x1 < box.x0 || cb.x0 > box.x1 || cb.y1 < box.y0 || cb.y0 > box.y1) continue;
-      const part = clipToConvex(spec.outline, cell);
-      if (part.length < 6 || areaOf(part) < size * size * 0.05) continue;
-      const lot = insetPolygon(part, spec.streetWidth / 2);
-      if (!lot) continue;
-      geo.blocks.push(lot);
-      const lots = subdivide(lot, spec.lotArea, k, m);
-      for (let n = 0; n < lots.length; n++) {
-        if (geo.buildings.length >= spec.maxBuildings) break;
-        const piece = lots[n];
-        if (!piece) continue;
-        const key = `${String(k)},${String(m)},${String(n)}`;
-        if (hash01(seed, k, m, 100 + n) > spec.density) continue;
-        const house = insetPolygon(piece, spec.gap / 2);
-        if (!house || areaOf(house) < minLot) continue;
-        const c = centroid(house);
-        if (geo.plaza && Math.hypot(c.x - geo.plaza.x, c.y - geo.plaza.y) < geo.plaza.r) continue;
-        if (!pointInPolygon(c, spec.outline)) continue;
-        if (blocked(c.x, c.y, obstacles, 0) || !allowed(c.x, c.y)) continue;
-        geo.buildings.push({ key, poly: house, tone: hash01(seed, k, m, 200 + n) });
-      }
+      cells.push({ poly, k, m });
     }
+  return cells;
+}
+
+/** Rings round the middle of the outline cut into blocks by spokes: a hub with streets running out. */
+function radialCells(spec: DistrictSpec, box: ReturnType<typeof bounds>): Cell[] {
+  const c = centroid(spec.outline);
+  const size = spec.blockSize;
+  const seed = spec.seed | 0;
+  const theta = (spec.angle * Math.PI) / 180;
+  let far = 0;
+  for (let i = 0; i + 1 < spec.outline.length; i += 2)
+    far = Math.max(far, Math.hypot((spec.outline[i] ?? 0) - c.x, (spec.outline[i + 1] ?? 0) - c.y));
+  const rings = Math.ceil(far / size) + 1;
+  if (rings > 60) return [];
+  const at = (r: number, a: number): [number, number] => [
+    c.x + r * Math.cos(a),
+    c.y + r * Math.sin(a),
+  ];
+  const cells: Cell[] = [];
+  for (let i = 0; i < rings; i++) {
+    const r0 = size * (0.5 + i);
+    const r1 = r0 + size;
+    // Wider rings get more spokes, so blocks stay about as wide as they are deep.
+    const n = Math.max(6, 2 * Math.round((Math.PI * (r0 + r1)) / (size * 2.6)));
+    for (let j = 0; j < n; j++) {
+      const wobble = (hash01(seed, i, j, 11) - 0.5) * 0.25 * spec.jitter;
+      const a0 = theta + ((j + wobble) * 2 * Math.PI) / n;
+      const a1 = theta + ((j + 1 + wobble) * 2 * Math.PI) / n;
+      const r0j = r0 + (hash01(seed, i, j, 12) - 0.5) * size * 0.2 * spec.jitter;
+      const r1j = r1 + (hash01(seed, i, j, 13) - 0.5) * size * 0.2 * spec.jitter;
+      const poly = [...at(r0j, a0), ...at(r1j, a0), ...at(r1j, a1), ...at(r0j, a1)];
+      const cb = bounds(poly);
+      if (cb.x1 < box.x0 || cb.x0 > box.x1 || cb.y1 < box.y0 || cb.y0 > box.y1) continue;
+      cells.push({ poly, k: i, m: j });
+    }
+  }
+  return cells;
+}
+
+/** Irregular blocks: the cells nearest each of a loose scatter of points, as in a grown-up old town. */
+function organicCells(spec: DistrictSpec, box: ReturnType<typeof bounds>): Cell[] {
+  const size = spec.blockSize;
+  const seed = spec.seed | 0;
+  const spread = 0.35 + spec.jitter * 0.45;
+  const point = (i: number, j: number): [number, number] => [
+    (i + 0.5 + (hash01(seed, i, j, 21) - 0.5) * spread * 2) * size,
+    (j + 0.5 + (hash01(seed, i, j, 22) - 0.5) * spread * 2) * size,
+  ];
+  const i0 = Math.floor(box.x0 / size) - 1;
+  const i1 = Math.ceil(box.x1 / size) + 1;
+  const j0 = Math.floor(box.y0 / size) - 1;
+  const j1 = Math.ceil(box.y1 / size) + 1;
+  if ((i1 - i0) * (j1 - j0) > 5000) return [];
+  const cells: Cell[] = [];
+  for (let i = i0; i < i1; i++)
+    for (let j = j0; j < j1; j++) {
+      const [px, py] = point(i, j);
+      let poly: number[] = [
+        px - size * 3,
+        py - size * 3,
+        px + size * 3,
+        py - size * 3,
+        px + size * 3,
+        py + size * 3,
+        px - size * 3,
+        py + size * 3,
+      ];
+      for (let di = -2; di <= 2 && poly.length >= 6; di++)
+        for (let dj = -2; dj <= 2 && poly.length >= 6; dj++) {
+          if (di === 0 && dj === 0) continue;
+          const [qx, qy] = point(i + di, j + dj);
+          poly = clipHalfPlane(poly, qx - px, qy - py, (qx * qx + qy * qy - px * px - py * py) / 2);
+        }
+      if (poly.length < 6) continue;
+      const cb = bounds(poly);
+      if (cb.x1 < box.x0 || cb.x0 > box.x1 || cb.y1 < box.y0 || cb.y0 > box.y1) continue;
+      cells.push({ poly, k: i, m: j });
+    }
+  return cells;
+}
+
+export function generateDistrict(
+  spec: DistrictSpec,
+  obstacles: Obstacles,
+  allowed: (x: number, y: number) => boolean = () => true,
+): DistrictGeo {
+  const geo: DistrictGeo = { blocks: [], buildings: [] };
+  if (spec.outline.length < 6 || spec.blockSize < 12) return geo;
+  const size = spec.blockSize;
+  const seed = spec.seed | 0;
+  const box = bounds(spec.outline);
+  const middle = centroid(spec.outline);
+  const radius = Math.sqrt(areaOf(spec.outline) / Math.PI);
+  if (spec.plaza > 0) geo.plaza = { x: middle.x, y: middle.y, r: radius * spec.plaza };
+  const minLot = spec.lotArea * 0.15;
+  const layout = spec.layout ?? 'grid';
+  const cells =
+    layout === 'radial'
+      ? radialCells(spec, box)
+      : layout === 'organic'
+        ? organicCells(spec, box)
+        : gridCells(spec, box, layout === 'linear' ? 2.6 : 1);
+
+  for (const { poly: cell, k, m } of cells) {
+    const part = clipToConvex(spec.outline, cell);
+    if (part.length < 6 || areaOf(part) < size * size * 0.05) continue;
+    const lot = insetPolygon(part, spec.streetWidth / 2);
+    if (!lot) continue;
+    geo.blocks.push(lot);
+    const lots = subdivide(lot, spec.lotArea, k, m);
+    for (let n = 0; n < lots.length; n++) {
+      if (geo.buildings.length >= spec.maxBuildings) break;
+      const piece = lots[n];
+      if (!piece) continue;
+      const key = `${String(k)},${String(m)},${String(n)}`;
+      if (hash01(seed, k, m, 100 + n) > spec.density) continue;
+      const house = insetPolygon(piece, spec.gap / 2);
+      if (!house || areaOf(house) < minLot) continue;
+      const c = centroid(house);
+      if (geo.plaza && Math.hypot(c.x - geo.plaza.x, c.y - geo.plaza.y) < geo.plaza.r) continue;
+      if (!pointInPolygon(c, spec.outline)) continue;
+      if (blocked(c.x, c.y, obstacles, 0) || !allowed(c.x, c.y)) continue;
+      geo.buildings.push({ key, poly: house, tone: hash01(seed, k, m, 200 + n) });
+    }
+  }
   return geo;
 }

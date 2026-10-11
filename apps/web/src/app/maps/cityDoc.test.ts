@@ -18,20 +18,38 @@ import { addItem, newMap, type MapDoc } from './model';
 import { centroid } from './polyclip';
 
 const square = (x: number, y: number, s: number) => [x, y, x + s, y, x + s, y + s, x, y + s];
+/** The fixtures' map: 4 pixels to the meter, so a 700 px district is about 175 m across. */
+const PX_PER_M = 4;
 
 function withDistrict(): { doc: MapDoc; layer: string; district: DistrictItem } {
   const start = newMap('Town', [], 'now');
   const layer = start.layers[0]?.id ?? '';
-  const district = makeDistrict('d', settingsFromStyle('town'), square(100, 100, 700), 5, 0);
+  const district = makeDistrict(
+    'd',
+    settingsFromStyle('town'),
+    square(100, 100, 700),
+    5,
+    0,
+    PX_PER_M,
+  );
   return { doc: addItem(start, layer, district), layer, district };
 }
 
 describe('districts in a map', () => {
   it('are scaled by their settings', () => {
-    const small = makeDistrict('a', settingsFromStyle('town', 0.5), square(0, 0, 100), 1);
-    const big = makeDistrict('b', settingsFromStyle('town', 2), square(0, 0, 100), 1);
+    const small = makeDistrict('a', settingsFromStyle('town', 0.5), square(0, 0, 100), 1, 0.25, 10);
+    const big = makeDistrict('b', settingsFromStyle('town', 2), square(0, 0, 100), 1, 0.25, 10);
     expect(big.blockSize).toBe(small.blockSize * 4);
     expect(big.lotArea).toBe(small.lotArea * 16);
+  });
+
+  it('are sized in meters: the same town is larger in pixels on a map with more pixels to the meter', () => {
+    const coarse = makeDistrict('a', settingsFromStyle('town'), square(0, 0, 100), 1, 0.25, 10);
+    const fine = makeDistrict('b', settingsFromStyle('town'), square(0, 0, 100), 1, 0.25, 20);
+    expect(coarse.blockSize).toBe(380);
+    expect(fine.blockSize).toBe(760);
+    // A town block of about 38 m is some 25 grid squares of 5 feet.
+    expect(settingsFromStyle('town').blockSize).toBeGreaterThan(30);
   });
 
   it('leave a hole free of buildings', () => {

@@ -21,7 +21,12 @@ interface MapsStore {
   loaded: boolean;
   load: () => Promise<void>;
   reload: () => Promise<void>;
-  create: (name: string, campaign?: string, squares?: { w: number; h: number }) => Promise<MapDoc>;
+  create: (
+    name: string,
+    campaign?: string,
+    squares?: { w: number; h: number },
+    cell?: number,
+  ) => Promise<MapDoc>;
   save: (map: MapDoc) => void;
   flush: () => Promise<void>;
   remove: (id: string) => Promise<void>;
@@ -84,8 +89,10 @@ export const useMaps = create<MapsStore>()((set, get) => {
       for (const path of oldFiles) await store.remove(path).catch(() => undefined);
       set({ maps: sortByName(get().maps.map((m) => (m.id === id ? moved : m))) });
     },
-    create: (name, campaign, squares) =>
-      docs.add(inCampaign(newMap(name, docs.ids(), new Date().toISOString(), squares), campaign)),
+    create: (name, campaign, squares, cell) =>
+      docs.add(
+        inCampaign(newMap(name, docs.ids(), new Date().toISOString(), squares, cell), campaign),
+      ),
   };
 });
 
