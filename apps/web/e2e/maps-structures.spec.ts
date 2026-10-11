@@ -116,3 +116,45 @@ test('a tavern is drawn as a whole building with a cellar and a floor above', as
   // The furniture is baked into stamps (the building and its spec are gone).
   await waitForSaved(page, 'maps', 'Chair_Wood_Dark_E_1x1');
 });
+
+test('a Rust & Sunfire foundry, and a district laid out in platform rings', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is used on the desktop.');
+  test.setTimeout(120_000);
+  await installData(page);
+  await newMap(page, 'Rustcrown');
+  await tool(page, 'Building').click();
+  await page
+    .getByRole('radiogroup', { name: 'What to draw' })
+    .getByRole('radio', { name: /Whole building/ })
+    .click();
+  await page
+    .getByRole('radiogroup', { name: 'Kind of building' })
+    .getByRole('radio', { name: /Refinery or foundry/ })
+    .click();
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  await page.mouse.move(box.x + 120, box.y + 100);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 400, box.y + 320, { steps: 8 });
+  await page.mouse.up();
+  await waitForSaved(page, 'maps', '"archetype":"foundry"');
+  await waitForSaved(page, 'maps', '"style":"rust"');
+  await waitForSaved(page, 'maps', '"foundry":[');
+
+  await tool(page, 'District').click();
+  await page
+    .getByRole('radiogroup', { name: 'Street layout' })
+    .getByRole('radio', { name: /Platform rings/ })
+    .click();
+  // Corners clicked, then Enter, as any district.
+  for (const [x, y] of [
+    [520, 80],
+    [820, 80],
+    [820, 380],
+    [520, 380],
+  ] as const)
+    await page.mouse.click(box.x + x, box.y + y);
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'maps', '"layout":"ring"');
+});

@@ -316,6 +316,23 @@ export const FA_NAMES: readonly string[] = [
   'Underdark/Drow_Settlement/Structures/Building/Walls_and_Curbs/Drow_Wall_A/Paths/Drow_Wall_Stone_Purple_A_Metal_Polished_Path.webp',
   'Underdark/Drow_Settlement/Textures/Stone_Tiles/Drow_Stone_Patterned_Tiles_01_A1.jpg',
   '!Core_Settlements/Structures/Building/Windows/Small_Windows/Window_Small_Metal_Gray_A_1x1.webp',
+  // Rust & Sunfire rooms: foundry, refinery, shanty, winch house, arena pit, chapel
+  '!Core_Settlements/Workplace_Equipment/Smithing/Smelting/Crucibles/Crucible_Large_Metal_Rusty_Combined_A1_2x2.webp',
+  '!Core_Settlements/Workplace_Equipment/Smithing/Smelting/Tangs/Tang_Metal_Molten_A1_1x2.webp',
+  '!Core_Settlements/Workplace_Equipment/Smithing/Smelting/Slags_and_Chunks/Slag_Cold_A1_1x1.webp',
+  '!Core_Settlements/Structures/Mechanical_Parts/Pipes/Parts/Rusty/Pipe_Tank_Metal_Rusty_A_3x3.webp',
+  'Industrial/Base_Industrial_Settlement/Structures/Mechanical_Parts/Scrap_Metal/Scrap_Metal_Gray_A12_1x1.webp',
+  '!Core_Settlements/Furniture/Bedding/Bedrolls_and_Sleeping_Bags/Bedrolls/Bedroll_Blue_A_1x2.webp',
+  '!Core_Settlements/Furniture/Bedding/Hammocks/Hammock_Blue_B_2x2.webp',
+  '!Core_Settlements/Workplace_Equipment/Mining/Winches/Winch_Rope_Wood_Dark_B_4x3.webp',
+  '!Core_Settlements/Workplace_Equipment/Mining/Winches/Winch_Metal_Rusty_A3_1x1.webp',
+  '!Core_Settlements/Workplace_Equipment/Cranes/Crane_Pincers_Metal_Gray_A_1x2.webp',
+  '!Core_Settlements/Combat/Weapons/Weapon_Racks/Weapon_Rack_Metal_Gray_A1_1x2.webp',
+  '!Core_Settlements/Combat/Targets_and_Dummies/Training_Dummies/Martial_Arts_Training_Dummy_Wood_Ashen_A1_1x1.webp',
+  '!Core_Settlements/Lightsources/Braziers/Lit/Brazier_Blue_A_Embers_1x1.webp',
+  '!Core_Settlements/Furniture/Altars/Altar_Stone_Earthy_A_2x1.webp',
+  '!Core_Settlements/Furniture/Seating/Benches/Pews/Pew_Wood_Ashen_A_2x1.webp',
+  '!Core_Settlements/Lightsources/Candles/Arranged_Candles/Candles_Black_Arranged_A1_1x1.webp',
 ];
 
 /** The names as pack entries of one pack (`fa`), sorted as the importer sorts them. */

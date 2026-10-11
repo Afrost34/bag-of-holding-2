@@ -37,10 +37,11 @@ export interface DistrictSpec {
 }
 
 /**
- * How the streets run: a grid, rings and spokes round a hub, winding streets between irregular
+ * blocks, long blocks along a main street, or platform rings (Rust & Sunfire's tower-top cities:
+ * rows of buildings round a hub, crossed by a few spokes only).
  * blocks, or long blocks along a main street.
  */
-export type StreetLayout = 'grid' | 'radial' | 'organic' | 'linear';
+export type StreetLayout = 'grid' | 'radial' | 'organic' | 'linear' | 'ring';
 
 export interface GeneratedBuilding {
   /** Stable while the streets stay: `column,row,lot`. */
@@ -214,6 +215,61 @@ function radialCells(spec: DistrictSpec, box: ReturnType<typeof bounds>): Cell[]
   return cells;
 }
 
+/**
+ * Platform rings: rows of buildings round a hub, ring roads between the rows and only a few
+ * spokes (the same ones through every ring). Each row between two spokes is cut in short blocks
+ * (so they stay convex on the curve) that reach half a street past their neighbours, so the
+ * street inset leaves no alley between them: only the spokes and ring roads are streets.
+ */
+function ringCells(spec: DistrictSpec, box: ReturnType<typeof bounds>): Cell[] {
+  const c = centroid(spec.outline);
+  const size = spec.blockSize;
+  const seed = spec.seed | 0;
+  const theta = (spec.angle * Math.PI) / 180;
+  let far = 0;
+  for (let i = 0; i + 1 < spec.outline.length; i += 2)
+    far = Math.max(far, Math.hypot((spec.outline[i] ?? 0) - c.x, (spec.outline[i + 1] ?? 0) - c.y));
+  const rings = Math.ceil(far / size) + 1;
+  if (rings > 60) return [];
+  const spokes = 4 + Math.floor(hash01(seed, 0, 0, 31) * 3);
+  const at = (r: number, a: number): [number, number] => [
+    c.x + r * Math.cos(a),
+    c.y + r * Math.sin(a),
+  ];
+  const cells: Cell[] = [];
+  for (let i = 0; i < rings; i++) {
+    const r0 = size * (0.6 + i);
+    const r1 = r0 + size;
+    const mid = (r0 + r1) / 2;
+    // Half a street, as an angle on this row: how far a block reaches past its neighbour.
+    const reach = spec.streetWidth / 2 / mid;
+    for (let s = 0; s < spokes; s++) {
+      const s0 = theta + (s * 2 * Math.PI) / spokes;
+      const span = (2 * Math.PI) / spokes;
+      const parts = Math.max(1, Math.round((span * mid) / (size * 1.4)));
+      for (let p = 0; p < parts; p++) {
+        // Each boundary between two blocks is moved once, so both blocks meet on it.
+        const edge = (q: number) =>
+          q === 0
+            ? 0
+            : q === parts
+              ? 1
+              : (q + (hash01(seed, i, s * 64 + q, 32) - 0.5) * 0.3 * spec.jitter) / parts;
+        const f0 = edge(p);
+        const f1 = edge(p + 1);
+        // Joined to the next block of the row (not at a spoke): reach over the alley.
+        const a0 = s0 + f0 * span - (p > 0 ? reach : 0);
+        const a1 = s0 + f1 * span + (p < parts - 1 ? reach : 0);
+        const poly = [...at(r0, a0), ...at(r1, a0), ...at(r1, a1), ...at(r0, a1)];
+        const cb = bounds(poly);
+        if (cb.x1 < box.x0 || cb.x0 > box.x1 || cb.y1 < box.y0 || cb.y0 > box.y1) continue;
+        cells.push({ poly, k: i, m: s * 64 + p });
+      }
+    }
+  }
+  return cells;
+}
+
 /** Irregular blocks: the cells nearest each of a loose scatter of points, as in a grown-up old town. */
 function organicCells(spec: DistrictSpec, box: ReturnType<typeof bounds>): Cell[] {
   const size = spec.blockSize;
@@ -272,11 +328,13 @@ export function generateDistrict(
   const minLot = spec.lotArea * 0.15;
   const layout = spec.layout ?? 'grid';
   const cells =
-    layout === 'radial'
-      ? radialCells(spec, box)
-      : layout === 'organic'
-        ? organicCells(spec, box)
-        : gridCells(spec, box, layout === 'linear' ? 2.6 : 1);
+    layout === 'ring'
+      ? ringCells(spec, box)
+      : layout === 'radial'
+        ? radialCells(spec, box)
+        : layout === 'organic'
+          ? organicCells(spec, box)
+          : gridCells(spec, box, layout === 'linear' ? 2.6 : 1);
 
   for (const { poly: cell, k, m } of cells) {
     const part = clipToConvex(spec.outline, cell);

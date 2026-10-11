@@ -244,6 +244,10 @@ const WOODEN = new Set(['timber', 'shack', 'arctic']);
 
 /** Working rooms: on the ground floor they get the style's hard floor (flagstone, metal…). */
 const HARD_ROOMS = new Set([
+  'foundry',
+  'refinery',
+  'winch-room',
+  'arena-floor',
   'kitchen',
   'storage',
   'smithy',
@@ -258,7 +262,7 @@ const HARD_ROOMS = new Set([
 ]);
 
 /** Rooms with a hearth: a chimney stands on the roof above them. */
-const HEARTHS = new Set(['kitchen', 'tavern', 'smithy', 'living-room', 'guardhouse']);
+const HEARTHS = new Set(['kitchen', 'tavern', 'smithy', 'living-room', 'guardhouse', 'foundry']);
 
 /** Roof colours when no pack texture was picked. */
 const ROOF_COLORS: Record<BuildingSpec['roof'], string> = {

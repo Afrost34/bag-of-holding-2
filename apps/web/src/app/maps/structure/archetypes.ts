@@ -185,6 +185,77 @@ export const ARCHETYPES: readonly Archetype[] = [
       cellar: ['prison', 'storage', 'cellar'],
     },
   },
+  // Rust & Sunfire: the tower-top platform cities
+  {
+    id: 'foundry',
+    name: 'Refinery or foundry',
+    hint: 'crucibles and forges, tanks and pipes',
+    rooms: 4,
+    upper: 1,
+    cellar: false,
+    style: 'rust',
+    programme: {
+      ground: ['foundry', 'refinery', 'storage', 'workshop'],
+      upper: ['refinery', 'storage', 'study'],
+      cellar: ['storage'],
+    },
+  },
+  {
+    id: 'shanty',
+    name: 'Shanty stack',
+    hint: 'small rooms stacked up, bedrolls and crates',
+    rooms: 4,
+    upper: 2,
+    cellar: false,
+    style: 'rust',
+    programme: {
+      ground: ['shanty', 'kitchen', 'shanty', 'storage'],
+      upper: ['shanty', 'shanty', 'shanty', 'storage'],
+      cellar: ['storage'],
+    },
+  },
+  {
+    id: 'winch',
+    name: 'Winch or lift station',
+    hint: 'the winch house, a guard post, cargo',
+    rooms: 3,
+    upper: 1,
+    cellar: false,
+    style: 'rust',
+    programme: {
+      ground: ['winch-room', 'storage', 'guardhouse'],
+      upper: ['winch-room', 'study'],
+      cellar: ['storage'],
+    },
+  },
+  {
+    id: 'arena',
+    name: 'Arena',
+    hint: 'a fighting pit, the armoury, cells below',
+    rooms: 3,
+    upper: 0,
+    cellar: true,
+    style: 'rust',
+    programme: {
+      ground: ['arena-floor', 'armory', 'barracks'],
+      upper: ['barracks', 'storage'],
+      cellar: ['prison', 'storage'],
+    },
+  },
+  {
+    id: 'chapel',
+    name: 'Chapel',
+    hint: 'built round a beam: an altar, pews, a shrine',
+    rooms: 2,
+    upper: 0,
+    cellar: false,
+    style: 'heliark',
+    programme: {
+      ground: ['chapel', 'shrine'],
+      upper: ['study'],
+      cellar: ['crypt'],
+    },
+  },
 ];
 
 const FIRST = ARCHETYPES[0];
