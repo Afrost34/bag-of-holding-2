@@ -14,8 +14,16 @@ import {
   X,
 } from 'lucide-react';
 import { placePrefab, type Prefab } from '../../app/maps/prefabs';
-import { defaultCaveWall, defaultRoomStyle, defaultSlots } from '../../app/maps/packDefaults';
+import {
+  defaultCaveWall,
+  defaultDoor,
+  defaultRoof,
+  defaultRoomStyle,
+  districtRoofs,
+  defaultSlots,
+} from '../../app/maps/packDefaults';
 import { usePacks } from '../../app/maps/packs';
+import { squaresOf } from '../../app/maps/packModel';
 import { isPackTexture, type TerrainRef } from '../../app/maps/terrain';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
@@ -95,6 +103,8 @@ import {
   routeWidth,
   WALL_COLOR,
   type StrokeStyle,
+  packTexture,
+  pathPictureWidth,
 } from '../../app/maps/scene';
 import { useMapDoc, useMaps } from '../../app/maps/store';
 import { measurePath } from '../../app/maps/measure';
@@ -195,13 +205,35 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   const [scene, setScene] = useState<MapScene | null>(null);
   const creator = mode === 'creator';
   const [tool, setToolNow] = useState<Tool>('select');
+  const packList = usePacks();
   /** The shape the next area drawn is cut out of, instead of becoming a shape of its own. */
   const [holeOf, setHoleOf] = useState<string | null>(null);
   /** Another tool drops a hole that was being drawn. */
-  const setTool = (next: Tool) => {
+  const setTool = (next: Tool, restore = true) => {
     setHoleOf(null);
     setToolNow(next);
+    // The Stamp and Portal tools each keep the picture picked in them.
+    if (restore && (next === 'stamp' || next === 'door')) {
+      const kept = picks[next];
+      if (kept) {
+        setStamp(kept.ref);
+        setStampAspect(kept.aspect);
+        setStampSquares(kept.squares);
+      } else if (next === 'door') {
+        const door = defaultDoor(packList.entries);
+        if (door) {
+          const squares = squaresOf(door.path);
+          setStamp(door.ref);
+          setStampAspect(squares ? squares.w / squares.h : 1);
+          setStampSquares(squares);
+        }
+      }
+    }
   };
+  /** The picture each of the Stamp and Portal tools last had. */
+  const [picks, setPicks] = useState<
+    Partial<Record<Tool, { ref: string; aspect: number; squares: { w: number; h: number } | null }>>
+  >({});
   /** Where the pointer went down (screen), to tell a click from a drag. */
   const downAt = useRef<Point | null>(null);
   const tools = toolsFor(mode);
@@ -253,7 +285,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   const dragsShape = (t: Tool) =>
     (draws[t]?.kind ?? FREE_SHAPE.kind) !== 'free' && (t !== 'scatter' || scatter.mode === 'area');
   const [district, setDistrict] = useState<DistrictSettings>(DEFAULT_DISTRICT);
-  const [buildingSet, setBuildingSet] = useState<BuildingSettings>({
+  const [buildingState, setBuildingSet] = useState<BuildingSettings>({
     roof: 'tiles',
     color: '#b5543a',
     libraryId: null,
@@ -330,9 +362,13 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   };
   const setPathLive = (p: PathSettings) => {
     setPathSet(p);
+    // Its picture starts loading now, so its width is known when the path is drawn.
+    if (p.texture) packTexture(p.texture);
     const path = pickedFor('path', 'path');
     if (path) {
       const color = PATH_STYLES.find((x) => x.id === p.style)?.color ?? path.color;
+      const width =
+        p.texture && p.fit !== false ? (pathPictureWidth(p.texture, doc) ?? p.width) : p.width;
       commit((d) =>
         updateItem(d, path.id, (i) => {
           if (i.kind !== 'path') return i;
@@ -340,7 +376,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           return {
             ...rest,
             style: p.style,
-            width: p.width,
+            width,
             smooth: p.smooth,
             color,
             ...(p.style === 'river' ? { taper: p.taper } : {}),
@@ -435,10 +471,15 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     return null;
   });
   // Until slots are chosen they are the packs' grass, dirt, rock, sand… (or the drawn ones).
-  const packList = usePacks();
   const packSlots = useMemo(() => defaultSlots(packList.entries), [packList.entries]);
   const slots = slotsChosen ?? (packSlots.length > 0 ? packSlots : DEFAULT_SLOTS);
   const packRoom = useMemo(() => defaultRoomStyle(packList.entries), [packList.entries]);
+  // A new building is roofed with a tiled roof of the packs until another texture is picked.
+  const packRoof = useMemo(() => defaultRoof(packList.entries), [packList.entries]);
+  const buildingSet: BuildingSettings =
+    buildingState.roofTexture || !packRoof
+      ? buildingState
+      : { ...buildingState, roofTexture: packRoof };
   const roomSet: RoomSettings = roomPicked
     ? roomState
     : {
@@ -734,7 +775,11 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             layer.id,
             makeDistrict(
               id,
-              district,
+              {
+                ...district,
+                roofTextures:
+                  district.roofTextures ?? districtRoofs(packList.entries, district.style),
+              },
               points,
               Math.floor(Math.random() * 1e9),
               0.25,
@@ -786,6 +831,10 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           pathSet.style === 'river' ? snapRiverEnd(doc, points, 30 / (scene?.zoom ?? 1)) : null;
         if (joined) points = joined.points;
         const pathId = itemId(doc);
+        const pathWidth =
+          pathSet.texture && pathSet.fit !== false
+            ? (pathPictureWidth(pathSet.texture, doc) ?? pathSet.width)
+            : pathSet.width;
         commit((d) =>
           add(d, layer.id, {
             kind: 'path',
@@ -793,7 +842,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             points,
             smooth: pathSet.smooth,
             style: pathSet.style,
-            width: pathSet.width,
+            width: pathWidth,
             color,
             ...(pathSet.style === 'river' ? { taper: pathSet.taper } : {}),
             ...(joined?.into ? { into: joined.into } : {}),
@@ -937,11 +986,19 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       addItems(
         d,
         layer.id,
-        generateTown(d, c, radius, seed, district.scale, (taken) => {
-          let n = 0;
-          while (taken.includes(`town${String(n)}-${first}`)) n++;
-          return `town${String(n)}-${first}`;
-        }),
+        generateTown(
+          d,
+          c,
+          radius,
+          seed,
+          district.scale,
+          (taken) => {
+            let n = 0;
+            while (taken.includes(`town${String(n)}-${first}`)) n++;
+            return `town${String(n)}-${first}`;
+          },
+          (style) => districtRoofs(packList.entries, style),
+        ),
       ),
     );
   };
@@ -2413,7 +2470,13 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
               setStamp(path);
               setStampAspect(aspect);
               setStampSquares(squares ?? null);
-              setTool('stamp');
+              // Picked in the Portal tool, it stays the Portal tool's; elsewhere it is for stamping.
+              const owner = tool === 'door' ? 'door' : 'stamp';
+              setPicks((all) => ({
+                ...all,
+                [owner]: { ref: path, aspect, squares: squares ?? null },
+              }));
+              if (tool !== 'door') setTool('stamp', false);
             }}
             brush={brush}
             setBrush={setBrush}

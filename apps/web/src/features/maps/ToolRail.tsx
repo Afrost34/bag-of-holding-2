@@ -1,8 +1,10 @@
 import { cn } from '@boh/ui';
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { Fragment } from 'react';
-import { GROUP_LABELS, TOOL_GROUP, TOOL_HINTS, type Tool, type TOOLS } from './tools';
+import { useRailPrefs } from './railPrefs';
+import { GROUP_LABELS, TOOL_GROUP, type Tool, type TOOLS } from './tools';
 
-/** The short name shown on a tool's button (its full name is the accessible name). */
+/** The short name shown on a tool's button when the names are on (its full name is the accessible name). */
 const SHORT: Record<Tool, string> = {
   select: 'Select',
   pan: 'Pan',
@@ -30,9 +32,8 @@ const SHORT: Record<Tool, string> = {
 };
 
 /**
- * Dungeondraft's tool column: the tools in labelled groups (Select, Terrain, Design, Objects,
- * Effects…), two to a row with their icon and name, and the active tool's hint at the bottom.
- * On a phone it shrinks to a column of icons.
+ * The tool column: one column of icons in groups, with the name and key of each in its tooltip
+ * (a button at the bottom adds the names). What the active tool does is in the bar under the map.
  */
 export function ToolRail({
   tools: unsorted,
@@ -43,6 +44,7 @@ export function ToolRail({
   tool: Tool;
   onPick: (t: Tool) => void;
 }) {
+  const { names, toggle } = useRailPrefs();
   // Each group together, in the order of the groups (the tools keep their own order within one).
   const tools = [...unsorted].sort((a, b) => TOOL_GROUP[a.id] - TOOL_GROUP[b.id]);
   return (
@@ -50,52 +52,62 @@ export function ToolRail({
       role="toolbar"
       aria-label="Map tools"
       aria-orientation="vertical"
-      className="flex shrink-0 flex-col gap-1 overflow-y-auto border-r border-border bg-surface p-1 md:w-52 md:p-2"
+      className={cn(
+        'flex shrink-0 flex-col gap-0.5 overflow-y-auto border-r border-border bg-surface p-1',
+        names ? 'w-36' : 'w-11',
+      )}
     >
-      <div className="grid grid-cols-1 gap-1 md:grid-cols-2">
-        {tools.map((t, index) => {
-          const group = TOOL_GROUP[t.id];
-          const first = index === 0 || group !== TOOL_GROUP[tools[index - 1]?.id ?? t.id];
-          return (
-            <Fragment key={t.id}>
-              {first && (
-                <div
-                  role="separator"
-                  aria-label={GROUP_LABELS[group]}
-                  className="mt-1.5 border-t border-border pt-1 text-[10px] font-semibold tracking-wide text-muted uppercase first:mt-0 first:border-t-0 first:pt-0 md:col-span-2"
-                >
-                  <span className="hidden md:inline">{GROUP_LABELS[group]}</span>
-                  <span className="text-[9px] md:hidden">{GROUP_LABELS[group]}</span>
-                </div>
+      {tools.map((t, index) => {
+        const group = TOOL_GROUP[t.id];
+        const first = index === 0 || group !== TOOL_GROUP[tools[index - 1]?.id ?? t.id];
+        return (
+          <Fragment key={t.id}>
+            {first && index > 0 && (
+              <div
+                role="separator"
+                aria-label={GROUP_LABELS[group]}
+                className="my-1 border-t border-border"
+              />
+            )}
+            <button
+              type="button"
+              aria-label={t.label}
+              aria-pressed={tool === t.id}
+              title={`${t.label} (${t.key.toUpperCase()})`}
+              onClick={() => {
+                onPick(t.id);
+              }}
+              className={cn(
+                'flex h-9 items-center gap-2 rounded-md px-2 text-xs',
+                names ? 'justify-start' : 'justify-center',
+                tool === t.id
+                  ? 'bg-accent text-accent-fg'
+                  : 'text-muted hover:bg-sunken hover:text-text',
               )}
-              <button
-                type="button"
-                aria-label={t.label}
-                aria-pressed={tool === t.id}
-                title={`${t.label} (${t.key.toUpperCase()})`}
-                onClick={() => {
-                  onPick(t.id);
-                }}
-                className={cn(
-                  'flex items-center justify-center gap-1.5 rounded-md p-2 text-xs md:justify-start md:px-2 md:py-1.5',
-                  tool === t.id
-                    ? 'bg-accent text-accent-fg'
-                    : 'text-muted hover:bg-sunken hover:text-text',
-                )}
-              >
-                <t.icon className="h-5 w-5 shrink-0 md:h-4 md:w-4" aria-hidden />
-                <span className="hidden truncate md:inline" aria-hidden>
+            >
+              <t.icon className="h-5 w-5 shrink-0" aria-hidden />
+              {names && (
+                <span className="truncate" aria-hidden>
                   {SHORT[t.id]}
                 </span>
-              </button>
-            </Fragment>
-          );
-        })}
-      </div>
-      <p className="mt-auto hidden border-t border-border pt-2 text-[11px] leading-snug text-muted md:block">
-        <span className="font-semibold text-text">{tools.find((t) => t.id === tool)?.label}.</span>{' '}
-        {TOOL_HINTS[tool]}
-      </p>
+              )}
+            </button>
+          </Fragment>
+        );
+      })}
+      <button
+        type="button"
+        aria-label={names ? 'Hide the tool names' : 'Show the tool names'}
+        title={names ? 'Hide the tool names' : 'Show the tool names'}
+        onClick={toggle}
+        className="mt-auto flex h-8 items-center justify-center rounded-md text-muted hover:bg-sunken hover:text-text"
+      >
+        {names ? (
+          <PanelLeftClose className="h-4 w-4" aria-hidden />
+        ) : (
+          <PanelLeftOpen className="h-4 w-4" aria-hidden />
+        )}
+      </button>
     </div>
   );
 }

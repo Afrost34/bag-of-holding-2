@@ -187,6 +187,8 @@ type MapItemBody =
       style: 'town' | 'dense' | 'noble' | 'market' | 'ward';
       /** How the streets run (a plain grid when absent). */
       layout?: 'grid' | 'radial' | 'organic' | 'linear';
+      /** Roof textures of the packs the buildings are covered with (their colours when absent). */
+      roofTextures?: string[];
       blockSize: number;
       streetWidth: number;
       lotArea: number;

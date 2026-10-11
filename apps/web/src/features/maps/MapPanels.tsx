@@ -62,6 +62,8 @@ export function MapPanels(props: MapPanelsProps) {
   // it, to add a stamp to the mix).
   // Tools whose settings also change the picked item of their own kind show those, not the item's.
   const liveOwned = selected !== null && LIVE_KIND[tool] === selected.kind;
+  // The picked item's settings sit on the tool's tab (the viewer has no tool tab: on its pins').
+  const showItem = tab === (creator ? 'stamps' : 'pins');
   const ownsPanel = ![
     'stamp',
     'select',
@@ -76,6 +78,12 @@ export function MapPanels(props: MapPanelsProps) {
   useEffect(() => {
     scroller.current?.scrollTo({ top: 0 });
   }, [tool, tab]);
+  const [shownFor, setShownFor] = useState<string | null>(null);
+  // Picking an item shows its settings (with the tool's own, in the creator).
+  if ((selected?.id ?? null) !== shownFor) {
+    setShownFor(selected?.id ?? null);
+    if (selected) setTab(creator ? 'stamps' : 'pins');
+  }
   const tabs: { id: Tab; label: string }[] = [
     ...(creator ? [{ id: 'stamps' as const, label: 'Tool' }] : []),
     { id: 'layers', label: 'Layers' },
@@ -151,9 +159,9 @@ export function MapPanels(props: MapPanelsProps) {
         </button>
       </div>
       <div ref={scroller} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
-        {tab === 'stamps' && props.selectedIds.length > 1 && <ArrangePanel {...props} />}
-        {tab === 'stamps' && selected && props.selectedIds.length === 1 && !liveOwned && (
-          <ItemSettings {...props} item={selected} />
+        {showItem && props.selectedIds.length > 1 && <ArrangePanel {...props} />}
+        {showItem && selected && props.selectedIds.length === 1 && (
+          <ItemSettings {...props} item={selected} extrasOnly={liveOwned} />
         )}
         {(tool === 'pen' || tool === 'terrain' || tool === 'eraser' || tool === 'template') && (
           <ToolSettings {...props} />

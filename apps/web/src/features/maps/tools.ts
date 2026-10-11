@@ -258,6 +258,8 @@ export interface PathSettings {
   loop: boolean;
   /** A pack picture the path is drawn with; absent: drawn in code. */
   texture?: string;
+  /** With a picture: as wide as the picture is (its own size on this map), not the width below. */
+  fit?: boolean;
 }
 
 /** A random island or archipelago, placed in the middle of the view. */

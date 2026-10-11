@@ -37,7 +37,8 @@ export function ItemSettings({
   onCutHole,
   onFurnish,
   stamp,
-}: MapPanelsProps & { item: MapItem }) {
+  extrasOnly = false,
+}: MapPanelsProps & { item: MapItem; extrasOnly?: boolean }) {
   // Selectors return what the stores hold; lists are made from it here (a new array from a
   // selector would re-render forever).
   const journalNotes = useJournal((s) => s.notes);
@@ -155,6 +156,7 @@ export function ItemSettings({
         <ShapeItemSettings
           item={item}
           set={set}
+          extrasOnly={extrasOnly}
           onScatter={() => {
             onScatterOn(item);
           }}
@@ -174,11 +176,14 @@ export function ItemSettings({
           }}
         />
       )}
-      {item.kind === 'building' &&<BuildingItemSettings item={item} set={set} />}
+      {item.kind === 'building' && (
+        <BuildingItemSettings item={item} set={set} extrasOnly={extrasOnly} />
+      )}
       {item.kind === 'room' && (
         <RoomItemSettings
           item={item}
           set={set}
+          extrasOnly={extrasOnly}
           onFurnish={(preset) => {
             onFurnish(item.id, preset);
           }}

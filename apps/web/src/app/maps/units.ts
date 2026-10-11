@@ -1,4 +1,13 @@
-import type { MapDoc } from './model';
+import type { MapScale } from './travel';
+
+/** What of a map the real sizes are worked out from (a `MapDoc` has all of it). */
+export interface Sized {
+  scale?: MapScale | undefined;
+  grid: { feet: number; size: number };
+  width?: number;
+  height?: number;
+  stampScale?: number | undefined;
+}
 
 /**
  * Real sizes: a map covers so many meters or kilometers, and what is drawn on it is as large, on
@@ -26,13 +35,15 @@ export const metersIn = (unit: LengthUnit): number =>
   LENGTH_UNITS.find((u) => u.id === unit)?.meters ?? 1;
 
 /** How many meters one pixel of the map is. */
-export function metersPerPixel(doc: Pick<MapDoc, 'scale' | 'grid'>): number {
+export function metersPerPixel(doc: Pick<Sized, 'scale' | 'grid'>): number {
   if (doc.scale) return doc.scale.perPixel * (doc.scale.unit === 'mi' ? MILE : 1000);
   return (doc.grid.feet * FEET) / Math.max(1, doc.grid.size);
 }
 
 /** The real size of the map in meters. */
-export function mapSizeMeters(doc: Pick<MapDoc, 'scale' | 'grid' | 'width' | 'height'>): {
+export function mapSizeMeters(
+  doc: Required<Pick<Sized, 'grid' | 'width' | 'height'>> & Pick<Sized, 'scale'>,
+): {
   w: number;
   h: number;
 } {
@@ -41,14 +52,14 @@ export function mapSizeMeters(doc: Pick<MapDoc, 'scale' | 'grid' | 'width' | 'he
 }
 
 /** Meters as pixels of the map. */
-export const metersToPx = (doc: Pick<MapDoc, 'scale' | 'grid'>, meters: number): number =>
+export const metersToPx = (doc: Pick<Sized, 'scale' | 'grid'>, meters: number): number =>
   meters / metersPerPixel(doc);
 
 /**
  * How many pixels one square of a pack picture (a `_2x2` stamp is two of them across) covers on
  * this map: true to scale, times the map's own "scale all stamps" factor (×1 by default).
  */
-export function stampUnit(doc: Pick<MapDoc, 'scale' | 'grid' | 'stampScale'>): number {
+export function stampUnit(doc: Pick<Sized, 'scale' | 'grid' | 'stampScale'>): number {
   return metersToPx(doc, PACK_SQUARE_M) * (doc.stampScale ?? 1);
 }
 

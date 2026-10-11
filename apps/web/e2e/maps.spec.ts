@@ -73,7 +73,7 @@ test('a map is drawn with stamps, brushes, walls, text, templates and pins, then
   await pictures.getByRole('button', { name: 'oak door' }).click();
   await expect(tool(page, 'Stamp')).toHaveAttribute('aria-pressed', 'true');
   await page.mouse.click(at(200, 200).x, at(200, 200).y);
-  await expect(page.getByRole('region', { name: 'Stamp' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Stamp', exact: true })).toBeVisible();
   await page.keyboard.press('r');
   await expect(page.getByLabel('Rotation')).toHaveValue('15');
 
@@ -433,7 +433,7 @@ test('asset packs are imported as zips, browsed with previews, and their stamps 
   await page.getByLabel('Blocks light').check();
   await waitForSaved(page, 'maps', '"blockLight":true');
   // The pictures the map uses have a view of their own; a fuzzy search finds letters in order.
-  await page.getByRole('tab', { name: 'Stamps', exact: true }).click();
+  await page.getByRole('tab', { name: 'Tool', exact: true }).click();
   await page.getByLabel('Find a pack picture').fill('');
   await page.getByRole('button', { name: /^Used on this map \(1\)/ }).click();
   await expect(pictures.getByRole('button')).toHaveCount(1);
@@ -454,7 +454,7 @@ test('asset packs are imported as zips, browsed with previews, and their stamps 
   await expect(pictures.getByRole('button')).toHaveCount(2);
   await page.getByRole('button', { name: 'All', exact: true }).click();
   // Importing the same zip again adds nothing.
-  await page.getByRole('tab', { name: 'Stamps', exact: true }).click();
+  await page.getByRole('tab', { name: 'Tool', exact: true }).click();
   const again = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: 'Import packs (zip)' }).click();
   await (
@@ -464,7 +464,7 @@ test('asset packs are imported as zips, browsed with previews, and their stamps 
   // Kept after a reload, and the pack can be removed.
   await page.reload();
   await expect(canvas.locator('canvas')).toHaveCount(1);
-  await page.getByRole('tab', { name: 'Stamps', exact: true }).click();
+  await page.getByRole('tab', { name: 'Tool', exact: true }).click();
   await page.getByRole('button', { name: /^Packs \(1\)/ }).click();
   await page.getByRole('button', { name: /^Remove Village Pack v1/ }).click();
   await page.getByRole('button', { name: 'Remove', exact: true }).click();
@@ -648,13 +648,15 @@ test('a world map measures distances, and a route moves the calendar on', async 
   await expect(tool(page, 'Spell template')).toHaveCount(0);
   await page.getByRole('tab', { name: 'Map' }).click();
   await expect(page.getByRole('region', { name: 'Grid' })).toBeVisible();
-  const scale = page.getByRole('region', { name: 'Scale and travel' });
-  await scale.getByLabel('Unit').selectOption('km');
-  await scale.getByLabel('Distance across the map').fill('28000');
+  // The map covers 28,000 km across: its squares then stand for a long way each.
+  const size = page.getByRole('region', { name: 'Real size' });
+  await size.getByLabel('Unit of the size').selectOption('km');
+  await size.getByLabel('Width', { exact: true }).fill('28000');
+  const scale = page.getByRole('region', { name: 'Travel' });
   await scale.getByRole('button', { name: 'Add a speed' }).click();
   await scale.getByLabel('Speed 1 name').fill('Skiff');
   await scale.getByLabel('Speed 1 per day').fill('1400');
-  await scale.getByLabel('Distance across the map').click();
+  await size.getByLabel('Width', { exact: true }).click();
   await waitForSaved(
     page,
     'campaigns/rust-and-sunfire/maps',
@@ -841,10 +843,10 @@ test('a scale bar, plain or as on an old map', async ({ page }) => {
   test.skip(isPhone(page), 'Drawn on the desktop.');
   await newMap(page, 'The Sunash Sea');
   await page.getByRole('tab', { name: 'Map' }).click();
-  const scale = page.getByRole('region', { name: 'Scale and travel' });
-  await scale.getByLabel('Unit').selectOption('mi');
-  await scale.getByLabel('Distance across the map').fill('1400');
-  await scale.getByLabel('Unit').click();
+  const size = page.getByRole('region', { name: 'Real size' });
+  await size.getByLabel('Unit of the size').selectOption('mi');
+  await size.getByLabel('Width', { exact: true }).fill('1400');
+  await size.getByLabel('Unit of the size').click();
   await page.getByRole('combobox', { name: 'Scale bar' }).selectOption('fantasy');
   await waitForSaved(page, 'maps', '"scaleBar":"fantasy"');
   await page.getByRole('combobox', { name: 'Scale bar' }).selectOption('plain');
@@ -981,6 +983,9 @@ test('terrain shapes, islands, roads and rivers are drawn and edited', async ({
   await click(260, 200);
   await click(300, 330);
   await page.keyboard.press('Enter');
+  // The river just drawn is picked: another kind would change it, so the next road starts clean.
+  await page.keyboard.press('Escape');
+  await tool(page, 'Road or river').click();
   await page.getByLabel('Path kind').selectOption('road');
   await click(100, 300);
   await click(250, 280);
@@ -1196,7 +1201,7 @@ test('mirrored drawing, and several items picked to line up', async ({ page }) =
   await expect.poll(counts).toBe(4);
 });
 
-test('a label runs along a river, and the paper can be changed', async ({ page }, testInfo) => {
+test('a label runs along a river', async ({ page }, testInfo) => {
   test.skip(isPhone(page), 'Drawn on the desktop.');
   test.setTimeout(60_000);
   await newMap(page, 'The Silverrun');
@@ -1221,10 +1226,6 @@ test('a label runs along a river, and the paper can be changed', async ({ page }
   await expect(page.getByLabel('Label runs along')).toHaveValue(/.+/);
   await page.getByRole('region', { name: 'Text' }).getByLabel('Text').fill('Silverrun');
   await waitForSaved(page, 'maps', '"text":"Silverrun"');
-  // Another paper.
-  await page.getByRole('tab', { name: 'Map' }).click();
-  await page.getByLabel('Kind of paper').selectOption('night');
-  await waitForSaved(page, 'maps', '"paper":"night"');
   await page.waitForTimeout(600);
   await canvas.screenshot({ path: testInfo.outputPath('silverrun.png') });
 });
@@ -1454,7 +1455,7 @@ test('a texture of an imported pack paints terrain', async ({ page }) => {
   await tool(page, 'Terrain brush').click();
   await expect(page.getByText('No textures yet')).toBeVisible();
   await tool(page, 'Stamp').click();
-  await page.getByRole('tab', { name: 'Stamps', exact: true }).click();
+  await page.getByRole('tab', { name: 'Tool', exact: true }).click();
   const chooser = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: 'Import packs (zip)' }).click();
   await (await chooser).setFiles({ name: 'Meadow.zip', mimeType: 'application/zip', buffer: zip });
@@ -1500,7 +1501,7 @@ test('walls are made of a pack strip, and its doors snap onto them', async ({ pa
     }),
   );
   await tool(page, 'Stamp').click();
-  await page.getByRole('tab', { name: 'Stamps', exact: true }).click();
+  await page.getByRole('tab', { name: 'Tool', exact: true }).click();
   const chooser = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: 'Import packs (zip)' }).click();
   await (await chooser).setFiles({ name: 'Keep.zip', mimeType: 'application/zip', buffer: zip });
@@ -1783,23 +1784,8 @@ test('lights light a dark map, and walls cast their shadows', async ({ page }, t
   await canvas.screenshot({ path: testInfo.outputPath('night.png') });
   // The light is picked: its range and colour are on its panel.
   await expect(page.getByLabel('Light range').first()).toBeVisible();
-  await page.getByLabel('Light range').last().fill('12');
+  await page.getByLabel('Light range').first().fill('12');
   await waitForSaved(page, 'maps', '"range":840');
-});
-
-test('a compass rose and a frame decorate the map', async ({ page }, testInfo) => {
-  test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
-  await newMap(page, 'Decor');
-  const canvas = page.getByRole('application', { name: 'Map canvas' });
-  await page.getByRole('tab', { name: 'Map' }).click();
-  await page.getByLabel('Compass rose', { exact: true }).selectOption('fantasy');
-  await waitForSaved(page, 'maps', '"compass":"fantasy"');
-  await page.getByLabel('Frame', { exact: true }).selectOption('fantasy');
-  await waitForSaved(page, 'maps', '"frame":"fantasy"');
-  await page.waitForTimeout(1000);
-  await canvas.screenshot({ path: testInfo.outputPath('decor.png') });
-  await page.getByLabel('Compass rose', { exact: true }).selectOption('none');
-  await expect(page.getByLabel('Compass rose', { exact: true })).toHaveValue('none');
 });
 
 test('snapping can step by half or quarter cells', async ({ page }) => {
@@ -2087,7 +2073,7 @@ test('paths and roofs are drawn with pack pictures', async ({ page }) => {
   await waitForSaved(page, 'maps', '"roofTexture":"pack:');
 });
 
-test('a stamp is turned with the wheel, mirrored with A and placed as shown', async ({ page }) => {
+test('a stamp is turned with Ctrl+wheel, mirrored with A and placed as shown', async ({ page }) => {
   test.skip(isPhone(page), 'The Creator is used on the desktop.');
   test.setTimeout(60_000);
   await installData(page);
@@ -2109,8 +2095,10 @@ test('a stamp is turned with the wheel, mirrored with A and placed as shown', as
   const box = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
   if (!box) throw new Error('no canvas');
   await page.mouse.move(box.x + 300, box.y + 250);
+  await page.keyboard.down('Control');
   await page.mouse.wheel(0, -100);
   await page.mouse.wheel(0, -100);
+  await page.keyboard.up('Control');
   await page.keyboard.press('a');
   await page.mouse.click(box.x + 300, box.y + 250);
   await waitForSaved(page, 'maps', '"rotation":30');
@@ -2136,7 +2124,7 @@ test('items are saved as a prefab and placed again', async ({ page }) => {
   await page.getByLabel('Prefab name').fill('Two walls');
   await page.getByRole('button', { name: 'Save as a prefab' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
-  await page.getByRole('tab', { name: 'Stamps', exact: true }).click();
+  await page.getByRole('tab', { name: 'Tool', exact: true }).click();
   await page.getByRole('tab', { name: 'Prefabs' }).click();
   await expect(page.getByRole('list', { name: 'Saved prefabs' })).toContainText('Two walls');
   await page.getByRole('button', { name: 'Place Two walls' }).click();
@@ -2169,4 +2157,90 @@ test('a map is exported as a Universal VTT file with its walls', async ({ page }
   expect(json.format).toBe(0.3);
   expect(json.line_of_sight.length).toBeGreaterThan(0);
   expect(json.image.length).toBeGreaterThan(100);
+});
+
+test('the tool column is lean: no Pan or Brush, Esc goes back to Select, shapes are dragged out', async ({
+  page,
+}) => {
+  test.skip(isPhone(page), 'The Creator is used on the desktop.');
+  await newMap(page, 'Lean');
+  await expect(tool(page, 'Pan')).toHaveCount(0);
+  await expect(tool(page, 'Brush')).toHaveCount(0);
+  await tool(page, 'Terrain shape').click();
+  await expect(tool(page, 'Terrain shape')).toHaveAttribute('aria-pressed', 'true');
+  // A hexagon: pick Polygon, six sides, drag it out.
+  await page.getByRole('radio', { name: 'Polygon' }).click();
+  await expect(page.getByLabel('Sides of the polygon')).toHaveValue('6');
+  const box = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
+  if (!box) throw new Error('no canvas');
+  await page.mouse.move(box.x + 200, box.y + 150);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 400, box.y + 350, { steps: 6 });
+  await page.mouse.up();
+  await waitForSaved(page, 'maps', '"kind":"shape"');
+  // It is picked when it is done: its settings are on the panel and change it.
+  await expect(page.getByRole('radiogroup', { name: 'Edge' })).toBeVisible();
+  await page.getByRole('radio', { name: 'Ink line' }).click();
+  await waitForSaved(page, 'maps', '"edge":"ink"');
+  // Escape leaves the tool for Select.
+  await page.keyboard.press('Escape');
+  await expect(tool(page, 'Select and move')).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('a map is made in meters and kilometers, and a tab goes full screen', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is used on the desktop.');
+  await page.goto('./#/maps');
+  await page.getByRole('button', { name: 'New map' }).click();
+  await page.getByLabel('Name').fill('Realm');
+  await page.getByLabel('Unit of the size').selectOption('km');
+  await page.getByLabel('Width', { exact: true }).fill('50');
+  await page.getByLabel('Height', { exact: true }).fill('30');
+  await expect(page.getByText(/a grid of 100 × 60 squares of 500 m/)).toBeVisible();
+  await page.getByRole('button', { name: 'Create' }).click();
+  await expect(page.getByRole('textbox', { name: 'Map name' })).toHaveValue('Realm');
+  await waitForSaved(page, 'maps', '"unit":"km"');
+  await page.getByRole('tab', { name: 'Map' }).click();
+  await expect(page.getByRole('region', { name: 'Real size' })).toContainText('50 km × 30 km');
+  // The whole tab, without the app's sidebar and tab strip; and back.
+  await page.keyboard.press('Alt+f');
+  await expect(page.getByRole('button', { name: 'Leave full screen' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Leave full screen' }).click();
+  await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible();
+});
+
+test('the same stamp in other colours is listed once, with its variations', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is used on the desktop.');
+  test.setTimeout(60_000);
+  await installData(page);
+  await newMap(page, 'Colours');
+  const zip = Buffer.from(
+    zipSync({
+      'FA_Assets_Webp/Woodlands/!Wilderness/Flora/Trees/Tree_Green_B1_5x5.png': [
+        PIXEL,
+        { level: 0 },
+      ],
+      'FA_Assets_Webp/Woodlands/!Wilderness/Flora/Trees/Tree_Red_B1_5x5.png': [PIXEL, { level: 0 }],
+      'FA_Assets_Webp/Woodlands/!Wilderness/Flora/Trees/Tree_Green_C1_5x5.png': [
+        PIXEL,
+        { level: 0 },
+      ],
+    }),
+  );
+  await tool(page, 'Stamp').click();
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Import packs (zip)' }).click();
+  await (await chooser).setFiles({ name: 'Trees.zip', mimeType: 'application/zip', buffer: zip });
+  await expect(page.getByRole('status').filter({ hasText: '1 added' })).toBeVisible();
+  const trees = page.getByRole('list', { name: 'Trees' });
+  // Two tiles: the tree with a variation, and the other shape.
+  await expect(trees.getByRole('button')).toHaveCount(2);
+  await trees.getByRole('button', { name: 'Tree Green B1' }).click();
+  const variations = page.getByRole('group', { name: /variations/i });
+  await expect(variations.getByRole('button')).toHaveCount(2);
+  await variations.getByRole('button', { name: /Red/ }).click();
+  await expect(variations.getByRole('button', { name: /Red/ })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
 });

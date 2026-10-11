@@ -241,16 +241,30 @@ export function ShapePanel(props: MapPanelsProps) {
             setPathSet(texture ? { ...rest, texture } : rest);
           }}
         />
-        <Slider
-          label="Width"
-          value={pathSet.width}
-          min={2}
-          max={160}
-          step={1}
-          onChange={(width) => {
-            setPathSet({ ...pathSet, width });
-          }}
-        />
+        {pathSet.texture && (
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={pathSet.fit !== false}
+              onChange={(e) => {
+                setPathSet({ ...pathSet, fit: e.target.checked });
+              }}
+            />
+            As wide as the picture
+          </label>
+        )}
+        {(!pathSet.texture || pathSet.fit === false) && (
+          <Slider
+            label="Width"
+            value={pathSet.width}
+            min={2}
+            max={400}
+            step={1}
+            onChange={(width) => {
+              setPathSet({ ...pathSet, width });
+            }}
+          />
+        )}
         <Slider
           label="Curve"
           value={pathSet.smooth}
@@ -358,8 +372,11 @@ export function ShapeItemSettings({
   set,
   onScatter,
   onCutHole,
+  extrasOnly = false,
 }: {
   item: Extract<MapItem, { kind: 'shape' | 'path' }>;
+  /** The tool's own panel already has the settings: show only what belongs to this item. */
+  extrasOnly?: boolean;
   set: (change: (i: MapItem) => MapItem) => void;
   /** Trees, rocks… inside this shape, or along this path. */
   onScatter: () => void;
@@ -369,83 +386,87 @@ export function ShapeItemSettings({
   if (item.kind === 'shape')
     return (
       <>
-        <TerrainPicker
-          value={item.texture}
-          onPick={(texture, base) => {
-            set((i) => (i.kind === 'shape' ? { ...i, texture, color: base } : i));
-          }}
-        />
-        <label className="flex items-center gap-2 text-sm">
-          Plain colour (a region)
-          <input
-            type="color"
-            aria-label="Fill colour"
-            value={item.color}
-            onChange={(e) => {
-              const color = e.target.value;
-              set((i) => {
-                if (i.kind !== 'shape') return i;
-                const { texture: _t, ...rest } = i;
-                return { ...rest, color };
-              });
-            }}
-            className="h-7 w-9 cursor-pointer rounded border border-border bg-surface"
-          />
-        </label>
-        <div role="radiogroup" aria-label="Edge" className="grid grid-cols-2 gap-1">
-          {EDGES.map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              role="radio"
-              aria-checked={item.edge === id}
-              onClick={() => {
-                set((i) => (i.kind === 'shape' ? { ...i, edge: id } : i));
+        {!extrasOnly && (
+          <>
+            <TerrainPicker
+              value={item.texture}
+              onPick={(texture, base) => {
+                set((i) => (i.kind === 'shape' ? { ...i, texture, color: base } : i));
               }}
-              className={cn(
-                'rounded-md border px-2 py-1.5 text-sm',
-                item.edge === id
-                  ? 'border-accent bg-accent-soft font-medium'
-                  : 'border-border text-muted hover:bg-sunken',
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <Slider
-          label="Texture size"
-          value={item.tile ?? 1}
-          min={0.25}
-          max={4}
-          step={0.05}
-          display={`×${(item.tile ?? 1).toFixed(2)}`}
-          onChange={(tile) => {
-            set((i) => (i.kind === 'shape' ? { ...i, tile } : i));
-          }}
-        />
-        <Slider
-          label="Roundness"
-          value={item.smooth}
-          min={0}
-          max={1}
-          step={0.05}
-          display={`${String(Math.round(item.smooth * 100))}%`}
-          onChange={(smooth) => {
-            set((i) => (i.kind === 'shape' ? { ...i, smooth } : i));
-          }}
-        />
-        <Slider
-          label="Opacity"
-          value={item.opacity}
-          min={0.1}
-          max={1}
-          step={0.05}
-          display={`${String(Math.round(item.opacity * 100))}%`}
-          onChange={(opacity) => {
-            set((i) => (i.kind === 'shape' ? { ...i, opacity } : i));
-          }}
-        />
+            />
+            <label className="flex items-center gap-2 text-sm">
+              Plain colour (a region)
+              <input
+                type="color"
+                aria-label="Fill colour"
+                value={item.color}
+                onChange={(e) => {
+                  const color = e.target.value;
+                  set((i) => {
+                    if (i.kind !== 'shape') return i;
+                    const { texture: _t, ...rest } = i;
+                    return { ...rest, color };
+                  });
+                }}
+                className="h-7 w-9 cursor-pointer rounded border border-border bg-surface"
+              />
+            </label>
+            <div role="radiogroup" aria-label="Edge" className="grid grid-cols-2 gap-1">
+              {EDGES.map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={item.edge === id}
+                  onClick={() => {
+                    set((i) => (i.kind === 'shape' ? { ...i, edge: id } : i));
+                  }}
+                  className={cn(
+                    'rounded-md border px-2 py-1.5 text-sm',
+                    item.edge === id
+                      ? 'border-accent bg-accent-soft font-medium'
+                      : 'border-border text-muted hover:bg-sunken',
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <Slider
+              label="Texture size"
+              value={item.tile ?? 1}
+              min={0.25}
+              max={4}
+              step={0.05}
+              display={`×${(item.tile ?? 1).toFixed(2)}`}
+              onChange={(tile) => {
+                set((i) => (i.kind === 'shape' ? { ...i, tile } : i));
+              }}
+            />
+            <Slider
+              label="Roundness"
+              value={item.smooth}
+              min={0}
+              max={1}
+              step={0.05}
+              display={`${String(Math.round(item.smooth * 100))}%`}
+              onChange={(smooth) => {
+                set((i) => (i.kind === 'shape' ? { ...i, smooth } : i));
+              }}
+            />
+            <Slider
+              label="Opacity"
+              value={item.opacity}
+              min={0.1}
+              max={1}
+              step={0.05}
+              display={`${String(Math.round(item.opacity * 100))}%`}
+              onChange={(opacity) => {
+                set((i) => (i.kind === 'shape' ? { ...i, opacity } : i));
+              }}
+            />
+          </>
+        )}
         <Button variant="ghost" onClick={onCutHole}>
           <Scissors className="h-4 w-4" aria-hidden /> Cut a hole
         </Button>
@@ -470,84 +491,88 @@ export function ShapeItemSettings({
     );
   return (
     <>
-      <label className="block text-sm">
-        Kind
-        <select
-          value={item.style}
-          aria-label="Path kind"
-          onChange={(e) => {
-            const style = e.target.value as PathStyle;
-            const def = PATH_STYLES.find((s) => s.id === style);
-            set((i) => (i.kind === 'path' ? { ...i, style, color: def?.color ?? i.color } : i));
-          }}
-          className={field}
-        >
-          {PATH_STYLES.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <PathTextures
-        value={item.texture}
-        onPick={(texture) => {
-          set((i) => {
-            if (i.kind !== 'path') return i;
-            const { texture: _t, ...rest } = i;
-            return texture ? { ...rest, texture } : rest;
-          });
-        }}
-      />
-      <Slider
-        label="Width"
-        value={item.width}
-        min={2}
-        max={160}
-        step={1}
-        onChange={(width) => {
-          set((i) => (i.kind === 'path' ? { ...i, width } : i));
-        }}
-      />
-      <Slider
-        label="Curve"
-        value={item.smooth}
-        min={0}
-        max={1}
-        step={0.05}
-        display={`${String(Math.round(item.smooth * 100))}%`}
-        onChange={(smooth) => {
-          set((i) => (i.kind === 'path' ? { ...i, smooth } : i));
-        }}
-      />
-      {item.style === 'river' && (
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={item.taper !== false}
-            onChange={(e) => {
-              const taper = e.target.checked;
-              set((i) => (i.kind === 'path' ? { ...i, taper } : i));
+      {!extrasOnly && (
+        <>
+          <label className="block text-sm">
+            Kind
+            <select
+              value={item.style}
+              aria-label="Path kind"
+              onChange={(e) => {
+                const style = e.target.value as PathStyle;
+                const def = PATH_STYLES.find((s) => s.id === style);
+                set((i) => (i.kind === 'path' ? { ...i, style, color: def?.color ?? i.color } : i));
+              }}
+              className={field}
+            >
+              {PATH_STYLES.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <PathTextures
+            value={item.texture}
+            onPick={(texture) => {
+              set((i) => {
+                if (i.kind !== 'path') return i;
+                const { texture: _t, ...rest } = i;
+                return texture ? { ...rest, texture } : rest;
+              });
             }}
           />
-          Widens downstream
-        </label>
+          <Slider
+            label="Width"
+            value={item.width}
+            min={2}
+            max={160}
+            step={1}
+            onChange={(width) => {
+              set((i) => (i.kind === 'path' ? { ...i, width } : i));
+            }}
+          />
+          <Slider
+            label="Curve"
+            value={item.smooth}
+            min={0}
+            max={1}
+            step={0.05}
+            display={`${String(Math.round(item.smooth * 100))}%`}
+            onChange={(smooth) => {
+              set((i) => (i.kind === 'path' ? { ...i, smooth } : i));
+            }}
+          />
+          {item.style === 'river' && (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={item.taper !== false}
+                onChange={(e) => {
+                  const taper = e.target.checked;
+                  set((i) => (i.kind === 'path' ? { ...i, taper } : i));
+                }}
+              />
+              Widens downstream
+            </label>
+          )}
+          <PathEndsFields
+            start={item.start ?? 'hard'}
+            end={item.end ?? 'hard'}
+            loop={item.loop === true}
+            onChange={(change) => {
+              set((i) => {
+                if (i.kind !== 'path') return i;
+                const next = { ...i, ...change };
+                if (next.start === 'hard') delete next.start;
+                if (next.end === 'hard') delete next.end;
+                if (!next.loop) delete next.loop;
+                return next;
+              });
+            }}
+          />
+        </>
       )}
-      <PathEndsFields
-        start={item.start ?? 'hard'}
-        end={item.end ?? 'hard'}
-        loop={item.loop === true}
-        onChange={(change) => {
-          set((i) => {
-            if (i.kind !== 'path') return i;
-            const next = { ...i, ...change };
-            if (next.start === 'hard') delete next.start;
-            if (next.end === 'hard') delete next.end;
-            if (!next.loop) delete next.loop;
-            return next;
-          });
-        }}
-      />
       <Button variant="ghost" onClick={onScatter}>
         <Trees className="h-4 w-4" aria-hidden /> Scatter along this
       </Button>

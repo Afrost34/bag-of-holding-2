@@ -3,6 +3,7 @@ import { ChevronRight, FileArchive, Home, Search, Trash2, Trees } from 'lucide-r
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { askConfirm } from '../../app/confirm';
 import { MAX_TILE, MIN_TILE, useAssetPrefs } from '../../app/maps/artPrefs';
+import { groupVariants } from '../../app/maps/packVariants';
 import { useZoomOnHover } from './ZoomPreview';
 import { packThumbUrl, usePacks, entryRef, type ImportProgress } from '../../app/maps/packs';
 import {
@@ -125,6 +126,11 @@ export function PackBrowser({
     () => findPackEntries(entries, prefix, search, limit, options),
     [entries, prefix, search, limit, options],
   );
+  // The same stamp in other colours is one tile with variations.
+  const groups = useMemo(() => groupVariants(found.list), [found.list]);
+  const open = selected
+    ? groups.find((g) => g.variants.some((v) => entryRef(v.entry) === selected))
+    : undefined;
   const tags = useMemo(() => (view === 'tags' ? packTags(entries) : []), [entries, view]);
   const crumbs = prefix ? prefix.split('/') : [];
 
@@ -403,34 +409,81 @@ export function PackBrowser({
               gridTemplateColumns: `repeat(auto-fill, minmax(${String(tile + 12)}px, 1fr))`,
             }}
           >
-            {found.list.map((e) => {
+            {groups.map((g) => {
+              const e = g.head;
               const ref = entryRef(e);
               const squares = squaresOf(e.path);
+              const chosen = g === open;
               return (
-                <li key={ref}>
+                <li key={ref} className="relative">
                   <button
                     type="button"
-                    title={`${displayName(e.path)}${squares ? ` (${String(squares.w)}×${String(squares.h)})` : ''}`}
+                    title={`${displayName(e.path)}${squares ? ` (${String(squares.w)}×${String(squares.h)})` : ''}${g.variants.length > 1 ? `: ${String(g.variants.length)} variations` : ''}`}
                     aria-label={displayName(e.path)}
-                    aria-pressed={selected === ref}
+                    aria-pressed={chosen}
                     onClick={() => {
                       const aspect = squares ? squares.w / squares.h : 1;
                       onPick(ref, aspect, squares ?? undefined);
                     }}
                     className={cn(
                       'block w-full rounded-md border-2 bg-surface p-0.5 text-left',
-                      selected === ref ? 'border-accent' : 'border-border hover:border-accent',
+                      chosen ? 'border-accent' : 'border-border hover:border-accent',
                     )}
                   >
                     <Preview entry={e} size={tile} />
                     <span className="block truncate text-[10px] leading-tight text-muted">
-                      {displayName(e.path)}
+                      {g.variants.length > 1 ? g.name : displayName(e.path)}
                     </span>
                   </button>
+                  {g.variants.length > 1 && (
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute top-1 right-1 rounded-full bg-surface/90 px-1.5 text-[10px] font-semibold text-muted shadow-card"
+                    >
+                      {g.variants.length}
+                    </span>
+                  )}
                 </li>
               );
             })}
           </ul>
+          {open && open.variants.length > 1 && (
+            <div role="group" aria-label="Variations" className="space-y-1">
+              <p className="text-[11px] text-muted">Variations of {open.name}</p>
+              <ul className="flex flex-wrap gap-1">
+                {open.variants.map((v) => {
+                  const vref = entryRef(v.entry);
+                  const vsquares = squaresOf(v.entry.path);
+                  return (
+                    <li key={vref}>
+                      <button
+                        type="button"
+                        aria-pressed={selected === vref}
+                        aria-label={`${displayName(v.entry.path)} (${v.label})`}
+                        title={v.label}
+                        onClick={() => {
+                          onPick(
+                            vref,
+                            vsquares ? vsquares.w / vsquares.h : 1,
+                            vsquares ?? undefined,
+                          );
+                        }}
+                        className={cn(
+                          'w-16 overflow-hidden rounded-md border-2 bg-surface',
+                          selected === vref ? 'border-accent' : 'border-border hover:border-accent',
+                        )}
+                      >
+                        <Preview entry={v.entry} size={40} />
+                        <span className="block truncate px-0.5 text-center text-[10px] text-muted">
+                          {v.label}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
           {found.total > found.list.length && (
             <Button
               variant="ghost"

@@ -108,30 +108,38 @@ function TravelSpeeds({ doc, commit }: Pick<MapPanelsProps, 'doc' | 'commit'>) {
 }
 
 /**
- * How big the map is in the world: its width and height in meters or kilometers, and how far one
- * grid square is. Changing them keeps what is drawn where it is and changes what it means: stamps
- * and the district tool follow the scale.
+ * How big the map is in the world: its width and height in meters or kilometers (which sets how
+ * far one grid square is), or how far a square is; and how many squares the map has. Real sizes
+ * change what the map means, not its picture: stamps and the district tool follow the scale.
  */
 function RealSize({ doc, commit }: Pick<MapPanelsProps, 'doc' | 'commit'>) {
   const size = mapSizeMeters(doc);
   const cell = doc.grid.size * metersPerPixel(doc);
+  const across = Math.round(doc.width / doc.grid.size);
+  const down = Math.round(doc.height / doc.grid.size);
   const [unit, setUnit] = useState<LengthUnit>(size.w >= 5000 ? 'km' : 'm');
   const k = metersIn(unit);
   const shown = (meters: number) => Math.round((meters / k) * 100) / 100;
-  /** Gives the map a real size: pixels per meter follow from the new width. */
-  const setSize = (widthM: number, heightM: number, cellM: number) => {
+  /** One grid square stands for this many meters: the packs' 5 feet is a battle map, any other a scale. */
+  const setCell = (cellM: number) => {
     commit((d) => {
       const { scale: _s, ...rest } = d;
-      const px = d.grid.size;
-      const standard = isStandardCell(cellM);
       return {
         ...rest,
-        width: Math.min(16384, Math.max(200, Math.round((widthM / cellM) * px))),
-        height: Math.min(16384, Math.max(200, Math.round((heightM / cellM) * px))),
         grid: { ...d.grid, feet: cellM / FEET },
-        ...(standard ? {} : { scale: { unit: 'km' as const, perPixel: cellM / 1000 / px } }),
+        ...(isStandardCell(cellM)
+          ? {}
+          : { scale: { unit: 'km' as const, perPixel: cellM / 1000 / d.grid.size } }),
       };
     });
+  };
+  /** The map has this many squares across and down (its picture grows or shrinks). */
+  const setSquares = (w: number, h: number) => {
+    commit((d) => ({
+      ...d,
+      width: Math.min(16384, Math.max(d.grid.size, Math.round(w) * d.grid.size)),
+      height: Math.min(16384, Math.max(d.grid.size, Math.round(h) * d.grid.size)),
+    }));
   };
   const fine = unit === 'km' || unit === 'mi';
   return (
@@ -160,7 +168,7 @@ function RealSize({ doc, commit }: Pick<MapPanelsProps, 'doc' | 'commit'>) {
           min={0}
           step={fine ? 0.1 : 1}
           onChange={(v) => {
-            if (v > 0) setSize(v * k, size.h, cell);
+            if (v > 0) setCell((v * k) / Math.max(1, across));
           }}
         />
         <NumberField
@@ -169,7 +177,7 @@ function RealSize({ doc, commit }: Pick<MapPanelsProps, 'doc' | 'commit'>) {
           min={0}
           step={fine ? 0.1 : 1}
           onChange={(v) => {
-            if (v > 0) setSize(size.w, v * k, cell);
+            if (v > 0) setCell((v * k) / Math.max(1, down));
           }}
         />
         <NumberField
@@ -178,7 +186,7 @@ function RealSize({ doc, commit }: Pick<MapPanelsProps, 'doc' | 'commit'>) {
           min={0}
           step={fine ? 0.1 : 0.5}
           onChange={(v) => {
-            if (v > 0) setSize(size.w, size.h, v * k);
+            if (v > 0) setCell(v * k);
           }}
         />
         <NumberField
@@ -193,12 +201,28 @@ function RealSize({ doc, commit }: Pick<MapPanelsProps, 'doc' | 'commit'>) {
             });
           }}
         />
+        <NumberField
+          label="Squares across"
+          value={across}
+          min={1}
+          onChange={(v) => {
+            setSquares(v, down);
+          }}
+        />
+        <NumberField
+          label="Squares down"
+          value={down}
+          min={1}
+          onChange={(v) => {
+            setSquares(across, v);
+          }}
+        />
       </div>
       <p className="text-xs text-muted">
-        {formatLength(size.w)} × {formatLength(size.h)} ({Math.round(doc.width / doc.grid.size)} ×{' '}
-        {Math.round(doc.height / doc.grid.size)} squares of {formatLength(cell)}; {doc.width} ×{' '}
-        {doc.height} px). Stamps are drawn at their true size on this scale: ×1 is true to scale;
-        raise it to make every new stamp and scatter piece larger on a big map.
+        {formatLength(size.w)} × {formatLength(size.h)}: {across} × {down} squares of{' '}
+        {formatLength(cell)}. Stamps are drawn at their true size on this scale: ×1 is true to
+        scale; raise it to make every new stamp larger on a big map. Adding the first picture
+        (Layers) sizes the map to it.
       </p>
     </Section>
   );

@@ -1,7 +1,7 @@
 /** Town building: districts that generate streets and houses, and buildings drawn or saved by hand. */
 import { Button, cn } from '@boh/ui';
 import { Castle, Dices, Hammer, Save, Scissors, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useBuildings } from '../../app/maps/buildings';
 import {
   bakeDistrict,
@@ -16,6 +16,9 @@ import {
 import { type MapItem } from '../../app/maps/model';
 import { AssetGrid } from './AssetGrid';
 import type { StreetLayout } from '../../app/maps/city';
+import { useShowDrawn } from '../../app/maps/artPrefs';
+import { districtRoofs } from '../../app/maps/packDefaults';
+import { usePacks } from '../../app/maps/packs';
 import { Section, ShapePicker } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
 
@@ -220,6 +223,48 @@ function LayoutCards({
   );
 }
 
+/** The textures a district's roofs are covered with: one picked from the packs, or the style's own mix. */
+function DistrictRoofs({
+  style,
+  value,
+  onChange,
+}: {
+  style: DistrictStyleId;
+  value: readonly string[] | undefined;
+  onChange: (refs: string[]) => void;
+}) {
+  const { entries } = usePacks();
+  const mix = useMemo(() => districtRoofs(entries, style), [entries, style]);
+  if (!entries.some((e) => e.cat === 'roofs')) return null;
+  const single = value?.length === 1 ? value[0] : undefined;
+  const mixed = single === undefined;
+  return (
+    <div className="space-y-1.5">
+      <p className="text-sm">Roofs: {mixed ? 'a mix for this style' : 'one texture'}</p>
+      <AssetGrid
+        cats={['roofs']}
+        label="District roofs"
+        value={single}
+        onPick={(_, ref) => {
+          onChange([ref]);
+        }}
+        emptyHint="No roof textures yet."
+      />
+      {!mixed && (
+        <button
+          type="button"
+          className="text-xs text-accent-ink underline"
+          onClick={() => {
+            onChange(mix);
+          }}
+        >
+          Back to the mix for this style
+        </button>
+      )}
+    </div>
+  );
+}
+
 function StyleCards({
   value,
   onPick,
@@ -283,6 +328,13 @@ export function DistrictPanel({
           setDistrict({ ...district, scale });
         }}
       />
+      <DistrictRoofs
+        style={district.style}
+        value={district.roofTextures}
+        onChange={(roofTextures) => {
+          setDistrict({ ...district, roofTextures });
+        }}
+      />
       <DistrictControls
         value={district}
         onChange={(patch) => {
@@ -314,6 +366,9 @@ function RoofPicker({
   onChange: (patch: { roof?: RoofStyle; color?: string }) => void;
   onTexture: (texture: string | undefined) => void;
 }) {
+  const drawn = useShowDrawn();
+  const { entries } = usePacks();
+  const hasRoofs = entries.some((e) => e.cat === 'roofs');
   return (
     <>
       <label className="block text-sm">
@@ -333,34 +388,6 @@ function RoofPicker({
           ))}
         </select>
       </label>
-      <div className="flex flex-wrap items-center gap-1" role="radiogroup" aria-label="Roof colour">
-        {ROOF_COLORS.map((c) => (
-          <button
-            key={c}
-            type="button"
-            role="radio"
-            aria-checked={color === c}
-            aria-label={c}
-            onClick={() => {
-              onChange({ color: c });
-            }}
-            className={cn(
-              'h-7 w-7 rounded-full border-2',
-              color === c ? 'border-accent' : 'border-border',
-            )}
-            style={{ background: c }}
-          />
-        ))}
-        <input
-          type="color"
-          aria-label="Another roof colour"
-          value={color}
-          onChange={(e) => {
-            onChange({ color: e.target.value });
-          }}
-          className="h-7 w-9 cursor-pointer rounded border border-border bg-surface"
-        />
-      </div>
       <AssetGrid
         cats={['roofs']}
         label="Roof textures"
@@ -370,16 +397,52 @@ function RoofPicker({
         }}
         emptyHint="No roof textures yet. Import an asset pack for tile, hay and slate roofs."
       />
-      {texture && (
-        <button
-          type="button"
-          className="text-xs text-accent-ink underline"
-          onClick={() => {
-            onTexture(undefined);
-          }}
-        >
-          Back to the plain colour
-        </button>
+      {(drawn || !hasRoofs) && (
+        <>
+          <div
+            className="flex flex-wrap items-center gap-1"
+            role="radiogroup"
+            aria-label="Roof colour"
+          >
+            {ROOF_COLORS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                role="radio"
+                aria-checked={color === c}
+                aria-label={c}
+                onClick={() => {
+                  onChange({ color: c });
+                }}
+                className={cn(
+                  'h-7 w-7 rounded-full border-2',
+                  color === c ? 'border-accent' : 'border-border',
+                )}
+                style={{ background: c }}
+              />
+            ))}
+            <input
+              type="color"
+              aria-label="Another roof colour"
+              value={color}
+              onChange={(e) => {
+                onChange({ color: e.target.value });
+              }}
+              className="h-7 w-9 cursor-pointer rounded border border-border bg-surface"
+            />
+          </div>
+          {texture && (
+            <button
+              type="button"
+              className="text-xs text-accent-ink underline"
+              onClick={() => {
+                onTexture(undefined);
+              }}
+            >
+              Back to the plain colour
+            </button>
+          )}
+        </>
       )}
     </>
   );
@@ -494,6 +557,13 @@ export function DistrictItemSettings({
           set((i) => (i.kind === 'district' ? { ...i, style } : i));
         }}
       />
+      <DistrictRoofs
+        style={item.style}
+        value={item.roofTextures}
+        onChange={(roofTextures) => {
+          set((i) => (i.kind === 'district' ? { ...i, roofTextures } : i));
+        }}
+      />
       <DistrictControls
         value={{
           ...item,
@@ -569,7 +639,9 @@ export function DistrictItemSettings({
 export function BuildingItemSettings({
   item,
   set,
+  extrasOnly = false,
 }: {
+  extrasOnly?: boolean;
   item: BuildingItem;
   set: (change: (i: MapItem) => MapItem) => void;
 }) {
@@ -578,21 +650,25 @@ export function BuildingItemSettings({
   const [saved, setSaved] = useState(false);
   return (
     <>
-      <RoofPicker
-        roof={item.roof}
-        color={item.color}
-        texture={item.roofTexture}
-        onChange={(patch) => {
-          set((i) => (i.kind === 'building' ? { ...i, ...patch } : i));
-        }}
-        onTexture={(roofTexture) => {
-          set((i) => {
-            if (i.kind !== 'building') return i;
-            const { roofTexture: _r, ...rest } = i;
-            return roofTexture ? { ...rest, roofTexture } : rest;
-          });
-        }}
-      />
+      {!extrasOnly && (
+        <>
+          <RoofPicker
+            roof={item.roof}
+            color={item.color}
+            texture={item.roofTexture}
+            onChange={(patch) => {
+              set((i) => (i.kind === 'building' ? { ...i, ...patch } : i));
+            }}
+            onTexture={(roofTexture) => {
+              set((i) => {
+                if (i.kind !== 'building') return i;
+                const { roofTexture: _r, ...rest } = i;
+                return roofTexture ? { ...rest, roofTexture } : rest;
+              });
+            }}
+          />
+        </>
+      )}
       <label className="block text-sm">
         Name
         <input

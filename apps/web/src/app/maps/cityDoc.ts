@@ -1,4 +1,5 @@
 import { generateDistrict, type DistrictGeo, type DistrictSpec, type StreetLayout } from './city';
+import type { RoofSkin } from './roofSkin';
 import { metersPerPixel } from './units';
 import { generateIsland } from './islandgen';
 import { addItem, type MapDoc, type MapItem } from './model';
@@ -145,6 +146,8 @@ export interface DistrictSettings {
   plaza: number;
   wall: boolean;
   avoid: 'auto' | 'none';
+  /** Roof textures of the packs to cover the buildings with (their colours when absent). */
+  roofTextures?: string[] | undefined;
 }
 
 export const settingsFromStyle = (style: DistrictStyleId, scale = 1): DistrictSettings => {
@@ -188,6 +191,7 @@ export function makeDistrict(
     seed,
     style: s.style,
     ...(s.layout !== 'grid' ? { layout: s.layout } : {}),
+    ...(s.roofTextures?.length ? { roofTextures: s.roofTextures } : {}),
     blockSize: Math.round(s.blockSize * s.scale * pxPerMeter),
     streetWidth: Math.round(s.streetWidth * s.scale * pxPerMeter * 10) / 10,
     lotArea: Math.round(s.lotArea * s.scale * s.scale * pxPerMeter * pxPerMeter),
@@ -370,6 +374,8 @@ export function generateTown(
   seed: number,
   scale: number,
   nextId: (taken: string[]) => string,
+  /** The roof textures a district style is covered with. */
+  roofsFor: (style: DistrictStyleId) => string[] = () => [],
 ): MapItem[] {
   const taken = allItems(doc).map((i) => i.id);
   const id = () => {
@@ -388,7 +394,7 @@ export function generateTown(
   const ppm = 1 / metersPerPixel(doc);
   const outer = makeDistrict(
     id(),
-    { ...settingsFromStyle('town', scale), wall: true, plaza: 0.5 },
+    { ...settingsFromStyle('town', scale), wall: true, plaza: 0.5, roofTextures: roofsFor('town') },
     outline,
     seed,
     0.5,
@@ -396,7 +402,7 @@ export function generateTown(
   );
   const inner = makeDistrict(
     id(),
-    { ...settingsFromStyle('market', scale), angle: 12 },
+    { ...settingsFromStyle('market', scale), angle: 12, roofTextures: roofsFor('market') },
     generateIsland({
       x: centre.x,
       y: centre.y,
@@ -434,6 +440,8 @@ export function rotatePoints(points: readonly number[], degrees: number): number
 
 /** How a roof is lit: the sun (see `MapDoc.sun`) and whether the roofs are left off. */
 export interface RoofLook {
+  /** The textures of a district's roofs, picked by each building's tone (the colours when absent). */
+  skins?: RoofSkin[] | undefined;
   hide?: boolean | undefined;
   sun?: { angle: number; strength: number } | undefined;
 }

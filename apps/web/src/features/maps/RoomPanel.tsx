@@ -190,7 +190,9 @@ export function RoomItemSettings({
   item,
   set,
   onFurnish,
+  extrasOnly = false,
 }: {
+  extrasOnly?: boolean;
   item: Extract<MapItem, { kind: 'room' }>;
   set: (change: (i: MapItem) => MapItem) => void;
   onFurnish: (preset: string) => void;
@@ -200,50 +202,54 @@ export function RoomItemSettings({
   };
   return (
     <>
-      <TerrainPicker
-        cats={['floors']}
-        value={item.floor}
-        onPick={(floor) => {
-          change({ floor });
-        }}
-      />
-      <WallStyleSelect
-        value={item.wallStyle}
-        onChange={(wallStyle) => {
-          change({ wallStyle });
-        }}
-      />
-      <WallStrips
-        value={item.wallTexture}
-        onPick={(wallTexture) => {
-          set((i) => {
-            if (i.kind !== 'room') return i;
-            const { wallTexture: _w, ...rest } = i;
-            return wallTexture ? { ...rest, wallTexture } : rest;
-          });
-        }}
-      />
-      <Slider
-        label="Wall thickness"
-        value={item.wall}
-        min={3}
-        max={40}
-        step={1}
-        onChange={(wall) => {
-          change({ wall });
-        }}
-      />
-      <Slider
-        label="Roundness"
-        value={item.smooth}
-        min={0}
-        max={1}
-        step={0.05}
-        display={`${String(Math.round(item.smooth * 100))}%`}
-        onChange={(smooth) => {
-          change({ smooth });
-        }}
-      />
+      {!extrasOnly && (
+        <>
+          <TerrainPicker
+            cats={['floors']}
+            value={item.floor}
+            onPick={(floor) => {
+              change({ floor });
+            }}
+          />
+          <WallStyleSelect
+            value={item.wallStyle}
+            onChange={(wallStyle) => {
+              change({ wallStyle });
+            }}
+          />
+          <WallStrips
+            value={item.wallTexture}
+            onPick={(wallTexture) => {
+              set((i) => {
+                if (i.kind !== 'room') return i;
+                const { wallTexture: _w, ...rest } = i;
+                return wallTexture ? { ...rest, wallTexture } : rest;
+              });
+            }}
+          />
+          <Slider
+            label="Wall thickness"
+            value={item.wall}
+            min={3}
+            max={40}
+            step={1}
+            onChange={(wall) => {
+              change({ wall });
+            }}
+          />
+          <Slider
+            label="Roundness"
+            value={item.smooth}
+            min={0}
+            max={1}
+            step={0.05}
+            display={`${String(Math.round(item.smooth * 100))}%`}
+            onChange={(smooth) => {
+              change({ smooth });
+            }}
+          />
+        </>
+      )}
       <div role="group" aria-label="Furnish" className="space-y-1">
         <p className="text-sm font-medium">Furnish it as…</p>
         <div className="flex flex-wrap gap-1">
