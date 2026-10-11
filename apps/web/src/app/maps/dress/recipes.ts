@@ -508,6 +508,8 @@ export function resolveRule(
     ...(rule.beneath ? { beneath: true } : {}),
     ...(rule.fit ? { fit: true } : {}),
     ...(rule.turn ? { turn: rule.turn } : {}),
+    ...(rule.height ? { height: rule.height } : {}),
+    ...(rule.slope ? { slope: rule.slope } : {}),
   } satisfies Partial<DressRule>;
   // Interiors space pieces by a gap (in squares) between them, not by a spacing of centres.
   const interior = INTERIOR_PLACES.has(rule.place);

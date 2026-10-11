@@ -8,6 +8,7 @@ import { pickIndex, randomAngle, type Instance, type Obstacles } from './scatter
 import { bounds, growPolygon, nearestOnPolyline, splinePoints } from './spline';
 import { seeded, type TerrainRef } from './terrain';
 import { dressPieces, type DressInstance, type DressTarget } from './dress/engine';
+import { groundOf } from './dress/ground';
 import { INTERIOR_PLACES } from './dress/interior';
 import { isPortalPicture } from './portal';
 
@@ -165,8 +166,13 @@ export function dressTarget(doc: MapDoc, item: ScatterItem): DressTarget {
     reach: (rule, piece) => pieceBox(doc, rule, piece).w / 2,
     box: (rule, piece) => pieceBox(doc, rule, piece),
     ...(target?.kind === 'room' ? { doors: roomDoors(doc, target) } : {}),
+    ...(doc.elevation && usesGround(item) ? { ground: groundOf(doc.elevation) } : {}),
   };
 }
+
+/** Whether a dressing keeps some rule to a height or slope of the ground. */
+const usesGround = (item: ScatterItem): boolean =>
+  item.rules.some((r) => r.height !== undefined || r.slope !== undefined);
 
 /**
  * The doorways of a room: its own doors, and pack door pictures standing on its walls (the Door
@@ -194,11 +200,17 @@ export function scatterOf(doc: MapDoc, item: ScatterItem): DressInstance[] {
 
 /**
  * A short text that changes when anything a dressing reacts to changes: the paths, shapes,
- * buildings and rooms of the map. Pieces are drawn again when it does (a road moved, an island
- * reshaped, a room's walls dragged).
+ * buildings and rooms of the map, and its elevation. Pieces are drawn again when it does (a road
+ * moved, an island reshaped, a room's walls dragged, a hill raised).
  */
 export function obstacleSignature(doc: MapDoc): string {
-  const parts: unknown[] = [];
+  // The elevation only counts while a dressing keeps to a height or slope (painting hills would
+  // otherwise make every forest again on each stroke).
+  const e = doc.elevation;
+  const onGround =
+    e !== undefined &&
+    doc.layers.some((l) => l.items.some((i) => i.kind === 'scatter' && usesGround(i)));
+  const parts: unknown[] = e && onGround ? [[e.w, e.h, e.cell, e.sea, e.data]] : [];
   for (const layer of doc.layers)
     for (const i of layer.items)
       if (i.kind === 'path') parts.push([i.id, i.points, i.smooth, i.style, i.width]);

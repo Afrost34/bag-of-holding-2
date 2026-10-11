@@ -2,8 +2,10 @@ import type { GlyphId } from '../glyphs';
 import type { Recipe, RecipeRule } from './recipeTypes';
 
 /**
- * Settlement generators: a market crowded with awnings and tarps, a camp of tents round fires, a
- * graveyard in rows, a farm's crop rows and hay, and a scrapyard of rusty heaps (Rust & Sunfire).
+ * Settlement generators: a market crowded with awnings and tarps (wares in front of each), a camp
+ * of fires ringed by seats, bedrolls and tents (`ring`), a graveyard in rows with a grave before
+ * each stone (`front`), a farm's crop rows and hay, a scrapyard of rusty heaps (Rust & Sunfire),
+ * and a stone circle round an altar.
  * Each is an area recipe of a few layers, from Forgotten Adventures folders; `recipes.test.ts`
  * checks them on real names. Lay one by painting or dragging an area with the Dress tool.
  */
@@ -38,6 +40,22 @@ export const SETTLEMENT_RECIPES: readonly Recipe[] = [
       glyphs: [g('table')],
       glyphSize: [90, 90],
     },
+    // Wares laid out before most stalls.
+    {
+      key: 'wares',
+      place: 'front',
+      anchor: 'stalls',
+      want: {
+        cats: ['decor'],
+        anyWords: ['/crates/', '/barrels/', '/sacks/'],
+        not: [...NOT, 'lid', 'side', 'large'],
+      },
+      max: 8,
+      spacing: 0,
+      offset: 0.15,
+      fill: 0.8,
+      loose: 12,
+    },
     {
       key: 'goods',
       place: 'cluster',
@@ -56,17 +74,7 @@ export const SETTLEMENT_RECIPES: readonly Recipe[] = [
       glyphSize: [36, 44],
     },
   ]),
-  settlement('camp', 'Camp', 'tents, fires, bedrolls and supplies', [
-    {
-      key: 'tents',
-      place: 'area',
-      want: { cats: ['buildings'], words: ['/shelters/tents/tent_cloth'], not: NOT },
-      max: 6,
-      spacing: 1.5,
-      rotation: 'quarter',
-      glyphs: [g('table')],
-      glyphSize: [100, 100],
-    },
+  settlement('camp', 'Camp', 'fires ringed by seats and bedrolls, tents facing them', [
     {
       key: 'fires',
       place: 'area',
@@ -76,19 +84,56 @@ export const SETTLEMENT_RECIPES: readonly Recipe[] = [
         not: ['unlit', 'ash_', 'cold'],
       },
       max: 3,
-      spacing: 6,
-      apart: true,
+      spacing: 9,
       glyphs: [g('rock')],
       glyphSize: [40, 40],
     },
+    // Logs and stools close round each fire, facing it.
+    {
+      key: 'seats',
+      place: 'ring',
+      anchor: 'fires',
+      want: {
+        cats: ['furniture', 'trees'],
+        anyWords: ['/stools/stool_wood', '/logs/fir_log_ashen_d', '/benches/bench_wood'],
+        not: [...NOT, 'fallen', 'stump'],
+      },
+      max: 4,
+      spacing: 1.4,
+      offset: 0.3,
+      count: 4,
+      jitter: 0.3,
+      rotation: 'along',
+      loose: 10,
+    },
+    // Bedrolls further out, heads away from the fire.
     {
       key: 'bedrolls',
-      place: 'area',
+      place: 'ring',
+      anchor: 'fires',
       want: { cats: ['furniture'], words: ['/bedrolls/'], not: ['rolled'] },
       max: 4,
-      spacing: 3,
-      apart: true,
-      rotation: 'random',
+      spacing: 1.6,
+      offset: 1.6,
+      count: 5,
+      jitter: 0.4,
+      rotation: 'along',
+      loose: 15,
+    },
+    // Tents round the edge of each fire's circle, their doors towards it.
+    {
+      key: 'tents',
+      place: 'ring',
+      anchor: 'fires',
+      want: { cats: ['buildings'], words: ['/shelters/tents/tent_cloth'], not: NOT },
+      max: 6,
+      spacing: 1.2,
+      offset: 3.5,
+      count: 4,
+      jitter: 0.5,
+      rotation: 'along',
+      glyphs: [g('table')],
+      glyphSize: [100, 100],
     },
     {
       key: 'supplies',
@@ -106,20 +151,23 @@ export const SETTLEMENT_RECIPES: readonly Recipe[] = [
       place: 'grid',
       want: { cats: ['graves'], words: ['/tombstones/tombstone_stone'], not: [...NOT, 'base'] },
       max: 8,
-      spacing: 2.2,
+      // Rows far enough apart for a grave in front of each stone.
+      spacing: 4.5,
       rotation: 'none',
-      jitter: 0.15,
+      jitter: 0.1,
       glyphs: [g('rock')],
       glyphSize: [30, 30],
     },
+    // A grave before most tombstones (some have sunk away).
     {
       key: 'graves',
-      place: 'area',
+      place: 'front',
+      anchor: 'tombstones',
       want: { cats: ['graves'], words: ['/graves/grave_'], not: NOT },
       max: 4,
-      spacing: 3,
-      apart: true,
-      rotation: 'none',
+      spacing: 0,
+      fill: 0.7,
+      loose: 4,
     },
     {
       key: 'trees',
@@ -209,6 +257,44 @@ export const SETTLEMENT_RECIPES: readonly Recipe[] = [
       rotation: 'random',
       glyphs: [g('barrel')],
       glyphSize: [36, 36],
+    },
+  ]),
+  settlement('stone-circle', 'Stone circle', 'an altar in the middle, standing stones round it', [
+    {
+      key: 'altar',
+      place: 'area',
+      want: { cats: ['furniture'], words: ['/altars/altar_stone'], not: ['runner'] },
+      max: 3,
+      spacing: 3,
+      count: 1,
+      rotation: 'none',
+      glyphs: [g('table')],
+      glyphSize: [60, 40],
+    },
+    {
+      key: 'stones',
+      place: 'ring',
+      anchor: 'altar',
+      want: { cats: ['rocks'], words: ['/boulders/boulder_stone'] },
+      max: 4,
+      spacing: 1.6,
+      offset: 3,
+      count: 9,
+      jitter: 0.1,
+      rotation: 'along',
+      loose: 8,
+      glyphs: [g('rock')],
+      glyphSize: [40, 50],
+    },
+    {
+      key: 'moss',
+      place: 'area',
+      want: { cats: ['plants'], anyWords: ['/moss/', '/long_grass/'] },
+      max: 6,
+      spacing: 1.6,
+      cluster: 0.4,
+      rotation: 'random',
+      beneath: true,
     },
   ]),
 ];

@@ -50,6 +50,9 @@ export interface RecipeRule {
   beneath?: boolean;
   fit?: boolean;
   turn?: number;
+  /** Only on ground this high / this steep (see `DressRule`). */
+  height?: [number, number];
+  slope?: [number, number];
 }
 
 export interface Recipe {

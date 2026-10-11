@@ -155,6 +155,39 @@ test('tracks follow a trail, pointing the way it goes', async ({ page }, testInf
   await canvas.screenshot({ path: testInfo.outputPath('tracks.png') });
 });
 
+test('a stone circle rings its altar with standing stones', async ({ page }, testInfo) => {
+  test.skip(isPhone(page), 'The Creator is used on the desktop.');
+  await installData(page);
+  await newMap(page, 'Old Ring');
+  // No pack: the drawn stand-ins (an altar, rocks) are used.
+  await tool(page, 'Dress').click();
+  await page
+    .getByRole('radiogroup', { name: 'Settlement recipes' })
+    .getByRole('radio', { name: /Stone circle/ })
+    .click();
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  for (const [x, y] of [
+    [120, 100],
+    [640, 100],
+    [640, 520],
+    [120, 520],
+  ] as const)
+    await page.mouse.click(box.x + x, box.y + y);
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'maps', '"recipe":"stone-circle"');
+  await waitForSaved(page, 'maps', '"place":"ring"');
+  // The ring's own settings are in the rule editor.
+  await page
+    .getByRole('region', { name: 'Dressing' })
+    .getByRole('button', { name: 'Advanced: the rules' })
+    .click();
+  await expect(page.getByLabel('How many round each (rule 2)')).toHaveValue('9');
+  await page.waitForTimeout(500);
+  await canvas.screenshot({ path: testInfo.outputPath('stone-circle.png') });
+});
+
 const CORE = '!Core_Settlements/';
 /** Real furniture names: a common room's tables, seats, tableware and storage. */
 const FURNITURE = [

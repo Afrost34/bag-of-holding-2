@@ -79,15 +79,92 @@ const PLACES: { id: DressPlace; name: string; area: boolean; along: boolean }[] 
   { id: 'around', name: 'Round the pieces of a rule above', area: true, along: false },
   { id: 'on', name: 'On the pieces of a rule above', area: true, along: false },
   { id: 'setting', name: 'A setting in front of each seat', area: true, along: false },
+  { id: 'ring', name: 'In a ring round the pieces of a rule above', area: true, along: false },
+  { id: 'front', name: 'In front of the pieces of a rule above', area: true, along: false },
 ];
 
 /** Places that relate to the pieces of an earlier rule. */
-const ANCHORED = new Set<DressPlace>(['around', 'on', 'setting']);
+const ANCHORED = new Set<DressPlace>(['around', 'on', 'setting', 'ring', 'front']);
+/** Anchored places that work anywhere, not only in a room. */
+const OUTDOOR_ANCHORED = new Set<DressPlace>(['ring', 'front']);
 /** Places that furnish a room (they ignore the area settings above). */
 const ROOMISH = new Set<DressPlace>(['wall', 'corner', 'centre', 'around', 'on', 'setting']);
 
 /** "Rotation of pieces" for the first rule, "Rotation of pieces (rule 2)" for the others. */
 const label = (base: string, r: number) => (r === 0 ? base : `${base} (rule ${String(r + 1)})`);
+
+const percent = (v: number) => `${String(Math.round(v * 100))}%`;
+
+/**
+ * A rule kept to a band of the map's elevation (height or slope): off, or between two values from
+ * 0 to 1. The whole band (0–1) means no limit, so it switches off.
+ */
+function GroundBand({
+  name,
+  low,
+  high,
+  hint,
+  index,
+  value,
+  onChange,
+}: {
+  name: string;
+  low: string;
+  high: string;
+  hint: string;
+  index: number;
+  value: [number, number] | undefined;
+  onChange: (band: [number, number] | undefined) => void;
+}) {
+  const set = (lo: number, hi: number) => {
+    onChange(lo <= 0 && hi >= 1 ? undefined : [lo, hi]);
+  };
+  const [lo, hi] = value ?? [0, 1];
+  return (
+    <div className="space-y-1">
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={value !== undefined}
+          aria-label={label(`Keep to a ${name.toLowerCase()} band`, index)}
+          onChange={(e) => {
+            onChange(e.target.checked ? [0, 0.5] : undefined);
+          }}
+        />
+        Only at some {name.toLowerCase()} (needs elevation)
+      </label>
+      {value && (
+        <div className="grid grid-cols-2 gap-2">
+          <Slider
+            label={low}
+            aria={label(`${name} from`, index)}
+            value={lo}
+            min={0}
+            max={1}
+            step={0.05}
+            display={percent(lo)}
+            onChange={(v) => {
+              set(v, Math.max(v, hi));
+            }}
+          />
+          <Slider
+            label={high}
+            aria={label(`${name} to`, index)}
+            value={hi}
+            min={0}
+            max={1}
+            step={0.05}
+            display={percent(hi)}
+            onChange={(v) => {
+              set(Math.min(v, lo), v);
+            }}
+          />
+          <p className="col-span-2 text-xs text-muted">{hint}</p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** One rule: what it lays down, where, and how. */
 function RuleEditor({
@@ -217,7 +294,13 @@ function RuleEditor({
           value={rule.place}
           aria-label={label('Where pieces go', index)}
           onChange={(e) => {
-            onChange({ place: e.target.value as DressPlace });
+            const place = e.target.value as DressPlace;
+            // A place that relates to an earlier rule starts with the rule just above.
+            onChange(
+              ANCHORED.has(place) && rule.anchor === undefined && index > 0
+                ? { place, anchor: index - 1 }
+                : { place },
+            );
           }}
           className={field}
         >
@@ -246,6 +329,67 @@ function RuleEditor({
             ))}
           </select>
         </label>
+      )}
+      {OUTDOOR_ANCHORED.has(rule.place) && (
+        <>
+          <Slider
+            label={rule.place === 'ring' ? 'Distance from it' : 'Gap in front'}
+            aria={label('Distance from the anchor', index)}
+            value={rule.offset}
+            min={0}
+            max={600}
+            step={1}
+            onChange={(offset) => {
+              onChange({ offset });
+            }}
+          />
+          {rule.place === 'ring' ? (
+            <label className="block text-sm">
+              How many round each
+              <input
+                type="number"
+                min={1}
+                max={99}
+                value={rule.count ?? ''}
+                placeholder="all that fit"
+                aria-label={label('How many round each', index)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  const { count: _c, ...rest } = rule;
+                  onReplace(
+                    v === '' ? rest : { ...rest, count: Math.max(1, Math.round(Number(v))) },
+                  );
+                }}
+                className={field}
+              />
+            </label>
+          ) : (
+            <Slider
+              label="Share that get one"
+              aria={label('Share that get one', index)}
+              value={rule.fill ?? 1}
+              min={0.1}
+              max={1}
+              step={0.05}
+              display={`${String(Math.round((rule.fill ?? 1) * 100))}%`}
+              onChange={(fill) => {
+                onChange({ fill });
+              }}
+            />
+          )}
+          <Slider
+            label="Turned off true"
+            aria={label('Turned off true', index)}
+            value={rule.loose ?? 0}
+            min={0}
+            max={45}
+            step={1}
+            display={`${String(rule.loose ?? 0)}°`}
+            onChange={(loose) => {
+              onChange({ loose });
+            }}
+          />
+        </>
       )}
       {ROOMISH.has(rule.place) && (
         <>
@@ -437,6 +581,34 @@ function RuleEditor({
           onChange({ falloff });
         }}
       />
+      {!ROOMISH.has(rule.place) && (
+        <>
+          <GroundBand
+            name="Height"
+            low="Lowest"
+            high="Highest"
+            hint="0% the shore, 100% the highest ground"
+            index={index}
+            value={rule.height}
+            onChange={(height) => {
+              const { height: _h, ...rest } = rule;
+              onReplace(height ? { ...rest, height } : rest);
+            }}
+          />
+          <GroundBand
+            name="Slope"
+            low="Flattest"
+            high="Steepest"
+            hint="0% flat, 100% a cliff"
+            index={index}
+            value={rule.slope}
+            onChange={(slope) => {
+              const { slope: _s, ...rest } = rule;
+              onReplace(slope ? { ...rest, slope } : rest);
+            }}
+          />
+        </>
+      )}
       <label className="block text-sm">
         Snap
         <select
@@ -466,6 +638,7 @@ function RuleEditor({
           <option value="random">Any way (rocks, top-down pictures)</option>
           <option value="quarter">Square on (furniture)</option>
           {along && <option value="along">Along the line</option>}
+          {rule.place === 'ring' && <option value="along">Facing what it rings</option>}
         </select>
       </label>
       {rule.rotation === 'random' && (

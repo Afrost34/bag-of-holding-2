@@ -112,7 +112,8 @@ const TREE_PARTS = ['bare', 'dead', 'stump', 'log', 'branch'];
 
 export const NATURE_RECIPES: readonly Recipe[] = [
   biome('forest', 'Forest', 'trees with shadows, undergrowth, clearings', [
-    canopy(of('Woodlands', ['trees'], ['/trees/'], TREE_PARTS)),
+    // Trees thin out on cliffs (with elevation).
+    { ...canopy(of('Woodlands', ['trees'], ['/trees/'], TREE_PARTS)), slope: [0, 0.7] },
     ground(of('Woodlands', ['plants'], ['/long_grass/', '/weeds/', '/moss/', '/grass/'], ['edge'])),
     shadows,
     undergrowth(of('Woodlands', ['bushes', 'plants'], ['/bushes/', '/ferns/'])),
@@ -158,12 +159,52 @@ export const NATURE_RECIPES: readonly Recipe[] = [
     clearings(of('Desert', ['rocks'], ['/boulders/', '/buried/', '/stones/']), 1.2),
   ]),
   biome('mountain', 'Mountainside', 'boulders, firs, ore, scree', [
-    canopy(of('Mountain', ['trees'], ['/trees/'], TREE_PARTS), 1.3, [g('pine')]),
+    // With elevation: firs on the gentler ground, boulders and scree where it is steep.
+    {
+      ...canopy(of('Mountain', ['trees'], ['/trees/'], TREE_PARTS), 1.3, [g('pine')]),
+      slope: [0, 0.55],
+    },
     ground(of('Mountain', ['rocks'], ['/pebbles/', '/stones/']), 1.4),
-    clearings(of('Mountain', ['rocks'], ['/boulders/', '/rock_ore/']), 1.2),
+    {
+      ...clearings(of('Mountain', ['rocks'], ['/boulders/', '/rock_ore/']), 1.2),
+      slope: [0.2, 1],
+    },
     {
       ...clearings(of('Mountain', ['trees'], ['/logs/', '/stumps/'])),
       key: 'logs',
+      slope: [0, 0.4],
+    },
+  ]),
+  biome('highlands', 'Highlands by height', 'follows the elevation: firs, snowy firs, scree, ice', [
+    // Firs up to the tree line, on ground that is not too steep.
+    {
+      ...canopy(of('Mountain', ['trees'], ['/trees/'], TREE_PARTS), 1.1, [g('pine')]),
+      height: [0, 0.5],
+      slope: [0, 0.5],
+    },
+    shadows,
+    // Snowy firs, thinner, above them.
+    {
+      ...canopy(of('Arctic', ['trees'], ['/trees/'], ['bare', ...TREE_PARTS]), 1.6, [g('pine')]),
+      key: 'snowline',
+      height: [0.45, 0.75],
+      slope: [0, 0.55],
+    },
+    // Scree and boulders wherever the ground is steep, at any height.
+    {
+      ...ground(of('Mountain', ['rocks'], ['/pebbles/', '/stones/']), 1.1),
+      slope: [0.3, 1],
+    },
+    {
+      ...clearings(of('Mountain', ['rocks'], ['/boulders/']), 1.1),
+      key: 'boulders',
+      slope: [0.4, 1],
+    },
+    // Ice and frosted brush on the peaks.
+    {
+      ...clearings(of('Arctic', ['rocks', 'bushes'], ['/ice_rocks/', 'bush_snow', 'frosted'])),
+      key: 'ice',
+      height: [0.72, 1],
     },
   ]),
   biome('underdark', 'Underdark caverns', 'giant mushrooms, crystals, cocoons', [

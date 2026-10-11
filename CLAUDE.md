@@ -128,6 +128,7 @@ accent-coloured text).
 | A new kind of map item               | `app/maps/model.ts` (type + KINDS), `scene.ts` (`drawItem`, `hit`, `select`), `ItemSettings.tsx`                                                  |
 | Map generators and their rules       | pure modules in `app/maps/`: `scatter`, `city`, `rooms`, `islandgen`, `elevation` (all tested)                                                    |
 | Dress tool (scatter): rules, recipes | `app/maps/dress/` (`engine`, `recipes`, `upgrade`; ADR 0014), `features/maps/DressPanel.tsx`                                                      |
+| Rings, in front, height/slope bands  | `app/maps/dress/engine.ts` (`ringRule`, `frontRule`), `dress/ground.ts`; recipes in `settlements.ts`, `nature.ts`                                 |
 | Furniture in rooms, room types       | `app/maps/dress/interior.ts` (placements), `interiors.ts` (room recipes), `tables.ts`                                                             |
 | Stamp variations, FA name parts      | `app/maps/packNames.ts`, `randomize.ts`; panel `features/maps/VariationsPanel.tsx`                                                                |
 | Buildings, dungeons, ships           | `app/maps/structure/` (`floorplan`, `dungeonplan`, `shipplan`, `structureDoc`, `styles`, `archetypes`, `furnish`; ADR 0015), `StructurePanel.tsx` |

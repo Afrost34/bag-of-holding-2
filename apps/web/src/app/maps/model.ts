@@ -129,7 +129,9 @@ export type DressPlace =
   | 'centre'
   | 'around'
   | 'on'
-  | 'setting';
+  | 'setting'
+  | 'ring'
+  | 'front';
 
 /** One rule of a dressing: which pictures, where, how many, how turned. */
 export interface DressRule {
@@ -183,6 +185,13 @@ export interface DressRule {
   fit?: boolean;
   /** Degrees added to every piece's turn (a footprint drawn pointing up, laid along a line). */
   turn?: number;
+  /**
+   * Only where the ground is this high (needs elevation): 0 is the sea's edge, 1 the highest
+   * ground of the map. Pieces thin out near the ends of the band instead of stopping on a line.
+   */
+  height?: [number, number];
+  /** Only where the ground is this steep (needs elevation): 0 flat, 1 a cliff. */
+  slope?: [number, number];
 }
 
 export interface WaterLook {

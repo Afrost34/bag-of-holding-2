@@ -48,6 +48,18 @@ and falloff. The full tool list is in `docs/research/procedural-tools.md`.
   civic, arcane and holy, plus a smithy. Glyphs stand in only when no pack is imported or drawn art
   is on, so a room from the packs never mixes drawn tables with pack chairs.
 
+- **Relations outdoors** (added later): `ring` stands pieces round each piece of an earlier rule,
+  evenly from a random start, facing it when turned `along` (seats and bedrolls round a camp's
+  fires, standing stones round an altar); `front` puts one piece before each, turned as it is (a
+  grave before its tombstone, wares before a stall). A ring or front piece always belongs to its
+  nearest anchor, so it never crowds a neighbouring fire or the next row. `count` on a scattered
+  rule keeps the pieces nearest the middle (one altar in the circle).
+- **The ground drives the art** (added later): a rule can keep to a `height` band (0 the shore, 1
+  the map's highest ground) and a `slope` band (0 flat, 1 a cliff, `dress/ground.ts`). Pieces thin
+  out across the soft ends of a band. Without elevation the bands do nothing. Dressings that use a
+  band are made again when the elevation changes (only those: painting hills does not remake every
+  forest).
+
 ## Consequences
 
 - New set-dressing tools are mostly new recipes and new placements, not new item kinds.

@@ -117,7 +117,7 @@ describe('pick again', () => {
 
 describe('settlement generators', () => {
   it('find every layer of the market, camp, graveyard, farm and scrapyard on the real packs', () => {
-    for (const id of ['market', 'camp', 'graveyard', 'farm', 'scrapyard']) {
+    for (const id of ['market', 'camp', 'graveyard', 'farm', 'scrapyard', 'stone-circle']) {
       const r = recipe(id);
       expect(r.group, id).toBe('Settlement');
       const rules = recipeRules(r, FA_ENTRIES, { unit: 70 });
