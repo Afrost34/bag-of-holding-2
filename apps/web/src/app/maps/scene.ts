@@ -378,7 +378,12 @@ export function stripWallView(
     // The corners and endings of the same set stand over the joints.
     const cut = parsed.path.lastIndexOf('/') + 1;
     const dir = parsed.path.slice(0, cut);
-    const set = piecesFor(parsed.path.slice(cut), filesBeside(parsed.pack, dir));
+    // Some sets keep their strips in a `Paths` folder and the pieces in the one above it.
+    const above = dir.endsWith('/Paths/') ? dir.slice(0, -'Paths/'.length) : null;
+    const here = filesBeside(parsed.pack, dir);
+    const up = above ? filesBeside(parsed.pack, above) : [];
+    const set = piecesFor(parsed.path.slice(cut), [...here, ...up]);
+    const folderOf = (file: string) => (up.includes(file) && above ? above : dir);
     // Where other walls meet this one the junction piece stands, not a corner or an ending.
     const own = placePieces(points, closed, set, style).filter(
       (p) => !junctions.all.some((j) => Math.hypot(j.x - p.x, j.y - p.y) <= 4),
@@ -399,7 +404,7 @@ export function stripWallView(
                     ? set.ending
                     : undefined;
       const file = spec?.file ?? (place.kind === 'tee' ? set.tee : set.cross);
-      const piece = file ? packTexture(packRef(parsed.pack, dir + file)) : null;
+      const piece = file ? packTexture(packRef(parsed.pack, folderOf(file) + file)) : null;
       if (!piece) continue;
       const size = (spec?.squares ?? 1) * gridSize;
       const sprite = new Sprite(piece);
