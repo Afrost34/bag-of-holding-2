@@ -109,14 +109,24 @@ export function kitParts(doc: MapDoc, item: KitItem): MapItem[] {
       const run = loop ? [...line, line[0] ?? 0, line[1] ?? 0] : line;
       const length = polylineLength(run);
       const step = Math.max(1, kit.post.every * k);
-      const count = Math.max(1, Math.floor(length / step + 1e-6));
+      const fill = kit.post.fill === true;
+      const count = Math.max(
+        1,
+        fill ? Math.round(length / step) : Math.floor(length / step + 1e-6),
+      );
       const squares = squaresOf(parsePackRef(post)?.path ?? '') ?? { w: 1, h: 1 };
       const size = kit.post.size ?? 1;
+      const turn = kit.post.turn ?? 0;
       const sides = kit.post.offset > 0 ? [1, -1] : [0];
-      // Evenly spread from end to end (a loop has no second end).
-      const stops = loop ? count : count + 1;
+      // Evenly spread from end to end (a loop has no second end); laid end to end, each piece sits
+      // in the middle of its stretch.
+      const stops = loop || fill ? count : count + 1;
+      // Pieces laid end to end stretch a little to meet; `across`: turned a quarter, so their
+      // height runs along the line.
+      const stretch = fill ? length / count / step : 1;
+      const across = Math.abs(turn % 180) === 90;
       for (let n = 0; n < stops; n++) {
-        const at = pointAlong(run, n * (length / count));
+        const at = pointAlong(run, (n + (fill ? 0.5 : 0)) * (length / count));
         for (const side of sides) {
           const off = side * kit.post.offset * k;
           out.push({
@@ -125,9 +135,9 @@ export function kitParts(doc: MapDoc, item: KitItem): MapItem[] {
             stamp: post,
             x: Math.round(at.x - Math.sin(at.angle) * off),
             y: Math.round(at.y + Math.cos(at.angle) * off),
-            w: Math.round(squares.w * k * size),
-            h: Math.round(squares.h * k * size),
-            rotation: Math.round(((at.angle * 180) / Math.PI + 360) % 360),
+            w: Math.round(squares.w * k * size * (across ? 1 : stretch)),
+            h: Math.round(squares.h * k * size * (across ? stretch : 1)),
+            rotation: Math.round(((at.angle * 180) / Math.PI + turn + 720) % 360),
           });
         }
       }

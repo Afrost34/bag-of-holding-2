@@ -27,5 +27,9 @@ stamps; it does not lay strips side by side.
 ## Consequences
 
 - New kits are data: a deck, rails and posts with `Wanted` queries, checked on real FA names.
-- Stair runs and kits assembled to a size (fountains, tents) are not line kits; fountains and
-  tents come with the generators.
+- Rows are kits with only posts: a pillar row, a brazier row (lit braziers light the map as any
+  lit stamp does). A post can be turned from the line (`turn`) and laid end to end (`fill`): the
+  **stair run** lays FA 1x3 flights across the line, stretched a little so whole flights fill it.
+- Kits assembled to a size (fountains from basin parts, modular tents) are not line kits. They
+  wait for the real names of those folders (`__fixtures__/faNames.ts` has none yet); camps use
+  whole tent pictures meanwhile.

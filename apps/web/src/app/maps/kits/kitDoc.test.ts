@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FA_ENTRIES } from '../__fixtures__/faNames';
+import { refGlow } from '../glow';
 import { addItem, newMap, type MapDoc, type MapItem } from '../model';
 import { nearestOnPolyline } from '../spline';
 import { stampUnit } from '../units';
@@ -78,6 +79,40 @@ describe('line kits', () => {
     // Along the first, horizontal, stretch the flange is not turned.
     const r = flanges[0]?.rotation ?? 90;
     expect(Math.min(r, 360 - r)).toBeLessThanOrEqual(2);
+  });
+
+  it('lays a stair run end to end, each flight across the line and meeting the next', () => {
+    const base = newMap('Hall', [], 'now');
+    const layer = base.layers[0];
+    if (!layer) throw new Error('no layer');
+    const unit = stampUnit(base);
+    // Ten squares, straight across: three flights of a bit more than three squares.
+    const item = makeKit('s1', 'stairs', [0, 200, 10 * unit, 200], FA_ENTRIES);
+    const doc = addItem(base, layer.id, item);
+    const flights = stampsOf(kitParts(doc, item));
+    expect(flights).toHaveLength(3);
+    expect(flights[0]?.stamp).toContain('Stairs_Stone');
+    for (const f of flights) {
+      expect(f.rotation).toBe(90);
+      expect(f.y).toBe(200);
+      // Turned a quarter, a flight's height runs along the line: three flights fill ten squares.
+      expect(f.h).toBeCloseTo((10 / 3) * unit, -1);
+      expect(f.w).toBeCloseTo(unit, -1);
+    }
+    expect(flights.map((f) => f.x)).toEqual(
+      [0.5, 1.5, 2.5].map((n) => Math.round((n * 10 * unit) / 3)),
+    );
+  });
+
+  it('lines a hall with lit braziers that light the map, and pillars down its middle', () => {
+    const braziers = resolveKit(kitById('braziers'), FA_ENTRIES).post;
+    expect(braziers).toContain('/Lit/Brazier_');
+    expect(refGlow(braziers ?? '')).not.toBeNull();
+    const { doc, item } = withKit('pillar-row');
+    const pillars = stampsOf(kitParts(doc, item));
+    const line = kitLine(item);
+    for (const p of pillars) expect(nearestOnPolyline(line, p).dist).toBeLessThan(1);
+    expect(pillars[0]?.stamp).toContain('Pillar_Stone');
   });
 
   it('is drawn without packs (coloured lines, no posts)', () => {

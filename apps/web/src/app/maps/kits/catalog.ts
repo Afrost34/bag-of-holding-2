@@ -25,8 +25,19 @@ export interface Kit {
   deck?: KitStrip;
   /** To both sides, this far from the middle (squares). */
   rail?: KitStrip & { offset: number };
-  /** A post every `every` squares, `offset` to both sides (0: on the middle line), `size` times its own. */
-  post?: { want: Wanted[]; every: number; offset: number; size?: number };
+  /**
+   * A post every `every` squares, `offset` to both sides (0: on the middle line), `size` times its
+   * own, turned `turn` degrees from the line. `fill`: pieces laid end to end, each centred in its
+   * `every` squares (a stair run), instead of posts at the stops.
+   */
+  post?: {
+    want: Wanted[];
+    every: number;
+    offset: number;
+    size?: number;
+    turn?: number;
+    fill?: boolean;
+  };
 }
 
 /** A strip (`_Path`) whose name has one of these words. */
@@ -142,6 +153,46 @@ export const KITS: readonly Kit[] = [
       every: 2,
       offset: 1.5,
       size: 1.6,
+    },
+  },
+  {
+    id: 'pillar-row',
+    name: 'Pillar row',
+    hint: 'one line of pillars, every three squares',
+    post: {
+      want: [
+        stamp(['buildings'], '/pillars/stone/pillar_stone_'),
+        stamp(['buildings'], '/pillars/'),
+      ],
+      every: 3,
+      offset: 0,
+      size: 1.6,
+    },
+  },
+  {
+    id: 'braziers',
+    name: 'Brazier row',
+    hint: 'lit braziers to both sides of a hall, every four squares',
+    post: {
+      want: [stamp(['lights'], '/braziers/lit/brazier_metal'), stamp(['lights'], '/braziers/lit/')],
+      every: 4,
+      offset: 2,
+      size: 0.6,
+    },
+  },
+  {
+    id: 'stairs',
+    name: 'Stair run',
+    hint: 'flights of stairs end to end, as long as the line',
+    post: {
+      want: [
+        stamp(['buildings'], '/stairs_stone/stairs_stone_'),
+        stamp(['buildings'], '/stairs_and_ladders/stairs_'),
+      ],
+      every: 3,
+      offset: 0,
+      turn: 90,
+      fill: true,
     },
   },
 ];

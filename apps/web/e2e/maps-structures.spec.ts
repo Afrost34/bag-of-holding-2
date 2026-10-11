@@ -191,6 +191,30 @@ test('a chainwalk is drawn along a line with the Walkway tool, and baked', async
   await waitForSaved(page, 'maps', 'Pillar_Metal_Gray_A1_1x1');
 });
 
+test('a stair run lays flights end to end along a line', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is used on the desktop.');
+  test.setTimeout(120_000);
+  await installData(page);
+  await newMap(page, 'Steps');
+  await tool(page, 'Stamp').click();
+  await importPack(page, [
+    CORE + 'Structures/Building/Stairs_and_Ladders/Stairs_Stone/Stairs_Stone_Slate_A_1x3.png',
+  ]);
+  await tool(page, 'Walkway').click();
+  await page
+    .getByRole('radiogroup', { name: 'Kind of walkway' })
+    .getByRole('radio', { name: /Stair run/ })
+    .click();
+  const box = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
+  if (!box) throw new Error('no canvas');
+  await page.mouse.click(box.x + 120, box.y + 200);
+  await page.mouse.click(box.x + 520, box.y + 200);
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'maps', '"kit":"stairs"');
+  await page.getByRole('button', { name: 'Bake', exact: true }).click();
+  await waitForSaved(page, 'maps', 'Stairs_Stone_Slate_A_1x3');
+});
+
 test('a skyship is drawn as a box: decks, golden sails, an engine room below', async ({ page }) => {
   test.skip(isPhone(page), 'The Creator is used on the desktop.');
   test.setTimeout(120_000);
