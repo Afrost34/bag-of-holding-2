@@ -67,7 +67,20 @@ const RUGS = q(['decor'], ['/rugs/rectangle/', '/rugs/oval/'], ['tassel', 'fring
 const SHELVES = q(['furniture'], ['/shelves/filled/', '/bookshelves/'], ['modular']);
 const BOOKSHELVES = q(['furniture'], ['/bookshelves/'], ['modular']);
 const CANDLES = q(['lights'], ['/arranged_candles/', '/candelabras/']);
-const BRAZIERS = q(['lights'], ['/braziers/']);
+/** Only lit braziers give light (`glow.ts`). */
+const BRAZIERS = q(['lights'], ['/braziers/lit/']);
+const WALL_LIGHTS = q(['lights'], ['/interior_wall_lights/'], ['/parts/']);
+
+/** Lamps on the walls, a few squares apart (their mount is at the top of the picture). */
+const wallLights = (count: number): RecipeRule => ({
+  key: 'lights',
+  place: 'wall',
+  want: WALL_LIGHTS,
+  max: 3,
+  spacing: 0,
+  gap: 3,
+  count,
+});
 
 /** Tables down the middle of the room, as many as fit with room to walk round them. */
 const tables = (count?: number): RecipeRule => ({
@@ -159,6 +172,15 @@ const corners = (key: string, want: Wanted, count = 2, glyphs?: GlyphId[]): Reci
 // endregion
 
 export const INTERIOR_RECIPES: readonly Recipe[] = [
+  // Lights for any room ("Light this room"): not a room type of its own.
+  {
+    id: 'room-lights',
+    name: 'Wall lamps',
+    hint: 'lamps round the walls of a room',
+    group: 'Interior',
+    mode: 'area',
+    rules: [{ ...wallLights(12), gap: 3.5 }],
+  },
   // Tavern and inn
   room('tavern', 'Common room', 'tables and seats, barrels, benches', [
     tables(),
@@ -167,6 +189,7 @@ export const INTERIOR_RECIPES: readonly Recipe[] = [
     onTables(q(['lights', 'clutter'], ['/arranged_candles/', '/prepared_meals/', '/pitchers/'])),
     wall('benches', q(['furniture'], ['/benches/']), { count: 3, fill: 0.5 }),
     wall('barrels', BARRELS, { count: 4, fill: 0.6, glyphs: [g('barrel')], glyphSize: [40, 40] }),
+    wallLights(4),
     corners('corners', CRATES, 2, ['crate']),
   ]),
   room('kitchen', 'Kitchen', 'ovens, cupboards, a work table', [
@@ -180,6 +203,7 @@ export const INTERIOR_RECIPES: readonly Recipe[] = [
       ),
       { fill: 0.6, glyphs: [g('shelf')], glyphSize: [70, 70] },
     ),
+    wallLights(2),
     tables(1),
     onTables(
       q(
@@ -291,12 +315,14 @@ export const INTERIOR_RECIPES: readonly Recipe[] = [
       },
     ),
     wall('racks', q(['combat'], ['/weapon_racks/'], ['empty']), { count: 1 }),
+    wallLights(3),
     tables(1),
     { ...seats, count: 4 },
     corners('chests', CHESTS, 2, ['chest']),
   ]),
   room('armory', 'Armory', 'weapon racks, armor stands', [
     wall('racks', q(['combat'], ['/weapon_racks/'], ['empty']), { fill: 0.9 }),
+    wallLights(2),
     corners('stands', q(['combat'], ['/armor_stands/', '/training_dummies/'], ['dummy_arm']), 4),
     tables(1),
     onTables(q(['combat'], ['/swords/', '/axes/', '/shields/', '/daggers/']), 2),
@@ -326,6 +352,7 @@ export const INTERIOR_RECIPES: readonly Recipe[] = [
     seats,
     wall('racks', q(['combat'], ['/weapon_racks/'], ['empty']), { count: 1 }),
     wall('bench', q(['furniture'], ['/benches/']), { count: 1 }),
+    wallLights(2),
     corners('barrels', BARRELS, 2, ['barrel']),
   ]),
   // Arcane and holy

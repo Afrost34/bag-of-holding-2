@@ -149,6 +149,11 @@ type MapItemBody =
       shadow?: boolean;
       /** Walls of light: it casts shadows from lights. */
       blockLight?: boolean;
+      /**
+       * The light it gives (reach in pack squares): its own, or none (`false`). Absent: what its
+       * picture gives, a candle or a lit brazier lighting the map by itself (see `glow.ts`).
+       */
+      light?: false | { squares: number; color: string; intensity: number };
     }
   | {
       kind: 'stroke';
