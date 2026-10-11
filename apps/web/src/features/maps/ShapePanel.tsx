@@ -5,6 +5,8 @@ import { useState } from 'react';
 import { type MapItem } from '../../app/maps/model';
 import { PATH_ENDS, type PathEnd } from '../../app/maps/pathEnds';
 import { PATH_STYLES, type PathStyle } from '../../app/maps/shapes';
+import { useShowDrawn } from '../../app/maps/artPrefs';
+import type { CategoryId } from '../../app/maps/packCategories';
 import { TERRAINS, type TerrainRef } from '../../app/maps/terrain';
 import { Section } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
@@ -70,33 +72,40 @@ function PathEndsFields({
 export function TerrainPicker({
   value,
   onPick,
+  cats,
 }: {
   value: TerrainRef | undefined;
   onPick: (id: TerrainRef, base: string) => void;
+  /** Which pictures of the packs to list; the ground, water and floors by default. */
+  cats?: readonly CategoryId[];
 }) {
+  const drawn = useShowDrawn();
   return (
     <>
-      <div className="grid grid-cols-3 gap-1" role="radiogroup" aria-label="Terrain">
-        {TERRAINS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            role="radio"
-            aria-checked={value === t.id}
-            onClick={() => {
-              onPick(t.id, t.base);
-            }}
-            className={cn(
-              'overflow-hidden rounded-md border-2 text-left text-xs',
-              value === t.id ? 'border-accent' : 'border-border',
-            )}
-          >
-            <TerrainSwatch id={t.id} />
-            <span className="block truncate px-1 py-0.5">{t.name}</span>
-          </button>
-        ))}
-      </div>
+      {drawn && (
+        <div className="grid grid-cols-3 gap-1" role="radiogroup" aria-label="Terrain">
+          {TERRAINS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="radio"
+              aria-checked={value === t.id}
+              onClick={() => {
+                onPick(t.id, t.base);
+              }}
+              className={cn(
+                'overflow-hidden rounded-md border-2 text-left text-xs',
+                value === t.id ? 'border-accent' : 'border-border',
+              )}
+            >
+              <TerrainSwatch id={t.id} />
+              <span className="block truncate px-1 py-0.5">{t.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <PackTextures
+        {...(cats ? { cats } : {})}
         value={value}
         onPick={(ref) => {
           onPick(ref, '#9a958d');

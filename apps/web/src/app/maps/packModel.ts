@@ -3,6 +3,8 @@
  * `<Biome>/<Set>/<Category>/<Name>_<W>x<H>.webp`, where W×H is the size in grid squares.
  */
 
+import { classify, type CategoryId } from './packCategories';
+
 export interface PackEntry {
   /** Id of the pack that holds it. */
   pack: string;
@@ -12,6 +14,8 @@ export interface PackEntry {
   compressed: number;
   size: number;
   method: number;
+  /** What it is (ground texture, door, tree…): see `packCategories.ts`. */
+  cat: CategoryId;
 }
 
 const PICTURE = /\.(webp|png|jpe?g|avif|gif)$/i;
@@ -137,6 +141,8 @@ export interface FindOptions<E> {
   tag?: string;
   /** Letters in order rather than the exact word. */
   fuzzy?: boolean;
+  /** Only pictures sorted into this category. */
+  cat?: CategoryId;
   /** Only these (the pictures the map uses). */
   only?: (entry: E) => boolean;
 }
@@ -145,7 +151,7 @@ export interface FindOptions<E> {
  * Pictures under a folder (and below it) whose path has every word of the search. With no search,
  * only the pictures directly in the folder.
  */
-export function findPackEntries<E extends Pick<PackEntry, 'path'>>(
+export function findPackEntries<E extends Pick<PackEntry, 'path'> & { cat?: CategoryId }>(
   entries: readonly E[],
   prefix: string,
   query: string,
@@ -159,10 +165,12 @@ export function findPackEntries<E extends Pick<PackEntry, 'path'>>(
   for (const e of entries) {
     if (!e.path.startsWith(lead)) continue;
     if (options.only && !options.only(e)) continue;
+    if (options.cat && (e.cat ?? classify(e.path)) !== options.cat) continue;
     if (options.tag && !folderTags(e.path).includes(options.tag)) continue;
     if (wanted.length === 0) {
       // A folder shows what is directly in it; the pictures a map uses show wherever they are.
-      if (!options.only && !options.tag && e.path.slice(lead.length).includes('/')) continue;
+      if (!options.only && !options.tag && !options.cat && e.path.slice(lead.length).includes('/'))
+        continue;
     } else {
       const hay = e.path.slice(lead.length).toLowerCase();
       const match = options.fuzzy ? fuzzyIncludes : (h: string, w: string) => h.includes(w);

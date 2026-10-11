@@ -2,6 +2,8 @@ import { Button, cn } from '@boh/ui';
 import { FolderOpen, ImagePlus, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { fileUrl, findStamps, stampFile, useStamps, type Stamp } from '../../app/maps/assets';
+import { usePacks } from '../../app/maps/packs';
+import { ObjectLibrary } from './ObjectLibrary';
 import { PackBrowser } from './PackBrowser';
 
 type Pick = (path: string, aspect: number, squares?: { w: number; h: number }) => void;
@@ -23,6 +25,8 @@ export function StampLibrary({
   used?: ReadonlySet<string> | undefined;
 }) {
   const [source, setSource] = useState<'packs' | 'mine'>('packs');
+  // Open at first when the packs are few (or none yet); it then stays as you leave it.
+  const [foldersOpen] = useState(() => usePacks.getState().entries.length < 400);
   return (
     <section aria-label="Stamps" className="space-y-2">
       <div role="tablist" aria-label="Stamp source" className="grid grid-cols-2 gap-1">
@@ -52,7 +56,21 @@ export function StampLibrary({
         ))}
       </div>
       {source === 'packs' ? (
-        <PackBrowser selected={selected} onPick={onPick} onUseAsMix={onUseAsMix} used={used} />
+        <>
+          <ObjectLibrary selected={selected} onPick={onPick} />
+          {/* The sorted library above is the way in; the folders are for what it did not sort. */}
+          <details open={foldersOpen} className="rounded-md border border-border p-2">
+            <summary className="cursor-pointer text-sm font-medium">Packs and folders</summary>
+            <div className="mt-2">
+              <PackBrowser
+                selected={selected}
+                onPick={onPick}
+                onUseAsMix={onUseAsMix}
+                used={used}
+              />
+            </div>
+          </details>
+        </>
       ) : (
         <MyStamps selected={selected} onPick={onPick} />
       )}

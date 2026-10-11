@@ -60,6 +60,9 @@ export function MapsPage() {
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 md:px-8 md:py-10">
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="flex-1 font-serif text-2xl font-bold">Maps</h1>
+        <AppLink to="/maps/packs" className="text-sm text-accent-ink underline">
+          Pack contents
+        </AppLink>
         <Button
           variant="primary"
           onClick={() => {

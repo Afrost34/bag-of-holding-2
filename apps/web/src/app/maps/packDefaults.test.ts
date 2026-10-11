@@ -1,0 +1,65 @@
+import { describe, expect, it } from 'vitest';
+import { classify } from './packCategories';
+import {
+  availablePresets,
+  defaultSlots,
+  pickMany,
+  pickOne,
+  presetRefs,
+  PACK_PRESETS,
+} from './packDefaults';
+
+const e = (path: string) => ({ pack: 'p', path, cat: classify(path) });
+const tree = (i: number) => `Woodlands/!Wilderness/Flora/Trees/Tree_Green_C${String(i)}_5x5.webp`;
+const bush = (i: number) => `Woodlands/!Wilderness/Flora/Bushes/Bush_Red_B${String(i)}_2x2.webp`;
+const stone = (i: number) =>
+  `Woodlands/!Wilderness/Decor/Rocks/Stones/Stone_Mossy_B${String(i)}_1x1.webp`;
+const PACK = [
+  'Woodlands/!Wilderness/Textures/Grass/Grass_E_03.jpg',
+  'Woodlands/!Wilderness/Textures/Grass/Grass_Overlays/Grass_Overlay_A_01.webp',
+  'Woodlands/!Wilderness/Textures/Dirt/Dirt_A_04.jpg',
+  'Woodlands/!Wilderness/Textures/Dirt/Rocky_Dirt_04_C.jpg',
+  'Woodlands/!Wilderness/Textures/Rock/Rock_Texture_G_06.jpg',
+  'Desert/!Wilderness/Textures/Sand/Desert_Clumped_Sand_Red_A.jpg',
+  'Aquatic/!Wilderness/Textures/Water/Water_Still_B_01.jpg',
+  'Aquatic/!Wilderness/Textures/Water/Water_Opaque_A_01.jpg',
+  ...[0, 1, 2, 3, 4, 5].map(tree),
+  'Woodlands/!Wilderness/Flora/Trees/Tree_Shadows/Tree_Shadow_D6_3x3.webp',
+  ...[0, 1, 2, 3].map(bush),
+  ...[0, 1, 2, 3].map(stone),
+].map(e);
+
+describe('what the tools start with', () => {
+  it('fills the terrain slots with grass, dirt, rock, sand and water from the packs', () => {
+    const slots = defaultSlots(PACK);
+    expect(slots[0]).toBe('pack:p:Woodlands/!Wilderness/Textures/Grass/Grass_E_03.jpg');
+    expect(slots.some((s) => s.includes('Dirt_A_04'))).toBe(true);
+    expect(slots.some((s) => s.includes('Rock_Texture'))).toBe(true);
+    expect(slots.some((s) => s.includes('Sand'))).toBe(true);
+    expect(slots.some((s) => s.includes('Water_Still'))).toBe(true);
+    expect(slots.some((s) => s.includes('Overlay'))).toBe(false);
+    expect(defaultSlots([])).toEqual([]);
+  });
+
+  it('picks the same picture every time, from the favourite biome', () => {
+    const sand = pickOne(PACK, { cats: ['terrain'], words: ['sand'] });
+    expect(sand?.path).toContain('Desert');
+    expect(pickOne(PACK, { cats: ['terrain'], words: ['nothing'] })).toBeUndefined();
+  });
+
+  it('spreads a mix over many pictures and leaves out what the preset excludes', () => {
+    const forest = PACK_PRESETS.find((p) => p.id === 'forest');
+    if (!forest) throw new Error('no forest preset');
+    const refs = presetRefs(PACK, forest);
+    expect(refs).toHaveLength(10);
+    expect(refs.some((r) => r.includes('Shadow'))).toBe(false);
+    expect(refs.some((r) => r.includes('Bush_'))).toBe(true);
+    expect(pickMany(PACK, { cats: ['trees'] }, 3)).toHaveLength(3);
+  });
+
+  it('offers only the presets the packs can fill', () => {
+    const ids = availablePresets(PACK).map((p) => p.id);
+    expect(ids).toEqual(expect.arrayContaining(['forest', 'trees', 'bushes', 'rocks']));
+    expect(ids).not.toContain('mushrooms');
+  });
+});
