@@ -122,7 +122,10 @@ describe('settlement generators', () => {
       expect(r.group, id).toBe('Settlement');
       const rules = recipeRules(r, FA_ENTRIES, { unit: 70 });
       expect(rules, id).toHaveLength(r.rules.length);
-      expect(rules.every((x) => x.pieces.every((p) => p.ref.startsWith('pack:'))), id).toBe(true);
+      expect(
+        rules.every((x) => x.pieces.every((p) => p.ref.startsWith('pack:'))),
+        id,
+      ).toBe(true);
     }
   });
 });
