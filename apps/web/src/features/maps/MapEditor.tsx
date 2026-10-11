@@ -1507,6 +1507,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       tile: tool === 'terrain' ? s.tile : undefined,
       soft: tool === 'terrain' ? s.soft : undefined,
       border: tool === 'terrain' ? s.border : undefined,
+      water: tool === 'terrain' ? s.water : undefined,
     };
   };
 
@@ -1583,6 +1584,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             ...(s.tile && s.tile !== 1 ? { tile: s.tile } : {}),
             ...(s.soft ? { soft: s.soft } : {}),
             ...(s.border ? { border: true } : {}),
+            ...(s.water ? { water: s.water } : {}),
           }),
         );
         return;

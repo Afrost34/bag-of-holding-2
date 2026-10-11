@@ -1,6 +1,7 @@
 import { cn } from '@boh/ui';
 import { Search } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { libraryOrder } from '../../app/maps/packDefaults';
 import { entryRef, usePacks } from '../../app/maps/packs';
 import { biomeOf, type CategoryId } from '../../app/maps/packCategories';
 import { displayName, type PackEntry } from '../../app/maps/packModel';
@@ -39,7 +40,7 @@ export function AssetGrid({
     if (!loaded) void load();
   }, [loaded, load]);
   const mine = useMemo(
-    () => entries.filter((e) => cats.includes(e.cat) && (!filter || filter(e))),
+    () => entries.filter((e) => cats.includes(e.cat) && (!filter || filter(e))).sort(libraryOrder),
     [entries, cats, filter],
   );
   const biomes = useMemo(() => {

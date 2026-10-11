@@ -49,10 +49,11 @@ import { isTied, obstacleSignature, pieceBox, scatterLine, scatterOf } from './s
 import { pathLine, pathView, shapeHoles, shapeOutline, shapeView } from './shapes';
 import { pointInPolygon } from './polygon';
 import { PIXELS_PER_SQUARE } from './packCategories';
-import { piecesFor, placePieces } from './wallPieces';
+import { junctionPieces, piecesFor, placePieces, type PiecePlace } from './wallPieces';
 import { isWallStrip, stripSegments } from './wallStrip';
 import { packRef, parsePackRef, type PackEntry } from './packModel';
 import { usePacks } from './packs';
+import type { WaterLook } from './model';
 import { isPackTexture, TERRAINS, terrainTile, type TerrainRef } from './terrain';
 
 /**
@@ -356,6 +357,7 @@ export function stripWallView(
   ref: string,
   gridSize: number,
   withPieces = false,
+  junctions: { mine: PiecePlace[]; all: PiecePlace[] } = { mine: [], all: [] },
 ): Container | null {
   const texture = packTexture(ref);
   if (!texture) return null;
@@ -376,8 +378,19 @@ export function stripWallView(
     const cut = parsed.path.lastIndexOf('/') + 1;
     const dir = parsed.path.slice(0, cut);
     const set = piecesFor(parsed.path.slice(cut), filesBeside(parsed.pack, dir));
-    for (const place of placePieces(points, closed)) {
-      const file = place.kind === 'corner' ? set.corner : set.ending;
+    // Where other walls meet this one the junction piece stands, not a corner or an ending.
+    const own = placePieces(points, closed).filter(
+      (p) => !junctions.all.some((j) => Math.hypot(j.x - p.x, j.y - p.y) <= 4),
+    );
+    for (const place of [...own, ...junctions.mine]) {
+      const file =
+        place.kind === 'corner'
+          ? set.corner
+          : place.kind === 'ending'
+            ? set.ending
+            : place.kind === 'tee'
+              ? set.tee
+              : set.cross;
       const piece = file ? packTexture(packRef(parsed.pack, dir + file)) : null;
       if (!piece) continue;
       const sprite = new Sprite(piece);
@@ -431,6 +444,8 @@ export interface StrokeStyle {
   soft?: number | undefined;
   /** A dark line round the stroke. */
   border?: boolean | undefined;
+  /** Shallow and deep colours of water. */
+  water?: WaterLook | undefined;
 }
 
 /** How blurred a stroke of this width and softness is (map pixels). */
@@ -468,7 +483,40 @@ function strokeView(points: readonly number[], style: StrokeStyle): Container {
     cap: 'round',
     join: 'round',
   });
-  const view: Container = line;
+  let view: Container = line;
+  if (style.water) {
+    // Shallow water tints the whole stroke; the deep colour fills its middle and fades outwards.
+    const { shallow, deep, blend } = style.water;
+    const tint = new Graphics();
+    if (points.length >= 2) {
+      tint.moveTo(points[0] ?? 0, points[1] ?? 0);
+      for (let i = 2; i + 1 < points.length; i += 2)
+        tint.lineTo(points[i] ?? 0, points[i + 1] ?? 0);
+      if (points.length === 2) tint.lineTo((points[0] ?? 0) + 0.1, points[1] ?? 0);
+    }
+    tint.stroke({
+      color: colorOf(shallow),
+      width: style.width,
+      alpha: 0.3,
+      cap: 'round',
+      join: 'round',
+    });
+    const core = new Graphics();
+    if (points.length >= 2) {
+      core.moveTo(points[0] ?? 0, points[1] ?? 0);
+      for (let i = 2; i + 1 < points.length; i += 2)
+        core.lineTo(points[i] ?? 0, points[i + 1] ?? 0);
+      if (points.length === 2) core.lineTo((points[0] ?? 0) + 0.1, points[1] ?? 0);
+    }
+    const inner = Math.max(2, style.width * (1 - Math.min(0.95, Math.max(0, blend))));
+    core.stroke({ color: colorOf(deep), width: inner, alpha: 0.55, cap: 'round', join: 'round' });
+    core.filters = [
+      new BlurFilter({ strength: Math.max(1, style.width * blend * 0.18), quality: 4 }),
+    ];
+    const holder = new Container();
+    holder.addChild(line, tint, core);
+    view = holder;
+  }
   const filters = [];
   if ((style.soft ?? 0) > 0)
     filters.push(new BlurFilter({ strength: softBlur(style.width, style.soft ?? 0), quality: 4 }));
@@ -798,7 +846,9 @@ export class MapScene {
                     ? JSON.stringify([pinStyle(doc, item), doc.pinStyle ?? '', fantasyFontReady])
                     : item.kind === 'text' && item.font === 'fantasy'
                       ? String(fantasyFontReady)
-                      : packLook(item);
+                      : item.kind === 'wall' && item.texture
+                        ? packLook(item) + JSON.stringify(this.junctionsFor(doc, item.id))
+                        : packLook(item);
         const home = item.under === true && walls ? walls : view;
         if (node?.item === item && node.look === look && node.view.parent === home) return;
         if (node) {
@@ -1105,6 +1155,28 @@ export class MapScene {
     for (const pic of this.pictureViews.values()) pic.visible = !this.renderActive;
   }
 
+  private junctionCache: {
+    doc: MapDoc;
+    all: PiecePlace[];
+    byOwner: Map<string, PiecePlace[]>;
+  } | null = null;
+
+  /** The T and cross pieces where this wall meets other walls (worked out once per version of the map). */
+  private junctionsFor(doc: MapDoc, id: string): { mine: PiecePlace[]; all: PiecePlace[] } {
+    if (this.junctionCache?.doc !== doc) {
+      const walls = doc.layers.flatMap((l) =>
+        l.items.flatMap((i) =>
+          i.kind === 'wall' && i.texture
+            ? [{ id: i.id, points: i.points, closed: i.loop === true }]
+            : [],
+        ),
+      );
+      const byOwner = junctionPieces(walls);
+      this.junctionCache = { doc, byOwner, all: [...byOwner.values()].flat() };
+    }
+    return { mine: this.junctionCache.byOwner.get(id) ?? [], all: this.junctionCache.all };
+  }
+
   /** The texture of a stamp reference: a glyph drawn in code, or a picture. */
   private stampTexture(ref: string): Promise<Texture | null> {
     const glyph = isGlyphRef(ref) ? glyphIdOf(ref) : null;
@@ -1373,6 +1445,7 @@ export class MapScene {
           tile: item.tile,
           soft: item.soft,
           border: item.border,
+          water: item.water,
         });
       case 'room':
         return roomFloorView(item, terrainPattern(item.floor), floorColor(item.floor));
@@ -1429,6 +1502,7 @@ export class MapScene {
             item.texture,
             grid.size,
             true,
+            this.junctionsFor(doc, item.id),
           );
           if (strips) return strips;
         }

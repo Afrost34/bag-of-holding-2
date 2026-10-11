@@ -38,8 +38,12 @@ folder. The owner wants the tools to work from the packs and nothing else.
   a pack can be switched off (`PackMeta.disabled`: unlisted, still drawn on maps that use it); the
   category is stored in the pack index (`SORTER_VERSION` makes older indexes sort again); stamps show a
   ghost and turn with the wheel; prefabs are saved per device (`prefabs.ts`).
-- Not done: a water brush with shallow and deep colours (the terrain brush with a water texture and a
-  soft edge stands in), a material brush of its own (the terrain brush's Border toggle), a cave brush
-  with pack art beyond the cave cliff rim, modular wall pieces other than corners and endings.
+- The water brush has shallow and deep colours with a blend (`WaterLook` on a stroke: a tint over the
+  texture and a blurred deep core); the material brush is the terrain brush with a rock texture and a
+  border; the cave brush is a rounded room outline with a cave cliff rim and an earthen floor.
+- Packs are copied into storage by a worker writing in place (`packCopy.worker.ts`): the main thread's
+  writable stream keeps a swap copy until it closes, which made a 2.5 GB pack need 5 GB.
+- Not done: modular wall pieces other than corners and endings (joints, T and X connectors: walls are
+  separate items, so junctions are not known).
 - Checked on the real Core pack (148,689 pictures): the index reads in 82 ms, sorting takes 270 ms and
   a picture is cut out of the 2.5 GB zip; storing 2.5 GB in a webview's storage is not checked.

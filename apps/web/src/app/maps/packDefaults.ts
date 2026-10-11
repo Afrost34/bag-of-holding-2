@@ -33,6 +33,8 @@ export interface Wanted {
   anyWords?: readonly string[];
   /** None of these may be. */
   not?: readonly string[];
+  /** The file name (lower case, without the extension) must match. */
+  file?: RegExp;
 }
 
 function matches(e: Pickable, w: Wanted): boolean {
@@ -41,6 +43,7 @@ function matches(e: Pickable, w: Wanted): boolean {
   if (w.words && !w.words.every((x) => p.includes(x))) return false;
   if (w.anyWords && !w.anyWords.some((x) => p.includes(x))) return false;
   if (w.not?.some((x) => p.includes(x))) return false;
+  if (w.file && !w.file.test((p.split('/').pop() ?? '').replace(/\.[a-z0-9]+$/, ''))) return false;
   return true;
 }
 
@@ -74,12 +77,12 @@ export function pickMany<E extends Pickable>(
 
 /** The ground textures a new device starts with. */
 export const TERRAIN_STARTERS: readonly Wanted[] = [
-  { cats: ['terrain'], words: ['grass'], not: ['overlay', 'dead', 'dry'] },
-  { cats: ['terrain'], words: ['dirt'], not: ['overlay', 'rocky', 'gravel'] },
-  { cats: ['terrain'], anyWords: ['rock_texture', 'gravel', 'stone'], not: ['overlay'] },
-  { cats: ['terrain'], anyWords: ['sand'], not: ['overlay', 'rock'] },
-  { cats: ['water'], words: ['water'], not: ['overlay', 'opaque'] },
-  { cats: ['terrain'], anyWords: ['snow'], not: ['overlay'] },
+  { cats: ['terrain'], file: /^grass_[a-z]_\d/, not: ['overlay'] },
+  { cats: ['terrain'], file: /^dirt_[a-z]_\d/, not: ['overlay'] },
+  { cats: ['terrain'], file: /^rock_texture/, not: ['overlay'] },
+  { cats: ['terrain'], file: /sand/, not: ['overlay', 'rock'] },
+  { cats: ['water'], file: /^water_(still_)?[a-z]_\d/, not: ['overlay', 'opaque'] },
+  { cats: ['terrain'], file: /^snow/, not: ['overlay'] },
 ];
 
 /** The terrain slots to start with, or none when the packs hold no ground textures. */
@@ -221,7 +224,8 @@ export function defaultRoomStyle(entries: readonly Pickable[]): { floor?: string
     pickOne(entries, { cats: ['floors'], words: ['cobblestone'], not: ['overlay'] }) ??
     pickOne(entries, { cats: ['floors'], not: ['overlay'] });
   const wall =
-    pickOne(entries, { cats: ['walls'], words: ['wall_stone'] }) ??
+    pickOne(entries, { cats: ['walls'], words: ['wall_stone_earthy'] }) ??
+    pickOne(entries, { cats: ['walls'], words: ['wall_stone_'] }) ??
     pickOne(entries, { cats: ['walls'] });
   return {
     ...(floor ? { floor: refOf(floor) } : {}),
@@ -239,4 +243,27 @@ export function defaultCaveWall(entries: readonly Pickable[]): string | undefine
 export function defaultWater(entries: readonly Pickable[]): string | undefined {
   const e = pickOne(entries, { cats: ['water'], words: ['water'], not: ['overlay', 'opaque'] });
   return e ? refOf(e) : undefined;
+}
+
+/** A rock or gravel texture for the material brush (a bordered organic material). */
+export function defaultMaterial(entries: readonly Pickable[]): string | undefined {
+  const e =
+    pickOne(entries, { cats: ['terrain'], anyWords: ['rock_texture'], not: ['overlay'] }) ??
+    pickOne(entries, { cats: ['terrain'], anyWords: ['rock', 'gravel'], not: ['overlay'] });
+  return e ? refOf(e) : undefined;
+}
+
+/** The floor of a cave: a cave floor texture if there is one, else dirt. */
+export function defaultCaveFloor(entries: readonly Pickable[]): string | undefined {
+  const e =
+    pickOne(entries, { cats: ['floors', 'terrain'], words: ['cave'], not: ['overlay'] }) ??
+    pickOne(entries, { cats: ['terrain'], words: ['dirt'], not: ['overlay', 'gravel'] });
+  return e ? refOf(e) : undefined;
+}
+
+/** The order a library lists pictures in: Woodlands and the core first, then the other biomes. */
+export function libraryOrder(a: { path: string }, b: { path: string }): number {
+  const ra = biomeRank(a as Pickable);
+  const rb = biomeRank(b as Pickable);
+  return ra - rb || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
 }

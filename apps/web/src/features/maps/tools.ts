@@ -24,7 +24,7 @@ import {
   Type,
   type LucideIcon,
 } from 'lucide-react';
-import type { TemplateShape } from '../../app/maps/model';
+import type { TemplateShape, WaterLook } from '../../app/maps/model';
 import type { RoofStyle } from '../../app/maps/cityDoc';
 import type { BrushMode } from '../../app/maps/elevation';
 import type { PathEnd } from '../../app/maps/pathEnds';
@@ -195,6 +195,8 @@ export interface BrushSettings {
   soft?: number;
   /** A dark line round the stroke (the terrain brush). */
   border?: boolean;
+  /** The water brush: shallow and deep colours and how wide the change between them is. */
+  water?: WaterLook;
 }
 
 /** Tools that have settings in the side panel. */

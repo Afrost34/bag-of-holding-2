@@ -1490,6 +1490,16 @@ test('a texture of an imported pack paints terrain', async ({ page }) => {
   await page.mouse.move(box.x + 450, box.y + 430, { steps: 6 });
   await page.mouse.up();
   await waitForSaved(page, 'maps', '"soft":0.45');
+  // Deep and shallow water colours, with a blend.
+  await page.getByLabel('Deep water').fill('#112233');
+  await page.mouse.move(box.x + 200, box.y + 480);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 450, box.y + 500, { steps: 6 });
+  await page.mouse.up();
+  await waitForSaved(page, 'maps', '"deep":"#112233"');
+  // The cave brush is a rounded outline with a cliff rim.
+  await tool(page, 'Room').click();
+  await expect(page.getByRole('button', { name: /Cave brush/ })).toBeVisible();
 });
 
 test('walls are made of a pack strip, and its doors snap onto them', async ({ page }, testInfo) => {

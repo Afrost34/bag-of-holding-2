@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { classify } from './packCategories';
 import {
   availablePresets,
+  defaultCaveFloor,
   defaultCaveWall,
+  defaultMaterial,
   defaultWater,
   defaultRoomStyle,
   defaultSlots,
@@ -97,5 +99,14 @@ describe('the water brush', () => {
   it('starts from a water texture of the packs', () => {
     expect(defaultWater(PACK)).toContain('Water_Still_B_01');
     expect(defaultWater([])).toBeUndefined();
+  });
+});
+
+describe('the material brush and the cave', () => {
+  it('start from a rock texture and a cave or dirt floor of the packs', () => {
+    expect(defaultMaterial(PACK)).toContain('Rock_Texture');
+    expect(defaultCaveFloor(PACK)).toContain('Dirt_A_04');
+    expect(defaultMaterial([])).toBeUndefined();
+    expect(defaultCaveFloor([])).toBeUndefined();
   });
 });
