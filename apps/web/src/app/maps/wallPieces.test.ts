@@ -222,3 +222,72 @@ describe('metal sets', () => {
     });
   });
 });
+
+describe('other wall families', () => {
+  it('a brick set has its corner with arms west and north, its End and its Diagonal', () => {
+    const files = [
+      'Wall_Brick_Earthy_C_Straight_Path.webp',
+      'Wall_Brick_Earthy_C_Corner_A_1x1.webp',
+      'Wall_Brick_Earthy_C_End_A_1x1.webp',
+      'Wall_Brick_Earthy_C_Diagonal_A_1x1.webp',
+      'Wall_Brick_Earthy_C_Joint_B_1x1.webp',
+    ];
+    const set = piecesFor('Wall_Brick_Earthy_C_Straight_Path.webp', files);
+    expect(set.corner).toMatchObject({ arms: [180, 270] });
+    expect(set.ending).toMatchObject({ file: 'Wall_Brick_Earthy_C_End_A_1x1.webp', arms: [180] });
+    expect(set.diagonal).toMatchObject({ arms: [180, 315] });
+    expect(set.tee).toBeUndefined();
+  });
+
+  it('a dwarven set finds its pieces by the strip letter', () => {
+    const files = [
+      'Dwarven_Wall_Stone_Earthy_F_Path.webp',
+      'Dwarven_Wall_Stone_Earthy_Corner_F1_1x1.webp',
+      'Dwarven_Wall_Stone_Earthy_Ending_F1_1x1.webp',
+      'Dwarven_Wall_Stone_Earthy_Diagonal_F1_1x1.webp',
+    ];
+    const set = piecesFor('Dwarven_Wall_Stone_Earthy_F_Path.webp', files);
+    expect(set.corner?.file).toBe('Dwarven_Wall_Stone_Earthy_Corner_F1_1x1.webp');
+    expect(set.ending).toMatchObject({ arms: [180], shift: 0.25 });
+    expect(set.diagonal?.file).toBe('Dwarven_Wall_Stone_Earthy_Diagonal_F1_1x1.webp');
+  });
+
+  it('a set with outer and inner corners uses the outer one on open walls and where a loop turns out', () => {
+    const files = [
+      'Wall_StoneWood_Earthy_Dark_C_Straight_Path.webp',
+      'Wall_StoneWood_Earthy_Dark_C_Corner_Out_A_1x1.webp',
+      'Wall_StoneWood_Earthy_Dark_C_Corner_In_A_1x1.webp',
+      'Wall_StoneWood_Earthy_Dark_C_Ending_A_1x1.webp',
+    ];
+    const set = piecesFor('Wall_StoneWood_Earthy_Dark_C_Straight_Path.webp', files);
+    expect(set.corner?.file).toContain('Corner_Out_A');
+    expect(set.cornerIn?.file).toContain('Corner_In_A');
+    // An L-shaped room: five convex corners and one concave one.
+    const room = [0, 0, 200, 0, 200, 100, 100, 100, 100, 200, 0, 200];
+    const kinds = placePieces(room, true, set).map((p) => p.kind);
+    expect(kinds.filter((k) => k === 'corner')).toHaveLength(5);
+    expect(kinds.filter((k) => k === 'cornerIn')).toHaveLength(1);
+    // The same walls reversed give the same counts (the winding does not matter).
+    const reversed = placePieces([...room].reverse(), true, set).map((p) => p.kind);
+    expect(reversed.filter((k) => k === 'cornerIn')).toHaveLength(1);
+  });
+});
+
+describe('Ceremorph walls', () => {
+  it('get their ending, drawn with the wall to the east', () => {
+    const files = [
+      'Ceremorph_Wall_Blue_G_Path.webp',
+      'Ceremorph_Wall_Blue_Ending_G1_1x1.webp',
+      'Ceremorph_Wall_Blue_Corner_G1_1x1.webp',
+    ];
+    const set = piecesFor('Ceremorph_Wall_Blue_G_Path.webp', files);
+    expect(set).toEqual({
+      ending: {
+        file: 'Ceremorph_Wall_Blue_Ending_G1_1x1.webp',
+        squares: 1,
+        arms: [0],
+        shift: 0.275,
+      },
+    });
+  });
+});

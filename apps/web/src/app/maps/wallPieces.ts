@@ -25,6 +25,8 @@ export interface PieceSpec {
 
 export interface WallPieces {
   corner?: PieceSpec;
+  /** The corner as seen from inside a room, where a set draws it differently. */
+  cornerIn?: PieceSpec;
   /** A rounded corner (a quarter circle), where a set has one. */
   roundCorner?: PieceSpec;
   /** A wider rounded corner (a quarter circle of a larger radius). */
@@ -38,40 +40,76 @@ export interface WallPieces {
 
 /** The pieces of the set a strip belongs to, from the file names beside it. */
 export function piecesFor(stripFile: string, siblings: readonly string[]): WallPieces {
-  // Stone and metal sets: `<Set>_Straight_Path` or `<Set>_Path` beside `<Set>_Corner_A_1x1` and the like.
+  // Stone, plaster, metal and brick sets: `<Set>_Straight_Path` (or `<Set>_Path`) beside
+  // `<Set>_Corner_A_1x1` and the like.
   const stone = /^(.*?_)(?:Straight_)?Path\.[a-z0-9]+$/i.exec(stripFile);
-  const stoneMine = stone?.[1]
-    ? siblings.filter((f) => f.startsWith(stone[1] ?? '') && /_(Corner|Ending|Joint)_/.test(f))
+  const prefix = stone?.[1];
+  const mine = prefix
+    ? siblings
+        .filter(
+          (f) => f.startsWith(prefix) && /_(Corner|End|Ending|Joint|Diagonal|Connector)_/.test(f),
+        )
+        .sort()
     : [];
-  if (stone?.[1] && stoneMine.length > 0) {
-    const prefix = stone[1];
-    const mine = siblings.filter((f) => f.startsWith(prefix)).sort();
+  if (prefix && mine.length > 0) {
     const rest = (re: RegExp) => mine.find((f) => re.test(f.slice(prefix.length)));
-    const corner = rest(/^Corner_[A-E]_1x1\./i);
-    const round = rest(/^Corner_F_2x2\./i);
-    const wide = rest(/^Corner_H_3x3\./i);
-    const diagonal = rest(/^Connector_DIAG_A_1x1\./i);
     const ending = rest(/^Ending_[A-Z]\d?_1x1\./i);
+    const brickEnd = rest(/^End_[A-Z]\d?_1x1\./i);
+    // Brick sets draw their corner with arms west and north and end with the wall to the west.
+    const brick = !ending && brickEnd !== undefined;
+    const corner = rest(/^Corner_[A-E]\d?_1x1\./i) ?? rest(/^Corner_Out_[A-E]_1x1\./i);
+    const cornerIn = rest(/^Corner_In_[A-E]_1x1\./i);
+    const round = rest(/^Corner_(?:Out_)?F_2x2\./i);
+    const wide = rest(/^Corner_(?:Out_)?H_3x3\./i);
+    const diagonal = rest(/^Connector_DIAG_A_1x1\./i);
+    const brickDiagonal = rest(/^Diagonal_A_1x1\./i);
     const tee = rest(/^Joint_B_1x1\./i);
     const cross = rest(/^Joint_A_1x1\./i);
+    const cornerArms = brick ? [180, 270] : [0, 90];
     return {
-      ...(corner ? { corner: { file: corner, squares: 1, arms: [0, 90] } } : {}),
+      ...(corner ? { corner: { file: corner, squares: 1, arms: cornerArms } } : {}),
+      ...(cornerIn ? { cornerIn: { file: cornerIn, squares: 1, arms: cornerArms } } : {}),
       ...(round ? { roundCorner: { file: round, squares: 2, arms: [0, 90] } } : {}),
       ...(wide
         ? { wideCorner: { file: wide, squares: 3, arms: [0, 90], pivot: [1 / 3, 1 / 3] as const } }
         : {}),
       ...(diagonal ? { diagonal: { file: diagonal, squares: 1, arms: [0, 135] } } : {}),
+      ...(brickDiagonal ? { diagonal: { file: brickDiagonal, squares: 1, arms: [180, 315] } } : {}),
       ...(ending ? { ending: { file: ending, squares: 1, arms: [0] } } : {}),
-      ...(tee ? { tee } : {}),
-      ...(cross ? { cross } : {}),
+      ...(brickEnd && brick
+        ? { ending: { file: brickEnd, squares: 1, arms: [180], shift: 0.12 } }
+        : {}),
+      ...(tee && !brick ? { tee } : {}),
+      ...(cross && !brick ? { cross } : {}),
     };
+  }
+  // Dwarven sets: `<Set>_F_Path` beside `<Set>_Corner_F1_1x1` (arms west and north), `..._Ending_F1_1x1`
+  // (the wall to the west, the cap a quarter square past the middle) and `..._Diagonal_F1_1x1`.
+  const dwarven = /^(.*_)([A-Z])_Path\.[a-z0-9]+$/i.exec(stripFile);
+  if (dwarven?.[1] && dwarven[2]) {
+    const find = (name: string) =>
+      siblings.find((f) =>
+        new RegExp(`^${dwarven[1] ?? ''}${name}_${dwarven[2] ?? ''}1_1x1\\.`, 'i').test(f),
+      );
+    const corner = find('Corner');
+    const diagonal = find('Diagonal');
+    const ending = find('Ending');
+    // The alien walls of the Ceremorph have an ending drawn with the wall to the east; no tidy corner.
+    if (stripFile.startsWith('Ceremorph') && ending)
+      return { ending: { file: ending, squares: 1, arms: [0], shift: 0.275 } };
+    if (corner || diagonal || ending)
+      return {
+        ...(corner ? { corner: { file: corner, squares: 1, arms: [180, 270] } } : {}),
+        ...(diagonal ? { diagonal: { file: diagonal, squares: 1, arms: [180, 315] } } : {}),
+        ...(ending ? { ending: { file: ending, squares: 1, arms: [180], shift: 0.25 } } : {}),
+      };
   }
   const wood = /^(.*_)([A-C]\d)_Path\.[a-z0-9]+$/i.exec(stripFile);
   if (wood?.[1] && wood[2]) {
-    const prefix = wood[1];
+    const woodPrefix = wood[1];
     const variant = wood[2];
     const find = (name: string) =>
-      siblings.find((f) => f.startsWith(`${prefix}${name}_${variant}_`));
+      siblings.find((f) => f.startsWith(`${woodPrefix}${name}_${variant}_`));
     const corner = find('Corner');
     const diagonal = find('Diagonal');
     const ending = find('End');
@@ -89,7 +127,8 @@ export function piecesFor(stripFile: string, siblings: readonly string[]): WallP
 }
 
 export interface PiecePlace {
-  kind: 'corner' | 'roundCorner' | 'wideCorner' | 'diagonal' | 'ending' | 'tee' | 'cross';
+  kind:
+    'corner' | 'cornerIn' | 'roundCorner' | 'wideCorner' | 'diagonal' | 'ending' | 'tee' | 'cross';
   x: number;
   y: number;
   /** Degrees, clockwise, from the picture as drawn. */
@@ -135,6 +174,14 @@ export function placePieces(
   const at = (i: number) => ({ x: points[(i % n) * 2] ?? 0, y: points[(i % n) * 2 + 1] ?? 0 });
   const angle = (from: { x: number; y: number }, to: { x: number; y: number }) =>
     mod360((Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI);
+  // Which way a closed wall winds, to tell a corner seen from inside from one seen from outside.
+  let area = 0;
+  if (closed)
+    for (let i = 0; i < n; i++) {
+      const p = at(i);
+      const q = at(i + 1);
+      area += p.x * q.y - q.x * p.y;
+    }
   for (let i = 0; i < n; i++) {
     const here = at(i);
     const hasPrev = closed || i > 0;
@@ -159,7 +206,17 @@ export function placePieces(
         if (!spec) continue;
         const turn = alignArms(spec.arms, toPrev, toNext);
         if (turn === null) continue;
-        out.push({ kind, x: here.x, y: here.y, rotation: Math.round(turn) });
+        // Seen from inside the loop a corner may be drawn differently (an inner corner).
+        const concave =
+          closed &&
+          (here.x - prev.x) * (next.y - here.y) - (here.y - prev.y) * (next.x - here.x) < 0 !==
+            area < 0;
+        out.push({
+          kind: kind === 'corner' && concave && pieces.cornerIn ? 'cornerIn' : kind,
+          x: here.x,
+          y: here.y,
+          rotation: Math.round(turn),
+        });
         placed = true;
         break;
       }
