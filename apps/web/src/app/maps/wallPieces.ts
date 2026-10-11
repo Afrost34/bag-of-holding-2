@@ -1,15 +1,30 @@
 /**
- * The corner and ending pieces that go with a wall strip, and where on a wall they stand. A set of
- * Forgotten Adventures walls has, beside `<Set>_Straight_Path.webp`, files like `<Set>_Corner_A_1x1`
- * (an L whose arms run east and south) and `<Set>_Ending_A_1x1` (a cap whose wall runs east), all
- * one square, with the wall's middle at the middle of the picture. Pure.
+ * The corner, diagonal and ending pieces that go with a wall strip, and where on a wall they stand.
+ * Two families of Forgotten Adventures walls are known:
+ *
+ * - stone and the like: beside `<Set>_Straight_Path.webp` sit `<Set>_Corner_A_1x1` (an L whose arms
+ *   run east and south), `<Set>_Ending_A_1x1` (a cap, wall to the east), `Joint_B` (a T with arms west,
+ *   east and south) and `Joint_A` (a cross), all one square;
+ * - wood: beside `<Set>_<Colour>_A1_Path.webp` sit `<Set>_<Colour>_Corner_A1_2x2` (arms north and
+ *   east), `..._Diagonal_A1_2x2` (arms west and north-east) and `..._End_A1_1x1` (wall to the west,
+ *   the cap a fifth of a square past the middle).
+ *
+ * Every piece has the wall's middle at the middle of its picture. Pure.
  */
 
+/** A piece: its file, its size in squares, the directions its arms point to as drawn (degrees, clockwise from east). */
+export interface PieceSpec {
+  file: string;
+  squares: number;
+  arms: readonly number[];
+  /** How far, in squares, it sits towards the wall from the end (a cap that sticks out). */
+  shift?: number;
+}
+
 export interface WallPieces {
-  /** File name of the corner piece, if the set has one. */
-  corner?: string;
-  /** File name of the ending piece, if the set has one. */
-  ending?: string;
+  corner?: PieceSpec;
+  diagonal?: PieceSpec;
+  ending?: PieceSpec;
   /** The T piece (arms west, east and south) and the cross, where walls meet. */
   tee?: string;
   cross?: string;
@@ -17,28 +32,48 @@ export interface WallPieces {
 
 /** The pieces of the set a strip belongs to, from the file names beside it. */
 export function piecesFor(stripFile: string, siblings: readonly string[]): WallPieces {
-  const m = /^(.*_)Straight_Path\.[a-z0-9]+$/i.exec(stripFile);
-  const prefix = m?.[1];
-  if (!prefix) return {};
-  const mine = siblings.filter((f) => f.startsWith(prefix)).sort();
-  const corner = mine.find((f) => /^Corner_[A-E]_1x1\./i.test(f.slice(prefix.length)));
-  const ending = mine.find((f) => /^Ending_[A-Z]\d?_1x1\./i.test(f.slice(prefix.length)));
-  const tee = mine.find((f) => /^Joint_B_1x1./i.test(f.slice(prefix.length)));
-  const cross = mine.find((f) => /^Joint_A_1x1./i.test(f.slice(prefix.length)));
-  return {
-    ...(corner ? { corner } : {}),
-    ...(ending ? { ending } : {}),
-    ...(tee ? { tee } : {}),
-    ...(cross ? { cross } : {}),
-  };
+  const stone = /^(.*_)Straight_Path\.[a-z0-9]+$/i.exec(stripFile);
+  if (stone?.[1]) {
+    const prefix = stone[1];
+    const mine = siblings.filter((f) => f.startsWith(prefix)).sort();
+    const rest = (re: RegExp) => mine.find((f) => re.test(f.slice(prefix.length)));
+    const corner = rest(/^Corner_[A-E]_1x1\./i);
+    const ending = rest(/^Ending_[A-Z]\d?_1x1\./i);
+    const tee = rest(/^Joint_B_1x1\./i);
+    const cross = rest(/^Joint_A_1x1\./i);
+    return {
+      ...(corner ? { corner: { file: corner, squares: 1, arms: [0, 90] } } : {}),
+      ...(ending ? { ending: { file: ending, squares: 1, arms: [0] } } : {}),
+      ...(tee ? { tee } : {}),
+      ...(cross ? { cross } : {}),
+    };
+  }
+  const wood = /^(.*_)([A-C]\d)_Path\.[a-z0-9]+$/i.exec(stripFile);
+  if (wood?.[1] && wood[2]) {
+    const prefix = wood[1];
+    const variant = wood[2];
+    const find = (name: string) =>
+      siblings.find((f) => f.startsWith(`${prefix}${name}_${variant}_`));
+    const corner = find('Corner');
+    const diagonal = find('Diagonal');
+    const ending = find('End');
+    return {
+      ...(corner ? { corner: { file: corner, squares: 2, arms: [270, 0] } } : {}),
+      ...(diagonal ? { diagonal: { file: diagonal, squares: 2, arms: [180, 315] } } : {}),
+      ...(ending ? { ending: { file: ending, squares: 1, arms: [180], shift: 0.2 } } : {}),
+    };
+  }
+  return {};
 }
 
 export interface PiecePlace {
-  kind: 'corner' | 'ending' | 'tee' | 'cross';
+  kind: 'corner' | 'diagonal' | 'ending' | 'tee' | 'cross';
   x: number;
   y: number;
-  /** Degrees, clockwise, from the picture as drawn (arms east and south; ending's wall east). */
+  /** Degrees, clockwise, from the picture as drawn. */
   rotation: number;
+  /** For an ending: the direction towards the wall, a unit vector (the piece may sit a little along it). */
+  along?: { x: number; y: number };
 }
 
 /** The cardinal direction (0 east, 1 south, 2 west, 3 north) a vector points to, or null if it is off by over 12°. */
@@ -49,14 +84,33 @@ function cardinal(dx: number, dy: number): number | null {
   return ((k % 4) + 4) % 4;
 }
 
+const mod360 = (a: number) => ((a % 360) + 360) % 360;
+
+/** The turn that puts a piece's two arms on two directions (degrees), or null if they do not fit. */
+function alignArms(base: readonly number[], first: number, second: number): number | null {
+  const [b0, b1] = base;
+  if (b0 === undefined || b1 === undefined) return null;
+  const sweep = mod360(b1 - b0);
+  const close = (x: number) => Math.min(x, 360 - x) <= 12;
+  if (close(Math.abs(mod360(second - first) - sweep))) return mod360(first - b0);
+  if (close(Math.abs(mod360(first - second) - sweep))) return mod360(second - b0);
+  return null;
+}
+
 /**
- * Where corners and endings go on a wall: a corner at every right-angle turn along the axes, an
- * ending at each end of an open wall.
+ * Where the pieces of a set go on a wall: a corner at a turn of a right angle, a diagonal at a turn
+ * of 45°, an ending at each end of an open wall.
  */
-export function placePieces(points: readonly number[], closed: boolean): PiecePlace[] {
+export function placePieces(
+  points: readonly number[],
+  closed: boolean,
+  pieces: WallPieces,
+): PiecePlace[] {
   const n = Math.floor(points.length / 2);
   const out: PiecePlace[] = [];
   const at = (i: number) => ({ x: points[(i % n) * 2] ?? 0, y: points[(i % n) * 2 + 1] ?? 0 });
+  const angle = (from: { x: number; y: number }, to: { x: number; y: number }) =>
+    mod360((Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI);
   for (let i = 0; i < n; i++) {
     const here = at(i);
     const hasPrev = closed || i > 0;
@@ -64,19 +118,28 @@ export function placePieces(points: readonly number[], closed: boolean): PiecePl
     const prev = at((i - 1 + n) % n);
     const next = at(i + 1);
     if (hasPrev && hasNext) {
-      const a = cardinal(prev.x - here.x, prev.y - here.y);
-      const b = cardinal(next.x - here.x, next.y - here.y);
-      if (a === null || b === null || a === b || (a + 2) % 4 === b) continue;
-      // The picture's arms are east (0) and south (1): turn it until they are a and b.
-      for (let k = 0; k < 4; k++)
-        if ((k === a && (k + 1) % 4 === b) || (k === b && (k + 1) % 4 === a)) {
-          out.push({ kind: 'corner', x: here.x, y: here.y, rotation: k * 90 });
-          break;
-        }
-    } else if (hasPrev || hasNext) {
+      const toPrev = angle(here, prev);
+      const toNext = angle(here, next);
+      for (const kind of ['corner', 'diagonal'] as const) {
+        const spec = pieces[kind];
+        if (!spec) continue;
+        const turn = alignArms(spec.arms, toPrev, toNext);
+        if (turn === null) continue;
+        out.push({ kind, x: here.x, y: here.y, rotation: Math.round(turn) });
+        break;
+      }
+    } else if ((hasPrev || hasNext) && pieces.ending) {
       const other = hasNext ? next : prev;
-      const angle = (Math.atan2(other.y - here.y, other.x - here.x) * 180) / Math.PI;
-      out.push({ kind: 'ending', x: here.x, y: here.y, rotation: Math.round(angle) });
+      const toBody = angle(here, other);
+      const base = pieces.ending.arms[0] ?? 0;
+      const len = Math.hypot(other.x - here.x, other.y - here.y) || 1;
+      out.push({
+        kind: 'ending',
+        x: here.x,
+        y: here.y,
+        rotation: Math.round(mod360(toBody - base)),
+        along: { x: (other.x - here.x) / len, y: (other.y - here.y) / len },
+      });
     }
   }
   return out;
