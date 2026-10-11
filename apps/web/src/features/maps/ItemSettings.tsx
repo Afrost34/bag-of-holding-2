@@ -114,30 +114,23 @@ export function ItemSettings({
             <select
               aria-label="Wall corners"
               value={
-                item.texture
-                  ? item.joint === 'round'
-                    ? 'round'
-                    : 'sharp'
-                  : (item.joint ?? 'round')
+                item.texture ? (item.joint ?? 'sharp') : item.joint === 'sharp' ? 'sharp' : 'round'
               }
               onChange={(e) => {
-                const joint = e.target.value === 'sharp' ? 'sharp' : 'round';
+                const joint = e.target.value;
                 set((i) => {
                   if (i.kind !== 'wall') return i;
                   const { joint: _j, ...rest } = i;
-                  // A drawn wall is rounded unless told otherwise; a pack wall is square unless rounded.
-                  return i.texture
-                    ? joint === 'round'
-                      ? { ...rest, joint: 'round' }
-                      : rest
-                    : joint === 'sharp'
-                      ? { ...rest, joint: 'sharp' }
-                      : rest;
+                  if (i.texture)
+                    return joint === 'round' || joint === 'wide' ? { ...rest, joint } : rest;
+                  // A drawn wall is rounded unless told otherwise.
+                  return joint === 'sharp' ? { ...rest, joint: 'sharp' } : rest;
                 });
               }}
               className={field}
             >
               <option value="round">Rounded</option>
+              {item.texture && <option value="wide">Rounded, wide</option>}
               <option value="sharp">Sharp</option>
             </select>
           </label>
