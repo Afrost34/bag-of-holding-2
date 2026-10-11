@@ -3,6 +3,7 @@ import { Button } from '@boh/ui';
 import { FlipHorizontal2, FlipVertical2, Ruler, Trash2 } from 'lucide-react';
 import { useMemo } from 'react';
 import { orderItem } from '../../app/maps/arrange';
+import { metersPerPixel } from '../../app/maps/units';
 import { useJournal } from '../../app/journal/store';
 import {
   moveItemToLayer,
@@ -36,7 +37,8 @@ export function ItemSettings({
   onCutHole,
   onFurnish,
   stamp,
-}: MapPanelsProps & { item: MapItem }) {
+  extrasOnly = false,
+}: MapPanelsProps & { item: MapItem; extrasOnly?: boolean }) {
   // Selectors return what the stores hold; lists are made from it here (a new array from a
   // selector would re-render forever).
   const journalNotes = useJournal((s) => s.notes);
@@ -154,6 +156,7 @@ export function ItemSettings({
         <ShapeItemSettings
           item={item}
           set={set}
+          extrasOnly={extrasOnly}
           onScatter={() => {
             onScatterOn(item);
           }}
@@ -167,16 +170,20 @@ export function ItemSettings({
           item={item}
           set={set}
           commit={commit}
+          mpp={metersPerPixel(doc)}
           onCutHole={() => {
             onCutHole(item.id);
           }}
         />
       )}
-      {item.kind === 'building' && <BuildingItemSettings item={item} set={set} />}
+      {item.kind === 'building' && (
+        <BuildingItemSettings item={item} set={set} extrasOnly={extrasOnly} />
+      )}
       {item.kind === 'room' && (
         <RoomItemSettings
           item={item}
           set={set}
+          extrasOnly={extrasOnly}
           onFurnish={(preset) => {
             onFurnish(item.id, preset);
           }}

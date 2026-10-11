@@ -1,6 +1,8 @@
 import { cn } from '@boh/ui';
 import { Search } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { MAX_TILE, MIN_TILE, useAssetPrefs } from '../../app/maps/artPrefs';
+import { groupVariants } from '../../app/maps/packVariants';
 import { libraryOrder } from '../../app/maps/packDefaults';
 import { entryRef, usePacks } from '../../app/maps/packs';
 import { biomeOf, type CategoryId } from '../../app/maps/packCategories';
@@ -19,7 +21,6 @@ export function AssetGrid({
   value,
   onPick,
   emptyHint,
-  columns = 3,
   filter,
 }: {
   cats: readonly CategoryId[];
@@ -28,13 +29,13 @@ export function AssetGrid({
   value?: string | undefined;
   onPick: (entry: PackEntry, ref: string) => void;
   emptyHint: string;
-  columns?: 2 | 3 | 4;
   filter?: (entry: PackEntry) => boolean;
 }) {
   const { entries, loaded, load } = usePacks();
   const [query, setQuery] = useState('');
   const [biome, setBiome] = useState('');
   const [limit, setLimit] = useState(PAGE);
+  const { tile, setTile } = useAssetPrefs();
   const search = useDeferredValue(query);
   useEffect(() => {
     if (!loaded) void load();
@@ -60,6 +61,11 @@ export function AssetGrid({
     });
   }, [mine, search, biome]);
 
+  // The same thing in other colours is one stamp with variations.
+  const groups = useMemo(() => groupVariants(found), [found]);
+  const open = value
+    ? groups.find((g) => g.variants.some((v) => entryRef(v.entry) === value))
+    : undefined;
   if (mine.length === 0)
     return <p className="text-xs text-muted">{loaded ? emptyHint : 'Loading the packs…'}</p>;
   return (
@@ -104,37 +110,96 @@ export function AssetGrid({
           ))}
         </div>
       )}
+      <label className="flex items-center gap-2 text-[11px] text-muted">
+        Preview size
+        <input
+          type="range"
+          aria-label={`${label}: preview size`}
+          min={MIN_TILE}
+          max={MAX_TILE}
+          step={4}
+          value={tile}
+          onChange={(e) => {
+            setTile(Number(e.target.value));
+          }}
+          className="min-w-0 flex-1"
+        />
+      </label>
       <ul
         aria-label={label}
-        className={cn(
-          'grid gap-1',
-          columns === 2 ? 'grid-cols-2' : columns === 4 ? 'grid-cols-4' : 'grid-cols-3',
-        )}
+        className="grid gap-1"
+        style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${String(tile + 12)}px, 1fr))` }}
       >
-        {found.slice(0, limit).map((e) => {
+        {groups.slice(0, limit).map((g) => {
+          const e = g.head;
           const ref = entryRef(e);
+          const chosen = g === open;
           return (
-            <li key={ref}>
+            <li key={ref} className="relative">
               <button
                 type="button"
-                aria-pressed={value === ref}
+                aria-pressed={chosen}
                 aria-label={displayName(e.path)}
-                title={e.path}
+                title={
+                  g.variants.length > 1
+                    ? `${g.name}: ${String(g.variants.length)} variations`
+                    : e.path
+                }
                 onClick={() => {
                   onPick(e, ref);
                 }}
                 className={cn(
                   'w-full overflow-hidden rounded-md border-2 bg-sunken text-left',
-                  value === ref ? 'border-accent' : 'border-border hover:border-muted',
+                  chosen ? 'border-accent' : 'border-border hover:border-muted',
                 )}
               >
-                <Preview entry={e} />
+                <Preview entry={e} size={tile} />
               </button>
+              {g.variants.length > 1 && (
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute right-1 bottom-1 rounded-full bg-surface/90 px-1.5 text-[10px] font-semibold text-muted shadow-card"
+                >
+                  {g.variants.length}
+                </span>
+              )}
             </li>
           );
         })}
       </ul>
-      {found.length > limit && (
+      {open && open.variants.length > 1 && (
+        <div role="group" aria-label={`${label}: variations`} className="space-y-1">
+          <p className="text-[11px] text-muted">Variations of {open.name}</p>
+          <ul className="flex flex-wrap gap-1">
+            {open.variants.map((v) => {
+              const vref = entryRef(v.entry);
+              return (
+                <li key={vref}>
+                  <button
+                    type="button"
+                    aria-pressed={value === vref}
+                    aria-label={`${displayName(v.entry.path)} (${v.label})`}
+                    title={v.label}
+                    onClick={() => {
+                      onPick(v.entry, vref);
+                    }}
+                    className={cn(
+                      'w-16 overflow-hidden rounded-md border-2 bg-sunken',
+                      value === vref ? 'border-accent' : 'border-border hover:border-muted',
+                    )}
+                  >
+                    <Preview entry={v.entry} size={40} />
+                    <span className="block truncate px-0.5 text-center text-[10px] text-muted">
+                      {v.label}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+      {groups.length > limit && (
         <button
           type="button"
           className="text-xs text-accent-ink underline"
@@ -142,10 +207,10 @@ export function AssetGrid({
             setLimit(limit + PAGE * 2);
           }}
         >
-          Show more ({found.length - limit} left)
+          Show more ({groups.length - limit} left)
         </button>
       )}
-      {found.length === 0 && <p className="text-xs text-muted">Nothing matches.</p>}
+      {groups.length === 0 && <p className="text-xs text-muted">Nothing matches.</p>}
     </section>
   );
 }

@@ -1,4 +1,6 @@
-import { Container, Graphics, type FillPattern } from 'pixi.js';
+import { Container, FillPattern, Graphics, Matrix } from 'pixi.js';
+import { fitRoofTexture, roofPlanes } from './roofPlanes';
+import type { RoofSkin } from './roofSkin';
 import type { DistrictGeo } from './city';
 import {
   DISTRICT_STYLES,
@@ -28,7 +30,7 @@ export function drawRoof(
   roofColor: string,
   roof: BuildingItem['roof'],
   look: RoofLook = {},
-  pattern?: FillPattern | null,
+  skin?: RoofSkin | null,
 ): void {
   if (poly.length < 6) return;
   if (look.hide) {
@@ -37,8 +39,15 @@ export function drawRoof(
     g.poly(poly).stroke({ color: INK, width: 3, alpha: 0.9, join: 'miter' });
     return;
   }
-  const base = color(roofColor);
-  g.poly(poly).fill(pattern ? { fill: pattern } : { color: base });
+  if (skin) {
+    // A texture lies on each slope with its hem to the eave, a whole number of rows deep.
+    for (const plane of roofPlanes(poly, roof !== 'flat')) {
+      const fit = fitRoofTexture(plane, skin.texture.source.pixelHeight, skin.tileHeight);
+      const pattern = new FillPattern(skin.texture, 'repeat');
+      pattern.setTransform(new Matrix(fit.a, fit.b, fit.c, fit.d, fit.tx, fit.ty));
+      g.poly(plane.poly).fill({ fill: pattern });
+    }
+  } else g.poly(poly).fill({ color: color(roofColor) });
   if (roof !== 'flat') {
     const edge = longestEdge(poly);
     const c = centroid(poly);
@@ -66,10 +75,10 @@ export function drawRoof(
 export function buildingView(
   item: BuildingItem,
   look: RoofLook = {},
-  pattern?: FillPattern | null,
+  skin?: RoofSkin | null,
 ): Container {
   const g = new Graphics();
-  drawRoof(g, item.points, item.color, item.roof, look, pattern);
+  drawRoof(g, item.points, item.color, item.roof, look, skin);
   return g;
 }
 
@@ -96,7 +105,16 @@ export function districtView(item: DistrictItem, geo: DistrictGeo, look: RoofLoo
   holder.addChild(ground);
   const houses = new Graphics();
   for (const b of geo.buildings)
-    drawRoof(houses, b.poly, roofColorOf(item.style, b.tone), style.roof, look);
+    drawRoof(
+      houses,
+      b.poly,
+      roofColorOf(item.style, b.tone),
+      style.roof,
+      look,
+      look.skins?.length
+        ? look.skins[Math.min(look.skins.length - 1, Math.floor(b.tone * look.skins.length))]
+        : null,
+    );
   holder.addChild(houses);
   if (item.wall && outline.length >= 6) {
     const wall = new Graphics();

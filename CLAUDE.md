@@ -145,6 +145,15 @@ furniture) are items made from a seed and re-made when what they react to change
 into `map-assets/` (OPFS) and read in place; they are never synced. Stamps are named `pack:<id>:<path>` or
 `glyph:<name>` (drawn in code).
 
+Maps have real sizes (`app/maps/units.ts`, pure): a map covers so many meters or kilometers (a battle map is
+the packs' 5 feet to the square, a larger one has `doc.scale`), stamps are drawn true to that scale
+(`stampUnit(doc)` pixels per pack square, times `doc.stampScale`) and districts are sized in meters. A tool's
+settings change the picked item of its kind while that tool is on (`pickedFor` in `MapEditor`). Area tools draw
+dragged-out preset shapes (`outline.ts`); stamps that differ by one colour word are one stamp with variations
+(`packVariants.ts`); roofs lie on their slopes with the hem on the eave (`roofPlanes.ts`, `roofSkin.ts`); soft
+terrain edges are layers of the same stroke, never a blur (`softEdge.ts`, `heightBlend.ts`). Esc returns to Select,
+Space or the middle button pans, Alt+F makes a tab fill the app window (`app/shell/focusMode.ts`).
+
 Packs come first (ADR 0013): every pack picture has a category (`app/maps/packCategories.ts`, pure, tested on
 real Forgotten Adventures names), the tools list pack art through `AssetGrid` and start from `packDefaults.ts`,
 and the drawn art (glyphs, flat terrains, ink walls) is behind `useArtPrefs.drawnArt` (shown anyway while no

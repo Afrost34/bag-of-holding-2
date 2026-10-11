@@ -53,7 +53,6 @@ export function ObjectLibrary({ selected, onPick }: { selected: string | null; o
         cats={[current]}
         label={categoryInfo(current).name}
         value={selected ?? undefined}
-        columns={3}
         onPick={(entry, ref) => {
           const squares = squaresOf(entry.path);
           onPick(ref, squares ? squares.w / squares.h : 1, squares ?? undefined);

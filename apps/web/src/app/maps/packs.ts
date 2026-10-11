@@ -443,4 +443,42 @@ export function packThumbUrl(entry: PackEntry): Promise<string | null> {
   return url;
 }
 
+const BIG = 640;
+const bigUrls = new Map<string, Promise<string | null>>();
+
+/** A larger picture of a stamp, for the zoomed preview: kept in memory only, the last few. */
+export function packBigUrl(entry: PackEntry): Promise<string | null> {
+  const key = `${entry.pack}/${String(entry.offset)}`;
+  let url = bigUrls.get(key);
+  if (!url) {
+    url = turn(async () => {
+      const bytes = await readPackPicture(entry);
+      const bitmap = await createImageBitmap(
+        new Blob([bytes as Uint8Array<ArrayBuffer>], { type: typeOf(entry.path) }),
+      );
+      const scale = Math.min(1, BIG / Math.max(bitmap.width, bitmap.height));
+      const canvas = new OffscreenCanvas(
+        Math.max(1, Math.round(bitmap.width * scale)),
+        Math.max(1, Math.round(bitmap.height * scale)),
+      );
+      canvas.getContext('2d')?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      bitmap.close();
+      return URL.createObjectURL(await canvas.convertToBlob({ type: 'image/webp', quality: 0.9 }));
+    }).catch(() => null);
+    bigUrls.set(key, url);
+    // Only the last few stay in memory.
+    if (bigUrls.size > 24) {
+      const oldest = bigUrls.keys().next().value;
+      if (oldest !== undefined) {
+        const old = bigUrls.get(oldest);
+        bigUrls.delete(oldest);
+        void old?.then((u) => {
+          if (u) URL.revokeObjectURL(u);
+        });
+      }
+    }
+  }
+  return url;
+}
+
 // endregion

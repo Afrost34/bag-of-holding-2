@@ -1,5 +1,6 @@
 /** Types and styles shared by the map maker's side panels. */
 import type { Point } from '../../app/maps/geometry';
+import type { ShapeChoice } from '../../app/maps/outline';
 import { type MapDoc, type MapItem } from '../../app/maps/model';
 import type { Prefab } from '../../app/maps/prefabs';
 import type { TerrainRef } from '../../app/maps/terrain';
@@ -20,7 +21,7 @@ import {
   type Tool,
 } from './tools';
 
-export type Tab = 'stamps' | 'layers' | 'pins' | 'grid' | 'item';
+export type Tab = 'stamps' | 'layers' | 'pins' | 'grid';
 
 export interface MapPanelsProps {
   mode: MapMode;
@@ -93,6 +94,9 @@ export interface MapPanelsProps {
   onFillMap: (texture?: TerrainRef) => void;
   snap: boolean;
   setSnap: (s: boolean) => void;
+  /** How the current tool draws a closed area: clicked corners, or dragged out as a preset shape. */
+  draw: ShapeChoice;
+  setDraw: (c: ShapeChoice) => void;
   /** Starts measuring from a point (a pin's "Measure from here"). */
   onMeasureFrom?: (p: Point) => void;
 }

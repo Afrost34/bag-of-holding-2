@@ -4,15 +4,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
 import { useActiveCampaign, useCampaigns } from '../../app/campaigns/store';
 import { thumbnailUrl } from '../../app/maps/assets';
-import {
-  filterMaps,
-  MAX_SQUARES,
-  mapFolders,
-  mapTags,
-  type MapDoc,
-  type MapFilter,
-} from '../../app/maps/model';
+import { filterMaps, mapFolders, mapTags, type MapDoc, type MapFilter } from '../../app/maps/model';
 import { useMaps } from '../../app/maps/store';
+import {
+  formatLength,
+  LENGTH_UNITS,
+  metersIn,
+  planMap,
+  type LengthUnit,
+} from '../../app/maps/units';
 import { useAppNavigate } from '../../app/navigation';
 import { usePageTitle } from '../../app/tabs/usePageTitle';
 
@@ -29,8 +29,11 @@ export function MapsPage() {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [where, setWhere] = useState(active?.id ?? LIBRARY);
-  const [across, setAcross] = useState(40);
-  const [down, setDown] = useState(30);
+  // The size is a real one: meters or kilometers (the squares follow from it).
+  const [unit, setUnit] = useState<LengthUnit>('m');
+  const [width, setWidth] = useState(61);
+  const [height, setHeight] = useState(46);
+  const plan = useMemo(() => planMap(width, height, unit), [width, height, unit]);
 
   useEffect(() => {
     if (!loaded) void load();
@@ -80,7 +83,7 @@ export function MapsPage() {
           className="space-y-3 rounded-lg border border-border bg-surface p-4"
           onSubmit={(e) => {
             e.preventDefault();
-            void create(name, where === LIBRARY ? undefined : where, { w: across, h: down }).then(
+            void create(name, where === LIBRARY ? undefined : where, plan.squares, plan.cell).then(
               (s) => {
                 setCreating(false);
                 setName('');
@@ -125,28 +128,49 @@ export function MapsPage() {
                 <option value={LIBRARY}>Map library (no campaign)</option>
               </select>
             </div>
+            <label className="block text-sm font-medium">
+              Size in
+              <select
+                aria-label="Unit of the size"
+                value={unit}
+                onChange={(e) => {
+                  setUnit(e.target.value as LengthUnit);
+                }}
+                className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-base font-normal sm:text-sm"
+              >
+                {LENGTH_UNITS.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <span aria-hidden className="hidden sm:block" />
             {(
               [
-                ['Width (squares)', across, setAcross],
-                ['Height (squares)', down, setDown],
+                ['Width', width, setWidth],
+                ['Height', height, setHeight],
               ] as const
             ).map(([label, value, set]) => (
               <label key={label} className="block text-sm font-medium">
                 {label}
                 <input
                   type="number"
-                  min={1}
-                  max={MAX_SQUARES}
+                  min={0.1}
+                  step="any"
                   value={value}
                   onChange={(e) => {
-                    set(
-                      Math.min(MAX_SQUARES, Math.max(1, Math.round(Number(e.target.value)) || 1)),
-                    );
+                    set(Math.max(0.1, Number(e.target.value) || 0.1));
                   }}
                   className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-base font-normal sm:text-sm"
                 />
               </label>
             ))}
+            <p className="text-xs text-muted sm:col-span-2">
+              {formatLength(width * metersIn(unit))} × {formatLength(height * metersIn(unit))}: a
+              grid of {plan.squares.w} × {plan.squares.h} squares of {formatLength(plan.cell)} each.
+              Stamps are drawn true to this scale.
+            </p>
           </div>
           <div className="flex gap-2">
             <Button type="submit" variant="primary">

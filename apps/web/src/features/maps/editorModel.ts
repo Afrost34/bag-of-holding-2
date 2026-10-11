@@ -37,8 +37,7 @@ export interface Drag {
     | 'measure'
     | 'template'
     | 'fog'
-    | 'building'
-    | 'room'
+    | 'preset'
     | 'elevation'
     | 'vertex'
     | 'box'
@@ -284,3 +283,7 @@ export function pushSlot(list: readonly string[], ref: string, max = 8): string[
 
 /** The slots a new device starts with. */
 export const DEFAULT_SLOTS = ['grass', 'dirt', 'sand', 'water'];
+
+/** How small and how large a stamp can be made (a multiple of its own size): effectively unbounded. */
+export const MIN_STAMP_SCALE = 0.01;
+export const MAX_STAMP_SCALE = 1000;

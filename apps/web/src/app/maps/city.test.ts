@@ -105,3 +105,38 @@ describe('a district', () => {
     expect(hash01(1, 2, 3)).toBe(hash01(1, 2, 3));
   });
 });
+
+describe('street layouts', () => {
+  const spec: DistrictSpec = {
+    outline: square(0, 0, 900),
+    seed: 5,
+    blockSize: 130,
+    streetWidth: 14,
+    lotArea: 1500,
+    gap: 5,
+    density: 1,
+    jitter: 0.5,
+    angle: 0,
+    plaza: 0,
+    maxBuildings: 5000,
+  };
+  const grid = generateDistrict(spec, none);
+
+  for (const layout of ['radial', 'organic', 'linear'] as const) {
+    it(`${layout}: fills the outline with buildings, in a pattern of its own`, () => {
+      const geo = generateDistrict({ ...spec, layout }, none);
+      expect(geo.blocks.length).toBeGreaterThan(8);
+      expect(geo.buildings.length).toBeGreaterThan(80);
+      for (const b of geo.buildings)
+        expect(pointInPolygon(centroid(b.poly), spec.outline)).toBe(true);
+      expect(geo.buildings.map((b) => b.poly)).not.toEqual(grid.buildings.map((b) => b.poly));
+      // The same seed makes the same town.
+      expect(generateDistrict({ ...spec, layout }, none)).toEqual(geo);
+    });
+  }
+
+  it('linear makes longer blocks than the grid', () => {
+    const long = generateDistrict({ ...spec, layout: 'linear' }, none);
+    expect(long.blocks.length).toBeLessThan(grid.blocks.length);
+  });
+});

@@ -218,6 +218,45 @@ export function availablePresets(entries: readonly Pickable[]): PackPreset[] {
   return PACK_PRESETS.filter((p) => pickMany(entries, p.want, 3).length >= 3);
 }
 
+/** The door the Portal tool starts with: a wooden door of the packs, else any door. */
+export function defaultDoor(
+  entries: readonly Pickable[],
+): { ref: string; path: string } | undefined {
+  const e =
+    pickOne(entries, { cats: ['doors'], words: ['door', 'wood'], not: ['open', 'portcullis'] }) ??
+    pickOne(entries, { cats: ['doors'] });
+  return e ? { ref: refOf(e), path: e.path } : undefined;
+}
+
+/** The roof texture a new building starts with: a tiled roof of the packs. */
+export function defaultRoof(entries: readonly Pickable[]): string | undefined {
+  const e =
+    pickOne(entries, { cats: ['roofs'], file: /^roof_texture_tile_brown_b1$/ }) ??
+    pickOne(entries, { cats: ['roofs'], words: ['roof_texture_tile'] }) ??
+    pickOne(entries, { cats: ['roofs'] });
+  return e ? refOf(e) : undefined;
+}
+
+/**
+ * The roof textures the buildings of a district style are covered with: a few of the packs'
+ * seamless tiles of the right kind (thatch for crowded quarters, slate for wards and nobles…).
+ */
+export function districtRoofs(entries: readonly Pickable[], style: string): string[] {
+  const kinds: Record<string, string[]> = {
+    town: ['roof_texture_tile_brown', 'roof_texture_tile_red'],
+    dense: ['roof_texture_hay'],
+    noble: ['roof_texture_slate_blue', 'roof_texture_slate_black'],
+    market: ['roof_texture_tile_red', 'roof_texture_tile_brown'],
+    ward: ['roof_texture_slate_black', 'roof_texture_slate_mossy'],
+  };
+  const out: string[] = [];
+  for (const kind of kinds[style] ?? []) {
+    const fit = pickMany(entries, { cats: ['roofs'], words: [kind] }, 3, false);
+    for (const e of fit) if (!out.includes(refOf(e))) out.push(refOf(e));
+  }
+  return out;
+}
+
 /** The floor and the wall a new room starts with: cobblestone and a grey stone wall strip. */
 export function defaultRoomStyle(entries: readonly Pickable[]): { floor?: string; wall?: string } {
   const floor =

@@ -39,7 +39,6 @@ export function PathTextures({
         cats={PATH_CATEGORIES}
         label="Path pictures"
         value={value}
-        columns={3}
         onPick={(_, ref) => {
           onPick(ref);
         }}

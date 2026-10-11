@@ -7,6 +7,8 @@ import {
   FillPattern,
   Graphics,
   Matrix,
+  MeshRope,
+  Point as PixiPoint,
   Rectangle,
   Sprite,
   Text,
@@ -58,6 +60,10 @@ import {
   type PieceSpec,
 } from './wallPieces';
 import { isWallStrip, stripSegments } from './wallStrip';
+import { heightBlendFilter, textureMean } from './heightBlend';
+import { edgeLayers } from './softEdge';
+import { roofSkin, type RoofSkin } from './roofSkin';
+import { stampUnit } from './units';
 import { packRef, parsePackRef, type PackEntry } from './packModel';
 import { usePacks } from './packs';
 import type { WaterLook } from './model';
@@ -290,12 +296,24 @@ const packLook = (item: MapItem): string => {
         ? item.texture
         : item.kind === 'building'
           ? item.roofTexture
-          : undefined,
+          : item.kind === 'district'
+            ? item.roofTextures?.join('|')
+            : undefined,
   ];
   return refs.some((r) => r && isPackTexture(r))
     ? String(packTexturesReady) + '|' + String(patternGrid)
     : '';
 };
+
+/** The roof textures that have loaded, ready to lie on roofs of a map (none yet: the roofs are drawn in colour). */
+function skinsFor(refs: readonly string[] | undefined, doc: MapDoc): RoofSkin[] | undefined {
+  const skins: RoofSkin[] = [];
+  for (const ref of refs ?? []) {
+    const texture = isPackTexture(ref) ? packTexture(ref) : null;
+    if (texture) skins.push(roofSkin(texture, stampUnit(doc)));
+  }
+  return skins.length > 0 ? skins : undefined;
+}
 
 /** A pack picture used as a texture, once it has loaded (null until then; the load starts at the first ask). */
 export function packTexture(ref: string): Texture | null {
@@ -313,15 +331,52 @@ export function packTexture(ref: string): Texture | null {
 }
 
 /**
+ * How wide a pack picture is when laid as a path, at its own size on this map (a strip is as thick
+ * as its picture; a ground texture gets a path a square and a half wide). Null until it has loaded.
+ */
+export function pathPictureWidth(ref: string, doc: MapDoc): number | null {
+  const texture = packTexture(ref);
+  if (!texture) return null;
+  return isWallStrip(ref)
+    ? (texture.height / PIXELS_PER_SQUARE) * stampUnit(doc)
+    : stampUnit(doc) * 1.5;
+}
+
+/**
  * A road, trail, fence or cliff drawn with a pack picture: a strip (a name ending in _Path) is
  * repeated along the line, a ground texture is laid along it. Null while the picture loads.
  */
+/** The points of a flat line as Pixi points, scaled. */
+function pointsOf(flat: readonly number[], scale: number): PixiPoint[] {
+  const out: PixiPoint[] = [];
+  for (let i = 0; i + 1 < flat.length; i += 2)
+    out.push(new PixiPoint((flat[i] ?? 0) * scale, (flat[i + 1] ?? 0) * scale));
+  return out;
+}
+
 function packPathView(item: Extract<MapItem, { kind: 'path' }>): Container | null {
   const ref = item.texture;
   if (!ref) return null;
   const line = pathLine(item);
   if (line.length < 4) return null;
-  if (isWallStrip(ref)) return stripWallView(line, item.loop === true, ref, item.width);
+  if (isWallStrip(ref)) {
+    const strip = packTexture(ref);
+    if (!strip) return null;
+    // The strip bends with the curve: one mesh along the whole line, not a straight piece per step.
+    const points = [...line];
+    if (item.loop === true) points.push(line[0] ?? 0, line[1] ?? 0);
+    const k = item.width / Math.max(1, strip.height);
+    strip.source.style.addressMode = 'repeat';
+    const rope = new MeshRope({
+      texture: strip,
+      points: pointsOf(points, 1 / k),
+      textureScale: 1,
+    });
+    rope.scale.set(k);
+    const holder = new Container();
+    holder.addChild(rope);
+    return holder;
+  }
   if (!packTexture(ref)) return null;
   const g = new Graphics();
   g.moveTo(line[0] ?? 0, line[1] ?? 0);
@@ -491,11 +546,11 @@ export const softBlur = (width: number, soft: number): number => Math.max(0, wid
  */
 function strokeView(points: readonly number[], style: StrokeStyle): Container {
   const line = new Graphics();
-  const trace = () => {
+  const trace = (g: Graphics = line) => {
     if (points.length < 2) return;
-    line.moveTo(points[0] ?? 0, points[1] ?? 0);
-    for (let i = 2; i + 1 < points.length; i += 2) line.lineTo(points[i] ?? 0, points[i + 1] ?? 0);
-    if (points.length === 2) line.lineTo((points[0] ?? 0) + 0.1, points[1] ?? 0);
+    g.moveTo(points[0] ?? 0, points[1] ?? 0);
+    for (let i = 2; i + 1 < points.length; i += 2) g.lineTo(points[i] ?? 0, points[i + 1] ?? 0);
+    if (points.length === 2) g.lineTo((points[0] ?? 0) + 0.1, points[1] ?? 0);
   };
   // A material's border: a darker, wider line under the fill.
   if (style.border) {
@@ -508,16 +563,35 @@ function strokeView(points: readonly number[], style: StrokeStyle): Container {
       join: 'round',
     });
   }
-  trace();
-  line.stroke({
-    ...(style.texture
+  const fillOf = () =>
+    style.texture
       ? { fill: terrainPattern(style.texture, style.tile) }
-      : { color: colorOf(style.color) }),
-    width: style.width,
-    cap: 'round',
-    join: 'round',
-  });
+      : { color: colorOf(style.color) };
+  const soft = style.soft ?? 0;
   let view: Container = line;
+  if (soft > 0 && !style.water) {
+    // A soft edge fades the stroke out, not blurs it: copies of the stroke, each narrower and
+    // more opaque, keep the texture sharp. Where the texture fades, its light parts show first.
+    const holder = new Container();
+    for (const layer of edgeLayers(style.width, soft)) {
+      const g = new Graphics();
+      trace(g);
+      g.stroke({
+        ...fillOf(),
+        width: layer.width,
+        alpha: layer.alpha,
+        cap: 'round',
+        join: 'round',
+      });
+      holder.addChild(g);
+    }
+    const pack = style.texture && isPackTexture(style.texture) ? packTexture(style.texture) : null;
+    if (pack) holder.filters = [heightBlendFilter(textureMean(pack))];
+    view = holder;
+  } else {
+    trace();
+    line.stroke({ ...fillOf(), width: style.width, cap: 'round', join: 'round' });
+  }
   if (style.water) {
     // Shallow water tints the whole stroke; the deep colour fills its middle and fades outwards.
     const { shallow, deep, blend } = style.water;
@@ -551,11 +625,13 @@ function strokeView(points: readonly number[], style: StrokeStyle): Container {
     holder.addChild(line, tint, core);
     view = holder;
   }
-  const filters = [];
-  if ((style.soft ?? 0) > 0)
-    filters.push(new BlurFilter({ strength: softBlur(style.width, style.soft ?? 0), quality: 4 }));
-  if (style.opacity < 1) filters.push(new AlphaFilter({ alpha: style.opacity }));
-  if (filters.length > 0) view.filters = filters;
+  // The whole stroke has one opacity, wherever it crosses itself.
+  if (style.opacity < 1) {
+    const holder = new Container();
+    holder.addChild(view);
+    holder.filters = [new AlphaFilter({ alpha: style.opacity })];
+    return holder;
+  }
   return view;
 }
 
@@ -1484,14 +1560,16 @@ export class MapScene {
       case 'room':
         return roomFloorView(item, terrainPattern(item.floor), floorColor(item.floor));
       case 'district':
-        return districtView(item, districtGeo(doc, item), { hide: doc.hideRoofs, sun: doc.sun });
+        return districtView(item, districtGeo(doc, item), {
+          hide: doc.hideRoofs,
+          sun: doc.sun,
+          skins: skinsFor(item.roofTextures, doc),
+        });
       case 'building':
         return buildingView(
           item,
           { hide: doc.hideRoofs, sun: doc.sun },
-          item.roofTexture && isPackTexture(item.roofTexture)
-            ? terrainPattern(item.roofTexture)
-            : null,
+          skinsFor(item.roofTexture ? [item.roofTexture] : undefined, doc)?.[0] ?? null,
         );
       case 'light': {
         // A small sun with a ring at its range: for placing and moving it, not for the picture.

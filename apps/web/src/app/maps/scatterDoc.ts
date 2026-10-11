@@ -1,3 +1,4 @@
+import { stampUnit } from './units';
 import { glyphAspect, glyphRef, isGlyphRef, type GlyphId } from './glyphs';
 import type { MapDoc, MapItem } from './model';
 import { parsePackRef, squaresOf } from './packModel';
@@ -544,20 +545,20 @@ export function pieceBox(
   const squares = parsed ? squaresOf(parsed.path) : null;
   if (squares) {
     const middle = Math.max(1, (item.sizeMin + item.sizeMax) / 2);
-    const w = squares.w * doc.grid.size * (inst.size / middle);
+    const w = squares.w * stampUnit(doc) * (inst.size / middle);
     return { w, h: (w * squares.h) / squares.w, base: false };
   }
   return { w: inst.size, h: inst.size / aspect, base: false };
 }
 
 /**
- * Settings that scatter a whole set of pack pictures: spacing from how big they are on the grid,
+ * Settings that scatter a whole set of pack pictures: spacing from how big they are on the map (`unit`: pixels to a pack square),
  * the size range as a variation around each picture's own size, turned any way (top-down art).
  */
 export function mixSettings(
   refs: readonly string[],
   base: ScatterSettings,
-  gridSize: number,
+  unit: number,
 ): ScatterSettings {
   const widths = refs
     .map((r) => {
@@ -570,7 +571,7 @@ export function mixSettings(
     ...base,
     preset: 'mix',
     pieces: refs.map((ref) => ({ ref, weight: 1 })),
-    spacing: Math.round(Math.max(typical, 1) * gridSize * 1.1),
+    spacing: Math.round(Math.max(typical, 1) * unit * 1.1),
     sizeMin: 80,
     sizeMax: 120,
     rotation: 'random',

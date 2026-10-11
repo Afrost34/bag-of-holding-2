@@ -4,144 +4,226 @@ import { Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import { useCampaigns } from '../../app/campaigns/store';
 import { useEncounters } from '../../app/encounters/store';
-import { mapFolders, PAPERS, type MapDoc, type MapPaper } from '../../app/maps/model';
+import { mapFolders, type MapDoc } from '../../app/maps/model';
 import { useMaps } from '../../app/maps/store';
-import { DEFAULT_SPEEDS, scaleForWidth, type DistanceUnit } from '../../app/maps/travel';
+import { DEFAULT_SPEEDS, type DistanceUnit } from '../../app/maps/travel';
+import {
+  FEET,
+  formatLength,
+  isStandardCell,
+  LENGTH_UNITS,
+  mapSizeMeters,
+  metersIn,
+  metersPerPixel,
+  type LengthUnit,
+} from '../../app/maps/units';
 import { AmbientSettings } from './LightPanel';
 import { NumberField, Section } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
 import { CALIBRATE_ICON } from './tools';
 
 /**
- * A world or region map's real size, given as the distance across it, and the speeds a party
- * travels at: the measure tool then says how far, and how long at each speed.
+ * The speeds a party travels at on a large map: the measure tool then says how long a distance
+ * takes at each. (How large the map is, is set under Real size.)
  */
-function ScaleAndTravel({ doc, commit }: Pick<MapPanelsProps, 'doc' | 'commit'>) {
-  const [unit, setUnit] = useState<DistanceUnit | ''>(doc.scale?.unit ?? '');
-  const [across, setAcross] = useState(
-    doc.scale ? String(Math.round(doc.scale.perPixel * doc.width)) : '',
-  );
+function TravelSpeeds({ doc, commit }: Pick<MapPanelsProps, 'doc' | 'commit'>) {
+  const unit: DistanceUnit = doc.scale?.unit ?? 'km';
   const [speeds, setSpeeds] = useState(
     (doc.travel ?? []).map((t) => ({ name: t.name, perDay: String(t.perDay) })),
   );
-  const save = (nextUnit = unit, nextAcross = across, nextSpeeds = speeds) => {
-    const distance = Number(nextAcross);
-    const travel = nextSpeeds
+  if (!doc.scale) return null;
+  const save = (next = speeds) => {
+    const travel = next
       .map((s) => ({ name: s.name.trim(), perDay: Number(s.perDay) }))
       .filter((s) => s.name && s.perDay > 0);
     commit((d) => {
-      const { scale: _s, travel: _t, ...rest } = d;
-      return {
-        ...rest,
-        ...(nextUnit && distance > 0 ? { scale: scaleForWidth(d.width, distance, nextUnit) } : {}),
-        ...(travel.length ? { travel } : {}),
-      };
+      const { travel: _t, ...rest } = d;
+      return { ...rest, ...(travel.length ? { travel } : {}) };
     });
   };
   return (
-    <Section title="Scale and travel">
+    <Section title="Travel">
       <p className="text-xs text-muted">
-        For a world or region map (optional): the measure tool then gives distances and travel
-        times.
+        The measure tool gives distances and, with these speeds, travel times.
       </p>
-      <div className="grid grid-cols-[1fr_auto] gap-2">
-        <label className="block text-sm">
-          Distance across the map
+      {speeds.map((s, i) => (
+        <div key={i} className="space-y-1 rounded-md border border-border p-1.5">
           <input
-            type="number"
-            min={0}
-            value={across}
-            disabled={!unit}
+            value={s.name}
+            aria-label={`Speed ${String(i + 1)} name`}
+            placeholder="Merchant skyship"
             onChange={(e) => {
-              setAcross(e.target.value);
+              setSpeeds(speeds.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)));
             }}
             onBlur={() => {
               save();
             }}
             className={field}
           />
-        </label>
-        <label className="block text-sm">
-          Unit
-          <select
-            value={unit}
-            onChange={(e) => {
-              const next = e.target.value === 'km' || e.target.value === 'mi' ? e.target.value : '';
-              setUnit(next);
-              save(next);
-            }}
-            className={field}
-          >
-            <option value="">Grid (feet)</option>
-            <option value="km">km</option>
-            <option value="mi">miles</option>
-          </select>
-        </label>
-      </div>
-      {unit && (
-        <div className="space-y-1.5">
-          <p className="text-sm font-medium">Travel speeds ({unit} per day)</p>
-          {speeds.map((s, i) => (
-            <div key={i} className="space-y-1 rounded-md border border-border p-1.5">
-              <input
-                value={s.name}
-                aria-label={`Speed ${String(i + 1)} name`}
-                placeholder="Merchant skyship"
-                onChange={(e) => {
-                  setSpeeds(speeds.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)));
-                }}
-                onBlur={() => {
-                  save();
-                }}
-                className={field}
-              />
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="number"
-                  min={0}
-                  value={s.perDay}
-                  aria-label={`Speed ${String(i + 1)} per day`}
-                  onChange={(e) => {
-                    setSpeeds(
-                      speeds.map((x, j) => (j === i ? { ...x, perDay: e.target.value } : x)),
-                    );
-                  }}
-                  onBlur={() => {
-                    save();
-                  }}
-                  className="w-24 rounded-md border border-border bg-surface px-2 py-1 text-sm"
-                />
-                <span className="flex-1 text-xs text-muted">{unit} a day</span>
-                <button
-                  type="button"
-                  aria-label={`Remove speed ${String(i + 1)}`}
-                  onClick={() => {
-                    const next = speeds.filter((_, j) => j !== i);
-                    setSpeeds(next);
-                    save(unit, across, next);
-                  }}
-                  className="rounded p-1 text-muted hover:bg-sunken"
-                >
-                  <X className="h-4 w-4" aria-hidden />
-                </button>
-              </div>
-            </div>
-          ))}
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setSpeeds([...speeds, { name: '', perDay: '' }]);
-            }}
-          >
-            <Plus className="h-4 w-4" aria-hidden /> Add a speed
-          </Button>
-          {speeds.length === 0 && (
-            <p className="text-xs text-muted">
-              Without speeds, travel is on foot ({DEFAULT_SPEEDS[unit][0]?.perDay} {unit} a day).
-            </p>
-          )}
+          <div className="flex items-center gap-1.5">
+            <input
+              type="number"
+              min={0}
+              value={s.perDay}
+              aria-label={`Speed ${String(i + 1)} per day`}
+              onChange={(e) => {
+                setSpeeds(speeds.map((x, j) => (j === i ? { ...x, perDay: e.target.value } : x)));
+              }}
+              onBlur={() => {
+                save();
+              }}
+              className="w-24 rounded-md border border-border bg-surface px-2 py-1 text-sm"
+            />
+            <span className="flex-1 text-xs text-muted">{unit} a day</span>
+            <button
+              type="button"
+              aria-label={`Remove speed ${String(i + 1)}`}
+              onClick={() => {
+                const next = speeds.filter((_, j) => j !== i);
+                setSpeeds(next);
+                save(next);
+              }}
+              className="rounded p-1 text-muted hover:bg-sunken"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
+          </div>
         </div>
+      ))}
+      <Button
+        variant="ghost"
+        onClick={() => {
+          setSpeeds([...speeds, { name: '', perDay: '' }]);
+        }}
+      >
+        <Plus className="h-4 w-4" aria-hidden /> Add a speed
+      </Button>
+      {speeds.length === 0 && (
+        <p className="text-xs text-muted">
+          Without speeds, travel is on foot ({DEFAULT_SPEEDS[unit][0]?.perDay} {unit} a day).
+        </p>
       )}
+    </Section>
+  );
+}
+
+/**
+ * How big the map is in the world: its width and height in meters or kilometers (which sets how
+ * far one grid square is), or how far a square is; and how many squares the map has. Real sizes
+ * change what the map means, not its picture: stamps and the district tool follow the scale.
+ */
+function RealSize({ doc, commit }: Pick<MapPanelsProps, 'doc' | 'commit'>) {
+  const size = mapSizeMeters(doc);
+  const cell = doc.grid.size * metersPerPixel(doc);
+  const across = Math.round(doc.width / doc.grid.size);
+  const down = Math.round(doc.height / doc.grid.size);
+  const [unit, setUnit] = useState<LengthUnit>(size.w >= 5000 ? 'km' : 'm');
+  const k = metersIn(unit);
+  const shown = (meters: number) => Math.round((meters / k) * 100) / 100;
+  /** One grid square stands for this many meters: the packs' 5 feet is a battle map, any other a scale. */
+  const setCell = (cellM: number) => {
+    commit((d) => {
+      const { scale: _s, ...rest } = d;
+      return {
+        ...rest,
+        grid: { ...d.grid, feet: cellM / FEET },
+        ...(isStandardCell(cellM)
+          ? {}
+          : { scale: { unit: 'km' as const, perPixel: cellM / 1000 / d.grid.size } }),
+      };
+    });
+  };
+  /** The map has this many squares across and down (its picture grows or shrinks). */
+  const setSquares = (w: number, h: number) => {
+    commit((d) => ({
+      ...d,
+      width: Math.min(16384, Math.max(d.grid.size, Math.round(w) * d.grid.size)),
+      height: Math.min(16384, Math.max(d.grid.size, Math.round(h) * d.grid.size)),
+    }));
+  };
+  const fine = unit === 'km' || unit === 'mi';
+  return (
+    <Section title="Real size">
+      <label className="block text-sm">
+        Unit
+        <select
+          aria-label="Unit of the size"
+          value={unit}
+          onChange={(e) => {
+            setUnit(e.target.value as LengthUnit);
+          }}
+          className={field}
+        >
+          {LENGTH_UNITS.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="grid grid-cols-2 gap-2">
+        <NumberField
+          label="Width"
+          value={shown(size.w)}
+          min={0}
+          step={fine ? 0.1 : 1}
+          onChange={(v) => {
+            if (v > 0) setCell((v * k) / Math.max(1, across));
+          }}
+        />
+        <NumberField
+          label="Height"
+          value={shown(size.h)}
+          min={0}
+          step={fine ? 0.1 : 1}
+          onChange={(v) => {
+            if (v > 0) setCell((v * k) / Math.max(1, down));
+          }}
+        />
+        <NumberField
+          label="One grid square"
+          value={shown(cell)}
+          min={0}
+          step={fine ? 0.1 : 0.5}
+          onChange={(v) => {
+            if (v > 0) setCell(v * k);
+          }}
+        />
+        <NumberField
+          label="Stamp size ×"
+          value={doc.stampScale ?? 1}
+          min={0}
+          step={0.5}
+          onChange={(v) => {
+            commit((d) => {
+              const { stampScale: _s, ...rest } = d;
+              return v > 0 && v !== 1 ? { ...rest, stampScale: v } : rest;
+            });
+          }}
+        />
+        <NumberField
+          label="Squares across"
+          value={across}
+          min={1}
+          onChange={(v) => {
+            setSquares(v, down);
+          }}
+        />
+        <NumberField
+          label="Squares down"
+          value={down}
+          min={1}
+          onChange={(v) => {
+            setSquares(across, v);
+          }}
+        />
+      </div>
+      <p className="text-xs text-muted">
+        {formatLength(size.w)} × {formatLength(size.h)}: {across} × {down} squares of{' '}
+        {formatLength(cell)}. Stamps are drawn at their true size on this scale: ×1 is true to
+        scale; raise it to make every new stamp larger on a big map. Adding the first picture
+        (Layers) sizes the map to it.
+      </p>
     </Section>
   );
 }
@@ -247,26 +329,6 @@ export function MapSettings({ doc, commit, setTool, snap, setSnap }: MapPanelsPr
   };
   return (
     <>
-      <Section title="Paper">
-        <select
-          value={doc.paper ?? 'parchment'}
-          aria-label="Kind of paper"
-          onChange={(e) => {
-            const paper = e.target.value as MapPaper;
-            commit((d) => {
-              const { paper: _old, ...rest } = d;
-              return paper === 'parchment' ? rest : { ...rest, paper };
-            });
-          }}
-          className={field}
-        >
-          {PAPERS.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-      </Section>
       <AmbientSettings doc={doc} commit={commit} />
       <Section title="Roofs and sun">
         <label className="flex items-center gap-2 text-sm">
@@ -359,58 +421,7 @@ export function MapSettings({ doc, commit, setTool, snap, setSnap }: MapPanelsPr
           </p>
         )}
       </Section>
-      <Section title="Compass and frame">
-        {(['compass', 'frame'] as const).map((which) => (
-          <label key={which} className="block text-sm">
-            {which === 'compass' ? 'Compass rose' : 'Frame'}
-            <select
-              aria-label={which === 'compass' ? 'Compass rose' : 'Frame'}
-              value={doc[which] ?? 'none'}
-              onChange={(e) => {
-                const v = e.target.value;
-                commit((d) => {
-                  const { [which]: _old, ...rest } = d;
-                  return v === 'plain' || v === 'fantasy' ? { ...rest, [which]: v } : rest;
-                });
-              }}
-              className={field}
-            >
-              <option value="none">None</option>
-              <option value="plain">Plain</option>
-              <option value="fantasy">Fantasy map: inked on parchment</option>
-            </select>
-          </label>
-        ))}
-      </Section>
-      <Section title="Size">
-        <div className="grid grid-cols-2 gap-2">
-          <NumberField
-            label="Width (squares)"
-            value={Math.round(doc.width / doc.grid.size)}
-            min={1}
-            onChange={(v) => {
-              commit((d) => ({
-                ...d,
-                width: Math.min(16384, Math.max(200, Math.round(v) * d.grid.size)),
-              }));
-            }}
-          />
-          <NumberField
-            label="Height (squares)"
-            value={Math.round(doc.height / doc.grid.size)}
-            min={1}
-            onChange={(v) => {
-              commit((d) => ({
-                ...d,
-                height: Math.min(16384, Math.max(200, Math.round(v) * d.grid.size)),
-              }));
-            }}
-          />
-        </div>
-        <p className="text-xs text-muted">
-          {doc.width} × {doc.height} px. Adding the first picture (Layers) sizes the map to it.
-        </p>
-      </Section>
+      <RealSize key={`size-${doc.id}`} doc={doc} commit={commit} />
       <Filing key={doc.id} doc={doc} commit={commit} />
       <Section title="Grid">
         <label className="block text-sm">
@@ -500,7 +511,7 @@ export function MapSettings({ doc, commit, setTool, snap, setSnap }: MapPanelsPr
           Snap to the grid
         </label>
       </Section>
-      <ScaleAndTravel key={'scale-' + doc.id} doc={doc} commit={commit} />
+      <TravelSpeeds key={'travel-' + doc.id} doc={doc} commit={commit} />
       <Section title="Encounter">
         <label className="block text-sm">
           Fought here

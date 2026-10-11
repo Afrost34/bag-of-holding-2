@@ -14,7 +14,8 @@ export type ShortcutAction =
   | { kind: 'closeTab' }
   | { kind: 'nextTab' }
   | { kind: 'previousTab' }
-  | { kind: 'dice' };
+  | { kind: 'dice' }
+  | { kind: 'focus' };
 
 export interface KeyInput {
   key: string;
@@ -46,6 +47,8 @@ export function shortcutFor(e: KeyInput): ShortcutAction | null {
         return { kind: 'closeTab' };
       case 'd':
         return { kind: 'dice' };
+      case 'f':
+        return { kind: 'focus' };
       case 'pagedown':
         return { kind: 'nextTab' };
       case 'pageup':
@@ -83,6 +86,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['?'], label: 'These shortcuts' },
       { keys: ['Alt', '1 … 9, 0'], label: 'Open a module (in the order of the sidebar)' },
       { keys: ['Alt', 'D'], label: 'Dice tray' },
+      { keys: ['Alt', 'F'], label: 'Full screen for this tab (only its tools; again to leave)' },
       { keys: ['Esc'], label: 'Close a dialog or panel' },
     ],
   },
@@ -100,10 +104,10 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     title: 'Maps',
     items: [
       { keys: ['V'], label: 'Select and move' },
-      { keys: ['H'], label: 'Pan (or hold Space)' },
+      { keys: ['Space', 'drag'], label: 'Pan (or middle mouse button)' },
+      { keys: ['Esc'], label: 'Back to Select' },
       { keys: ['S'], label: 'Stamp' },
-      { keys: ['B'], label: 'Brush' },
-      { keys: ['G'], label: 'Terrain brush' },
+      { keys: ['U'], label: 'Terrain brush' },
       { keys: ['W'], label: 'Wall (Enter or double-click to finish)' },
       { keys: ['T'], label: 'Text' },
       { keys: ['M'], label: 'Measure' },

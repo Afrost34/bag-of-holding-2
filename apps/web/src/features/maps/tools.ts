@@ -1,11 +1,9 @@
 import {
-  Brush,
   Castle,
   DoorOpen,
   CloudFog,
   Crosshair,
   Eraser,
-  Hand,
   House,
   Lightbulb,
   Mountain,
@@ -60,9 +58,7 @@ export type Tool =
 /** The tool bar, in order; calibrate lives in the grid panel. */
 export const TOOLS: { id: Tool; label: string; icon: LucideIcon; key: string }[] = [
   { id: 'select', label: 'Select and move', icon: MousePointer2, key: 'v' },
-  { id: 'pan', label: 'Pan', icon: Hand, key: 'h' },
   { id: 'stamp', label: 'Stamp', icon: Stamp, key: 'i' },
-  { id: 'pen', label: 'Brush', icon: Brush, key: 'b' },
   { id: 'terrain', label: 'Terrain brush', icon: PaintRoller, key: 'u' },
   { id: 'eraser', label: 'Eraser', icon: Eraser, key: 'e' },
   { id: 'area', label: 'Terrain shape', icon: Shapes, key: 'a' },
@@ -123,10 +119,11 @@ export const GROUP_LABELS = [
 
 /** What a tool does and how to use it: shown in the bar under the map. */
 export const TOOL_HINTS: Record<Tool, string> = {
-  select: 'Click to select, drag to move, drag the handles to change points. Delete removes.',
+  select:
+    'Click to select, drag to move, drag the handles to change points. Delete removes. Space+drag or the middle button pans.',
   pan: 'Drag to move the map; scroll to zoom.',
   stamp:
-    'Pick a picture, then click to place it. The wheel turns it (Z: fine), Alt+wheel resizes, A mirrors, right-click turns 90°, Ctrl+wheel zooms.',
+    'Pick a picture, then click to place it. Ctrl+wheel turns it (Z: fine), Alt+wheel or [ ] resizes, A mirrors, right-click turns 90°, the wheel zooms.',
   pen: 'Drag to paint with the brush. Alt erases.',
   terrain: 'Drag to paint the ground with the chosen texture.',
   eraser: 'Drag over what you want to take away.',
@@ -154,9 +151,7 @@ export type MapMode = 'creator' | 'viewer';
 
 const CREATOR_TOOLS = new Set<Tool>([
   'select',
-  'pan',
   'stamp',
-  'pen',
   'terrain',
   'eraser',
   'area',
@@ -172,7 +167,7 @@ const CREATOR_TOOLS = new Set<Tool>([
   'text',
   'measure',
 ]);
-const VIEWER_TOOLS = new Set<Tool>(['pan', 'select', 'pin', 'route', 'measure', 'template', 'fog']);
+const VIEWER_TOOLS = new Set<Tool>(['select', 'pin', 'route', 'measure', 'template', 'fog']);
 
 /** The tools a mode shows, in tool bar order. A map has no type: every tool is always there. */
 export function toolsFor(mode: MapMode): typeof TOOLS {
@@ -263,6 +258,8 @@ export interface PathSettings {
   loop: boolean;
   /** A pack picture the path is drawn with; absent: drawn in code. */
   texture?: string;
+  /** With a picture: as wide as the picture is (its own size on this map), not the width below. */
+  fit?: boolean;
 }
 
 /** A random island or archipelago, placed in the middle of the view. */
@@ -275,9 +272,8 @@ export interface IslandRequest {
   seed: number;
 }
 
-/** The building tool: a rectangle or an outline, with a roof; or one placed from the library. */
+/** The building tool: a roof over a footprint; or one placed from the library. */
 export interface BuildingSettings {
-  shape: 'rect' | 'polygon';
   roof: RoofStyle;
   color: string;
   /** A roof texture of a pack; absent: the plain colour. */
@@ -288,7 +284,6 @@ export interface BuildingSettings {
 
 /** The room and door tools. */
 export interface RoomSettings {
-  shape: 'rect' | 'polygon';
   floor: TerrainRef;
   wallStyle: 'stone' | 'cave' | 'wood';
   /** Wall thickness in map pixels. */
