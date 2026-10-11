@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { classify } from './packCategories';
 import {
   availablePresets,
+  defaultCaveWall,
   defaultRoomStyle,
   defaultSlots,
   pickMany,
@@ -77,5 +78,16 @@ describe('the room a new map starts with', () => {
     expect(style.floor).toContain('Cobblestone_A_01');
     expect(style.wall).toContain('Wall_Stone_Earthy');
     expect(defaultRoomStyle([])).toEqual({});
+  });
+});
+
+describe('the rim of a cave', () => {
+  it('is a cave cliff strip when the packs have one', () => {
+    const cliffs = [
+      'Woodlands/!Wilderness/Elevation/Cliff_Paths/Cliff_Dirt_01_Path_D3.webp',
+      'Woodlands/!Wilderness/Elevation/Cliff_Paths/Burrows_Cave_Stone_Earthy_Path_A1.webp',
+    ].map(e);
+    expect(defaultCaveWall(cliffs)).toContain('Burrows_Cave');
+    expect(defaultCaveWall([])).toBeUndefined();
   });
 });

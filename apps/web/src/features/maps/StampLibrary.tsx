@@ -3,6 +3,7 @@ import { FolderOpen, ImagePlus, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { fileUrl, findStamps, stampFile, useStamps, type Stamp } from '../../app/maps/assets';
 import { usePacks } from '../../app/maps/packs';
+import { usePrefabs, type Prefab } from '../../app/maps/prefabs';
 import { ObjectLibrary } from './ObjectLibrary';
 import { PackBrowser } from './PackBrowser';
 
@@ -16,24 +17,28 @@ export function StampLibrary({
   selected,
   onPick,
   onUseAsMix,
+  onPlacePrefab,
   used,
 }: {
   selected: string | null;
   onPick: Pick;
+  /** Place a saved prefab in the middle of the view. */
+  onPlacePrefab?: ((prefab: Prefab) => void) | undefined;
   onUseAsMix?: ((refs: string[]) => void) | undefined;
   /** The pack pictures the map uses. */
   used?: ReadonlySet<string> | undefined;
 }) {
-  const [source, setSource] = useState<'packs' | 'mine'>('packs');
+  const [source, setSource] = useState<'packs' | 'mine' | 'prefabs'>('packs');
   // Open at first when the packs are few (or none yet); it then stays as you leave it.
   const [foldersOpen] = useState(() => usePacks.getState().entries.length < 400);
   return (
     <section aria-label="Stamps" className="space-y-2">
-      <div role="tablist" aria-label="Stamp source" className="grid grid-cols-2 gap-1">
+      <div role="tablist" aria-label="Stamp source" className="grid grid-cols-3 gap-1">
         {(
           [
             ['packs', 'Asset packs'],
             ['mine', 'My stamps'],
+            ['prefabs', 'Prefabs'],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -71,10 +76,56 @@ export function StampLibrary({
             </div>
           </details>
         </>
+      ) : source === 'prefabs' ? (
+        <PrefabList onPlace={onPlacePrefab} />
       ) : (
         <MyStamps selected={selected} onPick={onPick} />
       )}
     </section>
+  );
+}
+
+/** The saved prefabs: groups of items kept under a name (save one from a selection of several). */
+function PrefabList({ onPlace }: { onPlace: ((prefab: Prefab) => void) | undefined }) {
+  const { prefabs, remove } = usePrefabs();
+  if (prefabs.length === 0)
+    return (
+      <p className="text-xs text-muted">
+        No prefabs yet. Pick several items (Shift+click, or drag a box with Select), then press
+        “Save as a prefab” in the Selection panel.
+      </p>
+    );
+  return (
+    <ul aria-label="Saved prefabs" className="space-y-1">
+      {prefabs.map((p) => (
+        <li
+          key={p.id}
+          className="flex items-center gap-1 rounded-md border border-border px-2 py-1"
+        >
+          <span className="min-w-0 flex-1 truncate text-sm">
+            {p.name} <span className="text-xs text-muted">({p.items.length})</span>
+          </span>
+          <Button
+            variant="ghost"
+            aria-label={`Place ${p.name}`}
+            onClick={() => {
+              onPlace?.(p);
+            }}
+          >
+            Place
+          </Button>
+          <Button
+            variant="ghost"
+            aria-label={`Forget ${p.name}`}
+            onClick={() => {
+              remove(p.id);
+            }}
+          >
+            Forget
+          </Button>
+        </li>
+      ))}
+    </ul>
   );
 }
 

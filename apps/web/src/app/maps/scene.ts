@@ -49,7 +49,10 @@ import { isTied, obstacleSignature, pieceBox, scatterLine, scatterOf } from './s
 import { pathLine, pathView, shapeHoles, shapeOutline, shapeView } from './shapes';
 import { pointInPolygon } from './polygon';
 import { PIXELS_PER_SQUARE } from './packCategories';
+import { piecesFor, placePieces } from './wallPieces';
 import { isWallStrip, stripSegments } from './wallStrip';
+import { packRef, parsePackRef, type PackEntry } from './packModel';
+import { usePacks } from './packs';
 import { isPackTexture, TERRAINS, terrainTile, type TerrainRef } from './terrain';
 
 /**
@@ -329,11 +332,30 @@ function packPathView(item: Extract<MapItem, { kind: 'path' }>): Container | nul
  * A wall made of a pack's strip picture, repeated along each segment: a strip is one grid square
  * tall in its picture, drawn here at the grid's size. Null while the picture loads.
  */
+/** The files of every folder of every pack, to find the pieces that sit beside a wall strip. */
+let folderFiles: { source: readonly PackEntry[]; map: Map<string, string[]> } | null = null;
+function filesBeside(pack: string, dir: string): string[] {
+  const entries = usePacks.getState().entries;
+  if (folderFiles?.source !== entries) {
+    const map = new Map<string, string[]>();
+    for (const e of entries) {
+      const cut = e.path.lastIndexOf('/') + 1;
+      const key = e.pack + ':' + e.path.slice(0, cut);
+      const list = map.get(key);
+      if (list) list.push(e.path.slice(cut));
+      else map.set(key, [e.path.slice(cut)]);
+    }
+    folderFiles = { source: entries, map };
+  }
+  return folderFiles.map.get(pack + ':' + dir) ?? [];
+}
+
 export function stripWallView(
   points: readonly number[],
   closed: boolean,
   ref: string,
   gridSize: number,
+  withPieces = false,
 ): Container | null {
   const texture = packTexture(ref);
   if (!texture) return null;
@@ -347,6 +369,25 @@ export function stripWallView(
     strip.position.set(s.x, s.y);
     strip.rotation = s.angle;
     holder.addChild(strip);
+  }
+  const parsed = withPieces ? parsePackRef(ref) : null;
+  if (parsed) {
+    // The corners and endings of the same set stand over the joints.
+    const cut = parsed.path.lastIndexOf('/') + 1;
+    const dir = parsed.path.slice(0, cut);
+    const set = piecesFor(parsed.path.slice(cut), filesBeside(parsed.pack, dir));
+    for (const place of placePieces(points, closed)) {
+      const file = place.kind === 'corner' ? set.corner : set.ending;
+      const piece = file ? packTexture(packRef(parsed.pack, dir + file)) : null;
+      if (!piece) continue;
+      const sprite = new Sprite(piece);
+      sprite.anchor.set(0.5);
+      sprite.width = gridSize;
+      sprite.height = gridSize;
+      sprite.position.set(place.x, place.y);
+      sprite.angle = place.rotation;
+      holder.addChild(sprite);
+    }
   }
   return holder;
 }
@@ -462,6 +503,9 @@ export class MapScene {
   private readonly overlay = new Container();
   private readonly selection = new Graphics();
   private readonly preview = new Graphics();
+  /** The picture that follows the pointer while a stamp is being placed. */
+  private readonly ghost = new Sprite();
+  private ghostRef = '';
   private readonly strokePreview = new Container();
   private readonly previewText = new Text({ text: '', style: { fontSize: 22, fill: 0xffffff } });
   private nodes = new Map<string, Node>();
@@ -514,7 +558,16 @@ export class MapScene {
     host.appendChild(this.app.canvas);
     this.app.canvas.setAttribute('aria-hidden', 'true');
     this.previewText.style.stroke = { color: 0x000000, width: 4 };
-    this.overlay.addChild(this.strokePreview, this.preview, this.selection, this.previewText);
+    this.ghost.anchor.set(0.5);
+    this.ghost.alpha = 0.65;
+    this.ghost.visible = false;
+    this.overlay.addChild(
+      this.strokePreview,
+      this.ghost,
+      this.preview,
+      this.selection,
+      this.previewText,
+    );
     this.world.addChild(
       this.background,
       this.renderView,
@@ -730,7 +783,7 @@ export class MapScene {
         const node = this.nodes.get(item.id);
         const look =
           item.kind === 'building'
-            ? JSON.stringify([doc.hideRoofs ?? false, doc.sun ?? null])
+            ? JSON.stringify([doc.hideRoofs ?? false, doc.sun ?? null]) + packLook(item)
             : item.kind === 'district'
               ? obstacles + JSON.stringify([doc.hideRoofs ?? false, doc.sun ?? null])
               : item.kind === 'scatter'
@@ -767,6 +820,7 @@ export class MapScene {
                   true,
                   item.wallTexture,
                   doc.grid.size,
+                  true,
                 )
               : null,
           );
@@ -1364,7 +1418,13 @@ export class MapScene {
       }
       case 'wall': {
         if (item.texture && isPackTexture(item.texture)) {
-          const strips = stripWallView(item.points, item.loop === true, item.texture, grid.size);
+          const strips = stripWallView(
+            item.points,
+            item.loop === true,
+            item.texture,
+            grid.size,
+            true,
+          );
           if (strips) return strips;
         }
         const g = new Graphics();
@@ -1741,7 +1801,37 @@ export class MapScene {
     this.requestRender();
   }
 
+  /** The stamp about to be placed, drawn half-seen where the pointer is. */
+  showGhost(ref: string, at: Point, w: number, h: number, rotation: number, flipX: boolean): void {
+    const place = () => {
+      this.ghost.position.set(at.x, at.y);
+      this.ghost.width = w;
+      this.ghost.height = h;
+      if (flipX) this.ghost.scale.x *= -1;
+      this.ghost.angle = rotation;
+      this.ghost.visible = true;
+      this.requestRender();
+    };
+    if (ref === this.ghostRef && this.ghost.texture !== Texture.EMPTY) {
+      place();
+      return;
+    }
+    this.ghostRef = ref;
+    void this.stampTexture(ref).then((texture) => {
+      if (!texture || this.ghostRef !== ref || this.destroyed) return;
+      this.ghost.texture = texture;
+      place();
+    });
+  }
+
+  hideGhost(): void {
+    if (!this.ghost.visible) return;
+    this.ghost.visible = false;
+    this.requestRender();
+  }
+
   clearPreview(): void {
+    this.hideGhost();
     for (const c of this.strokePreview.removeChildren()) c.destroy({ children: true });
     this.preview.clear();
     this.previewText.visible = false;
