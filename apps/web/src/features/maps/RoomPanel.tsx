@@ -1,7 +1,10 @@
 /** Rooms and doors for battle maps: floors, walls, doors cut through them, generators. */
 import { Button, cn } from '@boh/ui';
 import { Dices, Mountain, Pickaxe } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { defaultCaveFloor, defaultCaveWall } from '../../app/maps/packDefaults';
+import { usePacks } from '../../app/maps/packs';
+import type { TerrainRef } from '../../app/maps/terrain';
 import { type MapItem } from '../../app/maps/model';
 import { FURNISH_PRESETS } from '../../app/maps/scatterDoc';
 import { DOOR_KINDS, type DoorKind } from '../../app/maps/rooms';
@@ -75,6 +78,9 @@ function DoorKinds({ value, onChange }: { value: DoorKind; onChange: (k: DoorKin
 export function RoomPanel(props: MapPanelsProps) {
   const { tool, roomSet, setRoomSet, onGenerateDungeon, onGenerateCave } = props;
   const [rooms, setRooms] = useState(7);
+  const packEntries = usePacks((s) => s.entries);
+  const caveWall = useMemo(() => defaultCaveWall(packEntries), [packEntries]);
+  const caveFloor = useMemo(() => defaultCaveFloor(packEntries), [packEntries]);
   if (tool === 'door')
     return (
       <Section title="Door">
@@ -112,6 +118,22 @@ export function RoomPanel(props: MapPanelsProps) {
             setRoomSet(wallTexture ? { ...rest, wallTexture } : rest);
           }}
         />
+        <Button
+          variant="ghost"
+          title="Click the outline of a cave: rounded, with a cliff rim and an earthen floor from your packs"
+          onClick={() => {
+            setRoomSet({
+              ...roomSet,
+              shape: 'polygon',
+              smooth: 0.8,
+              wallStyle: 'cave',
+              ...(caveWall ? { wallTexture: caveWall } : {}),
+              ...(caveFloor ? { floor: caveFloor as TerrainRef } : {}),
+            });
+          }}
+        >
+          <Mountain className="h-4 w-4" aria-hidden /> Cave brush (an outline, rounded)
+        </Button>
         <Slider
           label="Wall thickness"
           value={roomSet.wall}

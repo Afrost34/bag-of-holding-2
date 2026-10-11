@@ -8,6 +8,7 @@ import {
   type PackEntry,
 } from './packModel';
 import { classify, SORTER_VERSION, type CategoryId } from './packCategories';
+import type { CopyMessage, CopyRequest } from './packCopy.worker';
 import { readZipEntry, readZipIndex } from './zip';
 
 /**
@@ -71,6 +72,57 @@ async function writeText(folder: FileSystemDirectoryHandle, name: string, text: 
   const writable = await (await folder.getFileHandle(name, { create: true })).createWritable();
   await writable.write(text);
   await writable.close();
+}
+
+/**
+ * Copies a file into the app's storage in a worker, in place (no swap copy: a pack of 2.5 GB needs
+ * 2.5 GB of room, not 5). Falls back to the main thread's stream where workers cannot do it.
+ */
+async function copyIntoStorage(
+  file: File,
+  dirParts: string[],
+  name: string,
+  onProgress: (copied: number) => void,
+): Promise<void> {
+  if (
+    typeof Worker === 'undefined' ||
+    !('createSyncAccessHandle' in FileSystemFileHandle.prototype)
+  ) {
+    let root = await navigator.storage.getDirectory();
+    for (const part of dirParts) root = await root.getDirectoryHandle(part, { create: true });
+    const writable = await (await root.getFileHandle(name, { create: true })).createWritable();
+    let copied = 0;
+    await file
+      .stream()
+      .pipeThrough(
+        new TransformStream<Uint8Array, Uint8Array>({
+          transform(chunk, controller) {
+            copied += chunk.byteLength;
+            onProgress(copied);
+            controller.enqueue(chunk);
+          },
+        }),
+      )
+      .pipeTo(writable);
+    return;
+  }
+  const worker = new Worker(new URL('./packCopy.worker.ts', import.meta.url), { type: 'module' });
+  try {
+    await new Promise<void>((resolve, reject) => {
+      worker.onmessage = (e: MessageEvent<CopyMessage>) => {
+        const m = e.data;
+        if ('copied' in m) onProgress(m.copied);
+        else if ('done' in m) resolve();
+        else reject(m.quota ? new DOMException(m.error, 'QuotaExceededError') : new Error(m.error));
+      };
+      worker.onerror = (e) => {
+        reject(new Error(e.message || 'The copy stopped.'));
+      };
+      worker.postMessage({ file, dir: dirParts, name } satisfies CopyRequest);
+    });
+  } finally {
+    worker.terminate();
+  }
 }
 
 export interface ImportReport {
@@ -178,22 +230,7 @@ export const usePacks = create<PacksStore>()((set, get) => ({
           continue;
         }
         progress(0);
-        let copied = 0;
-        const writable = await (
-          await folder.getFileHandle(`${id}.zip`, { create: true })
-        ).createWritable();
-        await file
-          .stream()
-          .pipeThrough(
-            new TransformStream<Uint8Array, Uint8Array>({
-              transform(chunk, controller) {
-                copied += chunk.byteLength;
-                progress(copied);
-                controller.enqueue(chunk);
-              },
-            }),
-          )
-          .pipeTo(writable);
+        await copyIntoStorage(file, [ROOT, 'packs'], `${id}.zip`, progress);
         const rows: IndexRow[] = pictures.map((e) => [
           e.name.slice(cut),
           e.offset,

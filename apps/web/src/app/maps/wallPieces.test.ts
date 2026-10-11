@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { piecesFor, placePieces } from './wallPieces';
+import { junctionPieces, piecesFor, placePieces } from './wallPieces';
 
 describe('the pieces of a wall set', () => {
   const files = [
@@ -51,5 +51,35 @@ describe('where pieces stand on a wall', () => {
     const loop = placePieces([0, 0, 100, 0, 100, 100, 0, 100], true);
     expect(loop.filter((p) => p.kind === 'ending')).toHaveLength(0);
     expect(loop.filter((p) => p.kind === 'corner')).toHaveLength(4);
+  });
+});
+
+describe('where walls meet', () => {
+  it('puts a T where one wall ends on another, turned so the stem points the way it goes', () => {
+    // A wall along the top, another ending in the middle of it from below: arms W, E and S.
+    const j = junctionPieces([
+      { id: 'a', points: [0, 0, 200, 0], closed: false },
+      { id: 'b', points: [100, 0, 100, 100], closed: false },
+    ]);
+    const mine = j.get('a');
+    expect(mine).toHaveLength(1);
+    expect(mine?.[0]).toMatchObject({ kind: 'tee', x: 100, y: 0, rotation: 0 });
+    // From above: the missing arm is south, so the piece turns half a circle.
+    const up = junctionPieces([
+      { id: 'a', points: [0, 0, 200, 0], closed: false },
+      { id: 'b', points: [100, 0, 100, -100], closed: false },
+    ]);
+    expect(up.get('a')?.[0]).toMatchObject({ kind: 'tee', rotation: 180 });
+  });
+
+  it('puts a cross where two walls run through each other, and nothing for a single wall', () => {
+    const cross = junctionPieces([
+      { id: 'a', points: [0, 0, 200, 0], closed: false },
+      { id: 'b', points: [100, -100, 100, 100], closed: false },
+    ]);
+    expect([...cross.values()].flat().some((p) => p.kind === 'cross')).toBe(true);
+    expect(
+      junctionPieces([{ id: 'a', points: [0, 0, 100, 0, 100, 100], closed: false }]).size,
+    ).toBe(0);
   });
 });

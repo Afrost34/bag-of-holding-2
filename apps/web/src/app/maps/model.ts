@@ -51,6 +51,12 @@ export interface ItemOrder {
   under?: boolean;
 }
 
+export interface WaterLook {
+  shallow: string;
+  deep: string;
+  blend: number;
+}
+
 export type MapItem = ItemOrder & MapItemBody;
 
 type MapItemBody =
@@ -93,6 +99,8 @@ type MapItemBody =
       soft?: number;
       /** A dark line round the stroke, as a material (rock, lava, ice) has. */
       border?: boolean;
+      /** Water: a shallow colour at the edges, a deep one inland, `blend` (0–1) the width of the change. */
+      water?: WaterLook;
     }
   | {
       kind: 'wall';
