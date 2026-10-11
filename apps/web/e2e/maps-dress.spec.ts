@@ -250,3 +250,52 @@ test('lit braziers and wall lamps light the map by themselves', async ({ page },
   await page.waitForTimeout(800);
   await canvas.screenshot({ path: testInfo.outputPath('lit-room.png') });
 });
+
+test('a barrel ages into a broken one, and a room becomes a ruin', async ({ page }, testInfo) => {
+  test.skip(isPhone(page), 'The Creator is used on the desktop.');
+  test.setTimeout(90_000);
+  await installData(page);
+  await newMap(page, 'Old Cellar');
+  await tool(page, 'Stamp').click();
+  await importPack(page, [
+    `${CORE}Decor/Storage/Barrels/Barrel_Wood_Ashen_A_1x1.png`,
+    `${CORE}Decor/Storage/Barrels/Broken/Barrel_Broken_Side_Wood_Ashen_A1_2x2.png`,
+    `${CORE}Structures/Rubble/Rubble_Pieces/Wood/Debris_Wood_Ashen_Plank_A10_1x2.png`,
+    `${CORE}Structures/Rubble/Rubble_Pieces/Wood/Debris_Wood_Ashen_Plank_A11_1x2.png`,
+    `${CORE}Structures/Rubble/Rubble_Piles/Stone/Rubble_Pile_Stone_Earthy_A10_2x2.png`,
+    '!Effects/Webs/Cobwebs/Cobweb_Black_A1_1x1.png',
+  ]);
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  await page.getByLabel('Find a pack picture').fill('barrel wood ashen');
+  await page
+    .getByRole('list', { name: 'Pack pictures' })
+    .getByRole('button', { name: 'Barrel Wood Ashen A' })
+    .click();
+  await page.mouse.click(box.x + 650, box.y + 450);
+  await tool(page, 'Select and move').click();
+  await page.mouse.click(box.x + 650, box.y + 450);
+  const variations = page.getByRole('group', { name: 'Variations' });
+  await variations.getByLabel('Decay strength').fill('1');
+  await variations.getByRole('button', { name: 'Age / decay' }).click();
+  await waitForSaved(page, 'maps', 'Barrel_Broken_Side_Wood_Ashen_A1_2x2');
+  // A room, then the ruin recipe over it.
+  await tool(page, 'Room').click();
+  await page.mouse.move(box.x + 80, box.y + 60);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 500, box.y + 360, { steps: 8 });
+  await page.mouse.up();
+  await waitForSaved(page, 'maps', '"kind":"room"');
+  await tool(page, 'Dress').click();
+  await page
+    .getByRole('radiogroup', { name: 'Decay recipes' })
+    .getByRole('radio', { name: /^Ruin/ })
+    .click();
+  await tool(page, 'Select and move').click();
+  await page.mouse.click(box.x + 290, box.y + 210);
+  await page.getByRole('button', { name: 'Dress inside this' }).click();
+  await waitForSaved(page, 'maps', '"recipe":"ruin"');
+  await page.waitForTimeout(600);
+  await canvas.screenshot({ path: testInfo.outputPath('ruin.png') });
+});

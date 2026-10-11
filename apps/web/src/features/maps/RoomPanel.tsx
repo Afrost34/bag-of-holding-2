@@ -190,12 +190,15 @@ export function RoomItemSettings({
   item,
   set,
   onFurnish,
+  onDress,
   extrasOnly = false,
 }: {
   extrasOnly?: boolean;
   item: Extract<MapItem, { kind: 'room' }>;
   set: (change: (i: MapItem) => MapItem) => void;
   onFurnish: (preset: string) => void;
+  /** Lay the Dress tool's recipe inside the room (a ruin, clutter). */
+  onDress: () => void;
 }) {
   const change = (patch: Partial<Extract<MapItem, { kind: 'room' }>>) => {
     set((i) => (i.kind === 'room' ? { ...i, ...patch } : i));
@@ -276,6 +279,14 @@ export function RoomItemSettings({
           className="rounded-md border border-border px-2 py-1 text-sm hover:bg-sunken"
         >
           Light this room
+        </button>{' '}
+        <button
+          type="button"
+          title="The recipe picked in the Dress tool, inside this room (a ruin, clutter)"
+          onClick={onDress}
+          className="rounded-md border border-border px-2 py-1 text-sm hover:bg-sunken"
+        >
+          Dress inside this
         </button>
       </div>
       <p className="text-xs text-muted">
