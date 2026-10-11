@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { junctionPieces, piecesFor, placePieces, type WallPieces } from './wallPieces';
+import {
+  junctionPieces,
+  pieceFolders,
+  piecesFor,
+  placePieces,
+  type WallPieces,
+} from './wallPieces';
 
 describe('the pieces of a wall set', () => {
   const files = [
@@ -280,21 +286,39 @@ describe('other wall families', () => {
 });
 
 describe('Ceremorph walls', () => {
-  it('get their ending, drawn with the wall to the east', () => {
+  it('get their corner, diagonal, ending and cross', () => {
     const files = [
-      'Ceremorph_Wall_Blue_G_Path.webp',
-      'Ceremorph_Wall_Blue_Ending_G1_1x1.webp',
-      'Ceremorph_Wall_Blue_Corner_G1_1x1.webp',
+      'Ceremorph_Wall_Gray_Straight_Path_A1.webp',
+      'Ceremorph_Wall_Gray_Ending_A1_1x1.webp',
+      'Ceremorph_Wall_Gray_Corner_A1_1x1.webp',
+      'Ceremorph_Wall_Gray_Diagonal_A1_1x1.webp',
+      'Ceremorph_Wall_Gray_Joint_A1_1x1.webp',
+      'Ceremorph_Wall_Blue_Corner_A1_1x1.webp',
     ];
-    const set = piecesFor('Ceremorph_Wall_Blue_G_Path.webp', files);
-    expect(set).toEqual({
-      ending: {
-        file: 'Ceremorph_Wall_Blue_Ending_G1_1x1.webp',
-        squares: 1,
-        arms: [0],
-        shift: 0.275,
-      },
+    const set = piecesFor('Ceremorph_Wall_Gray_Straight_Path_A1.webp', files);
+    expect(set.corner?.file).toBe('Ceremorph_Wall_Gray_Corner_A1_1x1.webp');
+    expect(set.diagonal?.file).toBe('Ceremorph_Wall_Gray_Diagonal_A1_1x1.webp');
+    expect(set.cross).toBe('Ceremorph_Wall_Gray_Joint_A1_1x1.webp');
+    expect(set.ending).toEqual({
+      file: 'Ceremorph_Wall_Gray_Ending_A1_1x1.webp',
+      squares: 1,
+      arms: [0],
+      shift: 0.275,
     });
+  });
+
+  it('give the thick Wall_Paths strips no pieces', () => {
+    expect(
+      piecesFor('Ceremorph_Wall_Gray_A_Path.webp', ['Ceremorph_Wall_Gray_Corner_A1_1x1.webp']),
+    ).toEqual({});
+  });
+
+  it('look for pieces beside a strip, or above a Paths folder', () => {
+    expect(pieceFolders('X/Dwarf/Dwarven_F_Path.webp')).toEqual(['X/Dwarf/']);
+    expect(pieceFolders('X/Dwarf/Paths/Dwarven_F_Path.webp')).toEqual([
+      'X/Dwarf/Paths/',
+      'X/Dwarf/',
+    ]);
   });
 });
 
