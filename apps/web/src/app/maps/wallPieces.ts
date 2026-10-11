@@ -83,6 +83,19 @@ export function piecesFor(stripFile: string, siblings: readonly string[]): WallP
       ...(cross && !brick ? { cross } : {}),
     };
   }
+  // Drow sets: `<Base>_<L>_<Colour>_Path` beside `<Base>_Corner_<Colour>_<L>_1x1` (arms west and north) and
+  // `<Base>_Ending_<Colour>_<L>1_1x1` (the wall to the west, the cap a quarter square past the middle).
+  const drow = /^(Drow_Wall_.+?)_([A-Z])_(.+)_Path\.[a-z0-9]+$/.exec(stripFile);
+  if (drow?.[1] && drow[2] && drow[3]) {
+    const [, base, letter, tail] = drow;
+    const corner = siblings.find((f) => f.startsWith(`${base}_Corner_${tail}_${letter}_1x1.`));
+    const ending = siblings.find((f) => f.startsWith(`${base}_Ending_${tail}_${letter}1_1x1.`));
+    if (corner || ending)
+      return {
+        ...(corner ? { corner: { file: corner, squares: 1, arms: [180, 270] } } : {}),
+        ...(ending ? { ending: { file: ending, squares: 1, arms: [180], shift: 0.27 } } : {}),
+      };
+  }
   // Dwarven sets: `<Set>_F_Path` beside `<Set>_Corner_F1_1x1` (arms west and north), `..._Ending_F1_1x1`
   // (the wall to the west, the cap a quarter square past the middle) and `..._Diagonal_F1_1x1`.
   const dwarven = /^(.*_)([A-Z])_Path\.[a-z0-9]+$/i.exec(stripFile);

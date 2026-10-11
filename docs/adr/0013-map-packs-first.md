@@ -50,7 +50,8 @@ folder. The owner wants the tools to work from the packs and nothing else.
   writable stream keeps a swap copy until it closes, which made a 2.5 GB pack need 5 GB.
 - Wall pieces (`wallPieces.ts`): stone, plaster, metal, garden metal, brick, dwarven and wood sets get their
   corners (inner and outer by the winding of a closed wall), endings, diagonals, rounded corners and T/cross
-  junctions where the set draws them; the Ceremorph get their ending. The Drow walls (overlay pieces) and the
-  Ceremorph corners are irregular and keep the plain strip.
+  junctions where the set draws them; the Ceremorph get their ending. The Drow walls get corner and ending; the
+  Ceremorph corners are organic and irregular and keep the plain strip. A set whose strips sit in a `Paths`
+  folder (dwarven, factory metal) has its pieces looked up in the folder above.
 - Checked on the real Core pack (148,689 pictures): the index reads in 82 ms, sorting takes 270 ms and
   a picture is cut out of the 2.5 GB zip; storing 2.5 GB in a webview's storage is not checked.

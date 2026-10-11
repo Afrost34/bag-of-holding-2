@@ -291,3 +291,22 @@ describe('Ceremorph walls', () => {
     });
   });
 });
+
+describe('Drow walls', () => {
+  it('find their corner and ending by the colour and letter of the strip', () => {
+    const files = [
+      'Drow_Wall_Stone_Earthy_F_Metal_Gray_Path.webp',
+      'Drow_Wall_Stone_Earthy_Corner_Metal_Gray_F_1x1.webp',
+      'Drow_Wall_Stone_Earthy_Ending_Metal_Gray_F1_1x1.webp',
+      'Drow_Wall_Stone_Earthy_Ending_Metal_Gray_F2_1x1.webp',
+      'Drow_Wall_Stone_Earthy_Corner_Metal_Polished_F_1x1.webp',
+    ];
+    const set = piecesFor('Drow_Wall_Stone_Earthy_F_Metal_Gray_Path.webp', files);
+    expect(set.corner).toEqual({
+      file: 'Drow_Wall_Stone_Earthy_Corner_Metal_Gray_F_1x1.webp',
+      squares: 1,
+      arms: [180, 270],
+    });
+    expect(set.ending?.file).toBe('Drow_Wall_Stone_Earthy_Ending_Metal_Gray_F1_1x1.webp');
+  });
+});
