@@ -56,6 +56,91 @@ function simple(
   };
 }
 
+/**
+ * A ruin over an area or a room: damaged floor beneath, debris (`debris`: rubble, or scrap for
+ * the Rust look), rubble heaps and cobwebs in the corners, and ivy on the walls unless rusted.
+ */
+function ruin(
+  id: string,
+  name: string,
+  hint: string,
+  debris: Recipe['rules'][number]['want'],
+): Recipe {
+  const rust = id.startsWith('rust');
+  const rules: Recipe['rules'] = [
+    // Broken floorboards (wood: not in a rusted ruin).
+    ...(rust
+      ? []
+      : [
+          {
+            key: 'damage',
+            place: 'area' as const,
+            want: { cats: ['rubble' as const], words: ['damage_overlay'] },
+            max: 8,
+            spacing: 2.2,
+            cluster: 0.5,
+            rotation: 'random' as const,
+            beneath: true,
+          },
+        ]),
+    {
+      key: 'debris',
+      place: 'area',
+      ...(debris ? { want: debris } : {}),
+      max: 12,
+      spacing: 1.4,
+      cluster: 0.55,
+      rotation: 'random',
+      flip: true,
+      tint: 0.2,
+    },
+    // Stone rubble among the scrap (the packs give one biome at a time: a rule of its own).
+    ...(rust
+      ? [
+          {
+            key: 'rubble',
+            place: 'area' as const,
+            want: { cats: ['rubble' as const], words: ['/rubble_pieces/stone/'] },
+            max: 8,
+            spacing: 2,
+            cluster: 0.5,
+            rotation: 'random' as const,
+            apart: true,
+          },
+        ]
+      : []),
+    {
+      key: 'heaps',
+      place: 'corner',
+      want: { cats: ['rubble'], words: ['/rubble_piles/'], not: ['glass'] },
+      max: 6,
+      spacing: 0,
+      count: 3,
+      loose: 30,
+    },
+    {
+      key: 'cobwebs',
+      place: 'corner',
+      want: { cats: ['effects'], words: ['/cobwebs/'] },
+      max: 6,
+      spacing: 0,
+      count: 4,
+    },
+  ];
+  if (!rust)
+    rules.push({
+      key: 'ivy',
+      place: 'wall',
+      want: { cats: ['plants'], words: ['/ivy_vines/'], not: ['overlay'] },
+      max: 6,
+      spacing: 0,
+      gap: 1,
+      fill: 0.35,
+      count: 6,
+    });
+  return { id, name, hint, group: 'Decay', mode: 'area', rules };
+}
+
 export const RECIPES: readonly Recipe[] = [
   // Nature: the biome brushes (`nature.ts`), then single kinds of plant or rock.
   ...NATURE_RECIPES,
@@ -337,6 +422,16 @@ export const RECIPES: readonly Recipe[] = [
     rotation: 'random',
     cluster: 0.3,
   }),
+  ruin('ruin', 'Ruin', 'rubble, broken floor, cobwebs in the corners, ivy on the walls', {
+    cats: ['rubble'],
+    words: ['/rubble_pieces/'],
+    not: ['glass', 'marble'],
+  }),
+  ruin('rust-ruin', 'Rusted ruin', 'scrap metal, cogs and rubble, cobwebs, no green', {
+    cats: ['buildings'],
+    anyWords: ['/scrap_metal/', '/cogs/'],
+    not: ['soot', 'brass'],
+  }),
   // A world map's hills and mountains (drawn art: the packs are for battle maps).
   simple('hills', 'Hills', 'rolling hills', 'World', {
     glyphs: [g('hill')],
@@ -483,7 +578,8 @@ export function recipeRules(
 export function fromPacks(recipe: Recipe, entries: readonly Pickable[]): boolean {
   if (recipe.room)
     return recipe.rules.some((r) => !r.floor && r.want && pickMany(entries, r.want, 1).length > 0);
-  const first = recipe.rules[0];
+  // Its first main rule: ground and floor damage drawn beneath are extras.
+  const first = recipe.rules.find((r) => !r.beneath && !r.floor);
   return Boolean(first?.want && pickMany(entries, first.want, 2).length >= 2);
 }
 

@@ -91,6 +91,37 @@ export function shapeVariants(index: FolderIndex, pack: string, path: string): s
 const sameSize = (a: NameParts['size'], b: NameParts['size']) =>
   a === b || (a !== null && b !== null && a.w === b.w && a.h === b.h);
 
+/** Words that say what state a thing is in, not what it is. */
+const STATE_WORDS = new Set(['broken', 'fallen', 'side', 'ruined']);
+
+/**
+ * The same thing broken or knocked over: Forgotten Adventures keeps those in a `Broken`, `Fallen`
+ * or `Fallen_and_Broken` folder beside the whole one (`Barrels/Broken/Barrel_Broken_Wood_Ashen_B1`
+ * for `Barrels/Barrel_Wood_Ashen_B1`). The best match starts with the same word (what the thing
+ * is) and shares the most words after it (its material, colour, shape); null when there is none.
+ */
+export function stateVariant(index: FolderIndex, pack: string, path: string): string | null {
+  const me = nameParts(path);
+  const mine = me.words.filter((w) => !SIZE.test(w));
+  const first = (mine[0] ?? '').toLowerCase();
+  let best: { path: string; score: number } | null = null;
+  for (const sub of ['Broken/', 'Fallen/', 'Fallen_and_Broken/']) {
+    const folder = me.folder + sub;
+    for (const file of index.get(pack + ':' + folder) ?? []) {
+      const other = nameParts(folder + file).words.filter((w) => !SIZE.test(w));
+      if ((other[0] ?? '').toLowerCase() !== first) continue;
+      const rest = new Set(other.slice(1).map((w) => w.toLowerCase()));
+      let score = 0;
+      for (const w of mine.slice(1)) if (rest.has(w.toLowerCase())) score++;
+      // Fewer extra words (a plain broken barrel, not its loose band) is a closer match.
+      const extra = other.filter((w) => !STATE_WORDS.has(w.toLowerCase())).length - mine.length;
+      const total = score * 10 - Math.max(0, extra);
+      if (!best || total > best.score) best = { path: folder + file, score: total };
+    }
+  }
+  return best?.path ?? null;
+}
+
 export interface ColourVariant {
   path: string;
   /** The word that sets it apart (`Walnut`); empty for the picture itself. */

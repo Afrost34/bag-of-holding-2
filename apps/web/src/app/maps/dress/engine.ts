@@ -200,6 +200,11 @@ export function dressPieces(rules: readonly DressRule[], target: DressTarget): D
       return;
     }
     let list = placeRule(rule, target, r);
+    // In a room the floor reaches the walls: scattered pieces keep most of themselves inside it.
+    if (target.doors !== undefined && target.mode === 'area') {
+      const reach = target.reach ?? ((_rule: DressRule, p: Instance) => p.size / 2);
+      list = list.filter((p) => edgeDistance(target.line, p.x, p.y) >= reach(rule, p) * 0.7);
+    }
     if (rule.falloff && rule.falloff > 0) {
       const reach = rule.falloff * rule.spacing * 4;
       list = list.filter((p) => {

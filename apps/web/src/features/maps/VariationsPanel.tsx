@@ -1,6 +1,7 @@
 /** Breaking up copies of the picked stamps: Randomize, and Swap material. */
 import { Button } from '@boh/ui';
-import { Shuffle, UtensilsCrossed } from 'lucide-react';
+import { Hourglass, Shuffle, UtensilsCrossed } from 'lucide-react';
+import { ageStamps } from '../../app/maps/dress/decay';
 import { dressTables, isTable } from '../../app/maps/dress/tables';
 import { useEffect, useMemo, useState } from 'react';
 import type { MapDoc } from '../../app/maps/model';
@@ -36,6 +37,8 @@ export function VariationsPanel({
     if (!loaded) void load();
   }, [loaded, load]);
   const [options, setOptions] = useState<RandomizeOptions>(DEFAULT_RANDOMIZE);
+  /** The share of the picked stamps Age / decay changes. */
+  const [decay, setDecay] = useState(0.6);
   const index = useMemo(() => folderIndex(entries), [entries]);
   const materials = useMemo(() => materialChoices(doc, ids, index), [doc, ids, index]);
   const picked = doc.layers.flatMap((l) =>
@@ -72,6 +75,33 @@ export function VariationsPanel({
       >
         <Shuffle className="h-4 w-4" aria-hidden /> Randomize
       </Button>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          title="Some become broken or fallen (where the packs have it), seats and tables are knocked over, the rest get grimy"
+          onClick={() => {
+            const seed = Math.floor(Math.random() * 2 ** 31);
+            commit((d) => ageStamps(d, ids, index, decay, seed));
+          }}
+        >
+          <Hourglass className="h-4 w-4" aria-hidden /> Age / decay
+        </Button>
+        <label className="flex flex-1 items-center gap-1 text-xs text-muted">
+          How much
+          <input
+            type="range"
+            min={0.1}
+            max={1}
+            step={0.1}
+            value={decay}
+            aria-label="Decay strength"
+            onChange={(e) => {
+              setDecay(Number(e.target.value));
+            }}
+            className="min-w-0 flex-1"
+          />
+        </label>
+      </div>
       {tables.length > 0 && entries.length > 0 && (
         <Button
           variant="ghost"

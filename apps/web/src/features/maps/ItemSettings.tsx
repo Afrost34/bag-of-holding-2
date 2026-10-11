@@ -189,6 +189,9 @@ export function ItemSettings({
           onFurnish={(preset) => {
             onFurnish(item.id, preset);
           }}
+          onDress={() => {
+            onScatterOn(item);
+          }}
         />
       )}
       {item.kind === 'scatter' && (
