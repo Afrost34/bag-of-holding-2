@@ -35,7 +35,10 @@ folder. The owner wants the tools to work from the packs and nothing else.
 - The same picture in two packs (or as `.png` and `.webp`) is kept once (by path without extension).
 - Universal VTT (`.dd2vtt`) export is back (it supersedes ADR 0012 on this point, as the guide's export page asks
   for it): the Export dialog writes the picture, sight lines (walls, room outlines, buildings), portals (room
-  doors, pack doors and windows), lights and the ambient colour (`uvtt.ts`).
+  doors, pack doors and windows), lights and the ambient colour (`uvtt.ts`). The layout was checked against an
+  independent reader (uvtt2fgu: `resolution.map_size/map_origin/pixels_per_grid`, `line_of_sight`,
+  `portals[].closed/rotation/bounds`, `lights[].position/color/range`, base64 `image`); it has not been
+  imported into Foundry or Roll20 here.
 - Wall corners and endings of the wall's set are laid at right-angle turns and open ends (`wallPieces.ts`);
   a pack can be switched off (`PackMeta.disabled`: unlisted, still drawn on maps that use it); the
   category is stored in the pack index (`SORTER_VERSION` makes older indexes sort again); stamps show a
@@ -45,7 +48,9 @@ folder. The owner wants the tools to work from the packs and nothing else.
   border; the cave brush is a rounded room outline with a cave cliff rim and an earthen floor.
 - Packs are copied into storage by a worker writing in place (`packCopy.worker.ts`): the main thread's
   writable stream keeps a swap copy until it closes, which made a 2.5 GB pack need 5 GB.
-- Wall pieces: stone, metal (`Wall_Metal_*_Path`), garden metal and wood sets get their corners, endings,
-  diagonals, rounded corners and T/cross junctions (`wallPieces.ts`); other sets keep the plain strip.
+- Wall pieces (`wallPieces.ts`): stone, plaster, metal, garden metal, brick, dwarven and wood sets get their
+  corners (inner and outer by the winding of a closed wall), endings, diagonals, rounded corners and T/cross
+  junctions where the set draws them; the Ceremorph get their ending. The Drow walls (overlay pieces) and the
+  Ceremorph corners are irregular and keep the plain strip.
 - Checked on the real Core pack (148,689 pictures): the index reads in 82 ms, sorting takes 270 ms and
   a picture is cut out of the 2.5 GB zip; storing 2.5 GB in a webview's storage is not checked.

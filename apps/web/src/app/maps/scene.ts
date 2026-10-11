@@ -387,15 +387,17 @@ export function stripWallView(
       const spec =
         place.kind === 'corner'
           ? set.corner
-          : place.kind === 'wideCorner'
-            ? set.wideCorner
-            : place.kind === 'roundCorner'
-              ? set.roundCorner
-              : place.kind === 'diagonal'
-                ? set.diagonal
-                : place.kind === 'ending'
-                  ? set.ending
-                  : undefined;
+          : place.kind === 'cornerIn'
+            ? set.cornerIn
+            : place.kind === 'wideCorner'
+              ? set.wideCorner
+              : place.kind === 'roundCorner'
+                ? set.roundCorner
+                : place.kind === 'diagonal'
+                  ? set.diagonal
+                  : place.kind === 'ending'
+                    ? set.ending
+                    : undefined;
       const file = spec?.file ?? (place.kind === 'tee' ? set.tee : set.cross);
       const piece = file ? packTexture(packRef(parsed.pack, dir + file)) : null;
       if (!piece) continue;
