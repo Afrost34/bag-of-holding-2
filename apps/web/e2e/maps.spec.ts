@@ -2244,3 +2244,22 @@ test('the same stamp in other colours is listed once, with its variations', asyn
     'true',
   );
 });
+
+test('a tool keeps its settings when another tool is used, and after a restart', async ({
+  page,
+}) => {
+  test.skip(isPhone(page), 'The Creator is used on the desktop.');
+  await newMap(page, 'Kept');
+  await tool(page, 'Terrain brush').click();
+  await page.getByLabel('Soft edge').fill('70');
+  await tool(page, 'Eraser').click();
+  await tool(page, 'Terrain brush').click();
+  await expect(page.getByLabel('Soft edge')).toHaveValue('70');
+  // The device remembers it: a new page load starts from it.
+  await page.reload();
+  await expect(page.getByRole('application', { name: 'Map canvas' }).locator('canvas')).toHaveCount(
+    1,
+  );
+  await tool(page, 'Terrain brush').click();
+  await expect(page.getByLabel('Soft edge')).toHaveValue('70');
+});

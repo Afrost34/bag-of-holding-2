@@ -24,6 +24,7 @@ import {
 } from '../../app/maps/packDefaults';
 import { usePacks } from '../../app/maps/packs';
 import { squaresOf } from '../../app/maps/packModel';
+import { useStored, useStoredNumber } from './useStored';
 import { isPackTexture, type TerrainRef } from '../../app/maps/terrain';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppLink } from '../../app/AppLink';
@@ -251,29 +252,33 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   // How the next stamp is turned, mirrored and sized: wheel, A, right-click and Alt+wheel (as in Dungeondraft).
   const [stampTurn, setStampTurn] = useState({ rotation: 0, flip: false, scale: 1 });
   const fine = useRef(false);
-  const [brush, setBrush] = useState<BrushSettings>({ color: '#111111', width: 6, opacity: 1 });
+  const [brush, setBrush] = useStored<BrushSettings>('brush', {
+    color: '#111111',
+    width: 6,
+    opacity: 1,
+  });
   // No texture yet means the first slot (a pack's grass once packs are imported, else the drawn one).
-  const [terrainState, setTerrain] = useState<BrushSettings>({
+  const [terrainState, setTerrain] = useStored<BrushSettings>('terrain', {
     color: '#5b8a2b',
     width: 120,
     opacity: 1,
   });
-  const [eraser, setEraser] = useState(60);
-  const [template, setTemplate] = useState<TemplateSettings>({
+  const [eraser, setEraser] = useStoredNumber('eraser', 60);
+  const [template, setTemplate] = useStored<TemplateSettings>('template', {
     shape: 'cone',
     feet: 15,
     color: '#dc2626',
   });
-  const [light, setLight] = useState<LightSettings>({
+  const [light, setLight] = useStored<LightSettings>('light', {
     squares: 6,
     color: '#ffd9a0',
     intensity: 0.9,
     shadows: true,
   });
-  const [fog, setFog] = useState<FogSettings>({ mode: 'hide', shape: 'rect' });
+  const [fog, setFog] = useStored<FogSettings>('fog', { mode: 'hide', shape: 'rect' });
   const [scatter, setScatter] = useState<ScatterSettings>(DEFAULT_SCATTER);
   /** How each area tool draws: clicked corners, or dragged out as a rectangle, circle… (kept per tool). */
-  const [draws, setDraws] = useState<Partial<Record<Tool, ShapeChoice>>>({
+  const [draws, setDraws] = useStored<Partial<Record<Tool, ShapeChoice>>>('draws', {
     room: { kind: 'rect', sides: 6 },
     building: { kind: 'rect', sides: 6 },
   });
@@ -284,15 +289,19 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   /** Whether a press with this tool begins dragging out a preset shape. */
   const dragsShape = (t: Tool) =>
     (draws[t]?.kind ?? FREE_SHAPE.kind) !== 'free' && (t !== 'scatter' || scatter.mode === 'area');
-  const [district, setDistrict] = useState<DistrictSettings>(DEFAULT_DISTRICT);
-  const [buildingState, setBuildingSet] = useState<BuildingSettings>({
+  const [district, setDistrict] = useStored<DistrictSettings>('district', DEFAULT_DISTRICT);
+  const [buildingState, setBuildingSet] = useStored<BuildingSettings>('building', {
     roof: 'tiles',
     color: '#b5543a',
     libraryId: null,
   });
   // Until a room style is chosen it is the packs' cobblestone floor and stone wall strip.
-  const [roomPicked, setRoomPicked] = useState(false);
-  const [roomState, setRoomState] = useState<RoomSettings>({
+  const [roomPick, setRoomPick] = useStored<{ picked: boolean }>('room-picked', { picked: false });
+  const roomPicked = roomPick.picked;
+  const setRoomPicked = (picked: boolean) => {
+    setRoomPick({ picked });
+  };
+  const [roomState, setRoomState] = useStored<RoomSettings>('room', {
     floor: 'stone',
     wallStyle: 'stone',
     wall: 12,
@@ -330,14 +339,18 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         }),
       );
   };
-  const [areaState, setAreaState] = useState<AreaSettings>({
+  const [areaState, setAreaState] = useStored<AreaSettings>('area', {
     texture: 'grass',
     edge: 'shore',
     smooth: 0.8,
     opacity: 1,
   });
   // Until a shape texture is picked it is the first terrain slot.
-  const [areaPicked, setAreaPicked] = useState(false);
+  const [areaPick, setAreaPick] = useStored<{ picked: boolean }>('area-picked', { picked: false });
+  const areaPicked = areaPick.picked;
+  const setAreaPicked = (picked: boolean) => {
+    setAreaPick({ picked });
+  };
   const setArea = (a: AreaSettings) => {
     if (a.texture !== areaState.texture) setAreaPicked(true);
     setAreaState(a);
@@ -406,7 +419,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         }),
       );
   };
-  const [pathSet, setPathSet] = useState<PathSettings>({
+  const [pathSet, setPathSet] = useStored<PathSettings>('path', {
     style: 'road',
     width: 24,
     smooth: 0.6,
@@ -513,7 +526,11 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   const [zoom, setZoom] = useState(1);
   const [cursorSquare, setCursorSquare] = useState<{ col: number; row: number } | null>(null);
   const [mirror, setMirror] = useState<Mirror>('off');
-  const [elev, setElev] = useState<ElevationBrush>({ mode: 'raise', radius: 160, strength: 0.5 });
+  const [elev, setElev] = useStored<ElevationBrush>('elevation', {
+    mode: 'raise',
+    radius: 160,
+    strength: 0.5,
+  });
   /** The heights being painted, before the stroke is kept. */
   const elevWork = useRef<Uint8Array | null>(null);
   /** Items picked besides `selected` (Shift+click). */

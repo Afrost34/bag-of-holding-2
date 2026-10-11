@@ -204,6 +204,22 @@ export function ToolSettings({
       </label>
       {terrainTool && (
         <label className="block text-sm">
+          Soft edge: {Math.round((s.soft ?? 0) * 100)}%
+          <input
+            type="range"
+            aria-label="Soft edge"
+            min={0}
+            max={100}
+            value={Math.round((s.soft ?? 0) * 100)}
+            onChange={(e) => {
+              set({ ...s, soft: Number(e.target.value) / 100 });
+            }}
+            className="w-full"
+          />
+        </label>
+      )}
+      {terrainTool && (
+        <label className="block text-sm">
           Texture size: ×{(s.tile ?? 1).toFixed(2)}
           <input
             type="range"
@@ -217,6 +233,32 @@ export function ToolSettings({
             }}
             className="w-full"
           />
+        </label>
+      )}
+      <label className="block text-sm">
+        Opacity: {Math.round(s.opacity * 100)}%
+        <input
+          type="range"
+          min={10}
+          max={100}
+          value={Math.round(s.opacity * 100)}
+          onChange={(e) => {
+            set({ ...s, opacity: Number(e.target.value) / 100 });
+          }}
+          className="w-full"
+        />
+      </label>
+      {terrainTool && (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={s.border === true}
+            onChange={(e) => {
+              const { border: _b, ...rest } = s;
+              set(e.target.checked ? { ...rest, border: true } : rest);
+            }}
+          />
+          Border (a material: rock, lava, ice)
         </label>
       )}
       {terrainTool && material && (
@@ -246,48 +288,6 @@ export function ToolSettings({
           <PaintBucket className="h-4 w-4" aria-hidden /> Fill the whole map
         </Button>
       )}
-      {terrainTool && (
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={s.border === true}
-            onChange={(e) => {
-              const { border: _b, ...rest } = s;
-              set(e.target.checked ? { ...rest, border: true } : rest);
-            }}
-          />
-          Border (a material: rock, lava, ice)
-        </label>
-      )}
-      {terrainTool && (
-        <label className="block text-sm">
-          Soft edge: {Math.round((s.soft ?? 0) * 100)}%
-          <input
-            type="range"
-            aria-label="Soft edge"
-            min={0}
-            max={100}
-            value={Math.round((s.soft ?? 0) * 100)}
-            onChange={(e) => {
-              set({ ...s, soft: Number(e.target.value) / 100 });
-            }}
-            className="w-full"
-          />
-        </label>
-      )}
-      <label className="block text-sm">
-        Opacity: {Math.round(s.opacity * 100)}%
-        <input
-          type="range"
-          min={10}
-          max={100}
-          value={Math.round(s.opacity * 100)}
-          onChange={(e) => {
-            set({ ...s, opacity: Number(e.target.value) / 100 });
-          }}
-          className="w-full"
-        />
-      </label>
     </Section>
   );
 }
