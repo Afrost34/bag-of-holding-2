@@ -382,6 +382,8 @@ export function planFloor(req: FloorRequest): FloorPlan {
     usedIds.add(nextId);
     return nextId;
   };
+  // In order of their numbers, and doors drawn from numbers of their own: a floor frozen as it
+  // is (one room changed) keeps its doors.
   const rooms: PlanRoom[] = [
     ...locked.map((r) => ({ ...r, locked: true })),
     ...(stairs.length > 0 ? [{ id: 0, cells: stairs, type: 'stairs', seed: req.seed }] : []),
@@ -391,7 +393,8 @@ export function planFloor(req: FloorRequest): FloorPlan {
       type: 'room',
       seed: Math.floor(rand() * 2 ** 31),
     })),
-  ];
+  ].sort((a, b) => a.id - b.id);
+  const doorRand = seeded((req.seed * 31 + req.floor * 7919 + 104729) >>> 0);
   const roomOf = new Map<string, number>();
   rooms.forEach((r, i) => {
     for (const c of r.cells) roomOf.set(c, i);
@@ -409,7 +412,7 @@ export function planFloor(req: FloorRequest): FloorPlan {
 
   // Doors: a tree over the rooms that touch (every room reachable), and a few more for loops.
   const links = runs(inner)
-    .map((run) => ({ run, a: run[0]?.a ?? 0, b: run[0]?.b ?? 0, key: rand() }))
+    .map((run) => ({ run, a: run[0]?.a ?? 0, b: run[0]?.b ?? 0, key: doorRand() }))
     .sort((p, q) => p.key - q.key);
   const parent = rooms.map((_, i) => i);
   const find = (i: number): number => {
@@ -430,15 +433,15 @@ export function planFloor(req: FloorRequest): FloorPlan {
     }
     parent[ra] = rb;
     linked.add(pair);
-    const side = doorAt(link.run, rand);
+    const side = doorAt(link.run, doorRand);
     if (side)
       doors.push({ ...middle(side), angle: along(side), outer: false, rooms: [link.a, link.b] });
   }
   for (const link of extra) {
     const pair = `${String(Math.min(link.a, link.b))}-${String(Math.max(link.a, link.b))}`;
-    if (linked.has(pair) || rand() > 0.2) continue;
+    if (linked.has(pair) || doorRand() > 0.2) continue;
     linked.add(pair);
-    const side = doorAt(link.run, rand);
+    const side = doorAt(link.run, doorRand);
     if (side)
       doors.push({ ...middle(side), angle: along(side), outer: false, rooms: [link.a, link.b] });
   }
@@ -452,7 +455,7 @@ export function planFloor(req: FloorRequest): FloorPlan {
     for (const { i } of order) {
       const theirs = outerRuns.filter((run) => run[0]?.a === i).sort((p, q) => q.length - p.length);
       const run = theirs[0];
-      const side = run ? doorAt(run, rand) : undefined;
+      const side = run ? doorAt(run, doorRand) : undefined;
       if (side) {
         doors.push({ ...onWall(req.footprint, middle(side)), outer: true, rooms: [i] });
         break;

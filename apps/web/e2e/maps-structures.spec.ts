@@ -33,6 +33,8 @@ const BUILDING = [
   'Structures/Building/Doors/Door_Wood_Dark_A_1x1.png',
   'Structures/Building/Windows/Small_Windows/Window_Small_Wood_Dark_A_1x1.png',
   'Structures/Building/Stairs_and_Ladders/Stairs_Wood/Stairs_Wood_Dark_A_1x3.png',
+  'Furniture/Tables/Rectangle_Tables/Table_Rectangle_Wood_Red_F_2x1.png',
+  'Furniture/Seating/Chairs/Chair_Wood_Dark_E_1x1.png',
 ].map((p) => CORE + p);
 
 async function importPack(page: Page, names: string[]) {
@@ -79,6 +81,8 @@ test('a tavern is drawn as a whole building with a cellar and a floor above', as
   await page.mouse.up();
   await waitForSaved(page, 'maps', '"kind":"structure"');
   await waitForSaved(page, 'maps', '"archetype":"tavern"');
+  // The common room's furniture is picked from the packs with the building.
+  await waitForSaved(page, 'maps', 'Table_Rectangle_Wood_Red_F_2x1');
   await page.waitForTimeout(800);
   await canvas.screenshot({ path: testInfo.outputPath('ground-floor.png') });
 
@@ -104,7 +108,11 @@ test('a tavern is drawn as a whole building with a cellar and a floor above', as
   await waitForSaved(page, 'maps', '"stairSeed"');
   await page.getByRole('button', { name: 'Cut corners' }).click();
   await waitForSaved(page, 'maps', '"chamfers"');
+  await page.getByRole('combobox', { name: 'Condition' }).selectOption('worn');
+  await waitForSaved(page, 'maps', '"condition":"worn"');
   await page.getByRole('button', { name: 'Bake', exact: true }).click();
   await waitForSaved(page, 'maps', '"kind":"room"');
   await waitForSaved(page, 'maps', 'Door_Wood_Dark_A_1x1');
+  // The furniture is baked into stamps (the building and its spec are gone).
+  await waitForSaved(page, 'maps', 'Chair_Wood_Dark_E_1x1');
 });

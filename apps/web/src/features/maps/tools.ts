@@ -22,7 +22,7 @@ import {
   Type,
   type LucideIcon,
 } from 'lucide-react';
-import type { TemplateShape, WaterLook } from '../../app/maps/model';
+import type { BuildingSpec, TemplateShape, WaterLook } from '../../app/maps/model';
 import type { RoofStyle } from '../../app/maps/cityDoc';
 import type { BrushMode } from '../../app/maps/elevation';
 import type { PathEnd } from '../../app/maps/pathEnds';
@@ -282,6 +282,9 @@ export interface GenerateSettings {
   rooms: number;
   windows: boolean;
   crooked: number;
+  /** Furniture: none, lived-in, cluttered; and how kept the building is. */
+  dressing: BuildingSpec['dressing'];
+  condition: BuildingSpec['condition'];
 }
 
 export const DEFAULT_GENERATE: GenerateSettings = {
@@ -292,6 +295,8 @@ export const DEFAULT_GENERATE: GenerateSettings = {
   rooms: 4,
   windows: true,
   crooked: 0,
+  dressing: 'lived-in',
+  condition: 'kept',
 };
 
 /** The building tool's whole-building settings, kept per device, with the defaults filled in. */

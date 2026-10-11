@@ -53,6 +53,7 @@ function tavern(entries = FA_ENTRIES): { doc: MapDoc; id: string; group: string 
     entries,
     11,
     12,
+    { unit: CELL },
   );
   return addStructure(doc, { spec, points: rect(2, 2, 10, 8) });
 }

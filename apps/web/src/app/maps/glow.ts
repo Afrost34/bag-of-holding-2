@@ -1,6 +1,7 @@
 import { layerShown, type MapDoc, type MapItem } from './model';
 import { parsePackRef } from './packModel';
 import { scatterOf } from './scatterDoc';
+import { expandStructures } from './structure/structureDoc';
 import { stampUnit } from './units';
 
 /**
@@ -99,7 +100,8 @@ export function mapLights(doc: MapDoc): MapLight[] {
   const out: MapLight[] = [];
   for (const layer of doc.layers) {
     if (!layerShown(doc, layer) || layer.picture) continue;
-    for (const item of layer.items) {
+    // A building's lamps and hearths light it too.
+    for (const item of expandStructures(doc, layer.items)) {
       if (item.kind === 'light')
         out.push({
           x: item.x,

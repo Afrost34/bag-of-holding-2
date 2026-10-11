@@ -50,9 +50,17 @@ rooms with no seed kept. The owner chose:
   drawn doors). A door picture stands in a `gap` doorway, a new door kind with nothing drawn.
 - A building moves by whole squares with all its floors, and its locked rooms move with it.
 
+- **Furniture** (`structure/furnish.ts`): each room type's interior recipe is resolved once, when
+  the building is made (`spec.furnish`, with `~clutter` and `~ruin`), and for each furniture
+  picture its broken one (`spec.broken`). A room's pieces are laid live from its seed by the dress
+  engine, as stamps among the building's parts, so they bake, light and render like the rest.
+  Dressing (none, lived-in, cluttered) and condition (kept, worn, ruined: pieces broken or knocked
+  over, rubble added) are building settings. A floor frozen by a room change keeps its doors, so
+  Furnish again changes only that room.
+
 ## Consequences
 
-- Furniture (PR 8) is laid per room from its type's interior recipe, from the room's seed.
+- Pick again and a room's new type pick furniture as well; a type new to the building is added.
 - Roofs, more styles, dungeons, ships and docks are new specs and planners on the same item and
   drawing path.
 - Tests check that plans tile the footprint, that every room is reachable, that the stairs line

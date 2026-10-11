@@ -14,7 +14,9 @@ import { stampUnit } from '../units';
 import { cellKey, cellsInPolygon, parseCell, traceCells } from './cells';
 import { archetypeById } from './archetypes';
 import { planFloor, type FloorPlan, type PlanRoom } from './floorplan';
+import { pickFurnishing, roomFurniture } from './furnish';
 import { resolveStyle, styleById } from './styles';
+import type { RecipeOptions } from '../dress/recipes';
 
 /**
  * Generated buildings on a map: one `structure` item per floor, each on a layer of its own with a
@@ -192,10 +194,13 @@ export function newBuildingSpec(
     windows: boolean;
     crooked: number;
     name?: string;
+    dressing?: BuildingSpec['dressing'];
+    condition?: BuildingSpec['condition'];
   },
   entries: Parameters<typeof resolveStyle>[1],
   seed: number,
   wall: number,
+  options: RecipeOptions,
 ): BuildingSpec {
   const archetype = archetypeById(settings.archetype);
   const name = settings.name?.trim() ?? '';
@@ -209,8 +214,9 @@ export function newBuildingSpec(
     rooms: Math.max(1, settings.rooms),
     style: settings.style,
     palette: resolveStyle(styleById(settings.style), entries),
-    dressing: 'lived-in',
-    condition: 'kept',
+    dressing: settings.dressing ?? 'lived-in',
+    condition: settings.condition ?? 'kept',
+    ...pickFurnishing({ archetype: archetype.id }, entries, options),
     roof: settings.style === 'shack' ? 'thatch' : settings.style === 'stone' ? 'slate' : 'tiles',
     windows: settings.windows,
     crooked: Math.max(0, Math.min(1, settings.crooked)),
@@ -262,6 +268,20 @@ export function structureParts(doc: MapDoc, item: StructureItem): MapItem[] {
       ...(doors.length ? { doors } : {}),
     };
     out.push(r);
+  });
+  // Furniture, room by room, on the floors and under the walls between rooms.
+  plan.rooms.forEach((room, i) => {
+    const r = out[i];
+    if (r?.kind !== 'room') return;
+    const doors = plan.doors
+      .filter((d) => d.rooms.includes(i))
+      .map((d) => {
+        const [x, y] = bend(d.x, d.y);
+        return { x, y };
+      });
+    out.push(
+      ...roomFurniture(doc, item.spec, room, r.points, doors, `${item.id}~f${String(room.id)}.`),
+    );
   });
   // Walls between rooms (touching rooms would otherwise share a floor), over the floors, open
   // where a door is.

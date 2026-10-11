@@ -85,8 +85,17 @@ export interface BuildingSpec {
   /** The look (see `structure/styles.ts`) and the pictures it picked. */
   style: string;
   palette: StylePalette;
+  /** Furniture: none, the room's own, or that and clutter on top. */
   dressing: 'bare' | 'lived-in' | 'cluttered';
+  /** Kept as new, worn (some pieces broken or knocked over), or ruined (most, and rubble). */
   condition: 'kept' | 'worn' | 'ruined';
+  /**
+   * The furniture of each room type, its pictures picked once (`structure/furnish.ts`):
+   * `tavern`, `kitchen`…, and `~clutter` and `~ruin` for dressing and condition.
+   */
+  furnish?: Record<string, DressRule[]>;
+  /** For the furniture's pictures, their broken or fallen picture (pack ref to pack ref). */
+  broken?: Record<string, string>;
   roof: 'tiles' | 'thatch' | 'slate' | 'flat';
   windows: boolean;
   /** 0–1: walls a little off true, as an old timber house's. */
