@@ -1,11 +1,12 @@
 import { cn, IconButton } from '@boh/ui';
 import { useRouter } from '@tanstack/react-router';
-import { ArrowLeft, ArrowRight, Menu, Plus, Search, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Maximize2, Menu, Plus, Search, X } from 'lucide-react';
 import { useEffect, useRef, type DragEvent, type Ref } from 'react';
 import { moduleForPath, titleForPath } from '../nav';
 import { useSearchPalette } from '../search/store';
 import { SyncButton } from '../sync/SyncButton';
 import { DataIndicator } from './DataIndicator';
+import { useFocusMode } from './focusMode';
 import { HOME_PATH, type Tab } from '../tabs/model';
 import { useTabs } from '../tabs/store';
 
@@ -106,6 +107,17 @@ export function TabStrip({ onOpenMenu }: TabStripProps) {
       <span className="flex-1" />
       <DataIndicator />
       <SyncButton />
+      <IconButton
+        className="mb-1"
+        variant="chrome"
+        size="icon-sm"
+        label="Full screen for this tab (Alt+F)"
+        tooltipSide="bottom"
+        icon={<Maximize2 className="h-4 w-4" />}
+        onClick={() => {
+          useFocusMode.getState().set(true);
+        }}
+      />
       <IconButton
         className="mb-1"
         variant="chrome"

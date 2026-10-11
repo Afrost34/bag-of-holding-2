@@ -29,3 +29,18 @@ export function useShowDrawn(): boolean {
   }, [loaded, load]);
   return drawn || (loaded && entries.length === 0);
 }
+
+/** Per-device: how large the previews of the asset lists are (pixels, the tile's height). */
+export const MIN_TILE = 40;
+export const MAX_TILE = 220;
+export const useAssetPrefs = create<{ tile: number; setTile: (px: number) => void }>()(
+  persist(
+    (set) => ({
+      tile: 64,
+      setTile: (px) => {
+        set({ tile: Math.min(MAX_TILE, Math.max(MIN_TILE, Math.round(px))) });
+      },
+    }),
+    { name: 'boh.map-asset-tile', version: 1, storage: createJSONStorage(() => localStorage) },
+  ),
+);

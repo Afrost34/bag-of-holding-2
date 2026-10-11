@@ -812,7 +812,6 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
     id,
     name: typeof json.name === 'string' ? json.name : 'Map',
     ...(json.pinStyle === 'fantasy' ? { pinStyle: 'fantasy' as const } : {}),
-    ...(PAPERS.some((p) => p.id === json.paper) ? { paper: json.paper as MapPaper } : {}),
     ...(isObj(json.elevation) &&
     typeof json.elevation.data === 'string' &&
     num(json.elevation.w, 0) > 0 &&
@@ -836,8 +835,6 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
     ...(json.scaleBar === 'plain' || json.scaleBar === 'fantasy'
       ? { scaleBar: json.scaleBar }
       : {}),
-    ...(json.compass === 'plain' || json.compass === 'fantasy' ? { compass: json.compass } : {}),
-    ...(json.frame === 'plain' || json.frame === 'fantasy' ? { frame: json.frame } : {}),
     ...(json.hideRoofs === true ? { hideRoofs: true } : {}),
     ...(typeof json.ambient === 'string' && /^#[0-9a-fA-F]{6}$/.test(json.ambient)
       ? { ambient: json.ambient }

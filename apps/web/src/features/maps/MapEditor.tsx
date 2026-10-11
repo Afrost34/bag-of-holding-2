@@ -121,6 +121,8 @@ import {
   withPoints,
   type Drag,
   selectedName,
+  MIN_STAMP_SCALE,
+  MAX_STAMP_SCALE,
 } from './editorModel';
 import { DeleteMap, NameInput } from './EditorParts';
 import { ExportDialog } from './ExportDialog';
@@ -191,7 +193,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   const shell = useRef<HTMLDivElement>(null);
   const [scene, setScene] = useState<MapScene | null>(null);
   const creator = mode === 'creator';
-  const [tool, setToolNow] = useState<Tool>(creator ? 'select' : 'pan');
+  const [tool, setToolNow] = useState<Tool>('select');
   /** The shape the next area drawn is cut out of, instead of becoming a shape of its own. */
   const [holeOf, setHoleOf] = useState<string | null>(null);
   /** Another tool drops a hole that was being drawn. */
@@ -254,9 +256,36 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     smooth: 0,
     doorKind: 'door',
   });
+  /**
+   * The item the tool is for, when one is picked: changing the tool's settings then changes that
+   * item too (draw a shape, then pick another material), not only the next one drawn.
+   */
+  const pickedFor = <K extends MapItem['kind']>(
+    forTool: Tool,
+    kind: K,
+  ): Extract<MapItem, { kind: K }> | null => {
+    const item = selected && group.length === 0 ? findItem(doc, selected)?.item : undefined;
+    return tool === forTool && item?.kind === kind ? (item as Extract<MapItem, { kind: K }>) : null;
+  };
   const setRoomSet = (r: RoomSettings) => {
     setRoomPicked(true);
     setRoomState(r);
+    const room = pickedFor('room', 'room');
+    if (room)
+      commit((d) =>
+        updateItem(d, room.id, (i) => {
+          if (i.kind !== 'room') return i;
+          const { wallTexture: _w, ...rest } = i;
+          return {
+            ...rest,
+            smooth: r.smooth,
+            floor: r.floor,
+            wall: r.wall,
+            wallStyle: r.wallStyle,
+            ...(r.wallTexture ? { wallTexture: r.wallTexture } : {}),
+          };
+        }),
+      );
   };
   const [areaState, setAreaState] = useState<AreaSettings>({
     texture: 'grass',
@@ -269,6 +298,66 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   const setArea = (a: AreaSettings) => {
     if (a.texture !== areaState.texture) setAreaPicked(true);
     setAreaState(a);
+    const shape = pickedFor('area', 'shape');
+    if (shape) {
+      const base = TERRAINS.find((t) => t.id === a.texture)?.base;
+      commit((d) =>
+        updateItem(d, shape.id, (i) =>
+          i.kind === 'shape'
+            ? {
+                ...i,
+                smooth: a.smooth,
+                texture: a.texture,
+                opacity: a.opacity,
+                edge: a.edge,
+                ...(base ? { color: base } : {}),
+              }
+            : i,
+        ),
+      );
+    }
+  };
+  const setPathLive = (p: PathSettings) => {
+    setPathSet(p);
+    const path = pickedFor('path', 'path');
+    if (path) {
+      const color = PATH_STYLES.find((x) => x.id === p.style)?.color ?? path.color;
+      commit((d) =>
+        updateItem(d, path.id, (i) => {
+          if (i.kind !== 'path') return i;
+          const { texture: _t, taper: _a, start: _s, end: _e, loop: _l, ...rest } = i;
+          return {
+            ...rest,
+            style: p.style,
+            width: p.width,
+            smooth: p.smooth,
+            color,
+            ...(p.style === 'river' ? { taper: p.taper } : {}),
+            ...(p.start !== 'hard' ? { start: p.start } : {}),
+            ...(p.end !== 'hard' ? { end: p.end } : {}),
+            ...(p.loop ? { loop: true } : {}),
+            ...(p.texture ? { texture: p.texture } : {}),
+          };
+        }),
+      );
+    }
+  };
+  const setBuildingLive = (b: BuildingSettings) => {
+    setBuildingSet(b);
+    const building = pickedFor('building', 'building');
+    if (building)
+      commit((d) =>
+        updateItem(d, building.id, (i) => {
+          if (i.kind !== 'building') return i;
+          const { roofTexture: _r, ...rest } = i;
+          return {
+            ...rest,
+            roof: b.roof,
+            color: b.color,
+            ...(b.roofTexture ? { roofTexture: b.roofTexture } : {}),
+          };
+        }),
+      );
   };
   const [pathSet, setPathSet] = useState<PathSettings>({
     style: 'road',
@@ -508,14 +597,18 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   const add = (d: MapDoc, layerId: string, item: MapItem): MapDoc =>
     addMirrored(d, layerId, item, mirror);
 
-  /** A point as the pointer placed it, held to 15° steps with Shift and snapped to other corners. */
-  const pt = (raw: Point, shift: boolean): [number, number] => {
+  /**
+   * A point as the pointer placed it: with Snap on it goes to another corner nearby or to the grid
+   * (Alt places it freely); Shift holds it to 15° steps instead of the grid.
+   */
+  const pt = (raw: Point, shift: boolean, free = false): [number, number] => {
     let q = raw;
     if (shift && wall && wall.length >= 2)
       q = constrainAngle({ x: wall[wall.length - 2] ?? 0, y: wall[wall.length - 1] ?? 0 }, q);
-    if (snap) {
+    if (snap && !free) {
       const near = nearestVertex(doc, q, 10 / (scene?.zoom ?? 1));
       if (near) q = near;
+      else if (!shift) q = snapToCorner(q, grid);
     }
     return [q.x, q.y];
   };
@@ -575,10 +668,11 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       const points = dedupePoints(wall);
       if (points.length >= 6 && layer) {
         const base = TERRAINS.find((t) => t.id === area.texture)?.base ?? '#5b8a2b';
+        const areaId = itemId(doc);
         commit((d) =>
           add(d, layer.id, {
             kind: 'shape',
-            id: itemId(d),
+            id: areaId,
             points: points.map(Math.round),
             smooth: area.smooth,
             texture: area.texture,
@@ -587,6 +681,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             edge: area.edge,
           }),
         );
+        setSelected(areaId);
       }
       setWall(null);
       scene?.clearPreview();
@@ -664,10 +759,11 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         const joined =
           pathSet.style === 'river' ? snapRiverEnd(doc, points, 30 / (scene?.zoom ?? 1)) : null;
         if (joined) points = joined.points;
+        const pathId = itemId(doc);
         commit((d) =>
           add(d, layer.id, {
             kind: 'path',
-            id: itemId(d),
+            id: pathId,
             points,
             smooth: pathSet.smooth,
             style: pathSet.style,
@@ -681,6 +777,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             ...(pathSet.texture ? { texture: pathSet.texture } : {}),
           }),
         );
+        setSelected(pathId);
       }
       setWall(null);
       scene?.clearPreview();
@@ -1039,9 +1136,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         return;
       }
       case 'route':
-        // Stops are where they are clicked: a route follows roads and coasts, not the grid.
         if (!canDraw) return;
-        setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey)]);
+        setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey, e.altKey)]);
         return;
       case 'text': {
         // Clicked on a river, road or coast: the label runs along it.
@@ -1050,8 +1146,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         place({
           kind: 'text',
           id: itemId(doc),
-          x: p.x,
-          y: p.y,
+          x: target ? p.x : snapCell(p).x,
+          y: target ? p.y : snapCell(p).y,
           text: target ? defaultLabelText(target) : 'Text',
           size: Math.round(
             target
@@ -1075,8 +1171,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         place({
           kind: 'light',
           id: itemId(doc),
-          x: Math.round(p.x),
-          y: Math.round(p.y),
+          x: Math.round(snapCell(p).x),
+          y: Math.round(snapCell(p).y),
           range: Math.round(light.squares * grid.size),
           color: light.color,
           intensity: light.intensity,
@@ -1085,7 +1181,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         setPanelOpen(true);
         return;
       case 'pin':
-        place({ kind: 'pin', id: itemId(doc), x: p.x, y: p.y, label: 'Pin' });
+        place({ kind: 'pin', id: itemId(doc), x: snapCell(p).x, y: snapCell(p).y, label: 'Pin' });
         setPanelOpen(true);
         return;
       case 'measure':
@@ -1110,7 +1206,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       case 'room':
         if (!canDraw) return;
         if (roomSet.shape === 'rect') drag.current = { mode: 'room', ...base, start: snapPoint(p) };
-        else setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey)]);
+        else setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey, e.altKey)]);
         return;
       case 'door': {
         // A door or window picked from a pack goes onto the nearest wall, turned along it.
@@ -1174,7 +1270,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           return;
         }
         if (buildingSet.shape === 'rect') drag.current = { mode: 'building', ...base };
-        else setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey)]);
+        else setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey, e.altKey)]);
         return;
       }
       case 'scatter':
@@ -1188,16 +1284,16 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           });
           return;
         }
-        if (canDraw) setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey)]);
+        if (canDraw) setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey, e.altKey)]);
         return;
       case 'area':
       case 'path':
       case 'district':
         // Organic outlines: the points are where they are clicked, not on the grid.
-        if (canDraw) setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey)]);
+        if (canDraw) setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey, e.altKey)]);
         return;
       case 'fog':
-        if (fog.shape === 'polygon') setWall((w) => [...(w ?? []), p.x, p.y]);
+        if (fog.shape === 'polygon') setWall((w) => [...(w ?? []), ...pt(p, e.shiftKey, e.altKey)]);
         else drag.current = { mode: 'fog', ...base };
         return;
       case 'calibrate':
@@ -1286,7 +1382,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         tool === 'room')
     ) {
       const closed = tool !== 'path' && (tool !== 'scatter' || scatter.mode === 'area');
-      const control = [...wall, ...pt(p, e.shiftKey)];
+      const control = [...wall, ...pt(p, e.shiftKey, e.altKey)];
       const line = splinePoints(
         control,
         closed,
@@ -1727,15 +1823,18 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     if (!el || !scene) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      // Placing a stamp: the wheel turns it (15°, 5° with Z held), Alt+wheel resizes it; Ctrl+wheel zooms.
-      if (placingRef.current && !e.ctrlKey && !e.metaKey) {
+      // Placing a stamp: Ctrl+wheel turns it (15°, 5° with Z held), Alt+wheel resizes it; the wheel zooms.
+      if (placingRef.current && (e.ctrlKey || e.metaKey || e.altKey)) {
         const dir = e.deltaY < 0 ? 1 : -1;
         if (e.altKey)
           setStampTurn((t) => ({
             ...t,
             scale: Math.min(
-              4,
-              Math.max(0.25, Math.round(t.scale * (dir > 0 ? 1.1 : 1 / 1.1) * 100) / 100),
+              MAX_STAMP_SCALE,
+              Math.max(
+                MIN_STAMP_SCALE,
+                Math.round(t.scale * (dir > 0 ? 1.1 : 1 / 1.1) * 1000) / 1000,
+              ),
             ),
           }));
         else
@@ -1825,6 +1924,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         setMeasured([]);
         scene?.clearPreview();
         if (viewing) setViewing(false);
+        // Escape always ends up on Select.
+        setTool('select');
         return;
       }
       if (e.key === 'Enter' && wall) {
@@ -1865,7 +1966,15 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       // [ and ] size the brush and the eraser, as in Dungeondraft.
       if (!selectedItem && (e.key === '[' || e.key === ']')) {
         const grow = e.key === ']' ? 1.15 : 1 / 1.15;
-        if (tool === 'terrain')
+        if (placingRef.current)
+          setStampTurn((t) => ({
+            ...t,
+            scale: Math.min(
+              MAX_STAMP_SCALE,
+              Math.max(MIN_STAMP_SCALE, Math.round(t.scale * grow * 1000) / 1000),
+            ),
+          }));
+        else if (tool === 'terrain')
           setTerrain((t) => ({
             ...t,
             width: Math.min(400, Math.max(20, Math.round(t.width * grow))),
@@ -2337,7 +2446,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             district={district}
             setDistrict={setDistrict}
             buildingSet={buildingSet}
-            setBuildingSet={setBuildingSet}
+            setBuildingSet={setBuildingLive}
             onGenerateTown={generateTownHere}
             elev={elev}
             setElev={setElev}
@@ -2360,7 +2469,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             area={area}
             setArea={setArea}
             pathSet={pathSet}
-            setPathSet={setPathSet}
+            setPathSet={setPathLive}
             onGenerate={generate}
             onFillMap={fillMap}
             snap={snap}

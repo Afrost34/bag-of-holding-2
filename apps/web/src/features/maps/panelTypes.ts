@@ -20,7 +20,7 @@ import {
   type Tool,
 } from './tools';
 
-export type Tab = 'stamps' | 'layers' | 'pins' | 'grid' | 'item';
+export type Tab = 'stamps' | 'layers' | 'pins' | 'grid';
 
 export interface MapPanelsProps {
   mode: MapMode;

@@ -1,6 +1,7 @@
 import { cn } from '@boh/ui';
 import { Search } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { MAX_TILE, MIN_TILE, useAssetPrefs } from '../../app/maps/artPrefs';
 import { libraryOrder } from '../../app/maps/packDefaults';
 import { entryRef, usePacks } from '../../app/maps/packs';
 import { biomeOf, type CategoryId } from '../../app/maps/packCategories';
@@ -19,7 +20,6 @@ export function AssetGrid({
   value,
   onPick,
   emptyHint,
-  columns = 3,
   filter,
 }: {
   cats: readonly CategoryId[];
@@ -28,13 +28,13 @@ export function AssetGrid({
   value?: string | undefined;
   onPick: (entry: PackEntry, ref: string) => void;
   emptyHint: string;
-  columns?: 2 | 3 | 4;
   filter?: (entry: PackEntry) => boolean;
 }) {
   const { entries, loaded, load } = usePacks();
   const [query, setQuery] = useState('');
   const [biome, setBiome] = useState('');
   const [limit, setLimit] = useState(PAGE);
+  const { tile, setTile } = useAssetPrefs();
   const search = useDeferredValue(query);
   useEffect(() => {
     if (!loaded) void load();
@@ -104,12 +104,25 @@ export function AssetGrid({
           ))}
         </div>
       )}
+      <label className="flex items-center gap-2 text-[11px] text-muted">
+        Preview size
+        <input
+          type="range"
+          aria-label={`${label}: preview size`}
+          min={MIN_TILE}
+          max={MAX_TILE}
+          step={4}
+          value={tile}
+          onChange={(e) => {
+            setTile(Number(e.target.value));
+          }}
+          className="min-w-0 flex-1"
+        />
+      </label>
       <ul
         aria-label={label}
-        className={cn(
-          'grid gap-1',
-          columns === 2 ? 'grid-cols-2' : columns === 4 ? 'grid-cols-4' : 'grid-cols-3',
-        )}
+        className="grid gap-1"
+        style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${String(tile + 12)}px, 1fr))` }}
       >
         {found.slice(0, limit).map((e) => {
           const ref = entryRef(e);
@@ -128,7 +141,7 @@ export function AssetGrid({
                   value === ref ? 'border-accent' : 'border-border hover:border-muted',
                 )}
               >
-                <Preview entry={e} />
+                <Preview entry={e} size={tile} />
               </button>
             </li>
           );

@@ -10,6 +10,7 @@ import { Layers } from './LayersPanel';
 import { LightPanel } from './LightPanel';
 import { MapSettings } from './MapSettings';
 import { type MapPanelsProps, type Tab } from './panelTypes';
+import type { Tool } from './tools';
 import { PinCategories } from './PinPanels';
 import { StampLibrary } from './StampLibrary';
 import { BuildingPanel, DistrictPanel } from './CityPanel';
@@ -19,6 +20,14 @@ import { RoomPanel } from './RoomPanel';
 import { ScatterPanel } from './ScatterPanel';
 import { ShapePanel } from './ShapePanel';
 import { ToolSettings } from './ToolSettings';
+
+/** The kind of item each drawing tool's settings change while one is picked. */
+const LIVE_KIND: Partial<Record<Tool, string>> = {
+  area: 'shape',
+  path: 'path',
+  room: 'room',
+  building: 'building',
+};
 
 /** The editor's side panel: what the tool draws, then stamps, layers, grid or the picked item. */
 const WIDTH_KEY = 'boh.map.panel-width';
@@ -51,6 +60,8 @@ export function MapPanels(props: MapPanelsProps) {
   const drag = useRef<{ x: number; width: number } | null>(null);
   // Tools with settings of their own do not also show the stamp library under them (Scatter keeps
   // it, to add a stamp to the mix).
+  // Tools whose settings also change the picked item of their own kind show those, not the item's.
+  const liveOwned = selected !== null && LIVE_KIND[tool] === selected.kind;
   const ownsPanel = ![
     'stamp',
     'select',
@@ -65,19 +76,11 @@ export function MapPanels(props: MapPanelsProps) {
   useEffect(() => {
     scroller.current?.scrollTo({ top: 0 });
   }, [tool, tab]);
-  const [shownFor, setShownFor] = useState<string | null>(null);
-  // Picking an item shows its settings.
-  if ((selected?.id ?? null) !== shownFor) {
-    setShownFor(selected?.id ?? null);
-    if (selected) setTab('item');
-    else if (tab === 'item') setTab(creator ? 'stamps' : 'pins');
-  }
   const tabs: { id: Tab; label: string }[] = [
-    ...(creator ? [{ id: 'stamps' as const, label: 'Stamps' }] : []),
+    ...(creator ? [{ id: 'stamps' as const, label: 'Tool' }] : []),
     { id: 'layers', label: 'Layers' },
     ...(creator ? [] : [{ id: 'pins' as const, label: 'Pins' }]),
     { id: 'grid', label: 'Map' },
-    ...(selected ? [{ id: 'item' as const, label: 'Item' }] : []),
   ];
   return (
     <aside
@@ -148,7 +151,10 @@ export function MapPanels(props: MapPanelsProps) {
         </button>
       </div>
       <div ref={scroller} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
-        {props.selectedIds.length > 1 && <ArrangePanel {...props} />}
+        {tab === 'stamps' && props.selectedIds.length > 1 && <ArrangePanel {...props} />}
+        {tab === 'stamps' && selected && props.selectedIds.length === 1 && !liveOwned && (
+          <ItemSettings {...props} item={selected} />
+        )}
         {(tool === 'pen' || tool === 'terrain' || tool === 'eraser' || tool === 'template') && (
           <ToolSettings {...props} />
         )}
@@ -177,7 +183,6 @@ export function MapPanels(props: MapPanelsProps) {
         {tab === 'layers' && <Layers {...props} />}
         {tab === 'pins' && <PinCategories doc={props.doc} commit={props.commit} />}
         {tab === 'grid' && <MapSettings {...props} />}
-        {tab === 'item' && selected && <ItemSettings {...props} item={selected} />}
       </div>
     </aside>
   );

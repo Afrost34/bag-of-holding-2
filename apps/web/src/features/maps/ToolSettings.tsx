@@ -1,7 +1,7 @@
 /** The settings of the current map maker tool (stamps, brushes, eraser, templates). */
 import { Button, cn } from '@boh/ui';
-import { Mountain, PaintBucket, Waves } from 'lucide-react';
-import { defaultMaterial, defaultWater } from '../../app/maps/packDefaults';
+import { Mountain, PaintBucket } from 'lucide-react';
+import { defaultMaterial } from '../../app/maps/packDefaults';
 import { useMemo } from 'react';
 import { useShowDrawn } from '../../app/maps/artPrefs';
 import { entryRef, usePacks } from '../../app/maps/packs';
@@ -29,7 +29,6 @@ export function ToolSettings({
   const drawn = useShowDrawn();
   const { entries } = usePacks();
   const packEntries = useMemo(() => new Map(entries.map((e) => [entryRef(e), e])), [entries]);
-  const water = useMemo(() => defaultWater(entries), [entries]);
   const material = useMemo(() => defaultMaterial(entries), [entries]);
   if (tool === 'eraser')
     return (
@@ -203,65 +202,6 @@ export function ToolSettings({
           className="w-full"
         />
       </label>
-      {terrainTool && s.water && (
-        <div
-          className="space-y-1 rounded-md border border-border p-2"
-          role="group"
-          aria-label="Water"
-        >
-          <div className="flex items-center gap-3 text-sm">
-            <label className="flex items-center gap-1">
-              Shallow
-              <input
-                type="color"
-                aria-label="Shallow water"
-                value={s.water.shallow}
-                onChange={(e) => {
-                  if (s.water) set({ ...s, water: { ...s.water, shallow: e.target.value } });
-                }}
-                className="h-7 w-9 cursor-pointer rounded border border-border bg-surface"
-              />
-            </label>
-            <label className="flex items-center gap-1">
-              Deep
-              <input
-                type="color"
-                aria-label="Deep water"
-                value={s.water.deep}
-                onChange={(e) => {
-                  if (s.water) set({ ...s, water: { ...s.water, deep: e.target.value } });
-                }}
-                className="h-7 w-9 cursor-pointer rounded border border-border bg-surface"
-              />
-            </label>
-          </div>
-          <label className="block text-sm">
-            Blend: {Math.round(s.water.blend * 100)}%
-            <input
-              type="range"
-              aria-label="Water blend"
-              min={0}
-              max={95}
-              value={Math.round(s.water.blend * 100)}
-              onChange={(e) => {
-                if (s.water)
-                  set({ ...s, water: { ...s.water, blend: Number(e.target.value) / 100 } });
-              }}
-              className="w-full"
-            />
-          </label>
-          <button
-            type="button"
-            className="text-xs text-accent-ink underline"
-            onClick={() => {
-              const { water: _w, ...rest } = s;
-              set(rest);
-            }}
-          >
-            Plain texture again
-          </button>
-        </div>
-      )}
       {terrainTool && (
         <label className="block text-sm">
           Texture size: ×{(s.tile ?? 1).toFixed(2)}
@@ -294,22 +234,6 @@ export function ToolSettings({
           }}
         >
           <Mountain className="h-4 w-4" aria-hidden /> Material brush
-        </Button>
-      )}
-      {terrainTool && water && (
-        <Button
-          variant="ghost"
-          onClick={() => {
-            set({
-              ...s,
-              texture: water as TerrainRef,
-              color: '#9a958d',
-              soft: 0.45,
-              water: { shallow: '#6cc3d5', deep: '#1c5b8a', blend: 0.5 },
-            });
-          }}
-        >
-          <Waves className="h-4 w-4" aria-hidden /> Water brush
         </Button>
       )}
       {terrainTool && (

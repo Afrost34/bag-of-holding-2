@@ -305,7 +305,6 @@ function RoofPicker({
         cats={['roofs']}
         label="Roof textures"
         value={texture}
-        columns={3}
         onPick={(_, ref) => {
           onTexture(ref);
         }}

@@ -2,6 +2,8 @@ import { Button, cn } from '@boh/ui';
 import { ChevronRight, FileArchive, Home, Search, Trash2, Trees } from 'lucide-react';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { askConfirm } from '../../app/confirm';
+import { MAX_TILE, MIN_TILE, useAssetPrefs } from '../../app/maps/artPrefs';
+import { useZoomOnHover } from './ZoomPreview';
 import { packThumbUrl, usePacks, entryRef, type ImportProgress } from '../../app/maps/packs';
 import {
   displayName,
@@ -17,8 +19,20 @@ const PAGE = 96;
 const megabytes = (bytes: number) =>
   bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${String(Math.round(bytes / 1e6))} MB`;
 
-/** A preview that is made when the tile scrolls into view. */
-export function Preview({ entry }: { entry: PackEntry }) {
+/**
+ * A preview that is made when the tile scrolls into view; resting the pointer on it for a moment
+ * shows it larger.
+ */
+export function Preview({
+  entry,
+  size = 56,
+  zoom = true,
+}: {
+  entry: PackEntry;
+  /** The tile's height in pixels. */
+  size?: number;
+  zoom?: boolean;
+}) {
   const ref = useRef<HTMLSpanElement>(null);
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {
@@ -41,13 +55,26 @@ export function Preview({ entry }: { entry: PackEntry }) {
       watcher.disconnect();
     };
   }, [entry]);
+  const hover = useZoomOnHover(entry, zoom);
   return (
-    <span ref={ref} className="flex h-14 items-center justify-center">
+    <span
+      ref={ref}
+      style={{ height: size }}
+      className="flex items-center justify-center"
+      {...hover.handlers}
+    >
       {src ? (
-        <img src={src} alt="" className="max-h-14 max-w-full object-contain" draggable={false} />
+        <img
+          src={src}
+          alt=""
+          style={{ maxHeight: size }}
+          className="max-w-full object-contain"
+          draggable={false}
+        />
       ) : (
         <span className="h-8 w-8 animate-pulse rounded bg-sunken" aria-hidden />
       )}
+      {hover.popup}
     </span>
   );
 }
@@ -70,6 +97,7 @@ export function PackBrowser({
   used?: ReadonlySet<string> | undefined;
 }) {
   const { metas, entries, loaded, load, importFiles, remove } = usePacks();
+  const { tile, setTile } = useAssetPrefs();
   const [prefix, setPrefix] = useState('');
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(PAGE);
@@ -353,7 +381,28 @@ export function PackBrowser({
               <Trees className="h-4 w-4" aria-hidden /> Scatter these ({Math.min(found.total, 40)})
             </Button>
           )}
-          <ul aria-label="Pack pictures" className="grid grid-cols-3 gap-1">
+          <label className="flex items-center gap-2 text-[11px] text-muted">
+            Preview size
+            <input
+              type="range"
+              aria-label="Preview size"
+              min={MIN_TILE}
+              max={MAX_TILE}
+              step={4}
+              value={tile}
+              onChange={(e) => {
+                setTile(Number(e.target.value));
+              }}
+              className="min-w-0 flex-1"
+            />
+          </label>
+          <ul
+            aria-label="Pack pictures"
+            className="grid gap-1"
+            style={{
+              gridTemplateColumns: `repeat(auto-fill, minmax(${String(tile + 12)}px, 1fr))`,
+            }}
+          >
             {found.list.map((e) => {
               const ref = entryRef(e);
               const squares = squaresOf(e.path);
@@ -373,7 +422,7 @@ export function PackBrowser({
                       selected === ref ? 'border-accent' : 'border-border hover:border-accent',
                     )}
                   >
-                    <Preview entry={e} />
+                    <Preview entry={e} size={tile} />
                     <span className="block truncate text-[10px] leading-tight text-muted">
                       {displayName(e.path)}
                     </span>

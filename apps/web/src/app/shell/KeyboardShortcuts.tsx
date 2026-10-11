@@ -5,6 +5,7 @@ import { navModules } from '../nav';
 import { useAppNavigate } from '../navigation';
 import { useSearchPalette } from '../search/store';
 import { useTabs } from '../tabs/store';
+import { useFocusMode } from './focusMode';
 import { DICE_TRAY_EVENT, isTyping, SHORTCUT_GROUPS, shortcutFor } from './shortcuts';
 
 /** Listens for the app-wide shortcuts and shows their list on "?". */
@@ -54,6 +55,9 @@ export function KeyboardShortcuts() {
         }
         case 'dice':
           window.dispatchEvent(new Event(DICE_TRAY_EVENT));
+          return;
+        case 'focus':
+          useFocusMode.getState().toggle();
           return;
       }
     };

@@ -19,6 +19,7 @@ describe('shortcuts', () => {
     expect(shortcutFor(key('W', { altKey: true, shiftKey: true }))).toEqual({ kind: 'closeTab' });
     expect(shortcutFor(key('PageDown', { altKey: true }))).toEqual({ kind: 'nextTab' });
     expect(shortcutFor(key('d', { altKey: true }))).toEqual({ kind: 'dice' });
+    expect(shortcutFor(key('f', { altKey: true }))).toEqual({ kind: 'focus' });
     // A Mac's Option key types other characters: the physical key counts.
     expect(shortcutFor(key('†', { altKey: true, code: 'KeyT' }))).toEqual({ kind: 'newTab' });
     expect(shortcutFor(key('¡', { altKey: true, code: 'Digit1' }))).toEqual({

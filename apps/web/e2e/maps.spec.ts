@@ -78,7 +78,7 @@ test('a map is drawn with stamps, brushes, walls, text, templates and pins, then
   await expect(page.getByLabel('Rotation')).toHaveValue('15');
 
   // A brush stroke, a wall, a text, a cone and a pin.
-  await tool(page, 'Brush').click();
+  await tool(page, 'Terrain brush').click();
   await page.mouse.move(at(100, 300).x, at(100, 300).y);
   await page.mouse.down();
   await page.mouse.move(at(300, 350).x, at(300, 350).y, { steps: 10 });
@@ -270,13 +270,11 @@ test('an 8k map with 1,000 stamps edits smoothly and exports as PNG', async ({
   });
   for (let i = 0; i < 20; i++) await page.mouse.wheel(0, -150);
   for (let i = 0; i < 20; i++) await page.mouse.wheel(0, 150);
-  await page
-    .getByRole('toolbar', { name: 'Map tools' })
-    .getByRole('button', { name: 'Pan' })
-    .click();
-  await page.mouse.down();
+  // The middle button pans.
+  await page.mouse.move(mid.x, mid.y);
+  await page.mouse.down({ button: 'middle' });
   await page.mouse.move(mid.x - 200, mid.y - 150, { steps: 30 });
-  await page.mouse.up();
+  await page.mouse.up({ button: 'middle' });
   const frames = await page.evaluate(() =>
     (window as unknown as { __frames: number[] }).__frames.slice(1).sort((a, b) => a - b),
   );
@@ -905,7 +903,7 @@ test('the Creator makes a flat picture of the art that the Viewer shows', async 
   await newMap(page, 'Flat Fort');
   const box = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
   if (!box) throw new Error('no canvas');
-  await tool(page, 'Brush').click();
+  await tool(page, 'Terrain brush').click();
   await page.mouse.move(box.x + 100, box.y + 100);
   await page.mouse.down();
   await page.mouse.move(box.x + 400, box.y + 300, { steps: 8 });
@@ -1176,7 +1174,7 @@ test('mirrored drawing, and several items picked to line up', async ({ page }) =
   };
   // Drawn once, made four times.
   await page.getByLabel('Mirror').selectOption('xy');
-  await tool(page, 'Brush').click();
+  await tool(page, 'Terrain brush').click();
   await drag(120, 120, 200, 180);
   await page.getByRole('tab', { name: 'Layers' }).click();
   await expect.poll(counts).toBe(4);
@@ -1477,26 +1475,13 @@ test('a texture of an imported pack paints terrain', async ({ page }) => {
   // Fill covers the whole map with the chosen texture.
   await page.getByRole('button', { name: 'Fill the whole map' }).click();
   await waitForSaved(page, 'maps', '"kind":"shape"');
-  // The texture's tiles can be made bigger, and the water brush starts from the pack's water.
+  // The texture's tiles can be made bigger.
   await page.getByLabel('Texture size').fill('2');
   await page.mouse.move(box.x + 200, box.y + 300);
   await page.mouse.down();
   await page.mouse.move(box.x + 450, box.y + 330, { steps: 6 });
   await page.mouse.up();
   await waitForSaved(page, 'maps', '"tile":2');
-  await page.getByRole('button', { name: 'Water brush' }).click();
-  await page.mouse.move(box.x + 200, box.y + 400);
-  await page.mouse.down();
-  await page.mouse.move(box.x + 450, box.y + 430, { steps: 6 });
-  await page.mouse.up();
-  await waitForSaved(page, 'maps', '"soft":0.45');
-  // Deep and shallow water colours, with a blend.
-  await page.getByLabel('Deep water').fill('#112233');
-  await page.mouse.move(box.x + 200, box.y + 480);
-  await page.mouse.down();
-  await page.mouse.move(box.x + 450, box.y + 500, { steps: 6 });
-  await page.mouse.up();
-  await waitForSaved(page, 'maps', '"deep":"#112233"');
   // The cave brush is a rounded outline with a cliff rim.
   await tool(page, 'Room').click();
   await expect(page.getByRole('button', { name: /Cave brush/ })).toBeVisible();

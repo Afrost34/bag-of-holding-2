@@ -37,7 +37,6 @@ export function WallStrips({
         cats={['walls']}
         label="Wall styles"
         value={value}
-        columns={2}
         onPick={(_, ref) => {
           onPick(ref);
         }}

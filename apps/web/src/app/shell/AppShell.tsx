@@ -1,4 +1,5 @@
 import { Outlet, useRouterState } from '@tanstack/react-router';
+import { Minimize2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { PLAYER_ROUTE } from '../boards/player';
 import { useScrollMemory } from './scrollMemory';
@@ -14,6 +15,7 @@ import { LazySearchPalette } from '../search/LazySearchPalette';
 import { startAutoSync } from '../sync/store';
 import { useTabs } from '../tabs/store';
 import { useApplyTheme } from '../theme';
+import { useFocusMode } from './focusMode';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { Sidebar } from './Sidebar';
 import { useSidebarPrefs } from './sidebarPrefs';
@@ -25,6 +27,8 @@ export function AppShell() {
   const href = useRouterState({ select: (s) => s.location.href });
   const setActivePath = useTabs((s) => s.setActivePath);
   const { collapsed, toggle } = useSidebarPrefs();
+  const focus = useFocusMode((s) => s.on);
+  const setFocus = useFocusMode((s) => s.set);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
   useScrollMemory(mainRef);
@@ -63,25 +67,44 @@ export function AppShell() {
 
   return (
     <div className="flex h-full overflow-hidden">
-      <Sidebar
-        className="hidden md:flex"
-        collapsed={collapsed || inMapCreator}
-        onToggleCollapsed={toggle}
-      />
+      {!focus && (
+        <Sidebar
+          className="hidden md:flex"
+          collapsed={collapsed || inMapCreator}
+          onToggleCollapsed={toggle}
+        />
+      )}
 
       <ConfirmHost />
       <div className="flex min-w-0 flex-1 flex-col">
-        <TabStrip
-          onOpenMenu={() => {
-            setDrawerOpen(true);
-          }}
-        />
+        {!focus && (
+          <TabStrip
+            onOpenMenu={() => {
+              setDrawerOpen(true);
+            }}
+          />
+        )}
         <main ref={mainRef} className="min-h-0 flex-1 overflow-y-auto pb-16 has-[>.h-full]:pb-0">
           <AppRendererProvider>
             <Outlet />
           </AppRendererProvider>
         </main>
       </div>
+
+      {focus && (
+        <button
+          type="button"
+          aria-label="Leave full screen"
+          title="Leave full screen (Alt+F)"
+          onClick={() => {
+            setFocus(false);
+          }}
+          className="fixed top-1 left-1/2 z-30 flex h-7 -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-surface/90 px-3 text-xs text-muted opacity-60 shadow-card hover:opacity-100"
+        >
+          <Minimize2 className="h-3.5 w-3.5" aria-hidden />
+          Leave full screen
+        </button>
+      )}
 
       {drawerOpen && (
         <div className="fixed inset-0 z-40 md:hidden">

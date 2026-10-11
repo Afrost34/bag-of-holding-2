@@ -21,7 +21,6 @@ export function PortalPanel(props: MapPanelsProps) {
           cats={['doors', 'windows']}
           label="Doors and windows"
           value={props.stamp ?? undefined}
-          columns={3}
           onPick={(entry, ref) => {
             const squares = squaresOf(entry.path);
             props.setStamp(ref, squares ? squares.w / squares.h : 1, squares ?? undefined);
