@@ -415,7 +415,17 @@ export const INTERIOR_RECIPES: readonly Recipe[] = [
     corners('candles', CANDLES, 4),
   ]),
   // Dungeons and caves
-  room('corridor', 'Corridor', 'a lamp now and then', [{ ...wallLights(2), gap: 6 }]),
+  room('corridor', 'Corridor', 'a lamp now and then, cobwebs, debris and bones by the walls', [
+    { ...wallLights(2), gap: 6 },
+    corners('cobwebs', q(['effects'], ['/cobwebs/']), 2),
+    // A stone or two fallen from the walls, and the odd bone: the middle is kept to walk.
+    wall('debris', q(['rubble'], ['/rubble_pieces/'], ['large', 'glass']), {
+      fill: 0.12,
+      gap: 2,
+      loose: 40,
+    }),
+    wall('bones', q(['decor'], ['/humanoid_bones/']), { fill: 0.05, gap: 4, loose: 45 }),
+  ]),
   room('treasury', 'Treasury', 'chests, coins and treasure piles, braziers', [
     wall('chests', q(['decor'], ['/treasure_chests/'], ['empty']), {
       count: 3,

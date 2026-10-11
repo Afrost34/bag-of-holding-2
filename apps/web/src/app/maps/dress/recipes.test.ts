@@ -129,3 +129,15 @@ describe('settlement generators', () => {
     }
   });
 });
+
+describe('dungeon corridors', () => {
+  it('find lamps, cobwebs, debris and bones on the real packs', () => {
+    const rules = recipeRules(recipe('corridor'), FA_ENTRIES, { unit: 70 });
+    expect(rules.map((r) => r.from)).toEqual([
+      'corridor:lights',
+      'corridor:cobwebs',
+      'corridor:debris',
+      'corridor:bones',
+    ]);
+  });
+});
