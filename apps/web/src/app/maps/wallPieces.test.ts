@@ -185,3 +185,40 @@ describe('the wide rounded corner', () => {
     );
   });
 });
+
+describe('metal sets', () => {
+  it('a metal wall strip without Straight_ has its pieces like a stone set', () => {
+    const files = [
+      'Wall_Metal_Gray_F_Path.webp',
+      'Wall_Metal_Gray_F_Corner_A_1x1.webp',
+      'Wall_Metal_Gray_F_Corner_F_2x2.webp',
+      'Wall_Metal_Gray_F_Ending_A_1x1.webp',
+      'Wall_Metal_Gray_F_Joint_B_1x1.webp',
+      'Wall_Metal_Rusty_F_Corner_A_1x1.webp',
+    ];
+    const set = piecesFor('Wall_Metal_Gray_F_Path.webp', files);
+    expect(set.corner).toEqual({
+      file: 'Wall_Metal_Gray_F_Corner_A_1x1.webp',
+      squares: 1,
+      arms: [0, 90],
+    });
+    expect(set.ending?.file).toBe('Wall_Metal_Gray_F_Ending_A_1x1.webp');
+    expect(set.roundCorner?.squares).toBe(2);
+    expect(set.tee).toBe('Wall_Metal_Gray_F_Joint_B_1x1.webp');
+  });
+
+  it('the garden metal corner is a single square with arms east and south', () => {
+    const files = [
+      'Botanical_Garden_Wall_Metal_Gray_A1_Path.webp',
+      'Botanical_Garden_Wall_Metal_Gray_Corner_A1_1x1.webp',
+      'Botanical_Garden_Wall_Metal_Gray_Corner_B1_1x1.webp',
+    ];
+    expect(piecesFor('Botanical_Garden_Wall_Metal_Gray_A1_Path.webp', files)).toEqual({
+      corner: {
+        file: 'Botanical_Garden_Wall_Metal_Gray_Corner_A1_1x1.webp',
+        squares: 1,
+        arms: [0, 90],
+      },
+    });
+  });
+});

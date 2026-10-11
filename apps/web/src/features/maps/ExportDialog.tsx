@@ -2,7 +2,9 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { Button } from '@boh/ui';
 import { Download, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import type { MapDoc } from '../../app/maps/model';
 import type { MapScene } from '../../app/maps/scene';
+import { buildUvtt } from '../../app/maps/uvtt';
 
 /** Sizes offered, against the map's own; the largest a browser can draw is about 16k pixels. */
 const SIZES = [0.25, 0.5, 1, 1.5, 2] as const;
@@ -16,6 +18,7 @@ const PREVIEW = 960;
  * while zooming, so a picture needs one of its own) and the grid, with a preview of the result.
  */
 export function ExportDialog({
+  doc,
   scene,
   name,
   width,
@@ -24,6 +27,7 @@ export function ExportDialog({
   hasSecretPins,
   onClose,
 }: {
+  doc: MapDoc;
   scene: MapScene;
   name: string;
   width: number;
@@ -70,6 +74,36 @@ export function ExportDialog({
       const a = document.createElement('a');
       a.href = url;
       a.download = `${name || 'map'}.png`;
+      a.click();
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+      }, 10_000);
+      onClose();
+    } finally {
+      setExporting(false);
+    }
+  };
+  /** A Universal VTT file: the picture with its walls, doors and lights, for Foundry, Roll20 and the like. */
+  const saveVtt = async () => {
+    setExporting(true);
+    try {
+      const blob = await scene.exportPng({
+        withGrid: false,
+        withSecretPins: false,
+        pinScale,
+        scale,
+      });
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      let binary = '';
+      for (let i = 0; i < bytes.length; i += 0x8000)
+        binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      const file = buildUvtt(doc, btoa(binary), Math.round(doc.grid.size * scale));
+      const url = URL.createObjectURL(
+        new Blob([JSON.stringify(file)], { type: 'application/json' }),
+      );
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${name || 'map'}.dd2vtt`;
       a.click();
       setTimeout(() => {
         URL.revokeObjectURL(url);
@@ -173,6 +207,14 @@ export function ExportDialog({
               </label>
             )}
             <span className="flex-1" />
+            <Button
+              variant="ghost"
+              disabled={exporting}
+              title="The picture with its walls, doors and lights, for Foundry, Roll20, Owlbear…"
+              onClick={() => void saveVtt()}
+            >
+              <Download className="h-4 w-4" aria-hidden /> Universal VTT (.dd2vtt)
+            </Button>
             <Button variant="primary" disabled={exporting} onClick={() => void save()}>
               <Download className="h-4 w-4" aria-hidden /> {exporting ? 'Exporting…' : 'Export'}
             </Button>

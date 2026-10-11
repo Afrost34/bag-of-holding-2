@@ -38,8 +38,12 @@ export interface WallPieces {
 
 /** The pieces of the set a strip belongs to, from the file names beside it. */
 export function piecesFor(stripFile: string, siblings: readonly string[]): WallPieces {
-  const stone = /^(.*_)Straight_Path\.[a-z0-9]+$/i.exec(stripFile);
-  if (stone?.[1]) {
+  // Stone and metal sets: `<Set>_Straight_Path` or `<Set>_Path` beside `<Set>_Corner_A_1x1` and the like.
+  const stone = /^(.*?_)(?:Straight_)?Path\.[a-z0-9]+$/i.exec(stripFile);
+  const stoneMine = stone?.[1]
+    ? siblings.filter((f) => f.startsWith(stone[1] ?? '') && /_(Corner|Ending|Joint)_/.test(f))
+    : [];
+  if (stone?.[1] && stoneMine.length > 0) {
     const prefix = stone[1];
     const mine = siblings.filter((f) => f.startsWith(prefix)).sort();
     const rest = (re: RegExp) => mine.find((f) => re.test(f.slice(prefix.length)));
@@ -71,10 +75,14 @@ export function piecesFor(stripFile: string, siblings: readonly string[]): WallP
     const corner = find('Corner');
     const diagonal = find('Diagonal');
     const ending = find('End');
+    // Wood pieces are 2×2 with arms north and east; the garden metal ones 1×1 with arms east and south.
+    const big = corner ? corner.includes('_2x2.') : true;
     return {
-      ...(corner ? { corner: { file: corner, squares: 2, arms: [270, 0] } } : {}),
-      ...(diagonal ? { diagonal: { file: diagonal, squares: 2, arms: [180, 315] } } : {}),
-      ...(ending ? { ending: { file: ending, squares: 1, arms: [180], shift: 0.2 } } : {}),
+      ...(corner
+        ? { corner: { file: corner, squares: big ? 2 : 1, arms: big ? [270, 0] : [0, 90] } }
+        : {}),
+      ...(diagonal && big ? { diagonal: { file: diagonal, squares: 2, arms: [180, 315] } } : {}),
+      ...(ending && big ? { ending: { file: ending, squares: 1, arms: [180], shift: 0.2 } } : {}),
     };
   }
   return {};

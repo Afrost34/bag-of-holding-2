@@ -2114,6 +2114,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           </Button>
           {exporting && scene && (
             <ExportDialog
+              doc={doc}
               scene={scene}
               name={doc.name}
               width={doc.width}
