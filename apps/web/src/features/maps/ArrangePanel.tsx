@@ -17,6 +17,7 @@ import { useState } from 'react';
 import { mergeRooms } from '../../app/maps/merge';
 import { makePrefab, usePrefabs } from '../../app/maps/prefabs';
 import { Section } from './PanelParts';
+import { VariationsPanel } from './VariationsPanel';
 import { type MapPanelsProps } from './panelTypes';
 
 const ALIGNS: { mode: AlignMode; label: string; icon: LucideIcon }[] = [
@@ -60,6 +61,7 @@ export function ArrangePanel({
           </button>
         ))}
       </div>
+      <VariationsPanel doc={doc} ids={selectedIds} commit={commit} />
       <div className="flex gap-1">
         <input
           value={name}
