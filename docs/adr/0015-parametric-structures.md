@@ -92,3 +92,19 @@ rooms with no seed kept. The owner chose:
 - Room roles have recipes: treasury, machine room, collapsed room, corridor, cavern, cave camp,
   lair. The Room tool's "Generate a dungeon" makes one of the four kinds, filling the view; the
   old one-shot generator is gone.
+
+## Ships (PRs 13–14)
+
+- A ship is a structure whose archetype has the `ship` layout (`shipplan.ts`): its footprint is
+  its hull (a flat stern, straight sides, a bow curving to a point), kept as drawn, not snapped to
+  cells. The Building tool draws one by a box: the ship fills it, its bow along the longer side
+  (`spec.ship.heading`), at sea or in the sky (`spec.ship.medium`).
+- Decks: the main deck (the deck and, for bigger ships, a captain's cabin at the stern) and a deck
+  below (hold, crew, galley, gun deck; a sky ship's biggest room is its engine room round a shard
+  core), the ladder in the same cells on both. Each deck is drawn as one hull room (the Aquatic
+  hull wall strip) with the ship's inner walls between its rooms.
+- The main deck's fittings come from the style's `parts` (masts, sails on yards, cannons with
+  their muzzles out, capstan, anchor at sea, bowsprit, rudder, stern lanterns, crow's nest).
+  Sails show with the map's roofs; sky ships' sails are tinted gold. Small boats (rowboat, canoe,
+  raft, sailboat) are one picture filling the box.
+- Checked on the real pictures: ships point up, cannon muzzles point down, sails lie across.

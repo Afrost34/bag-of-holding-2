@@ -502,6 +502,77 @@ export const INTERIOR_RECIPES: readonly Recipe[] = [
     },
     corners('skulls', q(['decor'], ['/skulls/']), 2),
   ]),
+  // Ships: the main deck, the captain's cabin, and the decks below
+  room('deck', 'Ship’s deck', 'barrels and crates by the rails, coils of rope', [
+    wall('cargo', q(['decor'], ['/barrels/', '/crates/']), {
+      fill: 0.25,
+      glyphs: [g('barrel')],
+      glyphSize: [40, 40],
+    }),
+    corners('rope', q(['clutter'], ['/ropes/']), 3),
+  ]),
+  room('captain-cabin', 'Captain’s cabin', 'a desk with charts, a bed, a sea chest', [
+    rug,
+    tables(1),
+    seats,
+    onTables(q(['clutter'], ['/maps/', '/books/', '/scrolls/']), 2),
+    wall('bed', BEDS, { count: 1, glyphs: [g('bed')], glyphSize: [50, 80] }),
+    corners('chest', CHESTS, 1, ['chest']),
+    wallLights(1),
+  ]),
+  room('hold', 'Hold', 'crates, barrels and sacks', [
+    wall('cargo', CRATES, { fill: 0.8, glyphs: [g('crate')], glyphSize: [44, 44] }),
+    {
+      key: 'stacks',
+      place: 'centre',
+      want: CRATES,
+      max: 6,
+      spacing: 0,
+      gap: 0.8,
+      loose: 15,
+      glyphs: [g('barrel')],
+      glyphSize: [40, 40],
+    },
+  ]),
+  room('crew', 'Crew quarters', 'hammocks, sea chests', [
+    wall('hammocks', q(['furniture'], ['/hammocks/']), {
+      fill: 0.8,
+      glyphs: [g('bed')],
+      glyphSize: [40, 80],
+    }),
+    corners('chests', CHESTS, 2, ['chest']),
+    wallLights(1),
+  ]),
+  room('gun-deck', 'Gun deck', 'cannons along both sides, shot and powder', [
+    // The cannon's muzzle points down in its picture: turned to face out through the hull.
+    wall('cannons', q(['combat'], ['/cannons/cannon_metal_']), {
+      fill: 0.7,
+      turn: 180,
+      glyphs: [g('barrel')],
+      glyphSize: [40, 60],
+    }),
+    corners('powder', BARRELS, 2, ['barrel']),
+    wallLights(1),
+  ]),
+  room('engine-room', 'Engine room', 'the shard core, pipes and gears (sky ships)', [
+    {
+      key: 'core',
+      place: 'centre',
+      want: { cats: ['lights'], words: ['light_crystal', '_glowing'], not: ['wall_light'] },
+      // A big crystal: the light picture is small.
+      vary: [260, 300],
+      max: 1,
+      spacing: 0,
+      gap: 2,
+      count: 1,
+      glyphs: [g('rock')],
+      glyphSize: [50, 50],
+    },
+    corners('tanks', { cats: ['buildings'], anyWords: ['pipe_tank_'], not: ['broken'] }, 2),
+    wall('gears', q(['buildings'], ['/cogs/', '/levers/'], ['giant', 'huge', 'lid']), {
+      fill: 0.4,
+    }),
+  ]),
   // Rust & Sunfire: the platform cities' works, shanties and lift stations
   room('foundry', 'Foundry floor', 'crucibles, forges, moulds and slag', [
     {

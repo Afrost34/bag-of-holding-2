@@ -15,7 +15,9 @@ export interface Archetype {
   cellar: boolean;
   style: string;
   /** A dungeon or cave: its rooms come from the dungeon planner (`dungeonplan.ts`), on one floor. */
-  layout?: DungeonLayout;
+  layout?: DungeonLayout | 'ship';
+  /** Where the Building tool lists it (town buildings when absent). */
+  group?: 'Rust & Sunfire' | 'Dungeons' | 'Ships';
   /** Ground floor, upper floors, cellar: room types, biggest room first. */
   programme: { ground: string[]; upper: string[]; cellar: string[] };
 }
@@ -192,6 +194,7 @@ export const ARCHETYPES: readonly Archetype[] = [
   // Rust & Sunfire: the tower-top platform cities
   {
     id: 'foundry',
+    group: 'Rust & Sunfire',
     name: 'Refinery or foundry',
     hint: 'crucibles and forges, tanks and pipes',
     rooms: 4,
@@ -206,6 +209,7 @@ export const ARCHETYPES: readonly Archetype[] = [
   },
   {
     id: 'shanty',
+    group: 'Rust & Sunfire',
     name: 'Shanty stack',
     hint: 'small rooms stacked up, bedrolls and crates',
     rooms: 4,
@@ -220,6 +224,7 @@ export const ARCHETYPES: readonly Archetype[] = [
   },
   {
     id: 'winch',
+    group: 'Rust & Sunfire',
     name: 'Winch or lift station',
     hint: 'the winch house, a guard post, cargo',
     rooms: 3,
@@ -234,6 +239,7 @@ export const ARCHETYPES: readonly Archetype[] = [
   },
   {
     id: 'arena',
+    group: 'Rust & Sunfire',
     name: 'Arena',
     hint: 'a fighting pit, the armoury, cells below',
     rooms: 3,
@@ -248,6 +254,7 @@ export const ARCHETYPES: readonly Archetype[] = [
   },
   {
     id: 'chapel',
+    group: 'Rust & Sunfire',
     name: 'Chapel',
     hint: 'built round a beam: an altar, pews, a shrine',
     rooms: 2,
@@ -263,6 +270,7 @@ export const ARCHETYPES: readonly Archetype[] = [
   // Dungeons and caves: one floor, their rooms from the dungeon planner
   {
     id: 'dungeon',
+    group: 'Dungeons',
     name: 'Dungeon',
     hint: 'rooms joined by corridors',
     rooms: 8,
@@ -287,6 +295,7 @@ export const ARCHETYPES: readonly Archetype[] = [
   },
   {
     id: 'dungeon-packed',
+    group: 'Dungeons',
     name: 'Packed dungeon',
     hint: 'rooms side by side, doors between them',
     rooms: 8,
@@ -311,6 +320,7 @@ export const ARCHETYPES: readonly Archetype[] = [
   },
   {
     id: 'heliark-facility',
+    group: 'Dungeons',
     name: 'Heliark facility',
     hint: 'a grid of corridors, machine rooms, collapsed parts (Rust & Sunfire)',
     rooms: 10,
@@ -336,6 +346,7 @@ export const ARCHETYPES: readonly Archetype[] = [
   },
   {
     id: 'caves',
+    group: 'Dungeons',
     name: 'Caves',
     hint: 'caverns opening into each other, a camp, a lair',
     rooms: 4,
@@ -344,6 +355,115 @@ export const ARCHETYPES: readonly Archetype[] = [
     style: 'cave',
     layout: 'caves',
     programme: { ground: ['cavern', 'cavern-camp', 'lair', 'cavern'], upper: [], cellar: [] },
+  },
+  // Ships and boats (sea or sky), built from the Aquatic pack (`shipplan.ts`)
+  {
+    id: 'rowboat',
+    group: 'Ships',
+    name: 'Rowboat',
+    hint: 'a small rowing boat',
+    rooms: 1,
+    upper: 0,
+    cellar: false,
+    style: 'ship',
+    layout: 'ship',
+    programme: { ground: [], upper: [], cellar: [] },
+  },
+  {
+    id: 'canoe',
+    group: 'Ships',
+    name: 'Canoe',
+    hint: 'a long canoe',
+    rooms: 1,
+    upper: 0,
+    cellar: false,
+    style: 'ship',
+    layout: 'ship',
+    programme: { ground: [], upper: [], cellar: [] },
+  },
+  {
+    id: 'raft',
+    group: 'Ships',
+    name: 'Raft',
+    hint: 'a raft of logs',
+    rooms: 1,
+    upper: 0,
+    cellar: false,
+    style: 'ship',
+    layout: 'ship',
+    programme: { ground: [], upper: [], cellar: [] },
+  },
+  {
+    id: 'sailboat',
+    group: 'Ships',
+    name: 'Small sailboat',
+    hint: 'a rowboat with a mast and sail',
+    rooms: 1,
+    upper: 0,
+    cellar: false,
+    style: 'ship',
+    layout: 'ship',
+    programme: { ground: [], upper: [], cellar: [] },
+  },
+  {
+    id: 'sloop',
+    group: 'Ships',
+    name: 'One-mast sloop',
+    hint: 'a small ship with one mast',
+    rooms: 1,
+    upper: 0,
+    cellar: false,
+    style: 'ship',
+    layout: 'ship',
+    programme: { ground: ['deck'], upper: [], cellar: [] },
+  },
+  {
+    id: 'skiff',
+    group: 'Ships',
+    name: 'Two-mast skiff',
+    hint: "the party's ship: a cabin, a hold below",
+    rooms: 3,
+    upper: 0,
+    cellar: true,
+    style: 'ship',
+    layout: 'ship',
+    programme: {
+      ground: ['deck', 'captain-cabin'],
+      upper: [],
+      cellar: ['hold', 'crew', 'kitchen'],
+    },
+  },
+  {
+    id: 'corsair',
+    group: 'Ships',
+    name: 'Cargo hauler or corsair',
+    hint: 'two masts, cannons, a big hold',
+    rooms: 4,
+    upper: 0,
+    cellar: true,
+    style: 'ship',
+    layout: 'ship',
+    programme: {
+      ground: ['deck', 'captain-cabin'],
+      upper: [],
+      cellar: ['hold', 'hold', 'crew', 'kitchen'],
+    },
+  },
+  {
+    id: 'warship',
+    group: 'Ships',
+    name: 'Imperial warship',
+    hint: 'three masts, a gun deck below',
+    rooms: 5,
+    upper: 0,
+    cellar: true,
+    style: 'ship',
+    layout: 'ship',
+    programme: {
+      ground: ['deck', 'captain-cabin'],
+      upper: [],
+      cellar: ['gun-deck', 'crew', 'hold', 'armory', 'kitchen'],
+    },
   },
 ];
 

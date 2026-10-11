@@ -63,8 +63,8 @@ describe('building styles', () => {
   });
 
   it('gives every building style stairs and windows, and chimneys to the ones with hearths', () => {
-    // Caves have no stairs, windows or roofs (one floor, underground).
-    for (const style of STYLES.filter((s) => s.stairs.length > 0)) {
+    // Caves (one floor, underground) and ships have no windows.
+    for (const style of STYLES.filter((s) => s.stairs.length > 0 && s.window.length > 0)) {
       const p = resolveStyle(style, FA_ENTRIES);
       expect(p.stairs, style.id).toMatch(/Stairs_[A-Za-z]+_[A-Za-z]+_A_1x3/);
       expect(p.window, style.id).toBeDefined();

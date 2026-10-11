@@ -69,6 +69,8 @@ export interface StylePalette {
   roof?: string;
   /** A chimney stamp on the roof over each hearth. */
   chimney?: string;
+  /** Other pictures a style picks (a ship's masts, sails, cannons…), by name. */
+  parts?: Record<string, string>;
 }
 
 /** What a generated building is (see `structure/`): the same on every one of its floors. */
@@ -100,6 +102,8 @@ export interface BuildingSpec {
   furnish?: Record<string, DressRule[]>;
   /** For the furniture's pictures, their broken or fallen picture (pack ref to pack ref). */
   broken?: Record<string, string>;
+  /** A ship: sea or sky (solar sails, a shard engine, no anchor), and where its bow points. */
+  ship?: { medium: 'sea' | 'sky'; heading: 0 | 90 | 180 | 270 };
   roof: 'tiles' | 'thatch' | 'slate' | 'flat';
   windows: boolean;
   /** 0–1: walls a little off true, as an old timber house's. */

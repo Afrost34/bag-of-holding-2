@@ -190,3 +190,34 @@ test('a chainwalk is drawn along a line with the Walkway tool, and baked', async
   await waitForSaved(page, 'maps', '"kind":"path"');
   await waitForSaved(page, 'maps', 'Pillar_Metal_Gray_A1_1x1');
 });
+
+test('a skyship is drawn as a box: decks, golden sails, an engine room below', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is used on the desktop.');
+  test.setTimeout(120_000);
+  await installData(page);
+  await newMap(page, 'Copper Wren');
+  await tool(page, 'Building').click();
+  await page
+    .getByRole('radiogroup', { name: 'What to draw' })
+    .getByRole('radio', { name: /Whole building/ })
+    .click();
+  await page
+    .getByRole('radiogroup', { name: 'Kind of building' })
+    .getByRole('radio', { name: /Two-mast skiff/ })
+    .click();
+  await page
+    .getByRole('radiogroup', { name: 'Sea or sky' })
+    .getByRole('radio', { name: /Sky/ })
+    .click();
+  const box = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
+  if (!box) throw new Error('no canvas');
+  await page.mouse.move(box.x + 100, box.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 640, box.y + 340, { steps: 8 });
+  await page.mouse.up();
+  await waitForSaved(page, 'maps', '"archetype":"skiff"');
+  await waitForSaved(page, 'maps', '"medium":"sky"');
+  // Its bow along the longer side of the box: to the right.
+  await waitForSaved(page, 'maps', '"heading":90');
+  await waitForSaved(page, 'maps', '"engine-room":[');
+});

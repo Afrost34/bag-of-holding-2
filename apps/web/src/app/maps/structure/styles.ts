@@ -30,6 +30,8 @@ export interface Style {
   roofKind: BuildingSpec['roof'];
   /** Chimneys over the hearths (none for styles with no chimneys, like tents or metal sheds). */
   chimney: Wanted[];
+  /** Other pictures, by name (a ship's masts, sails, cannons…): `palette.parts`. */
+  parts?: Record<string, Wanted[]>;
   /** How a building of this style starts (Heliark ruins are ruined). */
   condition?: BuildingSpec['condition'];
   /** Drawn floors without packs. */
@@ -74,6 +76,12 @@ const stairs = (...words: string[]): Wanted => ({
   file: /^stairs_[a-z]+_[a-z]+_[a-z]_1x3$/,
 });
 const roof = (...words: string[]): Wanted => ({ cats: ['roofs'], anyWords: words });
+/** A ship part of the Aquatic pack (or a boat of the Core pack): not upside down or broken. */
+const vehicle = (...words: string[]): Wanted => ({
+  cats: ['vehicles'],
+  anyWords: words,
+  not: ['broken', 'upside', 'filled', 'rusty'],
+});
 const chimney = (...words: string[]): Wanted => ({
   cats: ['buildings', 'decor', 'other'],
   words: ['/roofs/chimneys/'],
@@ -305,6 +313,54 @@ export const STYLES: readonly Style[] = [
     chimney: [],
     drawn: { floor: 'dirt', upperFloor: 'dirt', cellarFloor: 'dirt' },
   },
+  {
+    id: 'ship',
+    name: 'Ship',
+    hint: 'a plank deck, a wooden hull, masts and sails (the Aquatic pack)',
+    floor: [WOOD_FLOOR],
+    upperFloor: [WOOD_FLOOR],
+    cellarFloor: [WOOD_FLOOR],
+    hardFloor: [],
+    wall: [
+      { cats: ['vehicles'], words: ['ship_hull_wall_wood_walnut', '_path'] },
+      { cats: ['vehicles'], words: ['ship_hull_wall', '_path'] },
+    ],
+    door: [door('door_wood_dark'), door('door_wood')],
+    window: [],
+    stairs: [WOOD_STAIRS],
+    roof: [],
+    roofKind: 'flat',
+    chimney: [],
+    parts: {
+      innerWall: [
+        { cats: ['vehicles'], words: ['/ship_wall/', '_path'], not: ['railing', 'hull'] },
+      ],
+      mast: [vehicle('/masts/mast_wood_walnut_a1'), vehicle('/masts/mast_wood_')],
+      mastBase: [vehicle('/masts/mast_base_wood_walnut'), vehicle('/masts/mast_base_')],
+      sail: [vehicle('sail_yard_ashen_white_b1'), vehicle('sail_yard_')],
+      bowsprit: [vehicle('/bowsprits/bowsprit_wood_walnut'), vehicle('/bowsprits/')],
+      rudder: [vehicle('/rudders/rudder_wood_walnut'), vehicle('/rudders/rudder_')],
+      capstan: [vehicle('/capstans/capstan_wood_walnut'), vehicle('/capstans/')],
+      anchor: [vehicle('anchor_large_metal_gray_wood_walnut'), vehicle('/anchors/')],
+      lantern: [vehicle('/stern_lanterns/stern_lantern_metal_brass'), vehicle('/stern_lanterns/')],
+      crowsNest: [vehicle('/crows_nests/crows_nest_wood_walnut'), vehicle('/crows_nests/')],
+      cannon: [
+        { cats: ['combat'], anyWords: ['cannon_metal_black_a1'] },
+        { cats: ['combat'], anyWords: ['/cannons/cannon_metal_'] },
+      ],
+      cannonBase: [
+        { cats: ['combat'], anyWords: ['cannon_base_wood_walnut_a_'] },
+        { cats: ['combat'], anyWords: ['/cannons/cannon_base_'] },
+      ],
+      core: [{ cats: ['lights'], words: ['light_crystal', '_glowing'], not: ['wall_light'] }],
+      rowboat: [vehicle('/boats/rowboat_wood_ashen_b1'), vehicle('/boats/rowboat_wood_')],
+      canoe: [vehicle('/canoes/canoe_large_wood_ashen_a1'), vehicle('/canoes/canoe_')],
+      raft: [{ cats: ['vehicles'], anyWords: ['raft_wood_'] }],
+      boatMast: [vehicle('/boats/boat_mast_wood_')],
+      boatSail: [vehicle('/boats/boat_sail_cloth_white'), vehicle('/boats/boat_sail_cloth_')],
+    },
+    drawn: { floor: 'wood', upperFloor: 'wood', cellarFloor: 'wood' },
+  },
 ];
 
 const FIRST = STYLES[0];
@@ -334,6 +390,11 @@ export function resolveStyle(style: Style, entries: readonly Pickable[]): StyleP
   const roofTexture = pick(style.roof);
   const chimneyStamp = pick(style.chimney);
   const hard = asFloor(style.hardFloor);
+  const parts: Record<string, string> = {};
+  for (const [name, wanted] of Object.entries(style.parts ?? {})) {
+    const ref = pick(wanted);
+    if (ref) parts[name] = ref;
+  }
   return {
     floor: asFloor(style.floor) ?? style.drawn.floor,
     upperFloor: asFloor(style.upperFloor) ?? style.drawn.upperFloor,
@@ -345,5 +406,6 @@ export function resolveStyle(style: Style, entries: readonly Pickable[]): StyleP
     ...(stair ? { stairs: stair } : {}),
     ...(roofTexture ? { roof: roofTexture } : {}),
     ...(chimneyStamp ? { chimney: chimneyStamp } : {}),
+    ...(Object.keys(parts).length > 0 ? { parts } : {}),
   };
 }

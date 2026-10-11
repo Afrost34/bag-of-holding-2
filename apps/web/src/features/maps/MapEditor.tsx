@@ -82,11 +82,12 @@ import {
   touchesFootprint,
 } from '../../app/maps/structure/structureDoc';
 import { makeKit } from '../../app/maps/kits/kitDoc';
+import { boxFrame, hullOutline } from '../../app/maps/structure/shipplan';
 import { generateOf } from './tools';
 import { useArtPrefs } from '../../app/maps/artPrefs';
 import { bakeMap } from '../../app/maps/render';
 import { PATH_STYLES } from '../../app/maps/shapes';
-import { nearestOnPolyline, splinePoints } from '../../app/maps/spline';
+import { bounds, nearestOnPolyline, splinePoints } from '../../app/maps/spline';
 import { TERRAINS } from '../../app/maps/terrain';
 import { metersPerPixel, metersToPx, stampUnit } from '../../app/maps/units';
 import { dragBox, FREE_SHAPE, presetOutline, type ShapeChoice } from '../../app/maps/outline';
@@ -839,21 +840,27 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       // A whole building: a new one, or the picked one grown by what was drawn.
       const points = dedupePoints(wall).map(Math.round);
       if (points.length >= 6) {
-        const picked = selectedItem?.kind === 'structure' ? selectedItem : null;
+        const settings = generateOf(buildingSet);
+        const ship = archetypeById(settings.archetype).layout === 'ship';
+        const picked = selectedItem?.kind === 'structure' && !ship ? selectedItem : null;
         if (picked && touchesFootprint(picked, points, doc.grid.size))
           commit((d) => mergeFootprint(d, picked.group, points));
         else {
           const id = itemId(doc);
+          // A ship fills the box drawn, its bow along the longer side.
+          const box = bounds(points);
+          const heading = box.x1 - box.x0 >= box.y1 - box.y0 ? 90 : 0;
+          const footprint = ship ? hullOutline(boxFrame(box, heading)) : points;
           commit((d) => {
             const spec = newBuildingSpec(
-              generateOf(buildingSet),
+              { ...settings, heading },
               packList.entries,
               Math.floor(Math.random() * 2 ** 31),
               // FA walls are about a third of a square thick.
               Math.max(8, Math.round(d.grid.size * 0.32)),
               { unit: stampUnit(d), drawn: drawnArt },
             );
-            return addStructure(d, { spec, points }, id).doc;
+            return addStructure(d, { spec, points: footprint }, id).doc;
           });
           setSelected(id);
         }
