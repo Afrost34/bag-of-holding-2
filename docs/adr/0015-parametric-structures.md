@@ -32,7 +32,11 @@ rooms with no seed kept. The owner chose:
 
   Rooms are given their types by the archetype's programme, the biggest room first
   (`archetypes.ts`). Locked rooms (`rooms` on the item) are kept and the rest is cut again; any
-  change to one room freezes the floor as it is.
+  change to one room freezes the floor as it is. Besides the classic archetypes, Rust & Sunfire
+  has a refinery or foundry, a shanty stack, a winch or lift station, an arena and a chapel,
+  with room recipes of their own (foundry floor, refinery, shanty room, winch house, arena pit,
+  chapel). Districts can be laid out in platform rings (`city.ts`, `ringCells`): rows of
+  buildings round a hub, ring roads and a few spokes, the blocks of a row joined with no alley.
 
 - **Bent walls without losing joins.** The footprint stays on cells. Dragged corners and
   crookedness move every point of the plan by inverse-distance weighting of the corner offsets,

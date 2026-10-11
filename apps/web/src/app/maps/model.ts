@@ -311,7 +311,7 @@ type MapItemBody =
       seed: number;
       style: 'town' | 'dense' | 'noble' | 'market' | 'ward';
       /** How the streets run (a plain grid when absent). */
-      layout?: 'grid' | 'radial' | 'organic' | 'linear';
+      layout?: 'grid' | 'radial' | 'organic' | 'linear' | 'ring';
       /** Roof textures of the packs the buildings are covered with (their colours when absent). */
       roofTextures?: string[];
       blockSize: number;

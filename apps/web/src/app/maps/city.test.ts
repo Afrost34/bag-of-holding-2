@@ -122,7 +122,7 @@ describe('street layouts', () => {
   };
   const grid = generateDistrict(spec, none);
 
-  for (const layout of ['radial', 'organic', 'linear'] as const) {
+  for (const layout of ['radial', 'organic', 'linear', 'ring'] as const) {
     it(`${layout}: fills the outline with buildings, in a pattern of its own`, () => {
       const geo = generateDistrict({ ...spec, layout }, none);
       expect(geo.blocks.length).toBeGreaterThan(8);
@@ -134,6 +134,30 @@ describe('street layouts', () => {
       expect(generateDistrict({ ...spec, layout }, none)).toEqual(geo);
     });
   }
+
+  it('ring: rows round the hub, with streets only on the rings and a few spokes', () => {
+    const ring = generateDistrict({ ...spec, layout: 'ring' }, none);
+    const radial = generateDistrict({ ...spec, layout: 'radial' }, none);
+    // How many blocks touch another (no alley between them): along a row, most of them.
+    const touching = (geo: typeof ring) =>
+      geo.blocks.filter((a) =>
+        geo.blocks.some(
+          (b) =>
+            b !== a &&
+            a.some((_, i) => {
+              if (i % 2 === 1) return false;
+              for (let j = 0; j < b.length; j += 2)
+                if (Math.hypot((a[i] ?? 0) - (b[j] ?? 0), (a[i + 1] ?? 0) - (b[j + 1] ?? 0)) < 2)
+                  return true;
+              return false;
+            }),
+        ),
+      ).length;
+    expect(ring.blocks.length).toBeGreaterThan(8);
+    expect(touching(ring)).toBeGreaterThan(ring.blocks.length / 2);
+    // Rings and spokes keep a street round every block (only clipped corners at the edge meet).
+    expect(touching(radial)).toBeLessThan(touching(ring) / 3);
+  });
 
   it('linear makes longer blocks than the grid', () => {
     const long = generateDistrict({ ...spec, layout: 'linear' }, none);

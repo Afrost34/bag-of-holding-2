@@ -189,9 +189,10 @@ const LAYOUTS: { id: StreetLayout; name: string; hint: string }[] = [
   { id: 'radial', name: 'Rings and spokes', hint: 'round a hub' },
   { id: 'organic', name: 'Winding', hint: 'irregular blocks' },
   { id: 'linear', name: 'Main street', hint: 'long blocks, side by side' },
+  { id: 'ring', name: 'Platform rings', hint: 'rows of buildings round a hub, a few spokes' },
 ];
 
-/** How the streets run: the four layouts the generator can make. */
+/** How the streets run: the layouts the generator can make. */
 function LayoutCards({
   value,
   onPick,

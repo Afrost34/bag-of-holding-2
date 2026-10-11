@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { FA_ENTRIES } from '../__fixtures__/faNames';
+import { recipeById } from '../dress/recipes';
 import { mapLights } from '../glow';
 import { isGlyphRef } from '../glyphs';
 import { newMap, type BuildingSpec, type MapDoc, type MapItem } from '../model';
 import { pointInPolygon } from '../polygon';
+import { ARCHETYPES } from './archetypes';
 import { CLUTTER, RUIN, roomTypes, withFurnishing } from './furnish';
 import {
   addStructure,
@@ -147,5 +149,13 @@ describe('lights in a building', () => {
     const open = mapLights(doc).length;
     expect(open).toBeGreaterThan(0);
     expect(mapLights({ ...doc, hideRoofs: false })).toHaveLength(0);
+  });
+});
+
+describe('archetypes', () => {
+  it('have a furnishing recipe for every room type they ask for', () => {
+    for (const a of ARCHETYPES)
+      for (const type of roomTypes(a.id))
+        expect(recipeById(type), `${a.id}: ${type}`).toBeDefined();
   });
 });
