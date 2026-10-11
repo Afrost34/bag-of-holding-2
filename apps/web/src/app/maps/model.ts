@@ -380,6 +380,24 @@ type MapItemBody =
       /** Rooms of this floor kept as they are (locked, split, merged or given another type). */
       rooms?: { id: number; cells: string[]; type: string; seed: number }[];
     }
+  /**
+   * A line kit (`kits/`): a walkway, a run of pipe, a colonnade… drawn as its parts along the
+   * line (a deck strip, rail strips to both sides, posts every few squares).
+   */
+  | {
+      kind: 'kit';
+      id: string;
+      points: number[];
+      smooth: number;
+      /** Which kit (`kits/catalog.ts`). */
+      kit: string;
+      /** The pictures picked when it was made (none: drawn). */
+      palette: { deck?: string; rail?: string; post?: string };
+      /** Multiplies the kit's widths and spacing (1 when absent). */
+      scale?: number;
+      /** The last point joins the first (a railing round a platform). */
+      loop?: boolean;
+    }
   /** A road, trail, river or fence along control points. */
   | {
       kind: 'path';
@@ -825,6 +843,7 @@ const KINDS = new Set([
   'building',
   'room',
   'structure',
+  'kit',
   'route',
   'text',
   'template',

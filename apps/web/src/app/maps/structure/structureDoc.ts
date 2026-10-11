@@ -14,6 +14,7 @@ import { stampUnit } from '../units';
 import { cellKey, cellsInPolygon, parseCell, traceCells } from './cells';
 import { archetypeById } from './archetypes';
 import { planFloor, type FloorPlan, type PlanRoom } from './floorplan';
+import { kitParts } from '../kits/kitDoc';
 import { pickFurnishing, roomFurniture } from './furnish';
 import { resolveStyle, styleById } from './styles';
 import type { RecipeOptions } from '../dress/recipes';
@@ -479,10 +480,12 @@ export function openings(
   return out;
 }
 
-/** A layer's items with each structure in it given as its parts (what the scene draws). */
+/** A layer's items with each structure and line kit in it given as its parts (what the scene draws). */
 export function expandStructures(doc: MapDoc, items: readonly MapItem[]): MapItem[] {
-  if (!items.some((i) => i.kind === 'structure')) return [...items];
-  return items.flatMap((i) => (i.kind === 'structure' ? structureParts(doc, i) : [i]));
+  if (!items.some((i) => i.kind === 'structure' || i.kind === 'kit')) return [...items];
+  return items.flatMap((i) =>
+    i.kind === 'structure' ? structureParts(doc, i) : i.kind === 'kit' ? kitParts(doc, i) : [i],
+  );
 }
 
 // endregion

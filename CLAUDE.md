@@ -131,6 +131,7 @@ accent-coloured text).
 | Furniture in rooms, room types       | `app/maps/dress/interior.ts` (placements), `interiors.ts` (room recipes), `tables.ts`                                  |
 | Stamp variations, FA name parts      | `app/maps/packNames.ts`, `randomize.ts`; panel `features/maps/VariationsPanel.tsx`                                     |
 | Whole buildings (floors, rooms)      | `app/maps/structure/` (`floorplan`, `structureDoc`, `styles`, `archetypes`, `furnish`; ADR 0015), `StructurePanel.tsx` |
+| Walkways, pipe runs, colonnades      | `app/maps/kits/` (`catalog` data, `kitDoc` parts; ADR 0016), `features/maps/KitPanel.tsx`                              |
 | Real FA names for tests              | `app/maps/__fixtures__/faNames.ts` (add names a new query needs; never invent them)                                    |
 | Stamp packs (zips)                   | `app/maps/zip.ts`, `packs.ts`, `packModel.ts`; browser in `features/maps/PackBrowser.tsx`                              |
 | What a pack picture is (category)    | `app/maps/packCategories.ts` (pure, tested on real FA names); tools' defaults in `packDefaults.ts`                     |

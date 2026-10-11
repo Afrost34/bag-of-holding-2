@@ -18,6 +18,7 @@ import { WallPanel } from './WallStrips';
 import { PortalPanel } from './PortalPanel';
 import { RoomPanel } from './RoomPanel';
 import { DressPanel } from './DressPanel';
+import { KitPanel } from './KitPanel';
 import { ShapePanel } from './ShapePanel';
 import { ToolSettings } from './ToolSettings';
 
@@ -176,6 +177,7 @@ export function MapPanels(props: MapPanelsProps) {
         {tool === 'door' && <PortalPanel {...props} />}
         {tool === 'building' && <BuildingPanel {...props} />}
         {tool === 'wall' && <WallPanel {...props} />}
+        {tool === 'kit' && <KitPanel {...props} />}
         {tab === 'stamps' && !ownsPanel && (
           <StampLibrary
             selected={props.stamp}

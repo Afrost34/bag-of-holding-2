@@ -42,6 +42,8 @@ import { itemBox } from './arrange';
 import { lightSegments, visibilityPolygon } from './lighting';
 import { mapLights } from './glow';
 import { expandStructures, footprintOf, handlesOf } from './structure/structureDoc';
+import { kitById } from './kits/catalog';
+import { kitLine } from './kits/kitDoc';
 import { frameCorners, frameRects, roseShape } from './decor';
 import { contourSegments, heightsOf, shadeImage, type Elevation } from './elevation';
 import { alongLayout, targetLine } from './labels';
@@ -1661,6 +1663,7 @@ export class MapScene {
         return g;
       }
       case 'structure':
+      case 'kit':
         // Drawn as its parts (see `expandStructures` in `setDoc`), never as itself.
         return new Container();
       case 'pin': {
@@ -1832,6 +1835,18 @@ export class MapScene {
           }
           continue;
         }
+        if (item.kind === 'kit') {
+          const kit = kitById(item.kit);
+          const half =
+            Math.max(
+              kit.deck?.width ?? 0,
+              (kit.rail?.offset ?? 0) * 2,
+              (kit.post?.offset ?? 0) * 2,
+            ) / 2;
+          const tolerance = half * stampUnit(this.doc) * (item.scale ?? 1) + 6 / this.zoom;
+          if (nearPolyline(p, kitLine(item), tolerance)) return item;
+          continue;
+        }
         if (item.kind === 'path') {
           const tolerance = item.width / 2 + 6 / this.zoom;
           if (nearPolyline(p, pathLine(item), tolerance)) return item;
@@ -1909,6 +1924,17 @@ export class MapScene {
       const handles = handlesOf(item, cell);
       for (let i = 0; i + 1 < handles.length; i += 2)
         g.circle(handles[i] ?? 0, handles[i + 1] ?? 0, 5 / this.zoom)
+          .fill({ color: 0xffffff })
+          .stroke({ color: SELECT_COLOR, width: w });
+      return;
+    }
+    if (item.kind === 'kit') {
+      // Its line, and a handle on each control point.
+      const line = kitLine(item);
+      if (line.length >= 4)
+        g.poly(line, item.loop === true).stroke({ color: SELECT_COLOR, width: w });
+      for (let i = 0; i + 1 < item.points.length; i += 2)
+        g.circle(item.points[i] ?? 0, item.points[i + 1] ?? 0, 5 / this.zoom)
           .fill({ color: 0xffffff })
           .stroke({ color: SELECT_COLOR, width: w });
       return;
