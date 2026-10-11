@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { classify } from './packCategories';
 import {
   availablePresets,
+  defaultRoomStyle,
   defaultSlots,
   pickMany,
   pickOne,
@@ -61,5 +62,20 @@ describe('what the tools start with', () => {
     const ids = availablePresets(PACK).map((p) => p.id);
     expect(ids).toEqual(expect.arrayContaining(['forest', 'trees', 'bushes', 'rocks']));
     expect(ids).not.toContain('mushrooms');
+  });
+});
+
+describe('the room a new map starts with', () => {
+  it('takes a cobblestone floor and a stone wall strip from the packs', () => {
+    const rooms = [
+      '!Core_Settlements/Textures/Wooden_Floors/Planks_A_01.jpg',
+      '!Core_Settlements/Textures/Stone_Floors/Cobblestone_A_01.jpg',
+      '!Core_Settlements/Structures/Building/Walls_and_Curbs/Wall_Wood_A/Shack_Wall_Wood_Ashen_A1_Path.webp',
+      '!Core_Settlements/Structures/Building/Walls_and_Curbs/Wall_Stone_B/Wall_Stone_Earthy_B1_Straight_Path.webp',
+    ].map(e);
+    const style = defaultRoomStyle(rooms);
+    expect(style.floor).toContain('Cobblestone_A_01');
+    expect(style.wall).toContain('Wall_Stone_Earthy');
+    expect(defaultRoomStyle([])).toEqual({});
   });
 });

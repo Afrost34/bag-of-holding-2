@@ -1,5 +1,6 @@
 /** The settings of the current map maker tool (stamps, brushes, eraser, templates). */
-import { cn } from '@boh/ui';
+import { Button, cn } from '@boh/ui';
+import { PaintBucket } from 'lucide-react';
 import { useMemo } from 'react';
 import { useShowDrawn } from '../../app/maps/artPrefs';
 import { entryRef, usePacks } from '../../app/maps/packs';
@@ -18,6 +19,7 @@ export function ToolSettings({
   terrain,
   setTerrain,
   terrainSlots,
+  onFillMap,
   eraser,
   setEraser,
   template,
@@ -198,6 +200,16 @@ export function ToolSettings({
           className="w-full"
         />
       </label>
+      {terrainTool && (
+        <Button
+          variant="ghost"
+          onClick={() => {
+            onFillMap(s.texture);
+          }}
+        >
+          <PaintBucket className="h-4 w-4" aria-hidden /> Fill the whole map
+        </Button>
+      )}
       {terrainTool && (
         <label className="flex items-center gap-2 text-sm">
           <input

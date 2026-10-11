@@ -45,4 +45,4 @@ export function stripSegments(
 }
 
 /** The pack pictures that are wall strips: `…/Wall_Stone_Earthy_B1_Straight_Path.webp`. */
-export const isWallStrip = (path: string): boolean => /Straight_Path\.[a-z0-9]+$/i.test(path);
+export const isWallStrip = (path: string): boolean => /_path(_[a-z0-9]+)?\.[a-z0-9]+$/i.test(path);

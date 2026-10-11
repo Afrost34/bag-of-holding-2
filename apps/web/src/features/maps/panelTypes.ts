@@ -1,6 +1,7 @@
 /** Types and styles shared by the map maker's side panels. */
 import type { Point } from '../../app/maps/geometry';
 import { type MapDoc, type MapItem } from '../../app/maps/model';
+import type { TerrainRef } from '../../app/maps/terrain';
 import { type DistrictSettings } from '../../app/maps/cityDoc';
 import { type ScatterSettings } from '../../app/maps/scatterDoc';
 import {
@@ -86,7 +87,7 @@ export interface MapPanelsProps {
   /** Islands to drop in the middle of the view. */
   onGenerate: (request: IslandRequest) => void;
   /** Covers the whole map with the chosen terrain, under everything on the layer. */
-  onFillMap: () => void;
+  onFillMap: (texture?: TerrainRef) => void;
   snap: boolean;
   setSnap: (s: boolean) => void;
   /** Starts measuring from a point (a pin's "Measure from here"). */

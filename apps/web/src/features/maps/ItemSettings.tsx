@@ -217,6 +217,24 @@ export function ItemSettings({
               className="w-full"
             />
           </label>
+          <label className="flex items-center gap-2 text-sm">
+            Tint
+            <input
+              type="color"
+              aria-label="Tint"
+              value={item.tint ?? '#ffffff'}
+              onChange={(e) => {
+                const tint = e.target.value;
+                set((i) => {
+                  if (i.kind !== 'stamp') return i;
+                  const { tint: _t, ...rest } = i;
+                  return tint === '#ffffff' ? rest : { ...rest, tint };
+                });
+              }}
+              className="h-7 w-9 cursor-pointer rounded border border-border bg-surface"
+            />
+            <span className="text-xs text-muted">Multiplies the colours; white is as drawn.</span>
+          </label>
           <div className="flex gap-1">
             <Button
               variant="ghost"

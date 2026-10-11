@@ -19,5 +19,8 @@ describe('wall strips', () => {
   it('recognises the strip pictures of a pack', () => {
     expect(isWallStrip('A/Wall_Stone_Earthy_B1_Straight_Path.webp')).toBe(true);
     expect(isWallStrip('A/Wall_Stone_Earthy_B1_Straight_A_3x1.webp')).toBe(false);
+    expect(isWallStrip('A/Shack_Wall_Wood_Ashen_A1_Path.webp')).toBe(true);
+    expect(isWallStrip('pack:x:A/Fence_Wood_Ashen_A_Path.webp')).toBe(true);
+    expect(isWallStrip('A/Cobblestone_A_01.jpg')).toBe(false);
   });
 });

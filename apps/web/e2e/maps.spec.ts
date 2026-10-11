@@ -1469,6 +1469,9 @@ test('a texture of an imported pack paints terrain', async ({ page }) => {
   await page.mouse.move(box.x + 500, box.y + 260, { steps: 6 });
   await page.mouse.up();
   await waitForSaved(page, 'maps', '"texture":"pack:');
+  // Fill covers the whole map with the chosen texture.
+  await page.getByRole('button', { name: 'Fill the whole map' }).click();
+  await waitForSaved(page, 'maps', '"kind":"shape"');
 });
 
 test('walls are made of a pack strip, and its doors snap onto them', async ({ page }, testInfo) => {
@@ -2017,4 +2020,51 @@ test('packs come first: sorted categories, scatter presets from the pack, the co
   // The drawn art comes back with the switch.
   await page.getByLabel(/Also offer the simple drawn art/).check();
   await page.goBack();
+});
+
+test('paths and roofs are drawn with pack pictures', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is used on the desktop.');
+  test.setTimeout(60_000);
+  await installData(page);
+  await newMap(page, 'Pack Hamlet');
+  const zip = Buffer.from(
+    zipSync({
+      'FA_Assets_Webp/Woodlands/!Wilderness/Paths/Fence_Wood_Ashen_A_Path.png': [
+        PIXEL,
+        { level: 0 },
+      ],
+      'FA_Assets_Webp/!Core_Settlements/Textures/Roof/Roof_Texture_Tile_Red_A1.png': [
+        PIXEL,
+        { level: 0 },
+      ],
+    }),
+  );
+  await tool(page, 'Stamp').click();
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Import packs (zip)' }).click();
+  await (await chooser).setFiles({ name: 'Hamlet.zip', mimeType: 'application/zip', buffer: zip });
+  await expect(page.getByRole('status').filter({ hasText: '1 added' })).toBeVisible();
+  const box = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
+  if (!box) throw new Error('no canvas');
+  // A fence along a path.
+  await tool(page, 'Road or river').click();
+  await page
+    .getByRole('list', { name: 'Path pictures' })
+    .getByRole('button', { name: 'Fence Wood Ashen A Path' })
+    .click();
+  await page.mouse.click(box.x + 120, box.y + 200);
+  await page.mouse.dblclick(box.x + 400, box.y + 200);
+  await waitForSaved(page, 'maps', '"kind":"path"');
+  await waitForSaved(page, 'maps', '"texture":"pack:');
+  // A building roofed with a texture.
+  await tool(page, 'Building').click();
+  await page
+    .getByRole('list', { name: 'Roof textures' })
+    .getByRole('button', { name: 'Roof Texture Tile Red A1' })
+    .click();
+  await page.mouse.move(box.x + 150, box.y + 300);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 300, box.y + 400, { steps: 5 });
+  await page.mouse.up();
+  await waitForSaved(page, 'maps', '"roofTexture":"pack:');
 });

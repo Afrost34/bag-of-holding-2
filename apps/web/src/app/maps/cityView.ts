@@ -1,4 +1,4 @@
-import { Container, Graphics } from 'pixi.js';
+import { Container, Graphics, type FillPattern } from 'pixi.js';
 import type { DistrictGeo } from './city';
 import {
   DISTRICT_STYLES,
@@ -28,6 +28,7 @@ export function drawRoof(
   roofColor: string,
   roof: BuildingItem['roof'],
   look: RoofLook = {},
+  pattern?: FillPattern | null,
 ): void {
   if (poly.length < 6) return;
   if (look.hide) {
@@ -37,7 +38,7 @@ export function drawRoof(
     return;
   }
   const base = color(roofColor);
-  g.poly(poly).fill({ color: base });
+  g.poly(poly).fill(pattern ? { fill: pattern } : { color: base });
   if (roof !== 'flat') {
     const edge = longestEdge(poly);
     const c = centroid(poly);
@@ -62,9 +63,13 @@ export function drawRoof(
   g.poly(poly).stroke({ color: INK, width: 1.3, alpha: 0.8, join: 'round' });
 }
 
-export function buildingView(item: BuildingItem, look: RoofLook = {}): Container {
+export function buildingView(
+  item: BuildingItem,
+  look: RoofLook = {},
+  pattern?: FillPattern | null,
+): Container {
   const g = new Graphics();
-  drawRoof(g, item.points, item.color, item.roof, look);
+  drawRoof(g, item.points, item.color, item.roof, look, pattern);
   return g;
 }
 

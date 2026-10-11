@@ -113,36 +113,44 @@ accent-coloured text).
 
 ## Where to look first
 
-| Task                                | Start in                                                                                         |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------ |
-| A character choice is missing/wrong | `packages/rules/src/patches.ts` (by feature name), then `extract/*.ts`                           |
-| Sheet numbers (AC, saves, spells)   | `packages/rules/src/sheet.ts`; the worker assembles the view in `data.worker.ts`                 |
-| Character builder steps             | `apps/web/src/features/characters/*Step.tsx`, choices via `ChoiceControl`                        |
-| Printed character sheet             | `features/characters/print/` (`PrintSheet`, `usePrintData`, `sections.ts`)                       |
-| Board widgets (NPC, names, cards…)  | `app/boards/model.ts` (kinds), `features/boards/widgetBodies.tsx`, `addOptions.ts`               |
-| A store for a new kind of user file | copy `app/tables/` (model + test + store); register reload in `app/sync/store.ts`                |
-| Sync                                | `packages/storage/src/sync/engine.ts`; app side `app/sync/store.ts`, `app/userStore.ts`          |
-| Shell: sidebar, tabs, right-click   | `app/shell/` (`contextMenuModel.ts` is the pure part)                                            |
-| Small text formats (`+2`, `3rd`)    | `app/format.ts` — reuse, don't copy                                                              |
-| A map tool (Creator or Viewer)      | `features/maps/tools.ts` (tool lists, groups), `MapEditor.tsx` (pointer), a `*Panel.tsx`         |
-| A new kind of map item              | `app/maps/model.ts` (type + KINDS), `scene.ts` (`drawItem`, `hit`, `select`), `ItemSettings.tsx` |
-| Map generators and their rules      | pure modules in `app/maps/`: `scatter`, `city`, `rooms`, `islandgen`, `elevation` (all tested)   |
-| Stamp packs (zips)                  | `app/maps/zip.ts`, `packs.ts`, `packModel.ts`; browser in `features/maps/PackBrowser.tsx`        |
-| Lights, shadows, ambient light      | `app/maps/lighting.ts` (pure), `drawLighting` in `scene.ts`, `features/maps/LightPanel.tsx`      |
-| Path ends, loops, compass, frame    | `app/maps/pathEnds.ts`, `decor.ts`; contour lines and rivers in `elevation.ts`                   |
+| Task                                | Start in                                                                                           |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------- |
+| A character choice is missing/wrong | `packages/rules/src/patches.ts` (by feature name), then `extract/*.ts`                             |
+| Sheet numbers (AC, saves, spells)   | `packages/rules/src/sheet.ts`; the worker assembles the view in `data.worker.ts`                   |
+| Character builder steps             | `apps/web/src/features/characters/*Step.tsx`, choices via `ChoiceControl`                          |
+| Printed character sheet             | `features/characters/print/` (`PrintSheet`, `usePrintData`, `sections.ts`)                         |
+| Board widgets (NPC, names, cards…)  | `app/boards/model.ts` (kinds), `features/boards/widgetBodies.tsx`, `addOptions.ts`                 |
+| A store for a new kind of user file | copy `app/tables/` (model + test + store); register reload in `app/sync/store.ts`                  |
+| Sync                                | `packages/storage/src/sync/engine.ts`; app side `app/sync/store.ts`, `app/userStore.ts`            |
+| Shell: sidebar, tabs, right-click   | `app/shell/` (`contextMenuModel.ts` is the pure part)                                              |
+| Small text formats (`+2`, `3rd`)    | `app/format.ts` — reuse, don't copy                                                                |
+| A map tool (Creator or Viewer)      | `features/maps/tools.ts` (tool lists, groups), `MapEditor.tsx` (pointer), a `*Panel.tsx`           |
+| A new kind of map item              | `app/maps/model.ts` (type + KINDS), `scene.ts` (`drawItem`, `hit`, `select`), `ItemSettings.tsx`   |
+| Map generators and their rules      | pure modules in `app/maps/`: `scatter`, `city`, `rooms`, `islandgen`, `elevation` (all tested)     |
+| Stamp packs (zips)                  | `app/maps/zip.ts`, `packs.ts`, `packModel.ts`; browser in `features/maps/PackBrowser.tsx`          |
+| What a pack picture is (category)   | `app/maps/packCategories.ts` (pure, tested on real FA names); tools' defaults in `packDefaults.ts` |
+| Lights, shadows, ambient light      | `app/maps/lighting.ts` (pure), `drawLighting` in `scene.ts`, `features/maps/LightPanel.tsx`        |
+| Path ends, loops, compass, frame    | `app/maps/pathEnds.ts`, `decor.ts`; contour lines and rivers in `elevation.ts`                     |
 
 ## Maps (ADR 0010, 0011, 0012)
 
 One map file, two modes: `#/maps/<id>` is the **Viewer** (pins, routes, measure, fog, variants, range
 templates, search) and `#/maps/<id>/edit` the **Creator** (stamps, brushes, terrain shapes, roads and
 rivers, scatter, districts, buildings, rooms and doors, elevation, labels). `MapEditor` serves both with a
-`mode`; `toolsFor(kind, mode)` picks the tools. The map format is v2 (`parseMap` upgrades v1 in place:
+`mode`; `toolsFor(mode)` picks the tools. The map format is v2 (`parseMap` upgrades v1 in place:
 background and pictures become picture layers and variants). Procedural things (scatter, districts,
 furniture) are items made from a seed and re-made when what they react to changes (`obstacleSignature`);
 "bake" turns them into loose stamps/buildings. The Creator keeps a flat picture of the art
 (`render`, made by `render.ts`) so phones without the stamp packs show the map. Asset packs are zips copied
 into `map-assets/` (OPFS) and read in place; they are never synced. Stamps are named `pack:<id>:<path>` or
-`glyph:<name>` (drawn in code). Dungeondraft parity decisions (soft vector terrain, one canvas for light, the
+`glyph:<name>` (drawn in code).
+
+Packs come first (ADR 0013): every pack picture has a category (`app/maps/packCategories.ts`, pure, tested on
+real Forgotten Adventures names), the tools list pack art through `AssetGrid` and start from `packDefaults.ts`,
+and the drawn art (glyphs, flat terrains, ink walls) is behind `useArtPrefs.drawnArt` (shown anyway while no
+pack is imported). `#/maps/packs` shows how the packs were sorted. A map has no type, only a size;
+`Grid.visible` shows or hides the grid; walls and paths can use a pack strip (`wallStrip.ts`) and pack doors
+snap onto walls (`portal.ts`). Dungeondraft parity decisions (soft vector terrain, one canvas for light, the
 hotbar, edit points everywhere) are in ADR 0012; `docs/research/dungeondraft.md` lists what is not done.
 
 ## Pitfalls already met

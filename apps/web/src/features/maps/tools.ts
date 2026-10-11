@@ -256,6 +256,8 @@ export interface PathSettings {
   end: PathEnd;
   /** The last point joins the first. */
   loop: boolean;
+  /** A pack picture the path is drawn with; absent: drawn in code. */
+  texture?: string;
 }
 
 /** A random island or archipelago, placed in the middle of the view. */
@@ -273,6 +275,8 @@ export interface BuildingSettings {
   shape: 'rect' | 'polygon';
   roof: RoofStyle;
   color: string;
+  /** A roof texture of a pack; absent: the plain colour. */
+  roofTexture?: string;
   /** A saved building to place with a click, or null to draw. */
   libraryId: string | null;
 }
