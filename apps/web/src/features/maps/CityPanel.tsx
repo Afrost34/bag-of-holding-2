@@ -21,6 +21,8 @@ import { districtRoofs } from '../../app/maps/packDefaults';
 import { usePacks } from '../../app/maps/packs';
 import { Section, ShapePicker } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
+import { GenerateControls } from './StructurePanel';
+import { generateOf } from './tools';
 
 const ROOF_COLORS = ['#b5543a', '#c9a15a', '#8a6a4a', '#5f6b7a', '#6a6a6a', '#3f6f7a', '#7a8a4a'];
 
@@ -454,29 +456,75 @@ export function BuildingPanel({ buildingSet, setBuildingSet, draw, setDraw }: Ma
   useEffect(() => {
     if (!loaded) void load();
   }, [loaded, load]);
+  const whole = buildingSet.whole === true && buildingSet.libraryId === null;
   return (
     <Section title="Building">
+      <div role="radiogroup" aria-label="What to draw" className="grid grid-cols-2 gap-1">
+        {(
+          [
+            [true, 'Whole building', 'rooms, doors, floors'],
+            [false, 'Roof only', 'for a town seen from above'],
+          ] as const
+        ).map(([value, name, hint]) => (
+          <button
+            key={name}
+            type="button"
+            role="radio"
+            aria-checked={(buildingSet.whole === true) === value}
+            onClick={() => {
+              setBuildingSet({ ...buildingSet, whole: value, libraryId: null });
+            }}
+            className={cn(
+              'rounded-md border px-2 py-1.5 text-left text-sm',
+              (buildingSet.whole === true) === value
+                ? 'border-accent bg-accent-soft font-medium'
+                : 'border-border text-muted hover:bg-sunken',
+            )}
+          >
+            {name}
+            <span className="block text-[11px] font-normal text-muted">{hint}</span>
+          </button>
+        ))}
+      </div>
       {buildingSet.libraryId === null && <ShapePicker draw={draw} setDraw={setDraw} />}
-      <RoofPicker
-        roof={buildingSet.roof}
-        color={buildingSet.color}
-        texture={buildingSet.roofTexture}
-        onChange={(patch) => {
-          setBuildingSet({ ...buildingSet, ...patch });
-        }}
-        onTexture={(roofTexture) => {
-          const { roofTexture: _r, ...rest } = buildingSet;
-          setBuildingSet(roofTexture ? { ...rest, roofTexture } : rest);
-        }}
-      />
-      <p className="text-xs text-muted">
-        {buildingSet.libraryId
-          ? 'Click on the map to place the saved building.'
-          : draw.kind === 'free'
-            ? 'Click the corners; double-click or Enter finishes, Escape cancels.'
-            : 'Drag it out. Pick it later and press R to turn it.'}
-      </p>
-      {entries.length > 0 && (
+      {whole && (
+        <>
+          <GenerateControls
+            value={generateOf(buildingSet)}
+            onChange={(generate) => {
+              setBuildingSet({ ...buildingSet, generate });
+            }}
+          />
+          <p className="text-xs text-muted">
+            Drag out the building on the grid. With a building picked, drag next to it to make it
+            bigger (an L, a T, a wing).
+          </p>
+        </>
+      )}
+      {!whole && (
+        <RoofPicker
+          roof={buildingSet.roof}
+          color={buildingSet.color}
+          texture={buildingSet.roofTexture}
+          onChange={(patch) => {
+            setBuildingSet({ ...buildingSet, ...patch });
+          }}
+          onTexture={(roofTexture) => {
+            const { roofTexture: _r, ...rest } = buildingSet;
+            setBuildingSet(roofTexture ? { ...rest, roofTexture } : rest);
+          }}
+        />
+      )}
+      {!whole && (
+        <p className="text-xs text-muted">
+          {buildingSet.libraryId
+            ? 'Click on the map to place the saved building.'
+            : draw.kind === 'free'
+              ? 'Click the corners; double-click or Enter finishes, Escape cancels.'
+              : 'Drag it out. Pick it later and press R to turn it.'}
+        </p>
+      )}
+      {!whole && entries.length > 0 && (
         <ul aria-label="Saved buildings" className="space-y-1">
           {entries.map((e) => (
             <li key={e.id} className="flex items-center gap-1">

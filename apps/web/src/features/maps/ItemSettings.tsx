@@ -28,6 +28,7 @@ import { ShapeItemSettings } from './ShapePanel';
 import { TextLettering } from './TextLettering';
 import { VariationsPanel } from './VariationsPanel';
 import { StampLight } from './StampLight';
+import { StructureItemSettings } from './StructurePanel';
 
 export function ItemSettings({
   doc,
@@ -181,6 +182,7 @@ export function ItemSettings({
       {item.kind === 'building' && (
         <BuildingItemSettings item={item} set={set} extrasOnly={extrasOnly} />
       )}
+      {item.kind === 'structure' && <StructureItemSettings doc={doc} item={item} commit={commit} />}
       {item.kind === 'room' && (
         <RoomItemSettings
           item={item}

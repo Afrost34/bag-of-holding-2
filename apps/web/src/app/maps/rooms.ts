@@ -8,7 +8,8 @@ import { seeded } from './terrain';
  * Pure geometry; drawing is in `roomView.ts`.
  */
 
-export type DoorKind = 'door' | 'arch' | 'secret' | 'portcullis';
+/** `gap`: an opening with nothing drawn in it (a pack's door picture stands there instead). */
+export type DoorKind = 'door' | 'arch' | 'secret' | 'portcullis' | 'gap';
 
 export interface Door {
   x: number;

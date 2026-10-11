@@ -105,10 +105,11 @@ export function roomDoorsView(room: Room): Container {
         g.circle(...at(0, 0), room.wall * 0.3).fill({ color: 0xffffff, alpha: 0.5 });
         break;
       case 'arch':
+      case 'gap':
         break;
     }
-    // The posts at each side of the opening.
-    if (door.kind !== 'secret')
+    // The posts at each side of the opening (a gap has a pack door picture instead).
+    if (door.kind !== 'secret' && door.kind !== 'gap')
       for (const side of [-1, 1] as const)
         g.circle(...at((side * w) / 2, 0), room.wall * 0.7)
           .fill({ color: wall })
