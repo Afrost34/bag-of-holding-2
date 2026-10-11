@@ -2,8 +2,32 @@
 
 Ideas for making maps faster with Forgotten Adventures (FA) packs, in the spirit of game-engine
 procedural tools (Houdini / Unreal PCG). Written 2026-10-11 from a survey of the map code and of the
-packs in `Downloads\Forgotten Adventures Pack` (Core 1.04 + Expansion 1.14). Nothing here is built yet
-unless it says so.
+packs in `Downloads\Forgotten Adventures Pack` (Core 1.04 + Expansion 1.14).
+
+## Status (2026-10-11)
+
+Built: every tool in the list below except the two kits under 15.
+
+| #          | Where it is                                                                                            |
+| ---------- | ------------------------------------------------------------------------------------------------------ |
+| 1–4        | Dress tool and recipes (`app/maps/dress/`, ADR 0014): engine, interiors, along walls, table dressing   |
+| 5          | Randomize and Swap material (`randomize.ts`, `VariationsPanel`)                                        |
+| 6, 9       | Biome brushes, edges (`dress/nature.ts`, `recipes.ts`)                                                 |
+| 7, 8       | Buildings, dungeons, ships, docks (`app/maps/structure/`, ADR 0015)                                    |
+| 10         | Age / decay and ruins (`dress/decay.ts`)                                                               |
+| 11         | Lit stamps light the map (`glow.ts`), "Light this room"                                                |
+| 12         | Storage pile and Adventuring gear recipes (`place: 'cluster'`)                                         |
+| 13, 16, 17 | Settlement generators: market, camp, graveyard, farm, scrapyard (`dress/settlements.ts`)               |
+| 14         | Walkway kits with only posts: colonnade, pillar row, brazier row (`kits/catalog.ts`, ADR 0016)         |
+| 15         | Stair run (a Walkway kit). **Not built:** fountains from `Basin_Parts` and modular tents (see below)   |
+| 18         | Track recipes (boot prints, animal tracks)                                                             |
+| 19         | Cliffs along an elevation height (`ElevationPanel`, `cliffRange`)                                      |
+| 20         | Dungeon room roles (`structure/dungeonplan.ts`)                                                        |
+| Prefabs    | Synced files `map-prefabs/<id>.json` (`prefabs.ts`, `prefabStore.ts`); "Vary when placed" swaps shapes |
+
+Waiting on the packs: fountains and modular tents need the real file names of `Basin_Parts` and
+`Tents/Modular` in `app/maps/__fixtures__/faNames.ts` (never invented). Copy a listing of those two
+folders from the desktop pack to build them.
 
 ## What exists today
 

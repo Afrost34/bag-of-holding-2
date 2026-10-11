@@ -3,7 +3,8 @@ import { FolderOpen, ImagePlus, Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { fileUrl, findStamps, stampFile, useStamps, type Stamp } from '../../app/maps/assets';
 import { usePacks } from '../../app/maps/packs';
-import { usePrefabs, type Prefab } from '../../app/maps/prefabs';
+import { usePrefabs } from '../../app/maps/prefabStore';
+import type { Prefab } from '../../app/maps/prefabs';
 import { ObjectLibrary } from './ObjectLibrary';
 import { PackBrowser } from './PackBrowser';
 
@@ -87,7 +88,10 @@ export function StampLibrary({
 
 /** The saved prefabs: groups of items kept under a name (save one from a selection of several). */
 function PrefabList({ onPlace }: { onPlace: ((prefab: Prefab) => void) | undefined }) {
-  const { prefabs, remove } = usePrefabs();
+  const { prefabs, loaded, load, remove } = usePrefabs();
+  useEffect(() => {
+    if (!loaded) void load();
+  }, [loaded, load]);
   if (prefabs.length === 0)
     return (
       <p className="text-xs text-muted">
@@ -103,7 +107,11 @@ function PrefabList({ onPlace }: { onPlace: ((prefab: Prefab) => void) | undefin
           className="flex items-center gap-1 rounded-md border border-border px-2 py-1"
         >
           <span className="min-w-0 flex-1 truncate text-sm">
-            {p.name} <span className="text-xs text-muted">({p.items.length})</span>
+            {p.name}{' '}
+            <span className="text-xs text-muted">
+              ({p.items.length}
+              {p.vary ? ', varies' : ''})
+            </span>
           </span>
           <Button
             variant="ghost"
@@ -118,7 +126,7 @@ function PrefabList({ onPlace }: { onPlace: ((prefab: Prefab) => void) | undefin
             variant="ghost"
             aria-label={`Forget ${p.name}`}
             onClick={() => {
-              remove(p.id);
+              void remove(p.id);
             }}
           >
             Forget

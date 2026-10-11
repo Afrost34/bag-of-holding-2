@@ -13,6 +13,7 @@ import {
   Undo2,
   X,
 } from 'lucide-react';
+import { folderIndex } from '../../app/maps/packNames';
 import { placePrefab, type Prefab } from '../../app/maps/prefabs';
 import {
   defaultCaveWall,
@@ -1109,7 +1110,11 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     const el = host.current;
     if (!scene || !el || !layer || layer.locked) return;
     const at = scene.toMap(el.clientWidth / 2, el.clientHeight / 2);
-    const placed = placePrefab(doc, layer.id, prefab, snapCell(at));
+    // A varying prefab picks other shapes of its pictures each time.
+    const variety = prefab.vary
+      ? { index: folderIndex(packList.entries), rand: Math.random }
+      : undefined;
+    const placed = placePrefab(doc, layer.id, prefab, snapCell(at), variety);
     commit(() => placed.doc);
     setSelected(placed.ids[0] ?? null);
     setGroup(placed.ids.slice(1));

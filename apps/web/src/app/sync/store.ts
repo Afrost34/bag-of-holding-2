@@ -7,6 +7,7 @@ import { useBoards } from '../boards/store';
 import { useEncounters } from '../encounters/store';
 import { useTables } from '../tables/store';
 import { useStamps } from '../maps/assets';
+import { usePrefabs } from '../maps/prefabStore';
 import { useMaps } from '../maps/store';
 import { usePictures } from '../pictures/store';
 import { useCardSheets } from '../cards/store';
@@ -87,6 +88,7 @@ export const useSync = create<SyncStore>()((set) => ({
         await useEncounters.getState().flush();
         await useTables.getState().flush();
         await useMaps.getState().flush();
+        await usePrefabs.getState().flush();
         // Only what the app wrote since the last sync counts: with nothing written and the
         // repository unchanged, the sync stops after one request.
         const written = takeWrites();
@@ -156,6 +158,8 @@ async function refreshAfterSync(paths: string[]): Promise<void> {
   if (touched(/^(tables\/|campaigns\/[^/]+\/tables\/)/)) await useTables.getState().reload();
   if (touched(/^(maps\/|campaigns\/[^/]+\/maps\/)[^/]+\.json$/)) await useMaps.getState().reload();
   if (touched(/^stamps\//) && useStamps.getState().loaded) await useStamps.getState().load();
+  if (touched(/^map-prefabs\//) && usePrefabs.getState().loaded)
+    await usePrefabs.getState().reload();
   if (touched(/^pictures\//) && usePictures.getState().loaded) await usePictures.getState().load();
   if (touched(/^campaigns\/[^/]+\/calendar\.json$/)) await useCalendar.getState().reload();
 }

@@ -132,6 +132,8 @@ accent-coloured text).
 | Stamp variations, FA name parts      | `app/maps/packNames.ts`, `randomize.ts`; panel `features/maps/VariationsPanel.tsx`                                                                |
 | Buildings, dungeons, ships           | `app/maps/structure/` (`floorplan`, `dungeonplan`, `shipplan`, `structureDoc`, `styles`, `archetypes`, `furnish`; ADR 0015), `StructurePanel.tsx` |
 | Walkways, pipe runs, colonnades      | `app/maps/kits/` (`catalog` data, `kitDoc` parts; ADR 0016), `features/maps/KitPanel.tsx`                                                         |
+| Rows of pillars/braziers, stair runs | kits with only posts in `app/maps/kits/catalog.ts` (`turn`, `fill`)                                                                               |
+| Map prefabs (synced, vary)           | `app/maps/prefabs.ts` (pure), `prefabStore.ts` (`map-prefabs/`), saved in `ArrangePanel`, listed in `StampLibrary`                                |
 | Real FA names for tests              | `app/maps/__fixtures__/faNames.ts` (add names a new query needs; never invent them)                                                               |
 | Stamp packs (zips)                   | `app/maps/zip.ts`, `packs.ts`, `packModel.ts`; browser in `features/maps/PackBrowser.tsx`                                                         |
 | What a pack picture is (category)    | `app/maps/packCategories.ts` (pure, tested on real FA names); tools' defaults in `packDefaults.ts`                                                |

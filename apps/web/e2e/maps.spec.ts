@@ -2123,11 +2123,16 @@ test('items are saved as a prefab and placed again', async ({ page }) => {
   await page.mouse.click(box.x + 200, box.y + 200);
   await page.keyboard.up('Shift');
   await page.getByLabel('Prefab name').fill('Two walls');
+  await page.getByRole('checkbox', { name: /Vary when placed/ }).check();
   await page.getByRole('button', { name: 'Save as a prefab' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
+  // A file of the data repo, so it syncs to every device.
+  await waitForSaved(page, 'map-prefabs', '"name": "Two walls"');
   await page.getByRole('tab', { name: 'Tool', exact: true }).click();
   await page.getByRole('tab', { name: 'Prefabs' }).click();
-  await expect(page.getByRole('list', { name: 'Saved prefabs' })).toContainText('Two walls');
+  await expect(page.getByRole('list', { name: 'Saved prefabs' })).toContainText(
+    'Two walls (2, varies)',
+  );
   await page.getByRole('button', { name: 'Place Two walls' }).click();
   await page.getByRole('tab', { name: 'Layers' }).click();
   await expect(page.getByRole('region', { name: 'Layers' })).toContainText('4');

@@ -15,7 +15,8 @@ import {
 import { alignItems, distributeItems, removeItems, type AlignMode } from '../../app/maps/arrange';
 import { useState } from 'react';
 import { mergeRooms } from '../../app/maps/merge';
-import { makePrefab, usePrefabs } from '../../app/maps/prefabs';
+import { usePrefabs } from '../../app/maps/prefabStore';
+import { makePrefab } from '../../app/maps/prefabs';
 import { Section } from './PanelParts';
 import { VariationsPanel } from './VariationsPanel';
 import { type MapPanelsProps } from './panelTypes';
@@ -37,7 +38,10 @@ export function ArrangePanel({
   onDeselect,
 }: Pick<MapPanelsProps, 'doc' | 'selectedIds' | 'commit' | 'onDeselect'>) {
   const addPrefab = usePrefabs((s) => s.add);
+  const freshPrefabId = usePrefabs((s) => s.freshId);
+  const loadPrefabs = usePrefabs((s) => s.load);
   const [name, setName] = useState('');
+  const [vary, setVary] = useState(false);
   const [saved, setSaved] = useState(false);
   return (
     <Section title="Selection">
@@ -76,16 +80,34 @@ export function ArrangePanel({
         <Button
           variant="ghost"
           onClick={() => {
-            const prefab = makePrefab(doc, selectedIds, name);
-            if (prefab) {
-              addPrefab(prefab);
+            void (async () => {
+              // Loaded first, so the new id differs from every saved one.
+              await loadPrefabs();
+              const prefab = makePrefab(doc, selectedIds, name, {
+                id: freshPrefabId(),
+                now: new Date().toISOString(),
+                vary,
+              });
+              if (!prefab) return;
+              await addPrefab(prefab);
               setSaved(true);
-            }
+            })();
           }}
         >
           Save as a prefab
         </Button>
       </div>
+      <label className="flex items-center gap-2 text-xs text-muted">
+        <input
+          type="checkbox"
+          checked={vary}
+          onChange={(e) => {
+            setVary(e.target.checked);
+            setSaved(false);
+          }}
+        />
+        Vary when placed (another shape of each picture)
+      </label>
       {saved && (
         <p role="status" className="text-xs text-muted">
           Saved: it is in Stamps → Prefabs.
