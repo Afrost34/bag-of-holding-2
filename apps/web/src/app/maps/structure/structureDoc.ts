@@ -15,6 +15,7 @@ import { stampUnit } from '../units';
 import { cellKey, cellsInPolygon, components, parseCell, traceCells } from './cells';
 import { archetypeById } from './archetypes';
 import { planDungeon } from './dungeonplan';
+import { planShip, shipClassOf, shipParts } from './shipplan';
 import { planFloor, type FloorPlan, type PlanRoom } from './floorplan';
 import { kitParts } from '../kits/kitDoc';
 import { pickFurnishing, roomFurniture } from './furnish';
@@ -144,28 +145,51 @@ export function planOf(item: StructureItem, cell: number): FloorPlan {
   const known = plans.get(item);
   if (known?.cell === cell) return known.plan;
   const layout = archetypeById(item.spec.archetype).layout;
-  const plan = layout
-    ? planDungeon({
-        footprint: item.points,
-        cell,
-        seed: item.spec.seed,
-        rooms: item.spec.rooms,
-        layout,
-        locked: item.rooms ?? [],
-      })
-    : planFloor({
-        footprint: item.points,
-        cell,
-        seed: item.spec.seed,
-        ...(item.spec.stairSeed !== undefined ? { stairSeed: item.spec.stairSeed } : {}),
-        floor: item.floor,
-        rooms: item.spec.rooms,
-        locked: item.rooms ?? [],
-        stairs: item.spec.upper > 0 || item.spec.cellar,
-        entrance: item.floor === 0,
-        windows: item.spec.windows && item.floor >= 0,
-      });
-  const typed = { ...plan, rooms: withTypes(plan.rooms, item.spec.archetype, item.floor) };
+  const ship = layout === 'ship' ? shipClassOf(item.spec.archetype) : undefined;
+  const plan = ship
+    ? ship.boat
+      ? { rooms: [], doors: [], windows: [], stairs: [], walls: [] }
+      : planShip({
+          hull: item.points,
+          cell,
+          seed: item.spec.seed,
+          ...(item.spec.stairSeed !== undefined ? { stairSeed: item.spec.stairSeed } : {}),
+          floor: item.floor,
+          heading: item.spec.ship?.heading ?? 0,
+          rooms: item.spec.rooms,
+          lowerDeck: item.spec.cellar,
+          locked: item.rooms ?? [],
+          cabin: ship.cabin,
+        })
+    : layout && layout !== 'ship'
+      ? planDungeon({
+          footprint: item.points,
+          cell,
+          seed: item.spec.seed,
+          rooms: item.spec.rooms,
+          layout,
+          locked: item.rooms ?? [],
+        })
+      : planFloor({
+          footprint: item.points,
+          cell,
+          seed: item.spec.seed,
+          ...(item.spec.stairSeed !== undefined ? { stairSeed: item.spec.stairSeed } : {}),
+          floor: item.floor,
+          rooms: item.spec.rooms,
+          locked: item.rooms ?? [],
+          stairs: item.spec.upper > 0 || item.spec.cellar,
+          entrance: item.floor === 0,
+          windows: item.spec.windows && item.floor >= 0,
+        });
+  let rooms = withTypes(plan.rooms, item.spec.archetype, item.floor);
+  // A sky ship's biggest room below is its engine room, round the shard core.
+  if (ship && item.spec.ship?.medium === 'sky' && item.floor < 0) {
+    const open = rooms.filter((r) => !r.locked && r.type !== 'stairs');
+    const big = open.sort((a, b) => b.cells.length - a.cells.length)[0];
+    if (big) rooms = rooms.map((r) => (r === big ? { ...r, type: 'engine-room' } : r));
+  }
+  const typed = { ...plan, rooms };
   plans.set(item, { cell, plan: typed });
   return typed;
 }
@@ -209,6 +233,9 @@ export function newBuildingSpec(
     name?: string;
     dressing?: BuildingSpec['dressing'];
     condition?: BuildingSpec['condition'];
+    /** A ship: sea or sky, and where its bow points. */
+    medium?: 'sea' | 'sky';
+    heading?: 0 | 90 | 180 | 270;
   },
   entries: Parameters<typeof resolveStyle>[1],
   seed: number,
@@ -223,9 +250,9 @@ export function newBuildingSpec(
     name: name.length > 0 ? name : archetype.name,
     seed,
     archetype: archetype.id,
-    // A dungeon is one floor, underground, without windows.
+    // A dungeon is one floor, underground, without windows; a ship may have a deck below.
     upper: archetype.layout ? 0 : Math.max(0, Math.min(3, settings.upper)),
-    cellar: archetype.layout ? false : settings.cellar,
+    cellar: archetype.layout && archetype.layout !== 'ship' ? false : settings.cellar,
     rooms: Math.max(1, settings.rooms),
     style: settings.style,
     palette: resolveStyle(styleById(settings.style), entries),
@@ -238,6 +265,9 @@ export function newBuildingSpec(
     ...pickFurnishing({ archetype: archetype.id }, entries, options),
     roof: style.roofKind,
     windows: archetype.layout ? false : settings.windows,
+    ...(archetype.layout === 'ship'
+      ? { ship: { medium: settings.medium ?? 'sea', heading: settings.heading ?? 0 } }
+      : {}),
     crooked: Math.max(0, Math.min(1, settings.crooked)),
     wall,
   };
@@ -370,7 +400,7 @@ export function structureParts(doc: MapDoc, item: StructureItem): MapItem[] {
   const cell = doc.grid.size;
   const unit = stampUnit(doc);
   const roofed = roofedOver(doc, item);
-  const key = `${String(cell)}|${String(unit)}|${String(roofed)}`;
+  const key = `${String(cell)}|${String(unit)}|${String(roofed)}|${String(doc.hideRoofs === true)}`;
   const known = parts.get(item);
   if (known?.key === key) return known.items;
   const plan = planOf(item, cell);
@@ -385,8 +415,24 @@ export function structureParts(doc: MapDoc, item: StructureItem): MapItem[] {
   const outlines = plan.rooms.map((room) =>
     moved(chamfer(traceCells(new Set(room.cells), cell), cut, cell), bend),
   );
+  const ship = archetypeById(item.spec.archetype).layout === 'ship';
+  const boat = shipClassOf(item.spec.archetype)?.boat !== undefined;
+  // A ship's deck is its hull: one room, its rim the hull wall; walls between its rooms inside.
+  if (ship) {
+    if (!boat)
+      out.push({
+        kind: 'room',
+        id: `${item.id}~hull`,
+        points: footprintOf(item, cell),
+        smooth: 0,
+        floor: floorFor(palette, item.floor),
+        wall: item.spec.wall,
+        wallStyle: 'wood',
+        ...(palette.wall ? { wallTexture: palette.wall } : {}),
+      });
+  }
   // Caverns open into each other: one rounded room for each cave, its rim a cave wall.
-  if (cave)
+  else if (cave)
     components(new Set(plan.rooms.flatMap((r) => r.cells))).forEach((group, n) => {
       out.push({
         kind: 'room',
@@ -452,7 +498,9 @@ export function structureParts(doc: MapDoc, item: StructureItem): MapItem[] {
         id: `${item.id}~iw${String(wallNo++)}`,
         points: [ax, ay, bx, by],
         joint: 'sharp',
-        ...(palette.wall ? { texture: palette.wall } : {}),
+        ...((palette.parts?.innerWall ?? palette.wall)
+          ? { texture: palette.parts?.innerWall ?? palette.wall }
+          : {}),
       });
     }
   const stamp = (
@@ -505,6 +553,13 @@ export function structureParts(doc: MapDoc, item: StructureItem): MapItem[] {
       out.push(stamp(`w${String(k)}`, palette.window ?? '', x, y, w.angle));
     });
   if (roofed) out.push(...roofParts(item, plan, cell, unit));
+  // A ship's main deck: masts, cannons, rigging; the sails while the map's roofs are shown.
+  if (ship && item.floor === 0)
+    out.push(
+      ...shipParts(item.id, item.spec, footprintOf(item, cell), unit, {
+        sails: doc.hideRoofs !== true,
+      }),
+    );
   parts.set(item, { key, items: out });
   return out;
 }
@@ -572,7 +627,11 @@ export function addStructure(
   groundId?: string,
 ): { doc: MapDoc; id: string; group: string } {
   const cell = doc.grid.size;
-  const points = footprintFrom(made.points, cell);
+  // A ship keeps its curved hull; anything else stands on whole cells.
+  const points =
+    archetypeById(made.spec.archetype).layout === 'ship'
+      ? made.points.map(Math.round)
+      : footprintFrom(made.points, cell);
   const taken = [
     ...allItems(doc).map((i) => i.id),
     ...doc.layers.map((l) => l.id),

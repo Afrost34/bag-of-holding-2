@@ -133,6 +133,9 @@ function DressingControls({
   );
 }
 
+/** The headings the kinds are listed under. */
+const KIND_GROUPS = ['Town', 'Rust & Sunfire', 'Dungeons', 'Ships'] as const;
+
 /** What a new building is: its kind (archetype), look, floors and rooms. */
 export function GenerateControls({
   value,
@@ -143,36 +146,73 @@ export function GenerateControls({
 }) {
   return (
     <div className="space-y-2">
-      <div role="radiogroup" aria-label="Kind of building" className="grid grid-cols-2 gap-1">
-        {ARCHETYPES.map((a) => (
-          <button
-            key={a.id}
-            type="button"
-            role="radio"
-            aria-checked={value.archetype === a.id}
-            title={a.hint}
-            onClick={() => {
-              onChange({
-                ...value,
-                archetype: a.id,
-                rooms: a.rooms,
-                upper: a.upper,
-                cellar: a.cellar,
-                style: a.style,
-              });
-            }}
-            className={cn(
-              'rounded-md border px-2 py-1.5 text-left text-sm',
-              value.archetype === a.id
-                ? 'border-accent bg-accent-soft font-medium'
-                : 'border-border text-muted hover:bg-sunken',
-            )}
-          >
-            {a.name}
-            <span className="block text-[11px] font-normal text-muted">{a.hint}</span>
-          </button>
+      <div role="radiogroup" aria-label="Kind of building" className="space-y-2">
+        {KIND_GROUPS.map((group) => (
+          <div key={group}>
+            <p className="mb-1 text-xs font-medium text-muted">{group}</p>
+            <div className="grid grid-cols-2 gap-1">
+              {ARCHETYPES.filter((a) => (a.group ?? 'Town') === group).map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={value.archetype === a.id}
+                  title={a.hint}
+                  onClick={() => {
+                    onChange({
+                      ...value,
+                      archetype: a.id,
+                      rooms: a.rooms,
+                      upper: a.upper,
+                      cellar: a.cellar,
+                      style: a.style,
+                    });
+                  }}
+                  className={cn(
+                    'rounded-md border px-2 py-1.5 text-left text-sm',
+                    value.archetype === a.id
+                      ? 'border-accent bg-accent-soft font-medium'
+                      : 'border-border text-muted hover:bg-sunken',
+                  )}
+                >
+                  {a.name}
+                  <span className="block text-[11px] font-normal text-muted">{a.hint}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
+      {archetypeById(value.archetype).layout === 'ship' && (
+        <div role="radiogroup" aria-label="Sea or sky" className="grid grid-cols-2 gap-1">
+          {(
+            [
+              ['sea', 'Sea', 'sails, oars and an anchor'],
+              ['sky', 'Sky', 'solar sails, a shard engine'],
+            ] as const
+          ).map(([id, name, hint]) => (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={value.medium === id}
+              title={hint}
+              onClick={() => {
+                onChange({ ...value, medium: id });
+              }}
+              className={cn(
+                'rounded-md border px-2 py-1.5 text-left text-sm',
+                value.medium === id
+                  ? 'border-accent bg-accent-soft font-medium'
+                  : 'border-border text-muted hover:bg-sunken',
+              )}
+            >
+              {name}
+              <span className="block text-[11px] font-normal text-muted">{hint}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <label className="block text-sm">
         Look
         <select

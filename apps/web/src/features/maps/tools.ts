@@ -292,6 +292,8 @@ export interface GenerateSettings {
   /** Furniture: none, lived-in, cluttered; and how kept the building is. */
   dressing: BuildingSpec['dressing'];
   condition: BuildingSpec['condition'];
+  /** Ships: on the sea, or in the sky (solar sails, a shard engine). */
+  medium: 'sea' | 'sky';
 }
 
 export const DEFAULT_GENERATE: GenerateSettings = {
@@ -304,6 +306,7 @@ export const DEFAULT_GENERATE: GenerateSettings = {
   crooked: 0,
   dressing: 'lived-in',
   condition: 'kept',
+  medium: 'sea',
 };
 
 /** The building tool's whole-building settings, kept per device, with the defaults filled in. */
