@@ -2158,3 +2158,30 @@ test('items are saved as a prefab and placed again', async ({ page }) => {
   await page.getByRole('tab', { name: 'Layers' }).click();
   await expect(page.getByRole('region', { name: 'Layers' })).toContainText('4');
 });
+
+test('a map is exported as a Universal VTT file with its walls', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is used on the desktop.');
+  test.setTimeout(60_000);
+  await newMap(page, 'Table');
+  const box = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
+  if (!box) throw new Error('no canvas');
+  await tool(page, 'Wall').click();
+  await page.mouse.click(box.x + 100, box.y + 100);
+  await page.mouse.dblclick(box.x + 300, box.y + 100);
+  await page.getByRole('button', { name: 'Export PNG' }).click();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: /Universal VTT/ }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toBe('Table.dd2vtt');
+  const stream = await file.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(chunk as Buffer);
+  const json = JSON.parse(Buffer.concat(chunks).toString('utf8')) as {
+    format: number;
+    line_of_sight: unknown[][];
+    image: string;
+  };
+  expect(json.format).toBe(0.3);
+  expect(json.line_of_sight.length).toBeGreaterThan(0);
+  expect(json.image.length).toBeGreaterThan(100);
+});

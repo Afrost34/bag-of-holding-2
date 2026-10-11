@@ -33,7 +33,9 @@ folder. The owner wants the tools to work from the packs and nothing else.
 ## Consequences
 
 - The same picture in two packs (or as `.png` and `.webp`) is kept once (by path without extension).
-- `.dd2vtt` export stays dropped (ADR 0012).
+- Universal VTT (`.dd2vtt`) export is back (it supersedes ADR 0012 on this point, as the guide's export page asks
+  for it): the Export dialog writes the picture, sight lines (walls, room outlines, buildings), portals (room
+  doors, pack doors and windows), lights and the ambient colour (`uvtt.ts`).
 - Wall corners and endings of the wall's set are laid at right-angle turns and open ends (`wallPieces.ts`);
   a pack can be switched off (`PackMeta.disabled`: unlisted, still drawn on maps that use it); the
   category is stored in the pack index (`SORTER_VERSION` makes older indexes sort again); stamps show a
@@ -43,7 +45,7 @@ folder. The owner wants the tools to work from the packs and nothing else.
   border; the cave brush is a rounded room outline with a cave cliff rim and an earthen floor.
 - Packs are copied into storage by a worker writing in place (`packCopy.worker.ts`): the main thread's
   writable stream keeps a swap copy until it closes, which made a 2.5 GB pack need 5 GB.
-- Not done: modular wall pieces other than corners and endings (joints, T and X connectors: walls are
-  separate items, so junctions are not known).
+- Wall pieces: stone, metal (`Wall_Metal_*_Path`), garden metal and wood sets get their corners, endings,
+  diagonals, rounded corners and T/cross junctions (`wallPieces.ts`); other sets keep the plain strip.
 - Checked on the real Core pack (148,689 pictures): the index reads in 82 ms, sorting takes 270 ms and
   a picture is cut out of the 2.5 GB zip; storing 2.5 GB in a webview's storage is not checked.
