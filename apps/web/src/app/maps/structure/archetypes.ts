@@ -15,7 +15,7 @@ export interface Archetype {
   cellar: boolean;
   style: string;
   /** A dungeon or cave: its rooms come from the dungeon planner (`dungeonplan.ts`), on one floor. */
-  layout?: DungeonLayout | 'ship';
+  layout?: DungeonLayout | 'ship' | 'dock';
   /** Where the Building tool lists it (town buildings when absent). */
   group?: 'Rust & Sunfire' | 'Dungeons' | 'Ships';
   /** Ground floor, upper floors, cellar: room types, biggest room first. */
@@ -355,6 +355,31 @@ export const ARCHETYPES: readonly Archetype[] = [
     style: 'cave',
     layout: 'caves',
     programme: { ground: ['cavern', 'cavern-camp', 'lair', 'cavern'], upper: [], cellar: [] },
+  },
+  // Docks: a gantry spine with finger piers and berths between them (`dockplan.ts`)
+  {
+    id: 'sky-dock',
+    group: 'Rust & Sunfire',
+    name: 'Sky-dock',
+    hint: 'hanging gantries with berths for skyships, cranes and cargo',
+    rooms: 1,
+    upper: 0,
+    cellar: false,
+    style: 'sky-dock',
+    layout: 'dock',
+    programme: { ground: ['dock'], upper: [], cellar: [] },
+  },
+  {
+    id: 'pier',
+    group: 'Ships',
+    name: 'Harbour pier',
+    hint: 'wooden piers with berths, mooring posts and cargo',
+    rooms: 1,
+    upper: 0,
+    cellar: false,
+    style: 'pier',
+    layout: 'dock',
+    programme: { ground: ['dock'], upper: [], cellar: [] },
   },
   // Ships and boats (sea or sky), built from the Aquatic pack (`shipplan.ts`)
   {

@@ -108,3 +108,12 @@ rooms with no seed kept. The owner chose:
   Sails show with the map's roofs; sky ships' sails are tinted gold. Small boats (rowboat, canoe,
   raft, sailboat) are one picture filling the box.
 - Checked on the real pictures: ships point up, cannon muzzles point down, sails lie across.
+
+## Docks (PR 15)
+
+- A dock is a structure with the `dock` layout (`dockplan.ts`): drawn by a box, a gantry spine
+  three cells deep along the long side and finger piers two cells wide, berths between them nine
+  cells wide (`DOCK_BERTH`). The deck is one room, its rim the style's railing (rusty metal for a
+  sky-dock, wood for a harbour pier); cranes, cargo and mooring posts are its `dock` furniture.
+- **Dock a ship** puts a skiff (sky at a sky-dock, sea at a pier) in the first berth no ship lies
+  in, its bow out of the berth.

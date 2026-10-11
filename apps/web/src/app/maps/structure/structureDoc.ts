@@ -10,12 +10,14 @@ import {
 } from '../model';
 import { squaresOf, parsePackRef } from '../packModel';
 import { pointAlong, polylineLength } from '../spline';
+import { pointInPolygon } from '../polygon';
 import { seeded } from '../terrain';
 import { stampUnit } from '../units';
 import { cellKey, cellsInPolygon, components, parseCell, traceCells } from './cells';
 import { archetypeById } from './archetypes';
+import { dockBerths, planDock } from './dockplan';
 import { planDungeon } from './dungeonplan';
-import { planShip, shipClassOf, shipParts } from './shipplan';
+import { boxFrame, hullOutline, planShip, shipClassOf, shipParts } from './shipplan';
 import { planFloor, type FloorPlan, type PlanRoom } from './floorplan';
 import { kitParts } from '../kits/kitDoc';
 import { pickFurnishing, roomFurniture } from './furnish';
@@ -161,27 +163,29 @@ export function planOf(item: StructureItem, cell: number): FloorPlan {
           locked: item.rooms ?? [],
           cabin: ship.cabin,
         })
-    : layout && layout !== 'ship'
-      ? planDungeon({
-          footprint: item.points,
-          cell,
-          seed: item.spec.seed,
-          rooms: item.spec.rooms,
-          layout,
-          locked: item.rooms ?? [],
-        })
-      : planFloor({
-          footprint: item.points,
-          cell,
-          seed: item.spec.seed,
-          ...(item.spec.stairSeed !== undefined ? { stairSeed: item.spec.stairSeed } : {}),
-          floor: item.floor,
-          rooms: item.spec.rooms,
-          locked: item.rooms ?? [],
-          stairs: item.spec.upper > 0 || item.spec.cellar,
-          entrance: item.floor === 0,
-          windows: item.spec.windows && item.floor >= 0,
-        });
+    : layout === 'dock'
+      ? planDock({ footprint: item.points, cell, seed: item.spec.seed, berth: DOCK_BERTH })
+      : layout && layout !== 'ship'
+        ? planDungeon({
+            footprint: item.points,
+            cell,
+            seed: item.spec.seed,
+            rooms: item.spec.rooms,
+            layout,
+            locked: item.rooms ?? [],
+          })
+        : planFloor({
+            footprint: item.points,
+            cell,
+            seed: item.spec.seed,
+            ...(item.spec.stairSeed !== undefined ? { stairSeed: item.spec.stairSeed } : {}),
+            floor: item.floor,
+            rooms: item.spec.rooms,
+            locked: item.rooms ?? [],
+            stairs: item.spec.upper > 0 || item.spec.cellar,
+            entrance: item.floor === 0,
+            windows: item.spec.windows && item.floor >= 0,
+          });
   let rooms = withTypes(plan.rooms, item.spec.archetype, item.floor);
   // A sky ship's biggest room below is its engine room, round the shard core.
   if (ship && item.spec.ship?.medium === 'sky' && item.floor < 0) {
@@ -306,6 +310,9 @@ export function caveRim(outline: readonly number[], cell: number, seed: number):
   return out;
 }
 const parts = new WeakMap<StructureItem, { key: string; items: MapItem[] }>();
+
+/** A dock's berths are this many cells wide (a skiff and some room). */
+export const DOCK_BERTH = 9;
 
 /** Styles whose walls are drawn as wood without packs. */
 const WOODEN = new Set(['timber', 'shack', 'arctic']);
@@ -1126,3 +1133,51 @@ export function bakeStructure(doc: MapDoc, group: string): MapDoc {
 /** The pictures a building uses, for the "used on this map" list. */
 export const paletteRefs = (spec: BuildingSpec): string[] =>
   Object.values(spec.palette).filter((v): v is string => typeof v === 'string');
+
+/**
+ * A ship docked in a dock's first free berth (one no ship lies in yet): a sky skiff at a
+ * sky-dock, a sea skiff at a pier, its bow out of the berth. The map unchanged when every berth is
+ * taken.
+ */
+export function dockShip(
+  doc: MapDoc,
+  dock: StructureItem,
+  entries: Parameters<typeof resolveStyle>[1],
+  options: RecipeOptions,
+  seed: number,
+): MapDoc {
+  const cell = doc.grid.size;
+  const berths = dockBerths({
+    footprint: dock.points,
+    cell,
+    seed: dock.spec.seed,
+    berth: DOCK_BERTH,
+  });
+  const ships = allItems(doc).filter(
+    (i): i is StructureItem =>
+      i.kind === 'structure' && archetypeById(i.spec.archetype).layout === 'ship',
+  );
+  const free = berths.find((b) => {
+    const middle = { x: (b.x0 + b.x1) / 2, y: (b.y0 + b.y1) / 2 };
+    return !ships.some((s) => pointInPolygon(middle, s.points));
+  });
+  if (!free) return doc;
+  const spec = newBuildingSpec(
+    {
+      archetype: 'skiff',
+      style: 'ship',
+      upper: 0,
+      cellar: true,
+      rooms: 3,
+      windows: false,
+      crooked: 0,
+      medium: dock.spec.archetype === 'pier' ? 'sea' : 'sky',
+      heading: free.heading,
+    },
+    entries,
+    seed,
+    dock.spec.wall,
+    options,
+  );
+  return addStructure(doc, { spec, points: hullOutline(boxFrame(free, free.heading)) }).doc;
+}

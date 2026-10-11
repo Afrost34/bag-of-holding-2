@@ -386,6 +386,9 @@ export const FA_NAMES: readonly string[] = [
   'Mountain/Mountain_Dwarf_Settlement/Lightsources/Dwarven_Light_Crystal_Amethyst_A1_Glowing_1x1.webp',
   'Woodlands/Base_Woodlands_Settlement/Structures/Building/Doors/Shack_Door_Wood_Dark_A1_1x1.webp',
   'Aquatic/Base_Aquatic_Settlement/Vehicles/Ships/Sails/Sail_Yard_Ashen_White_A1_14x3.webp',
+  // Docks: cranes, mooring posts
+  '!Core_Settlements/Workplace_Equipment/Cranes/Crane_Wood_Walnut_A_2x4.webp',
+  'Aquatic/Base_Aquatic_Settlement/Vehicles/Ships/Mooring_Posts/Mooring_Post_Metal_Rusty_B1_1x1.webp',
 ];
 
 /** The names as pack entries of one pack (`fa`), sorted as the importer sorts them. */

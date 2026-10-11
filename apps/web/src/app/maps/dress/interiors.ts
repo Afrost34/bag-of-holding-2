@@ -502,6 +502,24 @@ export const INTERIOR_RECIPES: readonly Recipe[] = [
     },
     corners('skulls', q(['decor'], ['/skulls/']), 2),
   ]),
+  // Docks: cranes over the berths, cargo, mooring posts along the edges
+  room('dock', 'Dock', 'cranes, cargo, mooring posts', [
+    wall('cranes', q(['workplace'], ['/cranes/crane_wood_']), { count: 2 }),
+    wall('moorings', q(['vehicles'], ['/mooring_posts/']), { fill: 0.3 }),
+    corners('cargo', CRATES, 4, ['crate']),
+    {
+      key: 'stacks',
+      place: 'centre',
+      want: CRATES,
+      max: 4,
+      spacing: 0,
+      gap: 1.5,
+      count: 3,
+      loose: 15,
+      glyphs: [g('crate')],
+      glyphSize: [44, 44],
+    },
+  ]),
   // Ships: the main deck, the captain's cabin, and the decks below
   room('deck', 'Ship’s deck', 'barrels and crates by the rails, coils of rope', [
     wall('cargo', q(['decor'], ['/barrels/', '/crates/']), {

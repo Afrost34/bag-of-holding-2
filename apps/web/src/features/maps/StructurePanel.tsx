@@ -1,6 +1,6 @@
 /** Whole buildings: the settings they are made with, and those of a building you picked. */
 import { Button, cn } from '@boh/ui';
-import { Dices, Layers, Lock, LockOpen, Scissors, Shuffle } from 'lucide-react';
+import { Dices, Layers, Lock, LockOpen, Scissors, Ship, Shuffle } from 'lucide-react';
 import { useState } from 'react';
 import { FURNISH_RECIPES } from '../../app/maps/dress/recipes';
 import { updateItem, type BuildingSpec } from '../../app/maps/model';
@@ -11,6 +11,7 @@ import { usePacks } from '../../app/maps/packs';
 import { ARCHETYPES, archetypeById } from '../../app/maps/structure/archetypes';
 import {
   bakeStructure,
+  dockShip,
   cutAllCorners,
   floorName,
   floorsOf,
@@ -498,6 +499,18 @@ export function StructureItemSettings({
             }}
           >
             Straighten the walls
+          </Button>
+        )}
+        {archetypeById(spec.archetype).layout === 'dock' && (
+          <Button
+            variant="ghost"
+            title="Put a skiff in the first free berth"
+            onClick={() => {
+              const seed = Math.floor(Math.random() * 2 ** 31);
+              commit((d) => dockShip(d, item, entries, options, seed));
+            }}
+          >
+            <Ship className="h-4 w-4" aria-hidden /> Dock a ship
           </Button>
         )}
         <Button

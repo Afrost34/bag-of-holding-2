@@ -221,3 +221,28 @@ test('a skyship is drawn as a box: decks, golden sails, an engine room below', a
   await waitForSaved(page, 'maps', '"heading":90');
   await waitForSaved(page, 'maps', '"engine-room":[');
 });
+
+test('a sky-dock with a ship docked in a berth', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is used on the desktop.');
+  test.setTimeout(120_000);
+  await installData(page);
+  await newMap(page, 'Rustcrown docks');
+  await tool(page, 'Building').click();
+  await page
+    .getByRole('radiogroup', { name: 'What to draw' })
+    .getByRole('radio', { name: /Whole building/ })
+    .click();
+  await page
+    .getByRole('radiogroup', { name: 'Kind of building' })
+    .getByRole('radio', { name: /Sky-dock/ })
+    .click();
+  const box = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
+  if (!box) throw new Error('no canvas');
+  await page.mouse.move(box.x + 60, box.y + 60);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 760, box.y + 460, { steps: 8 });
+  await page.mouse.up();
+  await waitForSaved(page, 'maps', '"archetype":"sky-dock"');
+  await page.getByRole('button', { name: 'Dock a ship' }).click();
+  await waitForSaved(page, 'maps', '"archetype":"skiff"');
+});
