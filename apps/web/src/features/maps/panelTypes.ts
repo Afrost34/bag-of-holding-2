@@ -64,7 +64,8 @@ export interface MapPanelsProps {
   roomSet: RoomSettings;
   setRoomSet: (s: RoomSettings) => void;
   /** A dungeon of this many rooms, filling the view. */
-  onGenerateDungeon: (rooms: number) => void;
+  /** A live dungeon of a dungeon archetype (rooms and corridors, packed, facility, caves). */
+  onGenerateDungeon: (rooms: number, archetype: string) => void;
   /** A cave in the middle of the view. */
   onGenerateCave: () => void;
   district: DistrictSettings;

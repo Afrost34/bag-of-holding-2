@@ -1132,8 +1132,11 @@ test('rooms with walls and doors, a generated dungeon and a cave', async ({ page
   if (!box) throw new Error('no canvas');
   await tool(page, 'Room').click();
   await page.getByRole('button', { name: 'Generate a dungeon' }).click();
-  await waitForSaved(page, 'maps', '"kind":"room"');
-  await waitForSaved(page, 'maps', '"doors"');
+  // A live dungeon: a one-floor structure of rooms and corridors (then a Heliark facility).
+  await waitForSaved(page, 'maps', '"archetype":"dungeon"');
+  await page.getByRole('combobox', { name: 'Kind of dungeon' }).selectOption('heliark-facility');
+  await page.getByRole('button', { name: 'Generate a dungeon' }).click();
+  await waitForSaved(page, 'maps', '"archetype":"heliark-facility"');
   await page.waitForTimeout(500);
   await canvas.screenshot({ path: testInfo.outputPath('dungeon-generated.png') });
   // A room of your own, dragged on the grid, and a door cut in its top wall.

@@ -62,8 +62,9 @@ describe('building styles', () => {
     }
   });
 
-  it('gives every style stairs and windows, and chimneys to the ones with hearths', () => {
-    for (const style of STYLES) {
+  it('gives every building style stairs and windows, and chimneys to the ones with hearths', () => {
+    // Caves have no stairs, windows or roofs (one floor, underground).
+    for (const style of STYLES.filter((s) => s.stairs.length > 0)) {
       const p = resolveStyle(style, FA_ENTRIES);
       expect(p.stairs, style.id).toMatch(/Stairs_[A-Za-z]+_[A-Za-z]+_A_1x3/);
       expect(p.window, style.id).toBeDefined();
@@ -76,6 +77,14 @@ describe('building styles', () => {
     expect(resolveStyle(styleById('timber'), FA_ENTRIES).hardFloor).toBeDefined();
     expect(String(resolveStyle(styleById('rust'), FA_ENTRIES).hardFloor)).toContain('Metal_Floor');
     expect(resolveStyle(styleById('dwarven'), FA_ENTRIES).hardFloor).toBeUndefined();
+  });
+
+  it('gives caves a cave floor and a cave cliff for walls', () => {
+    const p = resolveStyle(styleById('cave'), FA_ENTRIES);
+    expect(p.wall).toMatch(/Cave.*_Path/i);
+    expect(p.floor).toContain('Cave_Floor');
+    expect(p.door).toBeUndefined();
+    expect(p.roof).toBeUndefined();
   });
 
   it('falls back to drawn floors and ink walls without packs', () => {

@@ -1,3 +1,5 @@
+import type { DungeonLayout } from './dungeonplan';
+
 /**
  * What a building is for: its name, how big it usually is (rooms per floor, floors, a cellar) and
  * the style it starts in. The rooms each archetype has (a tavern's common room and kitchen) are
@@ -12,6 +14,8 @@ export interface Archetype {
   upper: number;
   cellar: boolean;
   style: string;
+  /** A dungeon or cave: its rooms come from the dungeon planner (`dungeonplan.ts`), on one floor. */
+  layout?: DungeonLayout;
   /** Ground floor, upper floors, cellar: room types, biggest room first. */
   programme: { ground: string[]; upper: string[]; cellar: string[] };
 }
@@ -255,6 +259,91 @@ export const ARCHETYPES: readonly Archetype[] = [
       upper: ['study'],
       cellar: ['crypt'],
     },
+  },
+  // Dungeons and caves: one floor, their rooms from the dungeon planner
+  {
+    id: 'dungeon',
+    name: 'Dungeon',
+    hint: 'rooms joined by corridors',
+    rooms: 8,
+    upper: 0,
+    cellar: false,
+    style: 'stone',
+    layout: 'rooms',
+    programme: {
+      ground: [
+        'guardhouse',
+        'storage',
+        'shrine',
+        'prison',
+        'crypt',
+        'treasury',
+        'barracks',
+        'armory',
+      ],
+      upper: [],
+      cellar: [],
+    },
+  },
+  {
+    id: 'dungeon-packed',
+    name: 'Packed dungeon',
+    hint: 'rooms side by side, doors between them',
+    rooms: 8,
+    upper: 0,
+    cellar: false,
+    style: 'stone',
+    layout: 'packed',
+    programme: {
+      ground: [
+        'guardhouse',
+        'storage',
+        'treasury',
+        'prison',
+        'shrine',
+        'crypt',
+        'barracks',
+        'armory',
+      ],
+      upper: [],
+      cellar: [],
+    },
+  },
+  {
+    id: 'heliark-facility',
+    name: 'Heliark facility',
+    hint: 'a grid of corridors, machine rooms, collapsed parts (Rust & Sunfire)',
+    rooms: 10,
+    upper: 0,
+    cellar: false,
+    style: 'heliark',
+    layout: 'facility',
+    programme: {
+      ground: [
+        'machine-room',
+        'storage',
+        'guardhouse',
+        'collapsed',
+        'study',
+        'machine-room',
+        'workshop',
+        'prison',
+        'collapsed',
+      ],
+      upper: [],
+      cellar: [],
+    },
+  },
+  {
+    id: 'caves',
+    name: 'Caves',
+    hint: 'caverns opening into each other, a camp, a lair',
+    rooms: 4,
+    upper: 0,
+    cellar: false,
+    style: 'cave',
+    layout: 'caves',
+    programme: { ground: ['cavern', 'cavern-camp', 'lair', 'cavern'], upper: [], cellar: [] },
   },
 ];
 

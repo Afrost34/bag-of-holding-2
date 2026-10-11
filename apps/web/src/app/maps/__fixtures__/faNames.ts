@@ -347,6 +347,20 @@ export const FA_NAMES: readonly string[] = [
   '!Core_Settlements/Structures/Building/Pillars/Wood/Pillar_Wood_Ashen_F3_1x1.webp',
   '!Core_Settlements/Structures/Building/Pillars/Metal/Pillar_Metal_Gray_A1_1x1.webp',
   '!Core_Settlements/Structures/Building/Pillars/Stone/Pillar_Stone_Earthy_I2_1x1.webp',
+  // Dungeon and cave rooms: treasury, machine room, collapsed, cavern, camp, lair
+  '!Core_Settlements/Lightsources/Interior_Wall_Lights/Wall_Light_Purple_Metal_Silver_Lit_C1_1x1.webp',
+  '!Core_Settlements/Clutter/Treasure/Coins/Coin_Piles/Coin_Pile_Gold_A2_1x1.webp',
+  'Industrial/Base_Industrial_Settlement/Structures/Mechanical_Parts/Cogs/Screw_Cog_Metal_Gray_A1_1x1.webp',
+  '!Core_Settlements/Structures/Mechanical_Parts/Levers/Lever_Wood_Light_A1_1x1.webp',
+  '!Core_Settlements/Structures/Mechanical_Parts/Pipes/Parts/Polished/Pipe_Tank_Metal_Polished_A_3x3.webp',
+  'Woodlands/!Wilderness/Decor/Rocks/Stalagmites/Stalagmite_Rock_Mossy_A3_1x1.webp',
+  'Woodlands/!Wilderness/Decor/Rocks/Boulders/Boulder_Stone_Mossy_C18_2x2.webp',
+  '!Core_Settlements/Lightsources/Campfires_and_Firepits/Campfire_Stone_Redrock_A1_1x1.webp',
+  '!Core_Settlements/Clutter/Treasure/Treasure_Piles/Treasure_Pile_Mixed1_A15_1x1.webp',
+  'Woodlands/!Wilderness/Elevation/Cliff_Paths/Burrows_Cave_Dirt_01_Path_A1.webp',
+  'Woodlands/!Wilderness/Textures/Dirt/Cave_Floor_06_A.jpg',
+  'Horror/!Wilderness/Decor/Bones/Beast_Bones/Ribs_and_Ribcages/Beast_Bone_White_Rib_Medium_A6_1x2.webp',
+  'Horror/!Wilderness/Decor/Bones/Humanoid_Bones/Skulls/Skull_Yellowed_E_2x2.webp',
 ];
 
 /** The names as pack entries of one pack (`fa`), sorted as the importer sorts them. */

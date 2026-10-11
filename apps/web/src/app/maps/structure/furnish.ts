@@ -70,7 +70,9 @@ export function pickFurnishing(
   options: RecipeOptions,
   extra: readonly string[] = [],
 ): Required<Pick<BuildingSpec, 'furnish' | 'broken'>> {
-  const keys = [...new Set([...roomTypes(spec.archetype), ...extra, CLUTTER, RUIN])];
+  // A dungeon's corridors are rooms too.
+  const corridors = archetypeById(spec.archetype).layout ? ['corridor'] : [];
+  const keys = [...new Set([...roomTypes(spec.archetype), ...corridors, ...extra, CLUTTER, RUIN])];
   const furnish = rulesFor(keys, entries, options);
   return { furnish, broken: brokenOf(furnish, entries) };
 }
