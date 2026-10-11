@@ -234,3 +234,9 @@ export function defaultCaveWall(entries: readonly Pickable[]): string | undefine
   const e = pickOne(entries, { cats: ['cliffs'], words: ['cave', '_path'], not: ['stalagmite'] });
   return e ? refOf(e) : undefined;
 }
+
+/** The first water texture of the packs, for the water brush; none without packs. */
+export function defaultWater(entries: readonly Pickable[]): string | undefined {
+  const e = pickOne(entries, { cats: ['water'], words: ['water'], not: ['overlay', 'opaque'] });
+  return e ? refOf(e) : undefined;
+}

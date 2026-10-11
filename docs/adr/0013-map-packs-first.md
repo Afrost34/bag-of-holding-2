@@ -34,5 +34,12 @@ folder. The owner wants the tools to work from the packs and nothing else.
 
 - The same picture in two packs (or as `.png` and `.webp`) is kept once (by path without extension).
 - `.dd2vtt` export stays dropped (ADR 0012).
-- Not done: modular wall corners and endings (only the `_Path` strip is laid), a cave brush with pack
-  art, per-pack enable switches, a stored per-pack category index (the sort runs when packs load).
+- Wall corners and endings of the wall's set are laid at right-angle turns and open ends (`wallPieces.ts`);
+  a pack can be switched off (`PackMeta.disabled`: unlisted, still drawn on maps that use it); the
+  category is stored in the pack index (`SORTER_VERSION` makes older indexes sort again); stamps show a
+  ghost and turn with the wheel; prefabs are saved per device (`prefabs.ts`).
+- Not done: a water brush with shallow and deep colours (the terrain brush with a water texture and a
+  soft edge stands in), a material brush of its own (the terrain brush's Border toggle), a cave brush
+  with pack art beyond the cave cliff rim, modular wall pieces other than corners and endings.
+- Checked on the real Core pack (148,689 pictures): the index reads in 82 ms, sorting takes 270 ms and
+  a picture is cut out of the 2.5 GB zip; storing 2.5 GB in a webview's storage is not checked.

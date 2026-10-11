@@ -3,6 +3,7 @@ import { classify } from './packCategories';
 import {
   availablePresets,
   defaultCaveWall,
+  defaultWater,
   defaultRoomStyle,
   defaultSlots,
   pickMany,
@@ -89,5 +90,12 @@ describe('the rim of a cave', () => {
     ].map(e);
     expect(defaultCaveWall(cliffs)).toContain('Burrows_Cave');
     expect(defaultCaveWall([])).toBeUndefined();
+  });
+});
+
+describe('the water brush', () => {
+  it('starts from a water texture of the packs', () => {
+    expect(defaultWater(PACK)).toContain('Water_Still_B_01');
+    expect(defaultWater([])).toBeUndefined();
   });
 });

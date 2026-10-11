@@ -189,6 +189,8 @@ export interface BrushSettings {
   opacity: number;
   /** The terrain brush paints a texture. */
   texture?: TerrainRef;
+  /** Its tile size as a multiple of the picture's own (0.25–4; default 1). */
+  tile?: number;
   /** 0–1: the stroke's edge fades out (the terrain brush). */
   soft?: number;
   /** A dark line round the stroke (the terrain brush). */

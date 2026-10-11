@@ -87,6 +87,8 @@ type MapItemBody =
       opacity: number;
       /** A terrain stroke painted with a texture (see `terrain.ts`) rather than a colour. */
       texture?: TerrainRef;
+      /** How big its texture tiles are, as a multiple of the picture's own size (default 1). */
+      tile?: number;
       /** 0–1: how far the edge fades into what is under it (smooth blending); hard when absent. */
       soft?: number;
       /** A dark line round the stroke, as a material (rock, lava, ice) has. */
@@ -112,6 +114,8 @@ type MapItemBody =
       /** 0 straight corners, 1 fully rounded. */
       smooth: number;
       texture?: TerrainRef;
+      /** How big the texture's tiles are, as a multiple of the picture's own size (default 1). */
+      tile?: number;
       color: string;
       /** 0.1–1. */
       opacity: number;
