@@ -13,7 +13,9 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { alignItems, distributeItems, removeItems, type AlignMode } from '../../app/maps/arrange';
+import { useState } from 'react';
 import { mergeRooms } from '../../app/maps/merge';
+import { makePrefab, usePrefabs } from '../../app/maps/prefabs';
 import { Section } from './PanelParts';
 import { type MapPanelsProps } from './panelTypes';
 
@@ -28,10 +30,14 @@ const ALIGNS: { mode: AlignMode; label: string; icon: LucideIcon }[] = [
 
 /** Shown while two or more items are picked (Shift+click adds to the pick). */
 export function ArrangePanel({
+  doc,
   selectedIds,
   commit,
   onDeselect,
-}: Pick<MapPanelsProps, 'selectedIds' | 'commit' | 'onDeselect'>) {
+}: Pick<MapPanelsProps, 'doc' | 'selectedIds' | 'commit' | 'onDeselect'>) {
+  const addPrefab = usePrefabs((s) => s.add);
+  const [name, setName] = useState('');
+  const [saved, setSaved] = useState(false);
   return (
     <Section title="Selection">
       <p className="text-xs text-muted">
@@ -54,6 +60,35 @@ export function ArrangePanel({
           </button>
         ))}
       </div>
+      <div className="flex gap-1">
+        <input
+          value={name}
+          aria-label="Prefab name"
+          placeholder="Prefab name"
+          onChange={(e) => {
+            setName(e.target.value);
+            setSaved(false);
+          }}
+          className="min-w-0 flex-1 rounded-md border border-border bg-surface px-2 py-1 text-sm"
+        />
+        <Button
+          variant="ghost"
+          onClick={() => {
+            const prefab = makePrefab(doc, selectedIds, name);
+            if (prefab) {
+              addPrefab(prefab);
+              setSaved(true);
+            }
+          }}
+        >
+          Save as a prefab
+        </Button>
+      </div>
+      {saved && (
+        <p role="status" className="text-xs text-muted">
+          Saved: it is in Stamps → Prefabs.
+        </p>
+      )}
       <Button
         variant="ghost"
         onClick={() => {

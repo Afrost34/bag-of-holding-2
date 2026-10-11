@@ -24,7 +24,7 @@ const megabytes = (bytes: number) =>
  * sample of each so a wrong folder is easy to spot, and the switch for the simple drawn art.
  */
 export function PackContentsPage() {
-  const { metas, entries, loaded, load, importFiles, remove } = usePacks();
+  const { metas, entries, loaded, load, importFiles, remove, setEnabled } = usePacks();
   const drawnArt = useArtPrefs((s) => s.drawnArt);
   const setDrawnArt = useArtPrefs((s) => s.setDrawnArt);
   const [open, setOpen] = useState<CategoryId | null>(null);
@@ -126,7 +126,17 @@ export function PackContentsPage() {
           <ul className="divide-y divide-border rounded-lg border border-border bg-surface">
             {metas.map((m) => (
               <li key={m.id} className="flex flex-wrap items-center gap-2 px-3 py-2 text-sm">
-                <span className="flex-1 font-medium">{m.name}</span>
+                <label className="flex flex-1 items-center gap-2 font-medium">
+                  <input
+                    type="checkbox"
+                    checked={m.disabled !== true}
+                    aria-label={`Use ${m.name}`}
+                    onChange={(e) => {
+                      void setEnabled(m.id, e.target.checked);
+                    }}
+                  />
+                  {m.name}
+                </label>
                 <span className="text-muted">
                   {m.files.toLocaleString('en')} pictures,{' '}
                   {(perPack.get(m.id) ?? 0).toLocaleString('en')} used · {megabytes(m.bytes)}

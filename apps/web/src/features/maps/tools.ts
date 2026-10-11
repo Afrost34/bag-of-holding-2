@@ -125,7 +125,8 @@ export const GROUP_LABELS = [
 export const TOOL_HINTS: Record<Tool, string> = {
   select: 'Click to select, drag to move, drag the handles to change points. Delete removes.',
   pan: 'Drag to move the map; scroll to zoom.',
-  stamp: 'Pick a picture in the library, then click to place it. A mirrors, scroll turns.',
+  stamp:
+    'Pick a picture, then click to place it. The wheel turns it (Z: fine), Alt+wheel resizes, A mirrors, right-click turns 90°, Ctrl+wheel zooms.',
   pen: 'Drag to paint with the brush. Alt erases.',
   terrain: 'Drag to paint the ground with the chosen texture.',
   eraser: 'Drag over what you want to take away.',

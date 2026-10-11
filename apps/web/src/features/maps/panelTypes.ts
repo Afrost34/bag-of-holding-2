@@ -1,6 +1,7 @@
 /** Types and styles shared by the map maker's side panels. */
 import type { Point } from '../../app/maps/geometry';
 import { type MapDoc, type MapItem } from '../../app/maps/model';
+import type { Prefab } from '../../app/maps/prefabs';
 import type { TerrainRef } from '../../app/maps/terrain';
 import { type DistrictSettings } from '../../app/maps/cityDoc';
 import { type ScatterSettings } from '../../app/maps/scatterDoc';
@@ -78,6 +79,8 @@ export interface MapPanelsProps {
   onScatterOn: (item: MapItem) => void;
   /** Scatter with a set of pack pictures: the Scatter tool takes them as its mix. */
   onScatterMix: (refs: string[]) => void;
+  /** Place a saved prefab in the middle of the view. */
+  onPlacePrefab: (prefab: Prefab) => void;
   /** Furnish a room as a tavern, a storeroom… */
   onFurnish: (roomId: string, preset: string) => void;
   area: AreaSettings;

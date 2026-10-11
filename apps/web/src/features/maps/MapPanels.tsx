@@ -167,6 +167,7 @@ export function MapPanels(props: MapPanelsProps) {
             selected={props.stamp}
             onPick={props.setStamp}
             onUseAsMix={props.onScatterMix}
+            onPlacePrefab={props.onPlacePrefab}
             used={used}
           />
         )}

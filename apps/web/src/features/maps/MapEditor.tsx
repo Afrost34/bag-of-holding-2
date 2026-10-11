@@ -13,7 +13,8 @@ import {
   Undo2,
   X,
 } from 'lucide-react';
-import { defaultRoomStyle, defaultSlots } from '../../app/maps/packDefaults';
+import { placePrefab, type Prefab } from '../../app/maps/prefabs';
+import { defaultCaveWall, defaultRoomStyle, defaultSlots } from '../../app/maps/packDefaults';
 import { usePacks } from '../../app/maps/packs';
 import { isPackTexture, type TerrainRef } from '../../app/maps/terrain';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -212,6 +213,9 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   const [stamp, setStamp] = useState<string | null>(null);
   const [stampAspect, setStampAspect] = useState(1);
   const [stampSquares, setStampSquares] = useState<{ w: number; h: number } | null>(null);
+  // How the next stamp is turned, mirrored and sized: wheel, A, right-click and Alt+wheel (as in Dungeondraft).
+  const [stampTurn, setStampTurn] = useState({ rotation: 0, flip: false, scale: 1 });
+  const fine = useRef(false);
   const [brush, setBrush] = useState<BrushSettings>({ color: '#111111', width: 6, opacity: 1 });
   // No texture yet means the first slot (a pack's grass once packs are imported, else the drawn one).
   const [terrainState, setTerrain] = useState<BrushSettings>({
@@ -771,6 +775,10 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
 
   /** A cave in the middle of the view. */
   const generateCaveHere = () => {
+    // A cave's rim is a cave cliff strip of the packs, unless a wall style was picked.
+    const caveWall = roomPicked
+      ? roomSet.wallTexture
+      : (defaultCaveWall(packList.entries) ?? roomSet.wallTexture);
     const el = host.current;
     if (!scene || !el || !layer || layer.locked) return;
     const c = scene.toMap(el.clientWidth / 2, el.clientHeight / 2);
@@ -785,7 +793,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         floor: roomSet.floor === 'stone' ? 'dirt' : roomSet.floor,
         wall: roomSet.wall,
         wallStyle: 'cave',
-        ...(roomSet.wallTexture ? { wallTexture: roomSet.wallTexture } : {}),
+        ...(caveWall ? { wallTexture: caveWall } : {}),
       }),
     );
   };
@@ -809,6 +817,17 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         }),
       ),
     );
+  };
+
+  /** A saved prefab goes down in the middle of the view, picked as a group. */
+  const placePrefabHere = (prefab: Prefab) => {
+    const el = host.current;
+    if (!scene || !el || !layer || layer.locked) return;
+    const at = scene.toMap(el.clientWidth / 2, el.clientHeight / 2);
+    const placed = placePrefab(doc, layer.id, prefab, snapCell(at));
+    commit(() => placed.doc);
+    setSelected(placed.ids[0] ?? null);
+    setGroup(placed.ids.slice(1));
   };
 
   /** The Scatter tool takes a set of pack pictures as its mix (trees, rocks, a whole folder). */
@@ -985,9 +1004,14 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           stamp,
           x: at.x,
           y: at.y,
-          w: stampSquares ? stampSquares.w * size : stampAspect >= 1 ? size * stampAspect : size,
-          h: stampSquares ? stampSquares.h * size : stampAspect >= 1 ? size : size / stampAspect,
-          rotation: onWall ? Math.round((onWall.angle * 180) / Math.PI) : 0,
+          w:
+            (stampSquares ? stampSquares.w * size : stampAspect >= 1 ? size * stampAspect : size) *
+            stampTurn.scale,
+          h:
+            (stampSquares ? stampSquares.h * size : stampAspect >= 1 ? size : size / stampAspect) *
+            stampTurn.scale,
+          rotation: onWall ? Math.round((onWall.angle * 180) / Math.PI) : stampTurn.rotation,
+          ...(stampTurn.flip ? { flipX: true } : {}),
         });
         return;
       }
@@ -1182,6 +1206,45 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     }
   };
 
+  // Whether a stamp is being placed: the wheel, A and right-click then work on it.
+  const placingRef = useRef(false);
+  const placing = creator && tool === 'stamp' && stamp !== null && !viewing;
+  useEffect(() => {
+    placingRef.current = placing;
+  });
+
+  /** The stamp about to be placed follows the pointer, turned, mirrored and sized as it will be. */
+  const lastPointer = useRef<Point | null>(null);
+  const updateGhost = (p: Point | null) => {
+    if (!scene) return;
+    if (!p || !placing || !stamp) {
+      scene.hideGhost();
+      return;
+    }
+    const size = grid.size;
+    const onWall = isPortalPicture(stamp) ? portalOnWalls(doc, p, size * 0.75) : null;
+    const at = onWall ?? snapCell(p);
+    const w =
+      (stampSquares ? stampSquares.w * size : stampAspect >= 1 ? size * stampAspect : size) *
+      stampTurn.scale;
+    const h =
+      (stampSquares ? stampSquares.h * size : stampAspect >= 1 ? size : size / stampAspect) *
+      stampTurn.scale;
+    scene.showGhost(
+      stamp,
+      at,
+      w,
+      h,
+      onWall ? Math.round((onWall.angle * 180) / Math.PI) : stampTurn.rotation,
+      stampTurn.flip,
+    );
+  };
+  useEffect(() => {
+    updateGhost(lastPointer.current);
+    // The ghost follows the pointer and these settings; the rest is read when it moves.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stampTurn, stamp, tool, scene, viewing]);
+
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!scene) return;
     const screen = local(e);
@@ -1197,6 +1260,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       return;
     }
     const p = scene.toMap(screen.x, screen.y);
+    lastPointer.current = p;
+    updateGhost(p);
     const col = Math.floor((p.x - grid.offsetX) / grid.size) + 1;
     const row = Math.floor((p.y - grid.offsetY) / grid.size) + 1;
     setCursorSquare((c) => (c?.col === col && c.row === row ? c : { col, row }));
@@ -1658,6 +1723,24 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     if (!el || !scene) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      // Placing a stamp: the wheel turns it (15°, 5° with Z held), Alt+wheel resizes it; Ctrl+wheel zooms.
+      if (placingRef.current && !e.ctrlKey && !e.metaKey) {
+        const dir = e.deltaY < 0 ? 1 : -1;
+        if (e.altKey)
+          setStampTurn((t) => ({
+            ...t,
+            scale: Math.min(
+              4,
+              Math.max(0.25, Math.round(t.scale * (dir > 0 ? 1.1 : 1 / 1.1) * 100) / 100),
+            ),
+          }));
+        else
+          setStampTurn((t) => ({
+            ...t,
+            rotation: (((t.rotation + dir * (fine.current ? 5 : 15)) % 360) + 360) % 360,
+          }));
+        return;
+      }
       const r = el.getBoundingClientRect();
       scene.zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015));
       setZoom(scene.zoom);
@@ -1679,6 +1762,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       const target = e.target as HTMLElement | null;
       if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
       if (e.key === ' ') space.current = e.type === 'keydown';
+      if (e.key === 'z' || e.key === 'Z') fine.current = e.type === 'keydown';
       if (e.type !== 'keydown') return;
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === 'z') {
@@ -1832,6 +1916,10 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       if ((e.key === 'PageUp' || e.key === 'PageDown') && (doc.variants?.length ?? 0) > 1) {
         e.preventDefault();
         commit((d) => stepVariant(d, e.key === 'PageDown' ? 1 : -1));
+        return;
+      }
+      if (placingRef.current && (e.key === 'a' || e.key === 'A')) {
+        setStampTurn((t) => ({ ...t, flip: !t.flip }));
         return;
       }
       if (e.key === 'g' || e.key === 'G') {
@@ -2087,6 +2175,11 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             }}
             onContextMenu={(e) => {
               e.preventDefault();
+              if (placingRef.current)
+                setStampTurn((t) => ({ ...t, rotation: (t.rotation + 90) % 360 }));
+            }}
+            onPointerLeave={() => {
+              scene?.hideGhost();
             }}
           />
           {creator && !viewing && (
@@ -2250,6 +2343,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
               setHoleOf(id);
             }}
             onScatterMix={scatterWithPictures}
+            onPlacePrefab={placePrefabHere}
             onFurnish={furnishRoom}
             area={area}
             setArea={setArea}

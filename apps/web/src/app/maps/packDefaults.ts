@@ -228,3 +228,9 @@ export function defaultRoomStyle(entries: readonly Pickable[]): { floor?: string
     ...(wall ? { wall: refOf(wall) } : {}),
   };
 }
+
+/** A cave's rim: a cave cliff strip (`Burrows_Cave_Stone_Earthy_Path_A1`), if the packs have one. */
+export function defaultCaveWall(entries: readonly Pickable[]): string | undefined {
+  const e = pickOne(entries, { cats: ['cliffs'], words: ['cave', '_path'], not: ['stalagmite'] });
+  return e ? refOf(e) : undefined;
+}

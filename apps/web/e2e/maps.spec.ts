@@ -2017,6 +2017,11 @@ test('packs come first: sorted categories, scatter presets from the pack, the co
     page.getByRole('list', { name: 'Samples of Trees' }).getByRole('listitem'),
   ).toHaveCount(3);
   await expect(page.getByRole('button', { name: /^Ground textures/ })).toBeVisible();
+  // A pack can be switched off without removing it.
+  await page.getByLabel('Use Woods').uncheck();
+  await expect(page.getByRole('button', { name: /^Trees/ })).toHaveCount(0);
+  await page.getByLabel('Use Woods').check();
+  await expect(page.getByRole('button', { name: /^Trees/ })).toBeVisible();
   // The drawn art comes back with the switch.
   await page.getByLabel(/Also offer the simple drawn art/).check();
   await page.goBack();
@@ -2067,4 +2072,61 @@ test('paths and roofs are drawn with pack pictures', async ({ page }) => {
   await page.mouse.move(box.x + 300, box.y + 400, { steps: 5 });
   await page.mouse.up();
   await waitForSaved(page, 'maps', '"roofTexture":"pack:');
+});
+
+test('a stamp is turned with the wheel, mirrored with A and placed as shown', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is used on the desktop.');
+  test.setTimeout(60_000);
+  await installData(page);
+  await newMap(page, 'Turned');
+  const zip = Buffer.from(
+    zipSync({
+      'FA_Assets_Webp/Woodlands/!Wilderness/Flora/Trees/Tree_Green_C1_5x5.png': [
+        PIXEL,
+        { level: 0 },
+      ],
+    }),
+  );
+  await tool(page, 'Stamp').click();
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Import packs (zip)' }).click();
+  await (await chooser).setFiles({ name: 'Tree.zip', mimeType: 'application/zip', buffer: zip });
+  await expect(page.getByRole('status').filter({ hasText: '1 added' })).toBeVisible();
+  await page.getByRole('list', { name: 'Trees' }).getByRole('button').first().click();
+  const box = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
+  if (!box) throw new Error('no canvas');
+  await page.mouse.move(box.x + 300, box.y + 250);
+  await page.mouse.wheel(0, -100);
+  await page.mouse.wheel(0, -100);
+  await page.keyboard.press('a');
+  await page.mouse.click(box.x + 300, box.y + 250);
+  await waitForSaved(page, 'maps', '"rotation":30');
+  await waitForSaved(page, 'maps', '"flipX":true');
+});
+
+test('items are saved as a prefab and placed again', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is used on the desktop.');
+  test.setTimeout(60_000);
+  await newMap(page, 'Group test');
+  const box = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
+  if (!box) throw new Error('no canvas');
+  await tool(page, 'Wall').click();
+  for (const y of [100, 200]) {
+    await page.mouse.click(box.x + 100, box.y + y);
+    await page.mouse.dblclick(box.x + 300, box.y + y);
+  }
+  await tool(page, 'Select and move').click();
+  await page.mouse.click(box.x + 200, box.y + 100);
+  await page.keyboard.down('Shift');
+  await page.mouse.click(box.x + 200, box.y + 200);
+  await page.keyboard.up('Shift');
+  await page.getByLabel('Prefab name').fill('Two walls');
+  await page.getByRole('button', { name: 'Save as a prefab' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Stamps', exact: true }).click();
+  await page.getByRole('tab', { name: 'Prefabs' }).click();
+  await expect(page.getByRole('list', { name: 'Saved prefabs' })).toContainText('Two walls');
+  await page.getByRole('button', { name: 'Place Two walls' }).click();
+  await page.getByRole('tab', { name: 'Layers' }).click();
+  await expect(page.getByRole('region', { name: 'Layers' })).toContainText('4');
 });

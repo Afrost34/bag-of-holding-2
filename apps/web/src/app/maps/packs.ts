@@ -32,6 +32,8 @@ export interface PackMeta {
   files: number;
   bytes: number;
   importedAt: string;
+  /** False: its pictures are left out of every tool (it stays on the device). Absent: used. */
+  disabled?: boolean;
 }
 
 type IndexRow = [path: string, offset: number, compressed: number, size: number, method: number];
@@ -88,6 +90,8 @@ interface PacksStore {
     onProgress?: (p: ImportProgress) => void,
   ) => Promise<ImportReport>;
   remove: (id: string) => Promise<void>;
+  /** Use the pack's pictures or leave them out, without removing it. */
+  setEnabled: (id: string, enabled: boolean) => Promise<void>;
 }
 
 const supported = () => typeof navigator !== 'undefined' && 'storage' in navigator;
@@ -112,9 +116,23 @@ export const usePacks = create<PacksStore>()((set, get) => ({
     metas.sort((a, b) => a.name.localeCompare(b.name, 'en'));
     const seen = new Set<string>();
     const entries: PackEntry[] = [];
+    const unlisted: PackEntry[] = [];
     for (const meta of metas) {
       const rows = await readJson<IndexRow[]>(folder, `${meta.id}.index.json`);
       for (const [path, offset, compressed, size, method] of rows ?? []) {
+        // A pack switched off keeps its pictures readable (maps may use them) but not listed.
+        if (meta.disabled) {
+          unlisted.push({
+            pack: meta.id,
+            path,
+            offset,
+            compressed,
+            size,
+            method,
+            cat: classify(path),
+          });
+          continue;
+        }
         // The same picture in two packs (or as .png in one and .webp in another) is kept once.
         const key = path.replace(/.[a-z0-9]+$/i, '');
         if (seen.has(key)) continue;
@@ -132,6 +150,7 @@ export const usePacks = create<PacksStore>()((set, get) => ({
     }
     entries.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
     entryIndex = null;
+    unlistedEntries = unlisted;
     set({ metas, entries, loaded: true });
   },
 
@@ -209,6 +228,26 @@ export const usePacks = create<PacksStore>()((set, get) => ({
     await removeFiles(id);
     await get().load();
   },
+
+  setEnabled: async (id, enabled) => {
+    const meta = get().metas.find((m) => m.id === id);
+    if (!meta) return;
+    const { disabled: _d, ...rest } = meta;
+    // The box changes at once; the index is read again once the file is written.
+    set({
+      metas: get().metas.map((m) => {
+        if (m.id !== id) return m;
+        const { disabled: _x, ...others } = m;
+        return enabled ? others : { ...others, disabled: true };
+      }),
+    });
+    await writeText(
+      await dir('packs'),
+      `${id}.meta.json`,
+      JSON.stringify(enabled ? rest : { ...rest, disabled: true }),
+    );
+    await get().load();
+  },
 }));
 
 /** A reason a person can act on: a full storage says how much room there is. */
@@ -252,10 +291,13 @@ function packFile(id: string): Promise<File> {
 }
 
 let entryIndex: Map<string, PackEntry> | null = null;
+/** The pictures of packs switched off: not listed, still drawn on the maps that use them. */
+let unlistedEntries: PackEntry[] = [];
 function entryFor(pack: string, path: string): PackEntry | undefined {
   if (!entryIndex) {
     entryIndex = new Map();
-    for (const e of usePacks.getState().entries) entryIndex.set(`${e.pack}:${e.path}`, e);
+    for (const e of [...usePacks.getState().entries, ...unlistedEntries])
+      entryIndex.set(`${e.pack}:${e.path}`, e);
   }
   return entryIndex.get(`${pack}:${path}`);
 }
