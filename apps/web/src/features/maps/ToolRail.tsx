@@ -21,6 +21,7 @@ const SHORT: Record<Tool, string> = {
   room: 'Room',
   door: 'Portal',
   wall: 'Wall',
+  kit: 'Walk',
   light: 'Light',
   text: 'Text',
   measure: 'Ruler',

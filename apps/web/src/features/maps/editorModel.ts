@@ -196,7 +196,8 @@ export type PointItem = Extract<
       | 'room'
       | 'wall'
       | 'route'
-      | 'structure';
+      | 'structure'
+      | 'kit';
   }
 >;
 
@@ -210,6 +211,7 @@ export const isPointItem = (i: MapItem | null | undefined): i is PointItem =>
     i.kind === 'wall' ||
     i.kind === 'route' ||
     i.kind === 'structure' ||
+    i.kind === 'kit' ||
     (i.kind === 'scatter' && !isTied(i)));
 
 /**
@@ -230,6 +232,7 @@ export function applyPoints(doc: MapDoc, id: string, points: number[]): MapDoc {
 export const isClosedItem = (i: PointItem): boolean =>
   (i.kind !== 'path' || i.loop === true) &&
   (i.kind !== 'wall' || i.loop === true) &&
+  (i.kind !== 'kit' || i.loop === true) &&
   i.kind !== 'route' &&
   (i.kind !== 'scatter' || i.mode === 'area');
 
@@ -261,7 +264,8 @@ export const withPoints = (i: MapItem, points: number[], cell = 70): MapItem =>
           i.kind === 'district' ||
           i.kind === 'building' ||
           i.kind === 'wall' ||
-          i.kind === 'route'
+          i.kind === 'route' ||
+          i.kind === 'kit'
         ? { ...i, points }
         : i;
 
@@ -287,6 +291,7 @@ export const ITEM_TITLES: Record<MapItem['kind'], string> = {
   building: 'Building',
   room: 'Room',
   structure: 'Building plan',
+  kit: 'Walkway or kit',
   light: 'Light',
 };
 

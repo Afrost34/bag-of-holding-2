@@ -9,6 +9,7 @@ import { type DressSettings } from '../../app/maps/scatterDoc';
 import {
   type BrushSettings,
   type BuildingSettings,
+  type KitSettings,
   type ElevationBrush,
   type AreaSettings,
   type FogSettings,
@@ -69,6 +70,9 @@ export interface MapPanelsProps {
   district: DistrictSettings;
   setDistrict: (s: DistrictSettings) => void;
   buildingSet: BuildingSettings;
+  /** The walkway tool: which kit it lays. */
+  kitSet: KitSettings;
+  setKitSet: (s: KitSettings) => void;
   setBuildingSet: (s: BuildingSettings) => void;
   /** A walled town with a market quarter, in the middle of the view. */
   onGenerateTown: () => void;

@@ -158,3 +158,35 @@ test('a Rust & Sunfire foundry, and a district laid out in platform rings', asyn
   await page.keyboard.press('Enter');
   await waitForSaved(page, 'maps', '"layout":"ring"');
 });
+
+test('a chainwalk is drawn along a line with the Walkway tool, and baked', async ({ page }) => {
+  test.skip(isPhone(page), 'The Creator is used on the desktop.');
+  test.setTimeout(120_000);
+  await installData(page);
+  await newMap(page, 'Gantry');
+  await tool(page, 'Stamp').click();
+  await importPack(
+    page,
+    [
+      'Structures/Building/Grates/Paths/Floor_Grate_Line_Metal_Rusty_A_Path.png',
+      'Decor/Restraints_and_Torture/Restraints_and_Chains/Torment_Chains/Paths/Torment_Chain_A_Path.png',
+      'Structures/Building/Pillars/Metal/Pillar_Metal_Gray_A1_1x1.png',
+    ].map((p) => CORE + p),
+  );
+  await tool(page, 'Walkway').click();
+  await page
+    .getByRole('radiogroup', { name: 'Kind of walkway' })
+    .getByRole('radio', { name: /Chainwalk/ })
+    .click();
+  const box = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
+  if (!box) throw new Error('no canvas');
+  await page.mouse.click(box.x + 120, box.y + 200);
+  await page.mouse.click(box.x + 420, box.y + 200);
+  await page.mouse.click(box.x + 520, box.y + 360);
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'maps', '"kind":"kit"');
+  await waitForSaved(page, 'maps', 'Floor_Grate_Line_Metal_Rusty_A_Path');
+  await page.getByRole('button', { name: 'Bake', exact: true }).click();
+  await waitForSaved(page, 'maps', '"kind":"path"');
+  await waitForSaved(page, 'maps', 'Pillar_Metal_Gray_A1_1x1');
+});

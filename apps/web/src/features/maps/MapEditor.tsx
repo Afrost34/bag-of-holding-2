@@ -80,6 +80,7 @@ import {
   newBuildingSpec,
   touchesFootprint,
 } from '../../app/maps/structure/structureDoc';
+import { makeKit } from '../../app/maps/kits/kitDoc';
 import { generateOf } from './tools';
 import { useArtPrefs } from '../../app/maps/artPrefs';
 import { bakeMap } from '../../app/maps/render';
@@ -152,12 +153,14 @@ import { MapSearch } from './MapSearch';
 import { MapPanels } from './MapPanels';
 import { PinHover } from '../../app/maps/PinHover';
 import {
+  DEFAULT_KIT,
   TOOL_HINTS,
   TOOLS_WITH_SETTINGS,
   toolsFor,
   type AreaSettings,
   type BrushSettings,
   type BuildingSettings,
+  type KitSettings,
   type ElevationBrush,
   type FogSettings,
   type LightSettings,
@@ -310,6 +313,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
   const dragsShape = (t: Tool) =>
     (draws[t]?.kind ?? FREE_SHAPE.kind) !== 'free' && (t !== 'scatter' || scatter.mode === 'area');
   const [district, setDistrict] = useStored<DistrictSettings>('district', DEFAULT_DISTRICT);
+  const [kitSet, setKitSet] = useStored<KitSettings>('kit', DEFAULT_KIT);
   const [buildingState, setBuildingSet] = useStored<BuildingSettings>('building', {
     roof: 'tiles',
     color: '#b5543a',
@@ -887,6 +891,27 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       scene?.clearPreview();
       return;
     }
+    if (wall && tool === 'kit') {
+      // A walkway, pipe run or colonnade along the line clicked.
+      const points = dedupePoints(wall).map(Math.round);
+      if (points.length >= 4 && layer) {
+        const id = itemId(doc);
+        commit((d) =>
+          add(
+            d,
+            layer.id,
+            makeKit(id, kitSet.kit, points, packList.entries, {
+              drawn: drawnArt,
+              loop: kitSet.loop,
+            }),
+          ),
+        );
+        setSelected(id);
+      }
+      setWall(null);
+      scene?.clearPreview();
+      return;
+    }
     if (wall && tool === 'path') {
       let points = dedupePoints(wall).map(Math.round);
       if (points.length >= 4 && layer) {
@@ -1448,6 +1473,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
         return;
       case 'area':
       case 'path':
+      case 'kit':
       case 'district':
         if (canDraw && dragsShape(tool))
           drag.current = { mode: 'preset', ...base, start: snapPoint(p) };
@@ -1537,12 +1563,16 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
       wall &&
       (tool === 'area' ||
         tool === 'path' ||
+        tool === 'kit' ||
         tool === 'scatter' ||
         tool === 'district' ||
         tool === 'building' ||
         tool === 'room')
     ) {
-      const closed = tool !== 'path' && (tool !== 'scatter' || scatter.mode === 'area');
+      const closed =
+        tool === 'kit'
+          ? kitSet.loop
+          : tool !== 'path' && (tool !== 'scatter' || scatter.mode === 'area');
       const control = [...wall, ...pt(p, e.shiftKey, e.altKey)];
       const line = splinePoints(
         control,
@@ -1557,7 +1587,9 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
                 ? 0
                 : tool === 'room'
                   ? roomSet.smooth
-                  : pathSet.smooth,
+                  : tool === 'kit'
+                    ? 0.5
+                    : pathSet.smooth,
       );
       scene.drawPreview((g) => {
         if (closed) g.poly(line).fill({ color: 0x3b82f6, alpha: 0.18 });
@@ -2023,6 +2055,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
           wall &&
           (tool === 'area' ||
             tool === 'path' ||
+            tool === 'kit' ||
             tool === 'scatter' ||
             tool === 'district' ||
             tool === 'building' ||
@@ -2485,6 +2518,7 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
                   : wall
                     ? tool === 'area' ||
                       tool === 'path' ||
+                      tool === 'kit' ||
                       tool === 'scatter' ||
                       tool === 'district' ||
                       tool === 'building' ||
@@ -2566,6 +2600,8 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
             setDistrict={setDistrict}
             buildingSet={buildingSet}
             setBuildingSet={setBuildingLive}
+            kitSet={kitSet}
+            setKitSet={setKitSet}
             onGenerateTown={generateTownHere}
             elev={elev}
             setElev={setElev}

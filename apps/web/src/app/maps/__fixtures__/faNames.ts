@@ -333,6 +333,20 @@ export const FA_NAMES: readonly string[] = [
   '!Core_Settlements/Furniture/Altars/Altar_Stone_Earthy_A_2x1.webp',
   '!Core_Settlements/Furniture/Seating/Benches/Pews/Pew_Wood_Ashen_A_2x1.webp',
   '!Core_Settlements/Lightsources/Candles/Arranged_Candles/Candles_Black_Arranged_A1_1x1.webp',
+  // Line kits: walkway decks, rails, chains, pipes, posts
+  '!Core_Settlements/Structures/Building/Grates/Paths/Floor_Grate_Line_Metal_Rusty_A_Path.webp',
+  '!Core_Settlements/Structures/Building/Grates/Paths/Floor_Grate_Line_Metal_Gray_A_Path.webp',
+  '!Core_Settlements/Decor/Restraints_and_Torture/Restraints_and_Chains/Torment_Chains/Paths/Torment_Chain_A_Path.webp',
+  '!Core_Settlements/Decor/Restraints_and_Torture/Restraints_and_Chains/Torment_Chains/Paths/Torment_Chain_A_Ribbon_Path.webp',
+  '!Core_Settlements/Structures/Building/Wooden_Walkway_Tiles/Paths/Walkway_Small_Wood_Ashen_A1_Path.webp',
+  '!Core_Settlements/Structures/Building/Railings_and_Fences/Railings/Metal/Paths/Railing_Metal_Rusty_A_Path.webp',
+  'Woodlands/Base_Woodlands_Settlement/Structures/Building/Walls_and_Curbs/Shack_Wall_Wood_A/Shack_Wall_Wood_A_Ashen_Railing_A1_Path.webp',
+  '!Core_Settlements/Structures/Mechanical_Parts/Pipes/Large/Rusty/Paths/Pipe_Metal_Rusty_Large_A_Path.webp',
+  '!Core_Settlements/Structures/Mechanical_Parts/Pipes/Small/Rusty/Paths/Pipe_Metal_Rusty_Small_A_Path.webp',
+  '!Core_Settlements/Structures/Mechanical_Parts/Pipes/Parts/Rusty/Flange_Metal_Rusty_Large_A1_1x2.webp',
+  '!Core_Settlements/Structures/Building/Pillars/Wood/Pillar_Wood_Ashen_F3_1x1.webp',
+  '!Core_Settlements/Structures/Building/Pillars/Metal/Pillar_Metal_Gray_A1_1x1.webp',
+  '!Core_Settlements/Structures/Building/Pillars/Stone/Pillar_Stone_Earthy_I2_1x1.webp',
 ];
 
 /** The names as pack entries of one pack (`fa`), sorted as the importer sorts them. */

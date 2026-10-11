@@ -1,5 +1,6 @@
 import {
   Castle,
+  Construction,
   DoorOpen,
   CloudFog,
   Crosshair,
@@ -53,7 +54,8 @@ export type Tool =
   | 'door'
   | 'elevation'
   | 'light'
-  | 'calibrate';
+  | 'calibrate'
+  | 'kit';
 
 /** The tool bar, in order; calibrate lives in the grid panel. */
 export const TOOLS: { id: Tool; label: string; icon: LucideIcon; key: string }[] = [
@@ -70,6 +72,7 @@ export const TOOLS: { id: Tool; label: string; icon: LucideIcon; key: string }[]
   { id: 'room', label: 'Room', icon: Square, key: 'r' },
   { id: 'door', label: 'Door', icon: DoorOpen, key: 'd' },
   { id: 'wall', label: 'Wall', icon: Spline, key: 'w' },
+  { id: 'kit', label: 'Walkway', icon: Construction, key: 'n' },
   { id: 'light', label: 'Light', icon: Lightbulb, key: 'k' },
   { id: 'text', label: 'Text', icon: Type, key: 't' },
   { id: 'measure', label: 'Measure', icon: Ruler, key: 'm' },
@@ -94,6 +97,7 @@ export const TOOL_GROUP: Record<Tool, number> = {
   room: 2,
   door: 2,
   wall: 2,
+  kit: 2,
   stamp: 3,
   scatter: 3,
   light: 4,
@@ -138,6 +142,7 @@ export const TOOL_HINTS: Record<Tool, string> = {
   room: 'Click the corners of the room; double-click or Enter to finish.',
   door: 'Click a wall to put a door on it.',
   wall: 'Click to add corners; double-click or Enter to finish the wall.',
+  kit: 'Pick a kit, then click along its way; double-click or Enter to finish.',
   text: 'Click where the text goes.',
   measure: 'Click the start, then the end. Escape clears.',
   calibrate: 'Drag over one grid cell of the picture.',
@@ -164,6 +169,7 @@ const CREATOR_TOOLS = new Set<Tool>([
   'room',
   'door',
   'wall',
+  'kit',
   'light',
   'text',
   'measure',
@@ -198,6 +204,7 @@ export interface BrushSettings {
 /** Tools that have settings in the side panel. */
 export const TOOLS_WITH_SETTINGS = new Set<Tool>([
   'stamp',
+  'kit',
   'pen',
   'terrain',
   'eraser',
@@ -336,3 +343,11 @@ export interface ElevationBrush {
   radius: number;
   strength: number;
 }
+
+/** The walkway tool: which line kit it lays, and whether the line closes into a loop. */
+export interface KitSettings {
+  kit: string;
+  loop: boolean;
+}
+
+export const DEFAULT_KIT: KitSettings = { kit: 'chainwalk', loop: false };

@@ -1,5 +1,6 @@
 import type { MapDoc } from './model';
 import { isPackRef } from './packModel';
+import { kitRefs } from './kits/kitDoc';
 import { paletteRefs } from './structure/structureDoc';
 
 /** The pictures of imported packs (`pack:<id>:<path>`) a map uses: stamps, scatter and textures. */
@@ -31,6 +32,9 @@ export function usedPackRefs(doc: MapDoc): Set<string> {
           break;
         case 'structure':
           for (const ref of paletteRefs(item.spec)) add(ref);
+          break;
+        case 'kit':
+          for (const ref of kitRefs(item)) add(ref);
           break;
       }
     }
