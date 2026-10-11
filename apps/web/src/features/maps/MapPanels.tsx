@@ -17,7 +17,7 @@ import { BuildingPanel, DistrictPanel } from './CityPanel';
 import { WallPanel } from './WallStrips';
 import { PortalPanel } from './PortalPanel';
 import { RoomPanel } from './RoomPanel';
-import { ScatterPanel } from './ScatterPanel';
+import { DressPanel } from './DressPanel';
 import { ShapePanel } from './ShapePanel';
 import { ToolSettings } from './ToolSettings';
 
@@ -169,7 +169,7 @@ export function MapPanels(props: MapPanelsProps) {
         {tool === 'fog' && <FogPanel {...props} />}
         {tool === 'light' && <LightPanel {...props} />}
         {(tool === 'area' || tool === 'path') && <ShapePanel {...props} />}
-        {tool === 'scatter' && <ScatterPanel {...props} />}
+        {tool === 'scatter' && <DressPanel {...props} />}
         {tool === 'elevation' && <ElevationPanel {...props} />}
         {tool === 'district' && <DistrictPanel {...props} />}
         {tool === 'room' && <RoomPanel {...props} />}

@@ -1,4 +1,5 @@
 import { newId } from '../cards/model';
+import { upgradeScatter } from './dress/upgrade';
 import type { Elevation } from './elevation';
 import { pointInPolygon } from './polygon';
 import type { RouteDash } from './lettering';
@@ -50,6 +51,47 @@ export type TemplateShape = 'cone' | 'sphere' | 'cube' | 'line';
 /** What every item can be: drawn under the other items of its layer (Dungeondraft's Over/Under). */
 export interface ItemOrder {
   under?: boolean;
+}
+
+/** Where the pieces of a dress rule go (see `dress/engine.ts`). */
+export type DressPlace = 'area' | 'along' | 'edge' | 'cluster' | 'grid';
+
+/** One rule of a dressing: which pictures, where, how many, how turned. */
+export interface DressRule {
+  place: DressPlace;
+  /** Glyphs (`glyph:tree`) or pack pictures, the weight each is picked with, and its own size (×1). */
+  pieces: { ref: string; weight: number; scale?: number }[];
+  /** The recipe rule the pieces were picked by (`recipe:rule`), so Pick again can pick afresh. */
+  from?: string;
+  spacing: number;
+  /** Pack pictures keep the size their name gives and these vary it (as a part of 100); glyphs are this wide. */
+  sizeMin: number;
+  sizeMax: number;
+  rotation: 'none' | 'random' | 'along' | 'quarter';
+  /** Random turning between these (degrees); all the way round when absent. */
+  rotMin?: number;
+  rotMax?: number;
+  /** 0–0.8: how far pieces may overlap (packed tight); 0 keeps them apart. */
+  overlap?: number;
+  /** 0 even, 1 groves with clearings. */
+  cluster: number;
+  /** Along a line: how far to the side(s) pieces stand. */
+  offset: number;
+  sides: 'center' | 'both' | 'left' | 'right';
+  /** Along a line: how far a piece strays, as a part of the spacing. */
+  jitter: number;
+  /** 0–1: thinner towards the edge of the area or the ends of the line. */
+  falloff?: number;
+  /** Edge: how far in from the edge pieces go (map pixels; twice the spacing when absent). */
+  depth?: number;
+  /** Pieces stand in the middle of grid cells (1) or of half cells (2). */
+  snap?: number;
+  /** Mirrored at random. */
+  flip?: boolean;
+  /** 0–1: how strongly each piece is tinted a little differently. */
+  tint?: number;
+  /** Kept clear of the pieces of the rules before it (undergrowth between the trees). */
+  apart?: boolean;
 }
 
 export interface WaterLook {
@@ -134,9 +176,10 @@ type MapItemBody =
       holes?: number[][];
     }
   /**
-   * Pieces (trees, rocks, mountains) scattered from a seed over an area or along a line, kept
-   * clear of roads and rivers. Made again whenever what it reacts to changes; "bake" turns it
-   * into loose stamps.
+   * A dressing (the Dress tool; "scatter" in files): pieces placed from a seed by a list of
+   * rules (trees, then their undergrowth, then leaves) over an area or along a line, kept clear
+   * of roads and rivers. Made again whenever what it reacts to changes; "bake" turns it into
+   * loose stamps. See `dress/`.
    */
   | {
       kind: 'scatter';
@@ -145,30 +188,20 @@ type MapItemBody =
       /** Control points of its own outline or line (unused while tied to another item). */
       points: number[];
       smooth: number;
-      /** Fill this shape (by id) instead: reshaping the shape reshapes the scatter. */
+      /** Fill this shape or room (by id) instead: reshaping it reshapes the dressing. */
       within?: string;
       /** Follow this path (by id) instead. */
       follow?: string;
       seed: number;
-      /** Glyphs (`glyph:tree`) or stamps, with the weight each is picked with. */
-      pieces: { ref: string; weight: number }[];
-      spacing: number;
-      sizeMin: number;
-      sizeMax: number;
-      rotation: 'none' | 'random' | 'along' | 'quarter';
-      /** Random turning between these (degrees); all the way round when absent. */
-      rotMin?: number;
-      rotMax?: number;
-      /** 0–0.8: how far pieces may overlap (packed tight); 0 keeps them apart. */
-      overlap?: number;
-      /** 0 even, 1 groves with clearings. */
-      cluster: number;
-      offset: number;
-      sides: 'center' | 'both' | 'left' | 'right';
-      jitter: number;
+      /** The recipe it was made from (see `dress/recipes.ts`), for its name and Pick again. */
+      recipe?: string;
+      /** Applied in order: a later rule can keep clear of the pieces of earlier ones. */
+      rules: DressRule[];
       clearance: number;
-      /** Keep clear of roads, rivers and water (auto), or not. */
+      /** Keep clear of roads, rivers, buildings and water (auto), or not. */
       avoid: 'auto' | 'none';
+      /** Roads and rivers do not count (pieces may stand on them); water and buildings still do. */
+      overPaths?: true;
       /** Only on these kinds of ground. */
       onlyOn?: TerrainRef[];
     }
@@ -787,13 +820,15 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
                   },
                 }
               : {}),
-            items: (Array.isArray(l.items) ? l.items : []).filter(
-              (i): i is MapItem =>
-                isObj(i) &&
-                typeof i.id === 'string' &&
-                typeof i.kind === 'string' &&
-                KINDS.has(i.kind),
-            ),
+            items: (Array.isArray(l.items) ? l.items : [])
+              .filter(
+                (i): i is MapItem =>
+                  isObj(i) &&
+                  typeof i.id === 'string' &&
+                  typeof i.kind === 'string' &&
+                  KINDS.has(i.kind),
+              )
+              .map(upgradeScatter),
           },
         ]
       : [],

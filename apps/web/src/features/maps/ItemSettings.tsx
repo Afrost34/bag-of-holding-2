@@ -22,7 +22,7 @@ import { PinLook } from './PinPanels';
 import { RouteSettings } from './RouteSettings';
 import { BuildingItemSettings, DistrictItemSettings } from './CityPanel';
 import { RoomItemSettings } from './RoomPanel';
-import { ScatterItemSettings } from './ScatterPanel';
+import { DressItemSettings } from './DressPanel';
 import { LightItemSettings } from './LightPanel';
 import { ShapeItemSettings } from './ShapePanel';
 import { TextLettering } from './TextLettering';
@@ -191,7 +191,7 @@ export function ItemSettings({
         />
       )}
       {item.kind === 'scatter' && (
-        <ScatterItemSettings item={item} stamp={stamp} set={set} commit={commit} />
+        <DressItemSettings item={item} stamp={stamp} set={set} commit={commit} />
       )}
       {item.kind === 'stamp' && (
         <>

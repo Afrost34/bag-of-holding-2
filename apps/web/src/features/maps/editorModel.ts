@@ -250,7 +250,7 @@ export const ITEM_TITLES: Record<MapItem['kind'], string> = {
   pin: 'Pin',
   shape: 'Terrain shape',
   path: 'Road or river',
-  scatter: 'Scatter',
+  scatter: 'Dressing',
   district: 'District',
   building: 'Building',
   room: 'Room',

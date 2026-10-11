@@ -67,15 +67,14 @@ import { defaultLabelText, targetLine } from '../../app/maps/labels';
 import { doorOnWall, generateCave, generateDungeon, roomOutline } from '../../app/maps/rooms';
 import { isPortalPicture, portalOnWalls } from '../../app/maps/portal';
 import {
-  DEFAULT_SCATTER,
-  FURNISH_PRESETS,
   makeScatter,
   mixSettings,
-  SCATTER_PRESETS,
-  settingsFromPreset,
   singlePiece,
-  type ScatterSettings,
+  type DressSettings,
 } from '../../app/maps/scatterDoc';
+import { recipeById } from '../../app/maps/dress/recipes';
+import { DEFAULT_DRESS, settingsFor } from '../../app/maps/dress/settings';
+import { useArtPrefs } from '../../app/maps/artPrefs';
 import { bakeMap } from '../../app/maps/render';
 import { PATH_STYLES } from '../../app/maps/shapes';
 import { nearestOnPolyline, splinePoints } from '../../app/maps/spline';
@@ -276,7 +275,20 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     shadows: true,
   });
   const [fog, setFog] = useStored<FogSettings>('fog', { mode: 'hide', shape: 'rect' });
-  const [scatter, setScatter] = useState<ScatterSettings>(DEFAULT_SCATTER);
+  const [scatter, setScatter] = useState<DressSettings>(DEFAULT_DRESS);
+  const drawnArt = useArtPrefs((s) => s.drawnArt);
+  /** A recipe's settings for this map, from the packs (or its glyphs when there are none). */
+  const recipeSettings = (id: string): DressSettings | null => {
+    const recipe = recipeById(id);
+    return recipe
+      ? settingsFor(
+          recipe,
+          packList.entries,
+          { unit: stampUnit(doc), drawn: drawnArt },
+          { scale: scatter.scale },
+        )
+      : null;
+  };
   /** How each area tool draws: clicked corners, or dragged out as a rectangle, circle… (kept per tool). */
   const [draws, setDraws] = useStored<Partial<Record<Tool, ShapeChoice>>>('draws', {
     room: { kind: 'rect', sides: 6 },
@@ -893,22 +905,28 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     scene?.clearPreview();
   };
 
-  /** Scatter inside a picked shape, or along a picked path (tied: it follows when that moves). */
+  /**
+   * Dress a picked shape or room, or along a picked path (tied: it follows when that moves).
+   */
   const scatterOn = (target: MapItem) => {
-    if (!layer || layer.locked || (target.kind !== 'shape' && target.kind !== 'path')) return;
+    if (
+      !layer ||
+      layer.locked ||
+      (target.kind !== 'shape' && target.kind !== 'path' && target.kind !== 'room')
+    )
+      return;
     const id = itemId(doc);
-    // A shape wants an area scatter, a path a line one: the current preset if it fits, else a
-    // sensible one (a forest, trees beside a road).
-    const wanted = target.kind === 'shape' ? 'area' : 'along';
-    const fallback = SCATTER_PRESETS.find(
-      (p) => p.id === (wanted === 'area' ? 'forest' : 'roadside'),
+    // A shape or room wants an area dressing, a path a line one: the current recipe if it fits,
+    // else a sensible one (a forest, a storeroom, trees beside a road).
+    const wanted = target.kind === 'path' ? 'along' : 'area';
+    const fallback = recipeSettings(
+      target.kind === 'path' ? 'roadside' : target.kind === 'room' ? 'storage' : 'forest',
     );
-    const settings: ScatterSettings =
-      scatter.mode === wanted || !fallback ? scatter : settingsFromPreset(fallback, scatter.scale);
+    const settings: DressSettings = scatter.mode === wanted || !fallback ? scatter : fallback;
     const where =
-      target.kind === 'shape'
-        ? { points: [], within: target.id }
-        : { points: [], follow: target.id };
+      target.kind === 'path'
+        ? { points: [], follow: target.id }
+        : { points: [], within: target.id };
     commit((d) =>
       add(d, layer.id, makeScatter(id, settings, where, Math.floor(Math.random() * 1e9))),
     );
@@ -1039,12 +1057,11 @@ function Editor({ doc, mode }: { doc: MapDoc; mode: MapMode }) {
     setPanelOpen(true);
   };
 
-  /** A room furnished: a scatter of furniture tied to it, so it follows when the room changes. */
-  const furnishRoom = (roomId: string, presetId: string) => {
-    const preset = FURNISH_PRESETS.find((p) => p.id === presetId);
-    if (!preset || !layer || layer.locked) return;
+  /** A room furnished: a dressing of furniture tied to it, so it follows when the room changes. */
+  const furnishRoom = (roomId: string, recipeId: string) => {
+    const settings = recipeSettings(recipeId);
+    if (!settings || !layer || layer.locked) return;
     const id = itemId(doc);
-    const settings = settingsFromPreset(preset, doc.grid.size / 70);
     commit((d) =>
       add(
         d,

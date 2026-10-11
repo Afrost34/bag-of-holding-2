@@ -5,7 +5,7 @@ import { type MapDoc, type MapItem } from '../../app/maps/model';
 import type { Prefab } from '../../app/maps/prefabs';
 import type { TerrainRef } from '../../app/maps/terrain';
 import { type DistrictSettings } from '../../app/maps/cityDoc';
-import { type ScatterSettings } from '../../app/maps/scatterDoc';
+import { type DressSettings } from '../../app/maps/scatterDoc';
 import {
   type BrushSettings,
   type BuildingSettings,
@@ -72,8 +72,8 @@ export interface MapPanelsProps {
   setBuildingSet: (s: BuildingSettings) => void;
   /** A walled town with a market quarter, in the middle of the view. */
   onGenerateTown: () => void;
-  scatter: ScatterSettings;
-  setScatter: (s: ScatterSettings) => void;
+  scatter: DressSettings;
+  setScatter: (s: DressSettings) => void;
   /** Draw an area to cut out of the picked shape (a lake in a forest). */
   onCutHole: (shapeId: string) => void;
   /** Scatter inside the picked shape, or along the picked path. */

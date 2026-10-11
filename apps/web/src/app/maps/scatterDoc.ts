@@ -1,25 +1,20 @@
 import { stampUnit } from './units';
-import { glyphAspect, glyphRef, isGlyphRef, type GlyphId } from './glyphs';
-import type { MapDoc, MapItem } from './model';
+import { glyphAspect, isGlyphRef } from './glyphs';
+import type { DressRule, MapDoc, MapItem } from './model';
 import { parsePackRef, squaresOf } from './packModel';
 import { insetPolygon } from './polyclip';
 import { pointInPolygon } from './polygon';
-import {
-  pickIndex,
-  randomAngle,
-  scatterInstances,
-  type Instance,
-  type Obstacles,
-  type ScatterSpec,
-} from './scatter';
+import { pickIndex, randomAngle, type Instance, type Obstacles } from './scatter';
 import { bounds, growPolygon, splinePoints } from './spline';
 import { seeded, type TerrainRef } from './terrain';
+import { dressPieces, type DressInstance, type DressTarget } from './dress/engine';
 
 /**
- * How a scatter item meets the rest of its map: the outline it fills or the line it follows (its
- * own points, or those of a shape or path it is tied to, so moving that moves the scatter), what
- * it keeps clear of (roads, rivers, trails, and ground that is water), and where it may stand
- * (`onlyOn` a kind of terrain).
+ * A dressing (scatter item) on its map: the outline it fills or the line it follows (its own
+ * points, or those of a shape, room or path it is tied to, so moving that moves the dressing),
+ * what it keeps clear of (roads, rivers, trails, buildings, and ground that is water), where it
+ * may stand (`onlyOn` a kind of terrain), making it from the tool's settings, and baking it into
+ * stamps. The pieces themselves come from the dress engine (`dress/engine.ts`).
  */
 
 export type ScatterItem = Extract<MapItem, { kind: 'scatter' }>;
@@ -28,7 +23,11 @@ type PathItem = Extract<MapItem, { kind: 'path' }>;
 
 const allItems = (doc: MapDoc): MapItem[] => doc.layers.flatMap((l) => l.items);
 
-/** The outline (area) or line (along) a scatter uses, rounded, in map pixels. */
+/** The biggest glyph of a dressing: a room's furniture stays this far in from the walls. */
+const largestGlyph = (item: ScatterItem): number =>
+  Math.max(0, ...item.rules.map((r) => (r.pieces.some((p) => isGlyphRef(p.ref)) ? r.sizeMax : 0)));
+
+/** The outline (area) or line (along) a dressing uses, rounded, in map pixels. */
 export function scatterLine(doc: MapDoc, item: ScatterItem): number[] {
   if (item.within) {
     const target = allItems(doc).find((i) => i.id === item.within);
@@ -37,10 +36,8 @@ export function scatterLine(doc: MapDoc, item: ScatterItem): number[] {
     if (target?.kind === 'room') {
       const floor = splinePoints(target.points, true, target.smooth);
       // In from the walls by half a piece too, so furniture does not spill over them.
-      return (
-        insetPolygon(floor, target.wall * 1.2 + item.sizeMax * 0.5) ??
-        growPolygon(floor, -target.wall * 1.4)
-      );
+      const inset = target.wall * 1.2 + Math.max(largestGlyph(item), doc.grid.size) * 0.5;
+      return insetPolygon(floor, inset) ?? growPolygon(floor, -target.wall * 1.4);
     }
   }
   if (item.follow) {
@@ -52,7 +49,7 @@ export function scatterLine(doc: MapDoc, item: ScatterItem): number[] {
   return splinePoints(item.points, item.mode === 'area', item.smooth);
 }
 
-/** Whether the scatter is tied to another item (its own points are then not used). */
+/** Whether the dressing is tied to another item (its own points are then not used). */
 export const isTied = (item: ScatterItem): boolean => Boolean(item.within ?? item.follow);
 
 interface Ground {
@@ -92,9 +89,11 @@ function terrainAt(list: readonly Ground[], x: number, y: number): TerrainRef | 
 export interface PlacementOptions {
   /** Keep clear of paths, buildings and water (auto), or not. */
   avoid: 'auto' | 'none';
+  /** Roads and rivers do not count; buildings and water still do. */
+  overPaths?: boolean | undefined;
   /** Only on these kinds of ground. */
   onlyOn?: readonly TerrainRef[] | undefined;
-  /** A path to ignore (the one a scatter follows). */
+  /** A path to ignore (the one a dressing follows). */
   skipPath?: string | undefined;
 }
 
@@ -105,7 +104,7 @@ export function placementRules(
   const onlyOn = options.onlyOn;
   const list = options.avoid === 'none' && !onlyOn?.length ? [] : grounds(doc);
   const lines =
-    options.avoid === 'none'
+    options.avoid === 'none' || options.overPaths
       ? []
       : allItems(doc).flatMap((i) =>
           i.kind === 'path' && i.style !== 'fence' && i.id !== options.skipPath
@@ -130,17 +129,15 @@ export function placementRules(
   };
 }
 
-/** Everything needed to make the pieces of a scatter item. */
-export function scatterSetup(
-  doc: MapDoc,
-  item: ScatterItem,
-): { spec: ScatterSpec; obstacles: Obstacles; allowed: (x: number, y: number) => boolean } {
+/** Where a dressing goes and what it keeps clear of, for the dress engine. */
+export function dressTarget(doc: MapDoc, item: ScatterItem): DressTarget {
   const rules = placementRules(doc, {
     avoid: item.avoid,
+    overPaths: item.overPaths,
     onlyOn: item.onlyOn,
     skipPath: item.follow,
   });
-  // Scattered over a shape with holes, it keeps out of them.
+  // Laid over a shape with holes, it keeps out of them.
   const target = item.within ? allItems(doc).find((i) => i.id === item.within) : undefined;
   const holes =
     target?.kind === 'shape'
@@ -149,41 +146,29 @@ export function scatterSetup(
           .map((h) => splinePoints(h, true, target.smooth))
       : [];
   return {
-    spec: {
-      mode: item.mode,
-      line: scatterLine(doc, item),
-      seed: item.seed,
-      // Overlap shrinks the room each piece keeps round it (a packed forest, a crowd).
-      spacing: Math.max(2, item.spacing * (1 - (item.overlap ?? 0))),
-      sizeMin: item.sizeMin,
-      sizeMax: item.sizeMax,
-      weights: item.pieces.map((p) => p.weight),
-      rotation: item.rotation,
-      rotMin: item.rotMin,
-      rotMax: item.rotMax,
-      cluster: item.cluster,
-      offset: item.offset,
-      sides: item.sides,
-      jitter: item.jitter,
-      clearance: item.clearance,
-      max: 6000,
-    },
+    line: scatterLine(doc, item),
+    mode: item.mode,
+    seed: item.seed,
     obstacles: {
       lines: rules.obstacles.lines,
       polygons: [...rules.obstacles.polygons, ...holes],
     },
     allowed: rules.allowed,
+    clearance: item.clearance,
+    cell: doc.grid.size,
+    reach: (rule, piece) => pieceBox(doc, rule, piece).w / 2,
   };
 }
 
-export function scatterOf(doc: MapDoc, item: ScatterItem): Instance[] {
-  const { spec, obstacles, allowed } = scatterSetup(doc, item);
-  return scatterInstances(spec, obstacles, allowed);
+/** The pieces of a dressing, rule by rule. */
+export function scatterOf(doc: MapDoc, item: ScatterItem): DressInstance[] {
+  return dressPieces(item.rules, dressTarget(doc, item));
 }
 
 /**
- * A short text that changes when anything a scatter reacts to changes: the paths and shapes of
- * the map. Scatter pieces are drawn again when it does (a road moved, an island reshaped).
+ * A short text that changes when anything a dressing reacts to changes: the paths, shapes,
+ * buildings and rooms of the map. Pieces are drawn again when it does (a road moved, an island
+ * reshaped, a room's walls dragged).
  */
 export function obstacleSignature(doc: MapDoc): string {
   const parts: unknown[] = [];
@@ -193,310 +178,49 @@ export function obstacleSignature(doc: MapDoc): string {
       else if (i.kind === 'shape')
         parts.push([i.id, i.points, i.smooth, i.texture ?? '', i.holes ?? []]);
       else if (i.kind === 'building') parts.push([i.id, i.points]);
+      else if (i.kind === 'room') parts.push([i.id, i.points, i.smooth, i.wall]);
   const text = JSON.stringify(parts);
   let h = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0;
   return `${h.toString(36)}-${text.length.toString(36)}`;
 }
 
-// region Presets
-
-export interface ScatterPreset {
-  id: string;
-  name: string;
-  hint: string;
-  mode: 'area' | 'along';
-  pieces: { ref: string; weight: number }[];
-  spacing: number;
-  sizeMin: number;
-  sizeMax: number;
-  rotation: 'none' | 'random' | 'along' | 'quarter';
-  cluster: number;
-  offset: number;
-  sides: 'center' | 'both' | 'left' | 'right';
-  jitter: number;
-  onlyOn?: TerrainRef[];
-}
-
-const g = (id: GlyphId, weight = 1) => ({ ref: glyphRef(id), weight });
-
-const furnish = (
-  id: string,
-  name: string,
-  hint: string,
-  pieces: { ref: string; weight: number }[],
-  spacing: number,
-  sizeMin: number,
-  sizeMax: number,
-): ScatterPreset => ({
-  id,
-  name,
-  hint,
-  mode: 'area',
-  pieces,
-  spacing,
-  sizeMin,
-  sizeMax,
-  rotation: 'quarter',
-  cluster: 0.15,
-  offset: 0,
-  sides: 'center',
-  jitter: 0,
-});
-
-/** What a room can be furnished as (sizes are for a grid of 70 pixels). */
-export const FURNISH_PRESETS: ScatterPreset[] = [
-  furnish(
-    'tavern',
-    'Tavern',
-    'tables, chairs, barrels',
-    [g('table', 2), g('chair', 5), g('barrel', 1)],
-    175,
-    62,
-    104,
-  ),
-  furnish(
-    'storage',
-    'Storeroom',
-    'barrels, crates, chests',
-    [g('barrel', 3), g('crate', 3), g('chest', 1)],
-    112,
-    48,
-    70,
-  ),
-  furnish(
-    'bedroom',
-    'Bedroom',
-    'beds, chests, a shelf',
-    [g('bed', 2), g('chest', 1), g('shelf', 1), g('chair', 1)],
-    200,
-    66,
-    120,
-  ),
-  furnish(
-    'workshop',
-    'Workshop',
-    'benches, crates, shelves',
-    [g('table', 3), g('crate', 1), g('barrel', 1), g('shelf', 1)],
-    165,
-    62,
-    104,
-  ),
-  furnish(
-    'study',
-    'Library or study',
-    'shelves, tables, chairs',
-    [g('shelf', 3), g('table', 1), g('chair', 2)],
-    170,
-    80,
-    130,
-  ),
-];
-
-export const SCATTER_PRESETS: ScatterPreset[] = [
-  {
-    id: 'forest',
-    name: 'Forest',
-    hint: 'mixed trees and bushes',
-    mode: 'area',
-    pieces: [g('tree', 3), g('pine', 1), g('bush', 1)],
-    spacing: 46,
-    sizeMin: 42,
-    sizeMax: 70,
-    rotation: 'none',
-    cluster: 0.15,
-    offset: 0,
-    sides: 'center',
-    jitter: 0,
-  },
-  {
-    id: 'pines',
-    name: 'Pine forest',
-    hint: 'dense conifers',
-    mode: 'area',
-    pieces: [g('pine', 5), g('tree', 0.5)],
-    spacing: 38,
-    sizeMin: 40,
-    sizeMax: 66,
-    rotation: 'none',
-    cluster: 0.1,
-    offset: 0,
-    sides: 'center',
-    jitter: 0,
-  },
-  {
-    id: 'grove',
-    name: 'Groves',
-    hint: 'clumps with clearings',
-    mode: 'area',
-    pieces: [g('tree', 3), g('bush', 1)],
-    spacing: 40,
-    sizeMin: 40,
-    sizeMax: 64,
-    rotation: 'none',
-    cluster: 0.75,
-    offset: 0,
-    sides: 'center',
-    jitter: 0,
-  },
-  {
-    id: 'hills',
-    name: 'Hills',
-    hint: 'rolling hills',
-    mode: 'area',
-    pieces: [g('hill')],
-    spacing: 84,
-    sizeMin: 80,
-    sizeMax: 130,
-    rotation: 'none',
-    cluster: 0.2,
-    offset: 0,
-    sides: 'center',
-    jitter: 0,
-  },
-  {
-    id: 'mountains',
-    name: 'Mountain range',
-    hint: 'along a line you draw',
-    mode: 'along',
-    pieces: [g('mountain', 3), g('peak', 1)],
-    spacing: 66,
-    sizeMin: 90,
-    sizeMax: 150,
-    rotation: 'none',
-    cluster: 0,
-    offset: 0,
-    sides: 'center',
-    jitter: 0.7,
-  },
-  {
-    id: 'rocks',
-    name: 'Rocks',
-    hint: 'boulders and rubble',
-    mode: 'area',
-    pieces: [g('rock')],
-    spacing: 52,
-    sizeMin: 22,
-    sizeMax: 46,
-    rotation: 'none',
-    cluster: 0.4,
-    offset: 0,
-    sides: 'center',
-    jitter: 0,
-  },
-  {
-    id: 'grass',
-    name: 'Grass tufts',
-    hint: 'light ground cover',
-    mode: 'area',
-    pieces: [g('tuft')],
-    spacing: 30,
-    sizeMin: 16,
-    sizeMax: 26,
-    rotation: 'none',
-    cluster: 0.2,
-    offset: 0,
-    sides: 'center',
-    jitter: 0,
-  },
-  {
-    id: 'reeds',
-    name: 'Reeds',
-    hint: 'in water',
-    mode: 'area',
-    pieces: [g('reed')],
-    spacing: 26,
-    sizeMin: 18,
-    sizeMax: 30,
-    rotation: 'none',
-    cluster: 0.5,
-    offset: 0,
-    sides: 'center',
-    jitter: 0,
-    onlyOn: ['water'],
-  },
-  {
-    id: 'hedge',
-    name: 'Hedge or tree line',
-    hint: 'along a line you draw',
-    mode: 'along',
-    pieces: [g('bush', 3), g('tree', 1)],
-    spacing: 30,
-    sizeMin: 26,
-    sizeMax: 40,
-    rotation: 'none',
-    cluster: 0,
-    offset: 0,
-    sides: 'center',
-    jitter: 0.12,
-  },
-  {
-    id: 'roadside',
-    name: 'Trees beside a road',
-    hint: 'both sides of a line',
-    mode: 'along',
-    pieces: [g('tree', 3), g('pine', 1)],
-    spacing: 62,
-    sizeMin: 40,
-    sizeMax: 60,
-    rotation: 'none',
-    cluster: 0,
-    offset: 44,
-    sides: 'both',
-    jitter: 0.25,
-  },
-];
-
-// endregion
-
 // region Making and baking
 
-/** The settings the Scatter tool makes new scatter items from. */
-export interface ScatterSettings {
-  preset: string;
+/** The settings the Dress tool makes new dressings from. */
+export interface DressSettings {
+  /** The recipe picked (or `mix` for a set of pictures, `custom` once rules were edited). */
+  recipe: string;
   mode: 'area' | 'along';
-  pieces: { ref: string; weight: number }[];
-  /** Spacing and sizes before `scale`. */
-  spacing: number;
-  sizeMin: number;
-  sizeMax: number;
-  rotation: 'none' | 'random' | 'along' | 'quarter';
-  rotMin?: number | undefined;
-  rotMax?: number | undefined;
-  overlap?: number | undefined;
-  cluster: number;
-  offset: number;
-  sides: 'center' | 'both' | 'left' | 'right';
-  jitter: number;
+  rules: DressRule[];
   avoid: 'auto' | 'none';
+  overPaths?: boolean | undefined;
   onlyOn?: TerrainRef[] | undefined;
-  /** Multiplies spacing, sizes and offset: the same preset for a battle map or a continent. */
+  /** Multiplies spacing, glyph sizes and offsets: the same recipe for a battle map or a continent. */
   scale: number;
   /** One piece per click, drawn at random, instead of a stroke over an area. */
   single?: boolean;
 }
 
-export const settingsFromPreset = (p: ScatterPreset, scale = 1): ScatterSettings => ({
-  preset: p.id,
-  mode: p.mode,
-  pieces: p.pieces.map((x) => ({ ...x })),
-  spacing: p.spacing,
-  sizeMin: p.sizeMin,
-  sizeMax: p.sizeMax,
-  rotation: p.rotation,
-  cluster: p.cluster,
-  offset: p.offset,
-  sides: p.sides,
-  jitter: p.jitter,
-  avoid: 'auto',
-  ...(p.onlyOn ? { onlyOn: p.onlyOn } : {}),
-  scale,
-});
+/** A rule with its lengths multiplied (the tool's "size of everything"). */
+export function scaleRule(rule: DressRule, k: number): DressRule {
+  if (k === 1) return rule;
+  const glyphs = rule.pieces.some((p) => isGlyphRef(p.ref));
+  return {
+    ...rule,
+    spacing: Math.round(rule.spacing * k),
+    // Pack pictures keep the size their name gives: their sizes are only a variation.
+    sizeMin: glyphs ? Math.round(rule.sizeMin * k) : rule.sizeMin,
+    sizeMax: glyphs ? Math.round(rule.sizeMax * k) : rule.sizeMax,
+    offset: Math.round(rule.offset * k),
+    ...(rule.depth !== undefined ? { depth: Math.round(rule.depth * k) } : {}),
+  };
+}
 
-/** A scatter item from settings and where it goes (its own points, or a shape or path to tie to). */
+/** A dressing from settings and where it goes (its own points, or a shape, room or path to tie to). */
 export function makeScatter(
   id: string,
-  s: ScatterSettings,
+  s: DressSettings,
   where: { points: number[]; within?: string; follow?: string },
   seed: number,
 ): ScatterItem {
@@ -509,20 +233,13 @@ export function makeScatter(
     ...(where.within ? { within: where.within } : {}),
     ...(where.follow ? { follow: where.follow } : {}),
     seed,
-    pieces: s.pieces.map((p) => ({ ...p })),
-    spacing: Math.round(s.spacing * s.scale),
-    sizeMin: Math.round(s.sizeMin * s.scale),
-    sizeMax: Math.round(s.sizeMax * s.scale),
-    rotation: s.rotation,
-    ...(s.rotMin !== undefined ? { rotMin: s.rotMin } : {}),
-    ...(s.rotMax !== undefined ? { rotMax: s.rotMax } : {}),
-    ...(s.overlap ? { overlap: s.overlap } : {}),
-    cluster: s.cluster,
-    offset: Math.round(s.offset * s.scale),
-    sides: s.sides,
-    jitter: s.jitter,
+    ...(s.recipe !== 'custom' && s.recipe !== 'mix' ? { recipe: s.recipe } : {}),
+    rules: s.rules.map((r) =>
+      scaleRule({ ...r, pieces: r.pieces.map((p) => ({ ...p })) }, s.scale),
+    ),
     clearance: 0,
     avoid: s.avoid,
+    ...(s.overPaths ? { overPaths: true as const } : {}),
     ...(s.onlyOn?.length ? { onlyOn: s.onlyOn } : {}),
   };
 }
@@ -531,35 +248,40 @@ export function makeScatter(
  * How big a piece is: a glyph is as wide as its size says. A pack picture whose name gives its
  * size in squares (`Oak_2x2.webp`) keeps that size on the map's grid and the size range only varies
  * it (0.8–1.2 times, say), so a mix of big and small trees keeps each one's proportions. Anything
- * else is as wide as its size says, with the aspect given (or square).
+ * else is as wide as its size says, with the aspect given (or square). A piece's own `scale`
+ * multiplies it.
  */
 export function pieceBox(
   doc: MapDoc,
-  item: ScatterItem,
+  rule: DressRule,
   inst: Instance,
   aspect = 1,
 ): { w: number; h: number; base: boolean } {
-  const ref = item.pieces[inst.piece]?.ref ?? '';
-  if (isGlyphRef(ref)) return { w: inst.size, h: inst.size / glyphAspect(ref), base: true };
+  const piece = rule.pieces[inst.piece];
+  const ref = piece?.ref ?? '';
+  const k = piece?.scale ?? 1;
+  if (isGlyphRef(ref))
+    return { w: inst.size * k, h: (inst.size * k) / glyphAspect(ref), base: true };
   const parsed = parsePackRef(ref);
   const squares = parsed ? squaresOf(parsed.path) : null;
   if (squares) {
-    const middle = Math.max(1, (item.sizeMin + item.sizeMax) / 2);
-    const w = squares.w * stampUnit(doc) * (inst.size / middle);
+    const middle = Math.max(1, (rule.sizeMin + rule.sizeMax) / 2);
+    const w = squares.w * stampUnit(doc) * (inst.size / middle) * k;
     return { w, h: (w * squares.h) / squares.w, base: false };
   }
-  return { w: inst.size, h: inst.size / aspect, base: false };
+  return { w: inst.size * k, h: (inst.size * k) / aspect, base: false };
 }
 
 /**
- * Settings that scatter a whole set of pack pictures: spacing from how big they are on the map (`unit`: pixels to a pack square),
- * the size range as a variation around each picture's own size, turned any way (top-down art).
+ * Settings that lay a whole set of pack pictures: spacing from how big they are on the map
+ * (`unit`: pixels to a pack square), the size range as a variation around each picture's own size,
+ * turned any way (top-down art).
  */
 export function mixSettings(
   refs: readonly string[],
-  base: ScatterSettings,
+  base: DressSettings,
   unit: number,
-): ScatterSettings {
+): DressSettings {
   const widths = refs
     .map((r) => {
       const parsed = parsePackRef(r);
@@ -569,17 +291,27 @@ export function mixSettings(
   const typical = widths[Math.floor(widths.length / 2)] ?? 1;
   return {
     ...base,
-    preset: 'mix',
-    pieces: refs.map((ref) => ({ ref, weight: 1 })),
-    spacing: Math.round(Math.max(typical, 1) * unit * 1.1),
-    sizeMin: 80,
-    sizeMax: 120,
-    rotation: 'random',
+    recipe: 'mix',
+    mode: 'area',
+    rules: [
+      {
+        place: 'area',
+        pieces: refs.map((ref) => ({ ref, weight: 1 })),
+        spacing: Math.round(Math.max(typical, 1) * unit * 1.1),
+        sizeMin: 80,
+        sizeMax: 120,
+        rotation: 'random',
+        cluster: 0,
+        offset: 0,
+        sides: 'center',
+        jitter: 0,
+      },
+    ],
     scale: 1,
   };
 }
 
-/** The scatter turned into loose stamps, one for each piece, where it stands now. */
+/** The dressing turned into loose stamps, one for each piece, where it stands now. */
 export function bakeScatter(doc: MapDoc, id: string): MapDoc {
   const item = allItems(doc).find((i): i is ScatterItem => i.kind === 'scatter' && i.id === id);
   if (!item) return doc;
@@ -591,10 +323,12 @@ export function bakeScatter(doc: MapDoc, id: string): MapDoc {
     taken.add(candidate);
     return candidate;
   };
-  const stamps: MapItem[] = scatterOf(doc, item).map((inst) => {
-    const ref = item.pieces[inst.piece]?.ref ?? '';
-    const box = pieceBox(doc, item, inst);
-    return {
+  const stamps: MapItem[] = scatterOf(doc, item).flatMap((inst) => {
+    const rule = item.rules[inst.rule];
+    if (!rule) return [];
+    const ref = rule.pieces[inst.piece]?.ref ?? '';
+    const box = pieceBox(doc, rule, inst);
+    const stamp: MapItem = {
       kind: 'stamp',
       id: fresh(),
       stamp: ref,
@@ -604,7 +338,10 @@ export function bakeScatter(doc: MapDoc, id: string): MapDoc {
       w: Math.round(box.w),
       h: Math.round(box.h),
       rotation: Math.round((inst.angle * 180) / Math.PI) % 360,
+      ...(inst.flip ? { flipX: true } : {}),
+      ...(inst.tint ? { tint: inst.tint } : {}),
     };
+    return [stamp];
   });
   return {
     ...doc,
@@ -615,45 +352,39 @@ export function bakeScatter(doc: MapDoc, id: string): MapDoc {
   };
 }
 
-// endregion
-
-const firstPreset = SCATTER_PRESETS[0];
-if (!firstPreset) throw new Error('No scatter presets');
-/** What the Scatter tool starts with. */
-export const DEFAULT_SCATTER: ScatterSettings = settingsFromPreset(firstPreset);
-
 /**
- * One piece of a scatter's set put down at a point, as an ordinary stamp (Dungeondraft's click-once
- * scatter): the piece, size and turn are drawn at random, so the next click is another. Null when
- * the settings have no pieces.
+ * One piece of the first rule put down at a point, as an ordinary stamp (Dungeondraft's
+ * click-once scatter): the piece, size and turn are drawn at random, so the next click is
+ * another. Null when the settings have no pieces.
  */
 export function singlePiece(
   doc: MapDoc,
-  s: ScatterSettings,
+  s: DressSettings,
   at: { x: number; y: number },
   id: string,
   seed: number,
 ): MapItem | null {
-  if (s.pieces.length === 0) return null;
-  const item = makeScatter(id, s, { points: [] }, seed);
+  const first = s.rules.find((r) => r.pieces.length > 0);
+  if (!first) return null;
+  const rule = scaleRule(first, s.scale);
   const rand = seeded(seed);
   const piece = pickIndex(
-    item.pieces.map((p) => p.weight),
+    rule.pieces.map((p) => p.weight),
     rand(),
   );
-  const size = item.sizeMin + rand() * Math.max(0, item.sizeMax - item.sizeMin);
+  const size = rule.sizeMin + rand() * Math.max(0, rule.sizeMax - rule.sizeMin);
   const angle =
-    item.rotation === 'random'
-      ? randomAngle(rand, item)
-      : item.rotation === 'quarter'
+    rule.rotation === 'random'
+      ? randomAngle(rand, rule)
+      : rule.rotation === 'quarter'
         ? Math.floor(rand() * 4) * (Math.PI / 2)
         : 0;
   const inst: Instance = { x: at.x, y: at.y, angle, size, piece };
-  const box = pieceBox(doc, item, inst);
+  const box = pieceBox(doc, rule, inst);
   return {
     kind: 'stamp',
     id,
-    stamp: item.pieces[piece]?.ref ?? '',
+    stamp: rule.pieces[piece]?.ref ?? '',
     x: Math.round(at.x),
     y: Math.round(box.base ? at.y - box.h * 0.42 : at.y),
     w: Math.round(box.w),
@@ -661,3 +392,5 @@ export function singlePiece(
     rotation: Math.round((angle * 180) / Math.PI) % 360,
   };
 }
+
+// endregion
