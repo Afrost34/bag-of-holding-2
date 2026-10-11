@@ -40,6 +40,7 @@ import { pinIconSvg } from './pinIcons';
 import { glyphIdOf, glyphTexture, isGlyphRef } from './glyphs';
 import { itemBox } from './arrange';
 import { lightSegments, visibilityPolygon } from './lighting';
+import { mapLights } from './glow';
 import { frameCorners, frameRects, roseShape } from './decor';
 import { contourSegments, heightsOf, shadeImage, type Elevation } from './elevation';
 import { alongLayout, targetLine } from './labels';
@@ -1135,9 +1136,8 @@ export class MapScene {
    * adds a glow.
    */
   private drawLighting(doc: MapDoc): void {
-    const lights = doc.layers.flatMap((l) =>
-      layerShown(doc, l) ? l.items.filter((i) => i.kind === 'light') : [],
-    );
+    // Light items, and the stamps and dressing pieces whose pictures give light.
+    const lights = mapLights(doc);
     const walls = lights.some((l) => l.shadows) ? lightSegments(doc) : [];
     const key = JSON.stringify([
       doc.ambient ?? '',

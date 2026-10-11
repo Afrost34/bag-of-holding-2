@@ -267,6 +267,16 @@ export function RoomItemSettings({
             </button>
           ))}
         </div>
+        <button
+          type="button"
+          title="Lamps on the walls, every few squares; they light the room by themselves"
+          onClick={() => {
+            onFurnish('room-lights');
+          }}
+          className="rounded-md border border-border px-2 py-1 text-sm hover:bg-sunken"
+        >
+          Light this room
+        </button>
       </div>
       <p className="text-xs text-muted">
         {(item.doors?.length ?? 0) === 0

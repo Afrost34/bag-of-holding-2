@@ -176,3 +176,47 @@ test('a room is furnished from the pack: tables down the middle, seats round the
   await page.getByRole('button', { name: 'Dress this table' }).click();
   await waitForSaved(page, 'maps', 'Candles_Yellow_Arranged_A1_1x1');
 });
+
+test('lit braziers and wall lamps light the map by themselves', async ({ page }, testInfo) => {
+  test.skip(isPhone(page), 'The Creator is used on the desktop.');
+  test.setTimeout(90_000);
+  await installData(page);
+  await newMap(page, 'Throne Room');
+  await tool(page, 'Stamp').click();
+  await importPack(page, [
+    `${CORE}Lightsources/Braziers/Lit/Brazier_Metal_Gray_E1_Lit_2x2.png`,
+    `${CORE}Lightsources/Interior_Wall_Lights/Wall_Light_Metal_Bronze_F1_1x1.png`,
+    `${CORE}Lightsources/Interior_Wall_Lights/Wall_Light_Black_Metal_Rusty_A1_1x1.png`,
+  ]);
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  // Night falls, so the lights show.
+  await tool(page, 'Light').click();
+  await page.getByLabel('Ambient preset').selectOption({ label: 'Night' });
+  await tool(page, 'Stamp').click();
+  await page.getByLabel('Find a pack picture').fill('brazier');
+  await page
+    .getByRole('list', { name: 'Pack pictures' })
+    .getByRole('button', { name: 'Brazier Metal Gray E1 Lit' })
+    .click();
+  await page.mouse.click(box.x + 650, box.y + 450);
+  await waitForSaved(page, 'maps', 'Brazier_Metal_Gray_E1_Lit_2x2');
+  await tool(page, 'Select and move').click();
+  await page.mouse.click(box.x + 650, box.y + 450);
+  const light = page.getByRole('group', { name: 'Light' });
+  await expect(light.getByLabel(/Gives light/)).toBeChecked();
+  await light.getByLabel('Light reach').fill('9');
+  await waitForSaved(page, 'maps', '"squares":9');
+  // A room lit by lamps on its walls.
+  await tool(page, 'Room').click();
+  await page.mouse.move(box.x + 80, box.y + 60);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 520, box.y + 380, { steps: 8 });
+  await page.mouse.up();
+  await waitForSaved(page, 'maps', '"kind":"room"');
+  await page.getByRole('button', { name: 'Light this room' }).click();
+  await waitForSaved(page, 'maps', '"recipe":"room-lights"');
+  await page.waitForTimeout(800);
+  await canvas.screenshot({ path: testInfo.outputPath('lit-room.png') });
+});
