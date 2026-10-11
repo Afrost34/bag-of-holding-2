@@ -6,7 +6,7 @@ import { defaultCaveFloor, defaultCaveWall } from '../../app/maps/packDefaults';
 import { usePacks } from '../../app/maps/packs';
 import type { TerrainRef } from '../../app/maps/terrain';
 import { type MapItem } from '../../app/maps/model';
-import { FURNISH_PRESETS } from '../../app/maps/scatterDoc';
+import { FURNISH_RECIPES } from '../../app/maps/dress/recipes';
 import { DOOR_KINDS, type DoorKind } from '../../app/maps/rooms';
 import { Section, ShapePicker } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
@@ -253,7 +253,7 @@ export function RoomItemSettings({
       <div role="group" aria-label="Furnish" className="space-y-1">
         <p className="text-sm font-medium">Furnish it as…</p>
         <div className="flex flex-wrap gap-1">
-          {FURNISH_PRESETS.map((p) => (
+          {FURNISH_RECIPES.map((p) => (
             <button
               key={p.id}
               type="button"

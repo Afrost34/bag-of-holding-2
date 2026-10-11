@@ -384,7 +384,8 @@ export function PackBrowser({
                 onUseAsMix(all.filter((_, i) => i % stride === 0).map(entryRef));
               }}
             >
-              <Trees className="h-4 w-4" aria-hidden /> Scatter these ({Math.min(found.total, 40)})
+              <Trees className="h-4 w-4" aria-hidden /> Dress with these (
+              {Math.min(found.total, 40)})
             </Button>
           )}
           <label className="flex items-center gap-2 text-[11px] text-muted">

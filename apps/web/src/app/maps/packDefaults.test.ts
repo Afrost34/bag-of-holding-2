@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { classify } from './packCategories';
 import {
-  availablePresets,
   defaultCaveFloor,
   defaultCaveWall,
   defaultMaterial,
@@ -10,8 +9,6 @@ import {
   defaultSlots,
   pickMany,
   pickOne,
-  presetRefs,
-  PACK_PRESETS,
 } from './packDefaults';
 
 const e = (path: string) => ({ pack: 'p', path, cat: classify(path) });
@@ -52,20 +49,8 @@ describe('what the tools start with', () => {
     expect(pickOne(PACK, { cats: ['terrain'], words: ['nothing'] })).toBeUndefined();
   });
 
-  it('spreads a mix over many pictures and leaves out what the preset excludes', () => {
-    const forest = PACK_PRESETS.find((p) => p.id === 'forest');
-    if (!forest) throw new Error('no forest preset');
-    const refs = presetRefs(PACK, forest);
-    expect(refs).toHaveLength(10);
-    expect(refs.some((r) => r.includes('Shadow'))).toBe(false);
-    expect(refs.some((r) => r.includes('Bush_'))).toBe(true);
+  it('spreads a mix over many pictures', () => {
     expect(pickMany(PACK, { cats: ['trees'] }, 3)).toHaveLength(3);
-  });
-
-  it('offers only the presets the packs can fill', () => {
-    const ids = availablePresets(PACK).map((p) => p.id);
-    expect(ids).toEqual(expect.arrayContaining(['forest', 'trees', 'bushes', 'rocks']));
-    expect(ids).not.toContain('mushrooms');
   });
 });
 

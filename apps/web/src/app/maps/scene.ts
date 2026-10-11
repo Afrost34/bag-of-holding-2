@@ -1294,23 +1294,29 @@ export class MapScene {
     return textureFor(stampFile(ref));
   }
 
-  /** The pieces of a scatter: made from its seed, standing on their base, back to front. */
+  /** The pieces of a dressing: made from its seed, rule by rule, each rule's back to front. */
   private scatterView(item: Extract<MapItem, { kind: 'scatter' }>, doc: MapDoc): Container {
     const holder = new Container();
     const list = scatterOf(doc, item);
+    const refs = item.rules.map((r) => r.pieces.map((p) => p.ref));
     this.loading++;
-    void Promise.all(item.pieces.map((p) => this.stampTexture(p.ref))).then((textures) => {
+    void Promise.all(
+      refs.map((pieces) => Promise.all(pieces.map((ref) => this.stampTexture(ref)))),
+    ).then((textures) => {
       this.loading--;
       if (holder.destroyed) return;
       for (const inst of list) {
-        const texture = textures[inst.piece];
-        if (!texture) continue;
+        const rule = item.rules[inst.rule];
+        const texture = textures[inst.rule]?.[inst.piece];
+        if (!rule || !texture) continue;
         const sprite = new Sprite(texture);
-        const box = pieceBox(doc, item, inst, texture.width / Math.max(1, texture.height));
+        const box = pieceBox(doc, rule, inst, texture.width / Math.max(1, texture.height));
         // Glyphs stand on their base; pictures are centred.
         sprite.anchor.set(0.5, box.base ? 0.92 : 0.5);
         sprite.width = box.w;
         sprite.height = box.h;
+        if (inst.flip) sprite.scale.x = -sprite.scale.x;
+        if (inst.tint) sprite.tint = inst.tint;
         sprite.rotation = inst.angle;
         sprite.position.set(inst.x, inst.y);
         holder.addChild(sprite);
@@ -1810,7 +1816,10 @@ export class MapScene {
           const line = scatterLine(this.doc, item);
           if (item.mode === 'area') {
             if (pointInPolygon(p, line)) return item;
-          } else if (nearPolyline(p, line, item.spacing + item.offset + 6 / this.zoom)) return item;
+          } else {
+            const reach = Math.max(0, ...item.rules.map((r) => r.spacing + r.offset));
+            if (nearPolyline(p, line, reach + 6 / this.zoom)) return item;
+          }
           continue;
         }
         if (item.kind === 'path') {

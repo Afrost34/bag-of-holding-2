@@ -1050,10 +1050,10 @@ test('scatter fills areas and lines with trees and mountains, clear of roads', a
   await tool(page, 'Select and move').click();
   await click(cx - 30, cy + 40);
   await expect(page.getByRole('region', { name: 'Terrain shape' })).toBeVisible();
-  await page.getByRole('button', { name: 'Scatter inside this' }).click();
+  await page.getByRole('button', { name: 'Dress inside this' }).click();
   await waitForSaved(page, 'maps', '"within"');
   // Mountains along a line you draw.
-  await tool(page, 'Scatter').click();
+  await tool(page, 'Dress').click();
   await page.getByRole('radio', { name: /Mountain range/ }).click();
   await click(cx - 200, cy + 150);
   await click(cx - 60, cy + 120);
@@ -1360,12 +1360,11 @@ test('a folder of a pack becomes the mix of a scatter', async ({ page }, testInf
   const folders = page.getByRole('list', { name: 'Folders' });
   await folders.getByRole('button', { name: /Forest/ }).click();
   await page.getByRole('list', { name: 'Folders' }).getByRole('button', { name: /Trees/ }).click();
-  await page.getByRole('button', { name: /Scatter these \(3\)/ }).click();
-  await expect(tool(page, 'Scatter')).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: /Dress with these \(3\)/ }).click();
+  await expect(tool(page, 'Dress')).toHaveAttribute('aria-pressed', 'true');
   // The mix now holds the three pictures.
-  await expect(
-    page.getByRole('list', { name: 'Stamps in the mix' }).getByRole('listitem'),
-  ).toHaveCount(3);
+  await page.getByRole('button', { name: 'Advanced: the rules' }).click();
+  await expect(page.getByRole('list', { name: 'Pieces' }).getByRole('listitem')).toHaveCount(3);
   const canvas = page.getByRole('application', { name: 'Map canvas' });
   const box = await canvas.boundingBox();
   if (!box) throw new Error('no canvas');
@@ -1678,10 +1677,11 @@ test('the terrain brush has a soft edge, and [ ] size it', async ({ page }) => {
   await waitForSaved(page, 'maps', '"border":true');
 });
 
-test('scatter turns its pieces within a range', async ({ page }) => {
+test('dressing turns its pieces within a range', async ({ page }) => {
   test.skip(isPhone(page), 'The Creator is drawn on the desktop.');
   await newMap(page, 'Turns');
-  await tool(page, 'Scatter').click();
+  await tool(page, 'Dress').click();
+  await page.getByRole('button', { name: 'Advanced: the rules' }).click();
   await page.getByLabel('Rotation of pieces').selectOption('random');
   const from = page.getByText(/^Turn from:/);
   const to = page.getByText(/^Turn to:/);
@@ -2000,14 +2000,12 @@ test('packs come first: sorted categories, scatter presets from the pack, the co
   const categories = page.getByRole('group', { name: 'Categories' });
   await expect(categories.getByRole('button', { name: /Trees/ })).toBeVisible();
   await expect(categories.getByRole('button', { name: /Bushes/ })).toBeVisible();
-  // Scatter offers presets made from the pack, not drawn ones.
-  await tool(page, 'Scatter').click();
+  // Dress offers recipes made from the pack, not drawn-only ones.
+  await tool(page, 'Dress').click();
   await expect(
-    page
-      .getByRole('radiogroup', { name: 'Pack scatter preset' })
-      .getByRole('radio', { name: /Forest/ }),
+    page.getByRole('radiogroup', { name: 'Nature recipes' }).getByRole('radio', { name: /Forest/ }),
   ).toBeVisible();
-  await expect(page.getByRole('radiogroup', { name: 'Scatter preset', exact: true })).toBeHidden();
+  await expect(page.getByRole('radiogroup', { name: 'World recipes' })).toHaveCount(0);
   // The contents page shows how the pack was sorted.
   await page.goto('./#/maps/packs');
   await expect(page.getByRole('heading', { name: 'Pack contents' })).toBeVisible();

@@ -64,7 +64,7 @@ export const TOOLS: { id: Tool; label: string; icon: LucideIcon; key: string }[]
   { id: 'area', label: 'Terrain shape', icon: Shapes, key: 'a' },
   { id: 'path', label: 'Road or river', icon: Waves, key: 'l' },
   { id: 'elevation', label: 'Elevation', icon: Mountain, key: 'j' },
-  { id: 'scatter', label: 'Scatter', icon: Trees, key: 'x' },
+  { id: 'scatter', label: 'Dress', icon: Trees, key: 'x' },
   { id: 'district', label: 'District', icon: Castle, key: 'c' },
   { id: 'building', label: 'Building', icon: House, key: 'q' },
   { id: 'room', label: 'Room', icon: Square, key: 'r' },
@@ -130,7 +130,8 @@ export const TOOL_HINTS: Record<Tool, string> = {
   area: 'Click to place points; double-click or Enter to close the shape.',
   path: 'Click to place points; double-click or Enter to finish the road or river.',
   elevation: 'Drag to raise or lower the ground.',
-  scatter: 'Drag to scatter the chosen pictures along the stroke.',
+  scatter:
+    'Pick a recipe, then draw the area (or line) to dress; or pick a shape, room or road and press Dress.',
   light: 'Click to place a light. Drag it to move it.',
   district: 'Click the corners of the district; double-click or Enter to finish.',
   building: 'Click the corners of the building; double-click or Enter to finish.',

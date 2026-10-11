@@ -15,7 +15,7 @@ const SHORT: Record<Tool, string> = {
   area: 'Shape',
   path: 'Path',
   elevation: 'Height',
-  scatter: 'Scatter',
+  scatter: 'Dress',
   district: 'District',
   building: 'Building',
   room: 'Room',

@@ -485,7 +485,7 @@ export function ShapeItemSettings({
           </Button>
         )}
         <Button variant="ghost" onClick={onScatter}>
-          <Trees className="h-4 w-4" aria-hidden /> Scatter inside this
+          <Trees className="h-4 w-4" aria-hidden /> Dress inside this
         </Button>
       </>
     );
@@ -574,7 +574,7 @@ export function ShapeItemSettings({
         </>
       )}
       <Button variant="ghost" onClick={onScatter}>
-        <Trees className="h-4 w-4" aria-hidden /> Scatter along this
+        <Trees className="h-4 w-4" aria-hidden /> Dress along this
       </Button>
     </>
   );

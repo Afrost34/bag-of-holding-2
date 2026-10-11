@@ -25,7 +25,7 @@ export function usedPackRefs(doc: MapDoc): Set<string> {
           add(item.wallTexture);
           break;
         case 'scatter':
-          for (const p of item.pieces) add(p.ref);
+          for (const rule of item.rules) for (const p of rule.pieces) add(p.ref);
           for (const t of item.onlyOn ?? []) add(t);
           break;
       }
