@@ -259,6 +259,46 @@ export const SETTLEMENT_RECIPES: readonly Recipe[] = [
       glyphSize: [36, 36],
     },
   ]),
+  settlement('streets', 'Street life', 'crates and barrels in clumps, carts, litter', [
+    {
+      key: 'stacks',
+      place: 'area',
+      want: {
+        cats: ['decor'],
+        anyWords: ['/crates/', '/barrels/', '/sacks/', '/boxes/'],
+        not: [...NOT, 'lid', 'side', 'large', 'sticker', 'spray'],
+      },
+      max: 10,
+      spacing: 6,
+      cluster: 0.85,
+      rotation: 'random',
+      rotMin: -15,
+      rotMax: 15,
+      glyphs: [g('crate', 2), g('barrel')],
+      glyphSize: [36, 44],
+      // Drawn: a stack every few squares, not a carpet of crates.
+      glyphSpacing: 420,
+    },
+    {
+      key: 'carts',
+      place: 'area',
+      want: { cats: ['vehicles'], words: ['/carts_and_wagons/'], not: [...NOT, '/wheels/'] },
+      max: 4,
+      spacing: 9,
+      apart: true,
+      rotation: 'random',
+    },
+    {
+      key: 'litter',
+      place: 'area',
+      want: { cats: ['clutter'], anyWords: ['/paper/', '/food/', '/bags_and_purses/'] },
+      max: 8,
+      spacing: 9,
+      cluster: 0.5,
+      apart: true,
+      rotation: 'random',
+    },
+  ]),
   settlement('stone-circle', 'Stone circle', 'an altar in the middle, standing stones round it', [
     {
       key: 'altar',

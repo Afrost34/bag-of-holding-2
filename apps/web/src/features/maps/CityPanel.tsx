@@ -19,6 +19,9 @@ import type { StreetLayout } from '../../app/maps/city';
 import { useShowDrawn } from '../../app/maps/artPrefs';
 import { districtRoofs } from '../../app/maps/packDefaults';
 import { usePacks } from '../../app/maps/packs';
+import { TOWN_LOOKS } from '../../app/maps/town/looks';
+import { buildTown, DEFAULT_TOWN, townDistricts } from '../../app/maps/town/townDoc';
+import { stampUnit } from '../../app/maps/units';
 import { Section, ShapePicker } from './PanelParts';
 import { type MapPanelsProps, field } from './panelTypes';
 import { GenerateControls } from './StructurePanel';
@@ -680,7 +683,109 @@ export function DistrictItemSettings({
           <Hammer className="h-4 w-4" aria-hidden /> Bake into buildings
         </Button>
       </div>
+      <TownBuilder item={item} commit={commit} />
     </>
+  );
+}
+
+/**
+ * Build the town: every lot of the district a whole building (floors, rooms, furniture), the
+ * streets and the square paved and dressed (`town/`).
+ */
+function TownBuilder({ item, commit }: { item: DistrictItem; commit: MapPanelsProps['commit'] }) {
+  const { entries } = usePacks();
+  const drawn = useShowDrawn();
+  const [look, setLook] = useState(DEFAULT_TOWN.look);
+  const [max, setMax] = useState(DEFAULT_TOWN.max);
+  const [pave, setPave] = useState(DEFAULT_TOWN.pave);
+  const [dress, setDress] = useState(DEFAULT_TOWN.dress);
+  const [message, setMessage] = useState<string | null>(null);
+  const chosen = TOWN_LOOKS.find((l) => l.id === look);
+  return (
+    <Section title="Whole town">
+      <p className="text-xs text-muted">
+        Every lot becomes a whole building with its floors, rooms and furniture: shops, inns and the
+        temple round the middle, houses further out, farms at the edge. Big halls take two lots.
+        Each level of the town gets a layer and a view.
+      </p>
+      <label className="block text-sm">
+        Look
+        <select
+          value={look}
+          aria-label="Look of the town"
+          onChange={(e) => {
+            setLook(e.target.value);
+          }}
+          className={field}
+        >
+          {TOWN_LOOKS.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      {chosen && <p className="text-xs text-muted">{chosen.hint}</p>}
+      <Slider
+        label="At most"
+        value={max}
+        min={1}
+        max={120}
+        step={1}
+        display={`${String(max)} buildings`}
+        onChange={setMax}
+      />
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={pave}
+          onChange={(e) => {
+            setPave(e.target.checked);
+          }}
+        />
+        Pave the streets and the square
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={dress}
+          disabled={!pave}
+          onChange={(e) => {
+            setDress(e.target.checked);
+          }}
+        />
+        Street life and a market on the square
+      </label>
+      <Button
+        onClick={() => {
+          let count = 0;
+          commit((d) => {
+            // The whole town: this district and those inside it or round it.
+            const made = buildTown(
+              d,
+              townDistricts(d, item.id),
+              { look, max, pave, dress, seed: Math.floor(Math.random() * 1e9) },
+              entries,
+              { unit: stampUnit(d), drawn },
+            );
+            count = made?.count ?? 0;
+            return made?.doc ?? d;
+          });
+          setMessage(
+            count > 0
+              ? `Built ${String(count)} buildings. Hide the roofs (Map tab) to see inside; Page Up/Down steps between the levels.`
+              : 'No lot is big enough for a house on this map’s grid (three squares across at least).',
+          );
+        }}
+      >
+        <Castle className="h-4 w-4" aria-hidden /> Build the town
+      </Button>
+      {message && (
+        <p role="status" className="text-xs text-muted">
+          {message}
+        </p>
+      )}
+    </Section>
   );
 }
 

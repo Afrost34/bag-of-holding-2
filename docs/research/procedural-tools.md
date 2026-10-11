@@ -31,6 +31,11 @@ recipes: Stone circle, Highlands by height; forest and mountain biomes thin out 
 Roads can follow the land (`landRoute.ts`): A* over the elevation with a slope cost, round hills
 and through passes, never over cliffs or through the sea.
 
+Third pass (towns, ADR 0017): a district is built into a town of whole buildings in one step:
+zoning by distance from the middle, halls on two joined lots, building styles mixed by a town
+look, doors to the street, paved streets and square with street life and a market, one layer
+and view per level. Map files write repeated building specs once (`shared.ts`).
+
 Waiting on the packs: fountains and modular tents need the real file names of `Basin_Parts` and
 `Tents/Modular` in `app/maps/__fixtures__/faNames.ts` (never invented). Copy a listing of those two
 folders from the desktop pack to build them.

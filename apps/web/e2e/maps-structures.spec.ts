@@ -282,6 +282,50 @@ test('cliffs are laid along the elevation at a chosen height', async ({ page }) 
   await waitForSaved(page, 'maps', '"style":"wall"');
 });
 
+test('a walled town is built whole: buildings with rooms, paved streets, a level per floor', async ({
+  page,
+}, testInfo) => {
+  test.skip(isPhone(page), 'The Creator is used on the desktop.');
+  test.setTimeout(120_000);
+  // Big enough for a town at five feet to the square.
+  await page.goto('./#/maps');
+  await page.getByRole('button', { name: 'New map' }).click();
+  await page.getByLabel('Name').fill('Brindle');
+  await page.getByLabel('Unit of the size').selectOption('m');
+  await page.getByLabel('Width', { exact: true }).fill('180');
+  await page.getByLabel('Height', { exact: true }).fill('140');
+  await expect(page.getByText(/squares of 1\.5 m each/)).toBeVisible();
+  await page.getByRole('button', { name: 'Create' }).click();
+  await expect(page.getByRole('textbox', { name: 'Map name' })).toHaveValue('Brindle');
+  await tool(page, 'District').click();
+  await page.getByRole('button', { name: 'Generate a walled town' }).click();
+  await waitForSaved(page, 'maps', '"wall":true');
+  // Picked: its settings show, with the town builder.
+  await tool(page, 'Select and move').click();
+  const canvas = await page.getByRole('application', { name: 'Map canvas' }).boundingBox();
+  if (!canvas) throw new Error('no canvas');
+  await page.mouse.click(canvas.x + canvas.width / 2, canvas.y + canvas.height / 2);
+  await page.getByLabel('Look of the town').selectOption('city');
+  await page.getByRole('button', { name: 'Build the town' }).click();
+  await expect(page.getByRole('status').filter({ hasText: /Built \d+ buildings/ })).toBeVisible();
+  await waitForSaved(page, 'maps', '"kind":"structure"');
+  // Buildings repeat their pictures and furniture once in the file.
+  await waitForSaved(page, 'maps', '"shared":');
+  await page.getByRole('tab', { name: 'Layers' }).click();
+  await expect(page.getByRole('radio', { name: 'Draw on Town – Ground floor' })).toBeVisible();
+  await expect(page.getByRole('radio', { name: 'Draw on Town – Streets' })).toBeVisible();
+  await page.waitForTimeout(800);
+  await page
+    .getByRole('application', { name: 'Map canvas' })
+    .screenshot({ path: testInfo.outputPath('town.png') });
+  // Roofs off: the rooms, doors and furniture inside.
+  await page.getByRole('button', { name: 'Roofs' }).click();
+  await page.waitForTimeout(800);
+  await page
+    .getByRole('application', { name: 'Map canvas' })
+    .screenshot({ path: testInfo.outputPath('town-inside.png') });
+});
+
 test('a road follows the land between the points clicked', async ({ page }) => {
   test.skip(isPhone(page), 'The Creator is used on the desktop.');
   test.setTimeout(90_000);

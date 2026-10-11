@@ -141,6 +141,8 @@ accent-coloured text).
 | Lights, shadows, ambient light       | `app/maps/lighting.ts` (pure), `drawLighting` in `scene.ts`, `features/maps/LightPanel.tsx`                                                       |
 | Path ends, loops, compass, frame     | `app/maps/pathEnds.ts`, `decor.ts`; contour lines and rivers in `elevation.ts`                                                                    |
 | Roads that follow the land           | `app/maps/landRoute.ts` (A* over the elevation, slope cost; Road tool "Follow the land")                                                          |
+| A town of whole buildings            | `app/maps/town/` (`townplan` zoning and halls, `looks` materials, `townDoc` layers and streets; ADR 0017), "Whole town" in `CityPanel.tsx`        |
+| Map file size (repeated specs)       | `app/maps/shared.ts`: `serializeMap` writes repeated structure specs once, `parseMap` expands them                                                |
 
 ## Maps (ADR 0010, 0011, 0012)
 
