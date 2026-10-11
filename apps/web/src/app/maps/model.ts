@@ -3,6 +3,7 @@ import { upgradeScatter } from './dress/upgrade';
 import type { Elevation } from './elevation';
 import { pointInPolygon } from './polygon';
 import type { RouteDash } from './lettering';
+import { packShared, unpackShared } from './shared';
 import type { PathEnd } from './pathEnds';
 import type { Door } from './rooms';
 import type { TerrainRef } from './terrain';
@@ -110,6 +111,10 @@ export interface BuildingSpec {
   crooked: number;
   /** Wall thickness (map pixels). */
   wall: number;
+  /** The way to its street (a unit vector): the front door faces it (a building of a town). */
+  facing?: { x: number; y: number };
+  /** The stairwell in a corner rather than the middle (town buildings: halls stay whole). */
+  stairsAtWall?: boolean;
 }
 
 /**
@@ -944,7 +949,8 @@ export function parseMap(text: string | null, id: string, campaign?: string): Ma
   if (!text) return null;
   let json: unknown;
   try {
-    json = JSON.parse(text);
+    // What the file keeps once for many items (`shared.ts`) is put back in each.
+    json = unpackShared(JSON.parse(text));
   } catch {
     return null;
   }
@@ -1335,7 +1341,7 @@ export const rectPoints = (x0: number, y0: number, x1: number, y1: number): numb
 
 export function serializeMap(doc: MapDoc): string {
   const { campaign: _campaign, ...rest } = doc;
-  return `${JSON.stringify(rest)}\n`;
+  return `${JSON.stringify(packShared(rest))}\n`;
 }
 
 /** A pin for a compendium entry, in the middle of the map (Send to → Map). */

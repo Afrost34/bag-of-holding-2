@@ -352,12 +352,51 @@ function inMiddle(rule: DressRule, ctx: InteriorContext): Placed[] {
       }
     return mine;
   };
+  /**
+   * An odd-shaped room (an L round a stairwell, a notch): the grid above finds nothing, so look
+   * over the floor on half squares, nearest the middle first, and take every place that fits.
+   */
+  const anywhere = (piece: number): Placed[] => {
+    const mine: Placed[] = [];
+    const raw = ctx.boxOf(rule, piece, size);
+    // Room for a chair and a step behind it.
+    const near = rule.floor ? ctx.cell * 0.5 : ctx.cell * 1.1;
+    const along = Math.atan2(uy, ux) + (raw.h > raw.w ? Math.PI / 2 : 0);
+    const step = ctx.cell / 2;
+    const spots: { x: number; y: number; d: number }[] = [];
+    for (let a = a0 + near; a <= a1 - near; a += step)
+      for (let b = b0 + near; b <= b1 - near; b += step) {
+        const x = mid.x + ux * a + vx * b;
+        const y = mid.y + uy * a + vy * b;
+        spots.push({ x, y, d: Math.hypot(a - ca, b - cb) });
+      }
+    spots.sort((p, q) => p.d - q.d);
+    for (const s of spots) {
+      if (mine.length >= max) break;
+      // Along the room, else across it.
+      for (const angle of [along, along + Math.PI / 2]) {
+        const box: Box = { x: s.x, y: s.y, w: raw.w, h: raw.h, angle };
+        if (
+          fits(box, withMine(ctx, mine), { clear: ctx.cell * 0.9, edge: near }) &&
+          mine.every((m) => distanceToBox(box, m.box) >= ctx.cell * 1.5)
+        ) {
+          mine.push({ inst: { x: box.x, y: box.y, angle: box.angle, size, piece }, box });
+          break;
+        }
+      }
+    }
+    return mine;
+  };
   // The piece drawn first, else the others in turn: a room too small for the big table takes a
   // smaller one.
   const first = pickPiece(rule, ctx.rand);
   const order = [first, ...rule.pieces.map((_, i) => i).filter((i) => i !== first)];
   for (const piece of order) {
     const placed = layout(piece);
+    if (placed.length > 0) return placed;
+  }
+  for (const piece of order) {
+    const placed = anywhere(piece);
     if (placed.length > 0) return placed;
   }
   return out;

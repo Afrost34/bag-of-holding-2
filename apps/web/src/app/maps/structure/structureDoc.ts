@@ -185,6 +185,8 @@ export function planOf(item: StructureItem, cell: number): FloorPlan {
             stairs: item.spec.upper > 0 || item.spec.cellar,
             entrance: item.floor === 0,
             windows: item.spec.windows && item.floor >= 0,
+            facing: item.spec.facing,
+            stairsAtWall: item.spec.stairsAtWall,
           });
   let rooms = withTypes(plan.rooms, item.spec.archetype, item.floor);
   // A sky ship's biggest room below is its engine room, round the shard core.

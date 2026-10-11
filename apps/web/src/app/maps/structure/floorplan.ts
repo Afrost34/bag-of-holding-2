@@ -66,6 +66,10 @@ export interface FloorRequest {
   /** A door to the outside (the ground floor). */
   entrance: boolean;
   windows: boolean;
+  /** The way to the street (a unit vector): the front door faces it. */
+  facing?: { x: number; y: number } | undefined;
+  /** The stairwell in a corner, not the middle (a hall keeps its floor whole). */
+  stairsAtWall?: boolean | undefined;
 }
 
 /** Smallest room: 2 × 2 cells. */
@@ -75,9 +79,9 @@ const MIN_SIDE = 2;
 
 /**
  * A stairwell of 1 × 3 cells (2 × 3 in a big building), inside the footprint, as near its middle
- * as the seed allows: the same cells on every floor.
+ * as the seed allows (`atWall`: in a corner instead): the same cells on every floor.
  */
-export function stairwell(cells: ReadonlySet<string>, seed: number): string[] {
+export function stairwell(cells: ReadonlySet<string>, seed: number, atWall = false): string[] {
   const all = [...cells].map(parseCell);
   if (all.length < 12) return [];
   const mx = all.reduce((s, c) => s + c[0], 0) / all.length;
@@ -113,7 +117,10 @@ export function stairwell(cells: ReadonlySet<string>, seed: number): string[] {
           if (!cells.has(cellKey(x + dx, y + dy)) && !block.includes(cellKey(x + dx, y + dy)))
             outside++;
       }
-      const score = Math.hypot(bx - mx, by - my) + outside * 0.4 + rand() * 1.5;
+      // Against the wall: in a corner, out of the way of a hall's middle.
+      const score = atWall
+        ? -outside * 1.5 + rand() * 1.5
+        : Math.hypot(bx - mx, by - my) + outside * 0.4 + rand() * 1.5;
       if (!best || score < best.score) best = { cells: block.sort(), score };
     }
   return best?.cells ?? [];
@@ -220,6 +227,18 @@ interface Side {
   x1: number;
   y1: number;
   horizontal: boolean;
+}
+
+/** The middle of an outline (the average of its points). */
+function middleOfOutline(outline: readonly number[]): { x: number; y: number } {
+  const n = Math.max(1, Math.floor(outline.length / 2));
+  let x = 0;
+  let y = 0;
+  for (let i = 0; i + 1 < outline.length; i += 2) {
+    x += outline[i] ?? 0;
+    y += outline[i + 1] ?? 0;
+  }
+  return { x: x / n, y: y / n };
 }
 
 /** Every side between two different rooms (by room index), and every side facing outside. */
@@ -370,7 +389,9 @@ export function clipSegment(seg: readonly number[], poly: readonly number[]): nu
 export function planFloor(req: FloorRequest): FloorPlan {
   const cells = cellsInPolygon(req.footprint, req.cell);
   const rand = seeded((req.seed * 31 + req.floor * 7919) >>> 0);
-  const stairs = req.stairs ? stairwell(cells, req.stairSeed ?? req.seed) : [];
+  const stairs = req.stairs
+    ? stairwell(cells, req.stairSeed ?? req.seed, req.stairsAtWall === true)
+    : [];
   const taken = new Set(stairs);
   const locked = (req.locked ?? []).filter((r) =>
     r.cells.every((c) => cells.has(c) && !taken.has(c)),
@@ -402,6 +423,7 @@ export function planFloor(req: FloorRequest): FloorPlan {
   const joined = joinRooms(rooms, req.cell, req.footprint, doorRand, {
     entrance: req.entrance,
     windows: req.windows,
+    facing: req.facing,
   });
   return { rooms, stairs, ...joined };
 }
@@ -417,7 +439,12 @@ export function joinRooms(
   cell: number,
   footprint: readonly number[],
   doorRand: () => number,
-  options: { entrance: boolean; windows: boolean },
+  options: {
+    entrance: boolean;
+    windows: boolean;
+    /** The way to the street (a unit vector): the front door is put on that side. */
+    facing?: { x: number; y: number } | undefined;
+  },
 ): Pick<FloorPlan, 'doors' | 'windows' | 'walls'> {
   const roomOf = new Map<string, number>();
   rooms.forEach((r, i) => {
@@ -470,14 +497,32 @@ export function joinRooms(
       doors.push({ ...middle(side), angle: along(side), outer: false, rooms: [link.a, link.b] });
   }
 
-  // The front door: on the longest outer side of the biggest room (not the stairwell).
+  // The front door: on the longest outer side of the biggest room (not the stairwell); with a
+  // street to face, the biggest room with an outer wall towards it.
   const outerRuns = runs(outer.map((s) => ({ ...s, b: -1 })));
   if (options.entrance) {
     const order = rooms
       .map((r, i) => ({ i, size: r.type === 'stairs' ? -1 : r.cells.length }))
       .sort((p, q) => q.size - p.size);
-    for (const { i } of order) {
-      const theirs = outerRuns.filter((run) => run[0]?.a === i).sort((p, q) => q.length - p.length);
+    const facing = options.facing;
+    const mid = facing ? middleOfOutline(footprint) : { x: 0, y: 0 };
+    /** How squarely a run of outer wall looks towards the street (1 straight at it). */
+    const towards = (run: readonly Side[]): number => {
+      const first = run[0];
+      const last = run[run.length - 1];
+      if (!facing || !first || !last) return 0;
+      const x = (first.x0 + last.x1) / 2 - mid.x;
+      const y = (first.y0 + last.y1) / 2 - mid.y;
+      const len = Math.hypot(x, y) || 1;
+      return (x * facing.x + y * facing.y) / len;
+    };
+    const facingRooms = facing
+      ? order.filter(({ i }) => outerRuns.some((run) => run[0]?.a === i && towards(run) > 0.5))
+      : [];
+    for (const { i } of [...facingRooms, ...order]) {
+      const theirs = outerRuns
+        .filter((run) => run[0]?.a === i)
+        .sort((p, q) => towards(q) - towards(p) || q.length - p.length);
       const run = theirs[0];
       const side = run ? doorAt(run, doorRand) : undefined;
       if (side) {
