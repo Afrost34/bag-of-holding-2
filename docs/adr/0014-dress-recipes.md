@@ -17,8 +17,9 @@ and falloff. The full tool list is in `docs/research/procedural-tools.md`.
   uses the item's seed, so old maps look exactly as before.
 - **A rule (`DressRule` in `model.ts`)** holds:
   - pictures with a weight and their own size (`scale`);
-  - `place`: area, along, edge, cluster or grid. Interior placements (wall, corner, around, on) come
-    with the interior recipes;
+  - `place`: area, along, edge, cluster or grid, or, in a room (`dress/interior.ts`): back to the
+    walls, in the corners, down the middle, round an earlier rule's pieces (`anchor`), on them, or a
+    place setting in front of each seat;
   - spacing and sizes, rotation, falloff, snap, flip, tint variation, and `apart` (keep clear of
     earlier rules).
 
@@ -36,6 +37,16 @@ and falloff. The full tool list is in `docs/research/procedural-tools.md`.
   made from a pack folder ("Dress with these").
 - **Room changes reach dressings**: `obstacleSignature` now covers rooms, so furniture follows a room
   that is reshaped.
+- **Furniture knows the room.** Pieces are turned rectangles that never overlap, except seats tucked
+  under their table, pieces on top of their anchor, and rugs (`floor`). They keep about a square
+  clear of every doorway (the room's doors and pack door pictures on its walls). Middle pieces keep
+  a square and a half from the walls, and wall pieces keep half a square from what stands in the
+  room, so there is always a way from each door to the middle (`walkable`, tested for every room
+  type). Forgotten Adventures furniture faces down, so "back to the wall" turns the top of the
+  picture to the wall.
+- **Room types are recipes** (`dress/interiors.ts`): tavern and inn, homes and shops, martial and
+  civic, arcane and holy, plus a smithy. Glyphs stand in only when no pack is imported or drawn art
+  is on, so a room from the packs never mixes drawn tables with pack chairs.
 
 ## Consequences
 

@@ -73,7 +73,18 @@ const PLACES: { id: DressPlace; name: string; area: boolean; along: boolean }[] 
   { id: 'edge', name: 'Near the edge', area: true, along: false },
   { id: 'cluster', name: 'In clumps', area: true, along: false },
   { id: 'grid', name: 'In rows', area: true, along: false },
+  { id: 'wall', name: 'Back to the walls (a room)', area: true, along: false },
+  { id: 'corner', name: 'In the corners (a room)', area: true, along: false },
+  { id: 'centre', name: 'Down the middle (a room)', area: true, along: false },
+  { id: 'around', name: 'Round the pieces of a rule above', area: true, along: false },
+  { id: 'on', name: 'On the pieces of a rule above', area: true, along: false },
+  { id: 'setting', name: 'A setting in front of each seat', area: true, along: false },
 ];
+
+/** Places that relate to the pieces of an earlier rule. */
+const ANCHORED = new Set<DressPlace>(['around', 'on', 'setting']);
+/** Places that furnish a room (they ignore the area settings above). */
+const ROOMISH = new Set<DressPlace>(['wall', 'corner', 'centre', 'around', 'on', 'setting']);
 
 /** "Rotation of pieces" for the first rule, "Rotation of pieces (rule 2)" for the others. */
 const label = (base: string, r: number) => (r === 0 ? base : `${base} (rule ${String(r + 1)})`);
@@ -86,6 +97,7 @@ function RuleEditor({
   stamp,
   canRemove,
   onChange,
+  onReplace,
   onRemove,
 }: {
   rule: DressRule;
@@ -94,6 +106,8 @@ function RuleEditor({
   stamp: string | null;
   canRemove: boolean;
   onChange: (patch: Partial<DressRule>) => void;
+  /** The rule replaced whole (to clear a setting). */
+  onReplace: (rule: DressRule) => void;
   onRemove: () => void;
 }) {
   const drawn = useShowDrawn();
@@ -214,11 +228,87 @@ function RuleEditor({
           ))}
         </select>
       </label>
+      {ANCHORED.has(rule.place) && index > 0 && (
+        <label className="block text-sm">
+          Of rule
+          <select
+            value={String(rule.anchor ?? 0)}
+            aria-label={label('Anchor rule', index)}
+            onChange={(e) => {
+              onChange({ anchor: Number(e.target.value) });
+            }}
+            className={field}
+          >
+            {Array.from({ length: index }, (_, k) => (
+              <option key={k} value={k}>
+                Rule {k + 1}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {ROOMISH.has(rule.place) && (
+        <>
+          <label className="block text-sm">
+            {rule.place === 'on' ? 'How many on each' : 'At most'}
+            <input
+              type="number"
+              min={0}
+              max={99}
+              value={rule.count ?? ''}
+              placeholder="all that fit"
+              aria-label={label('How many pieces', index)}
+              onChange={(e) => {
+                const v = e.target.value;
+                const { count: _c, ...rest } = rule;
+                onReplace(v === '' ? rest : { ...rest, count: Math.max(0, Math.round(Number(v))) });
+              }}
+              className={field}
+            />
+          </label>
+          {rule.place === 'wall' && (
+            <Slider
+              label="Share of the walls"
+              aria={label('Share of the walls', index)}
+              value={rule.fill ?? 1}
+              min={0.1}
+              max={1}
+              step={0.05}
+              display={`${String(Math.round((rule.fill ?? 1) * 100))}%`}
+              onChange={(fill) => {
+                onChange({ fill });
+              }}
+            />
+          )}
+          <Slider
+            label="Turned off square"
+            aria={label('Turned off square', index)}
+            value={rule.loose ?? 0}
+            min={0}
+            max={45}
+            step={1}
+            display={`${String(rule.loose ?? 0)}°`}
+            onChange={(loose) => {
+              onChange({ loose });
+            }}
+          />
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={rule.floor === true}
+              onChange={(e) => {
+                onChange({ floor: e.target.checked });
+              }}
+            />
+            Lies flat (a rug): furniture may stand on it
+          </label>
+        </>
+      )}
       <Slider
-        label={rule.place === 'grid' ? 'Row spacing' : 'Spacing'}
+        label={rule.place === 'grid' ? 'Row spacing' : ROOMISH.has(rule.place) ? 'Gap' : 'Spacing'}
         aria={label('Spacing', index)}
         value={rule.spacing}
-        min={4}
+        min={ROOMISH.has(rule.place) ? 0 : 4}
         max={400}
         step={1}
         onChange={(spacing) => {
@@ -532,8 +622,20 @@ function RulesEditor({
           onChange={(patch) => {
             onChange(rules.map((r, k) => (k === i ? { ...r, ...patch } : r)));
           }}
+          onReplace={(next) => {
+            onChange(rules.map((r, k) => (k === i ? next : r)));
+          }}
           onRemove={() => {
-            onChange(rules.filter((_, k) => k !== i));
+            // The rules below keep pointing at the same rules: their anchors move up one.
+            onChange(
+              rules
+                .filter((_, k) => k !== i)
+                .map((r) =>
+                  r.anchor !== undefined && r.anchor >= i
+                    ? { ...r, anchor: Math.max(0, r.anchor - 1) }
+                    : r,
+                ),
+            );
           }}
         />
       ))}

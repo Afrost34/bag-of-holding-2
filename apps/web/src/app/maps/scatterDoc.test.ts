@@ -231,12 +231,14 @@ describe('furnishing a room', () => {
     doc = addItem(doc, layer, furniture);
     const list = scatterOf(doc, furniture);
     expect(list.length).toBeGreaterThan(3);
-    // Inside the room, in from its walls.
-    expect(list.every((p) => p.x > 110 && p.x < 490 && p.y > 110 && p.y < 490)).toBe(true);
-    // Square on: turned by quarters only.
+    // Inside the room, inside its walls.
+    expect(list.every((p) => p.x > 106 && p.x < 494 && p.y > 106 && p.y < 494)).toBe(true);
+    // The tables (the first rule) are square on: turned by quarters only.
     const quarter = Math.PI / 2;
     expect(
-      list.every((p) => Math.abs(Math.round(p.angle / quarter) * quarter - p.angle) < 1e-9),
+      list
+        .filter((p) => p.rule === 0)
+        .every((p) => Math.abs(Math.round(p.angle / quarter) * quarter - p.angle) < 1e-9),
     ).toBe(true);
     // Move the room: the furniture goes with it, and the map says so.
     const moved = updateItem(doc, 'room', (i) =>

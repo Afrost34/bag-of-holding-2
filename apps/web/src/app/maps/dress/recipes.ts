@@ -1,8 +1,12 @@
 import { glyphRef, type GlyphId } from '../glyphs';
 import type { DressPlace, DressRule } from '../model';
-import { pickMany, type Wanted } from '../packDefaults';
+import { pickMany } from '../packDefaults';
 import { packRef, squaresOf, type PackEntry } from '../packModel';
-import type { TerrainRef } from '../terrain';
+import { INTERIOR_PLACES } from './interior';
+import { INTERIOR_RECIPES } from './interiors';
+import type { Recipe, RecipeGroup, RecipeRule } from './recipeTypes';
+
+export type { Recipe, RecipeGroup, RecipeRule } from './recipeTypes';
 
 /**
  * Recipes: what the Dress tool can lay down (a forest, a hedge, a tavern's furniture), as rules
@@ -11,9 +15,6 @@ import type { TerrainRef } from '../terrain';
  * `recipeRules`, which picks the pictures once (the palette): importing more packs later does not
  * change a dressing, "Pick again" does. Pure data and functions.
  */
-
-export type RecipeGroup =
-  'Nature' | 'Edges' | 'Interior' | 'Clutter' | 'Decay' | 'Settlement' | 'Kits' | 'World';
 
 export const RECIPE_GROUPS: readonly RecipeGroup[] = [
   'Nature',
@@ -25,51 +26,6 @@ export const RECIPE_GROUPS: readonly RecipeGroup[] = [
   'Kits',
   'World',
 ];
-
-export interface RecipeRule {
-  /** Names the rule inside its recipe (`trees`, `undergrowth`): `recipe:key` finds it again. */
-  key: string;
-  place: DressPlace;
-  /** The pack pictures it wants, and how many different ones to mix. */
-  want?: Wanted;
-  max?: number;
-  /** Drawn stand-ins, sized for a 70-pixel square (`glyphSize`, `glyphSpacing`). */
-  glyphs?: { id: GlyphId; weight: number }[];
-  glyphSize?: [number, number];
-  glyphSpacing?: number;
-  /** Pack pictures: the gap between them as a multiple of their typical width. */
-  spacing: number;
-  /** Pack pictures vary their own size between these (as a part of 100). */
-  vary?: [number, number];
-  rotation?: DressRule['rotation'];
-  rotMin?: number;
-  rotMax?: number;
-  overlap?: number;
-  cluster?: number;
-  /** Along a line: how far to the side, in pack squares. */
-  offset?: number;
-  sides?: DressRule['sides'];
-  jitter?: number;
-  falloff?: number;
-  /** Edge: how far in, in pack squares. */
-  depth?: number;
-  snap?: number;
-  flip?: boolean;
-  tint?: number;
-  apart?: boolean;
-}
-
-export interface Recipe {
-  id: string;
-  name: string;
-  hint: string;
-  group: RecipeGroup;
-  mode: 'area' | 'along';
-  rules: RecipeRule[];
-  onlyOn?: TerrainRef[];
-  /** Stand on roads and rivers too (a market spills over the street). */
-  overPaths?: boolean;
-}
 
 /** A glyph's 70-pixel sizes on a map whose pack square is `unit` pixels. */
 const GLYPH_GRID = 70;
@@ -98,27 +54,6 @@ function simple(
     ...extra,
   };
 }
-
-/** A room's furniture, squared to the walls (made smarter by the interior recipes). */
-const furnish = (
-  id: string,
-  name: string,
-  hint: string,
-  words: string[],
-  glyphs: { id: GlyphId; weight: number }[],
-  glyphSpacing: number,
-  glyphSize: [number, number],
-): Recipe =>
-  simple(id, name, hint, 'Interior', {
-    want: { cats: ['furniture', 'decor'], anyWords: words, not: ['broken', 'covered'] },
-    max: 10,
-    glyphs,
-    glyphSpacing,
-    glyphSize,
-    spacing: 1.4,
-    rotation: 'quarter',
-    cluster: 0.15,
-  });
 
 export const RECIPES: readonly Recipe[] = [
   // Nature
@@ -235,7 +170,11 @@ export const RECIPES: readonly Recipe[] = [
     rotation: 'random',
   }),
   simple('cacti', 'Desert plants', 'cacti and scrub', 'Nature', {
-    want: { cats: ['plants', 'bushes', 'trees'], anyWords: ['cact', 'agave', 'yucca', 'palm'] },
+    want: {
+      cats: ['plants', 'bushes', 'trees'],
+      anyWords: ['cact', 'agave', 'yucca', 'palm'],
+      not: ['trunk', 'leaf', 'leaves', 'shadow'],
+    },
     max: 12,
     glyphs: [g('palm')],
     glyphSpacing: 50,
@@ -244,7 +183,7 @@ export const RECIPES: readonly Recipe[] = [
     rotation: 'random',
   }),
   simple('crystals', 'Crystals', 'crystals and ore', 'Nature', {
-    want: { cats: ['rocks'], anyWords: ['crystal', 'ore'] },
+    want: { cats: ['rocks'], anyWords: ['crystal', 'ore'], not: ['minecart', '_fill'] },
     max: 14,
     spacing: 1,
     rotation: 'random',
@@ -306,12 +245,44 @@ export const RECIPES: readonly Recipe[] = [
   }),
   simple('fence', 'Fence line', 'posts and rails along a line', 'Edges', {
     place: 'along',
-    want: { cats: ['buildings'], anyWords: ['fence', 'railing', 'palisade'] },
+    want: {
+      cats: ['buildings'],
+      anyWords: ['fence', 'railing', 'palisade'],
+      not: ['fallen', 'broken', 'stairs'],
+    },
     max: 10,
     spacing: 1,
     rotation: 'along',
   }),
   // Clutter and decay
+  simple('pile', 'Storage pile', 'crates, barrels and sacks in heaps', 'Clutter', {
+    place: 'cluster',
+    want: {
+      cats: ['decor'],
+      anyWords: ['/crates/', '/barrels/', '/sacks/', '/boxes/'],
+      not: ['side', 'lid', 'sticker', 'spray', 'broken', 'large', 'ceremorph'],
+    },
+    max: 12,
+    glyphs: [g('crate', 2), g('barrel')],
+    glyphSpacing: 40,
+    glyphSize: [36, 44],
+    spacing: 0.9,
+    vary: [100, 100],
+    rotation: 'random',
+    rotMin: -12,
+    rotMax: 12,
+  }),
+  simple('gear', 'Adventuring gear', 'packs, ropes, tools in a heap', 'Clutter', {
+    place: 'cluster',
+    want: {
+      cats: ['clutter'],
+      anyWords: ['/backpacks/', '/bags_and_purses/', '/ropes/', '/tools/', '/liquid_containers/'],
+      not: ['broken', 'ceremorph'],
+    },
+    max: 14,
+    spacing: 0.7,
+    rotation: 'random',
+  }),
   simple('clutter', 'Clutter', 'small things on the floor', 'Clutter', {
     want: { cats: ['clutter'] },
     max: 18,
@@ -320,7 +291,7 @@ export const RECIPES: readonly Recipe[] = [
     cluster: 0.3,
   }),
   simple('rubble', 'Rubble', 'debris and ruins', 'Decay', {
-    want: { cats: ['rubble'] },
+    want: { cats: ['rubble'], not: ['overlay', 'walls_and_curbs'] },
     max: 14,
     spacing: 1.2,
     rotation: 'random',
@@ -342,58 +313,14 @@ export const RECIPES: readonly Recipe[] = [
     spacing: 1,
     jitter: 0.7,
   }),
-  // A room's furniture
-  furnish(
-    'tavern',
-    'Tavern',
-    'tables, chairs, barrels',
-    ['table', 'chair', 'stool', 'bench', 'barrel'],
-    [g('table', 2), g('chair', 5), g('barrel')],
-    175,
-    [62, 104],
-  ),
-  furnish(
-    'storage',
-    'Storeroom',
-    'barrels, crates, chests',
-    ['barrel', 'crate', 'chest', 'sack', 'box'],
-    [g('barrel', 3), g('crate', 3), g('chest')],
-    112,
-    [48, 70],
-  ),
-  furnish(
-    'bedroom',
-    'Bedroom',
-    'beds, chests, a shelf',
-    ['bed', 'chest', 'wardrobe', 'nightstand'],
-    [g('bed', 2), g('chest'), g('shelf'), g('chair')],
-    200,
-    [66, 120],
-  ),
-  furnish(
-    'workshop',
-    'Workshop',
-    'benches, crates, shelves',
-    ['workbench', 'table', 'crate', 'shelf', 'barrel'],
-    [g('table', 3), g('crate'), g('barrel'), g('shelf')],
-    165,
-    [62, 104],
-  ),
-  furnish(
-    'study',
-    'Library or study',
-    'shelves, tables, chairs',
-    ['bookshelf', 'bookcase', 'desk', 'chair', 'table'],
-    [g('shelf', 3), g('table'), g('chair', 2)],
-    170,
-    [80, 130],
-  ),
+  // A room's furniture (`interiors.ts`)
+  ...INTERIOR_RECIPES,
 ];
 
 export const recipeById = (id: string): Recipe | undefined => RECIPES.find((r) => r.id === id);
 
-/** The interior recipes: what "Furnish it as…" offers. */
-export const FURNISH_RECIPES: readonly Recipe[] = RECIPES.filter((r) => r.group === 'Interior');
+/** The room types: what "Furnish it as…" offers. */
+export const FURNISH_RECIPES: readonly Recipe[] = RECIPES.filter((r) => r.room === true);
 
 type Pickable = Pick<PackEntry, 'path' | 'pack' | 'cat'>;
 
@@ -436,21 +363,31 @@ export function resolveRule(
     ...(rule.flip ? { flip: true } : {}),
     ...(rule.tint ? { tint: rule.tint } : {}),
     ...(rule.apart ? { apart: true } : {}),
+    ...(rule.count !== undefined ? { count: rule.count } : {}),
+    ...(rule.fill !== undefined ? { fill: rule.fill } : {}),
+    ...(rule.loose ? { loose: rule.loose } : {}),
+    ...(rule.floor ? { floor: true } : {}),
   } satisfies Partial<DressRule>;
+  // Interiors space pieces by a gap (in squares) between them, not by a spacing of centres.
+  const interior = INTERIOR_PLACES.has(rule.place);
   if (picked.length > 0) {
     const width = typicalSquares(picked) * options.unit;
-    const [lo, hi] = rule.vary ?? [80, 120];
+    const [lo, hi] = rule.vary ?? (interior ? [100, 100] : [80, 120]);
     return {
       ...common,
       pieces: picked.map((e) => ({ ref: packRef(e.pack, e.path), weight: 1 })),
-      spacing: Math.max(4, Math.round(width * rule.spacing)),
+      spacing: interior
+        ? Math.round((rule.gap ?? 0) * options.unit)
+        : Math.max(4, Math.round(width * rule.spacing)),
       sizeMin: lo,
       sizeMax: hi,
       offset: Math.round((rule.offset ?? 0) * options.unit),
       ...(rule.depth !== undefined ? { depth: Math.round(rule.depth * options.unit) } : {}),
     };
   }
-  if (!rule.glyphs?.length) return null;
+  // Glyphs stand in only for drawn art or while no pack is imported: a room made from the packs
+  // never mixes drawn tables with pack chairs.
+  if (!rule.glyphs?.length || (!options.drawn && entries.length > 0)) return null;
   const k = options.unit / GLYPH_GRID;
   const [lo, hi] = rule.glyphSize ?? [30, 50];
   const spacing = rule.glyphSpacing ?? (lo + hi) / 2;
@@ -459,7 +396,9 @@ export function resolveRule(
     // Glyphs are drawn standing up: they are never turned any way, only squared or along a line.
     rotation: rule.rotation === 'random' ? 'none' : (rule.rotation ?? 'none'),
     pieces: rule.glyphs.map((x) => ({ ref: glyphRef(x.id), weight: x.weight })),
-    spacing: Math.max(4, Math.round(spacing * k)),
+    spacing: interior
+      ? Math.round((rule.gap ?? 0) * options.unit)
+      : Math.max(4, Math.round(spacing * k)),
     sizeMin: Math.round(lo * k),
     sizeMax: Math.round(hi * k),
     offset: Math.round((rule.offset ?? 0) * options.unit),
@@ -467,20 +406,39 @@ export function resolveRule(
   };
 }
 
-/** A recipe's rules for a dressing: the rules the packs (or glyphs) can fill. */
+/**
+ * A recipe's rules for a dressing: the rules the packs (or glyphs) can fill. A rule whose anchor
+ * could not be filled (no tables, so no chairs round them) is left out too; anchors become the
+ * index of the rule in the list made.
+ */
 export function recipeRules(
   recipe: Recipe,
   entries: readonly Pickable[],
   options: RecipeOptions,
 ): DressRule[] {
-  return recipe.rules.flatMap((r) => {
+  const out: DressRule[] = [];
+  const index = new Map<string, number>();
+  for (const r of recipe.rules) {
+    let anchor: number | undefined;
+    if (r.anchor !== undefined) {
+      anchor = index.get(r.anchor);
+      if (anchor === undefined) continue;
+    }
     const rule = resolveRule(recipe, r, entries, options);
-    return rule ? [rule] : [];
-  });
+    if (!rule) continue;
+    index.set(r.key, out.length);
+    out.push(anchor === undefined ? rule : { ...rule, anchor });
+  }
+  return out;
 }
 
-/** Whether the recipe can be made from the packs: its first rule finds at least three pictures. */
+/**
+ * Whether the recipe can be made from the packs: its first rule finds at least three pictures
+ * (a room: one of its rules finds a picture that is not a rug).
+ */
 export function fromPacks(recipe: Recipe, entries: readonly Pickable[]): boolean {
+  if (recipe.room)
+    return recipe.rules.some((r) => !r.floor && r.want && pickMany(entries, r.want, 1).length > 0);
   const first = recipe.rules[0];
   return Boolean(first?.want && pickMany(entries, first.want, 3).length >= 3);
 }
