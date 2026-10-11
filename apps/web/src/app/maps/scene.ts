@@ -357,7 +357,7 @@ export function stripWallView(
   ref: string,
   gridSize: number,
   withPieces = false,
-  round = false,
+  style: 'sharp' | 'round' | 'wide' = 'sharp',
   junctions: { mine: PiecePlace[]; all: PiecePlace[] } = { mine: [], all: [] },
 ): Container | null {
   const texture = packTexture(ref);
@@ -380,26 +380,28 @@ export function stripWallView(
     const dir = parsed.path.slice(0, cut);
     const set = piecesFor(parsed.path.slice(cut), filesBeside(parsed.pack, dir));
     // Where other walls meet this one the junction piece stands, not a corner or an ending.
-    const own = placePieces(points, closed, set, round).filter(
+    const own = placePieces(points, closed, set, style).filter(
       (p) => !junctions.all.some((j) => Math.hypot(j.x - p.x, j.y - p.y) <= 4),
     );
     for (const place of [...own, ...junctions.mine]) {
       const spec =
         place.kind === 'corner'
           ? set.corner
-          : place.kind === 'roundCorner'
-            ? set.roundCorner
-            : place.kind === 'diagonal'
-              ? set.diagonal
-              : place.kind === 'ending'
-                ? set.ending
-                : undefined;
+          : place.kind === 'wideCorner'
+            ? set.wideCorner
+            : place.kind === 'roundCorner'
+              ? set.roundCorner
+              : place.kind === 'diagonal'
+                ? set.diagonal
+                : place.kind === 'ending'
+                  ? set.ending
+                  : undefined;
       const file = spec?.file ?? (place.kind === 'tee' ? set.tee : set.cross);
       const piece = file ? packTexture(packRef(parsed.pack, dir + file)) : null;
       if (!piece) continue;
       const size = (spec?.squares ?? 1) * gridSize;
       const sprite = new Sprite(piece);
-      sprite.anchor.set(0.5);
+      sprite.anchor.set(spec?.pivot?.[0] ?? 0.5, spec?.pivot?.[1] ?? 0.5);
       sprite.width = size;
       sprite.height = size;
       // A cap that sticks out is pulled back towards the wall.
@@ -1512,7 +1514,7 @@ export class MapScene {
             item.texture,
             grid.size,
             true,
-            item.joint === 'round',
+            item.joint === 'round' || item.joint === 'wide' ? item.joint : 'sharp',
             this.junctionsFor(doc, item.id),
           );
           if (strips) return strips;

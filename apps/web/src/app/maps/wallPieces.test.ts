@@ -6,6 +6,7 @@ describe('the pieces of a wall set', () => {
     'Wall_Stone_Earthy_B1_Straight_Path.webp',
     'Wall_Stone_Earthy_B1_Corner_A_1x1.webp',
     'Wall_Stone_Earthy_B1_Corner_F_2x2.webp',
+    'Wall_Stone_Earthy_B1_Corner_H_3x3.webp',
     'Wall_Stone_Earthy_B1_Ending_A_1x1.webp',
     'Wall_Stone_Earthy_B1_Joint_A_1x1.webp',
     'Wall_Stone_Earthy_B1_Joint_B_1x1.webp',
@@ -23,6 +24,12 @@ describe('the pieces of a wall set', () => {
     expect(piecesFor(files[0] ?? '', files)).toEqual({
       corner: { file: 'Wall_Stone_Earthy_B1_Corner_A_1x1.webp', squares: 1, arms: [0, 90] },
       roundCorner: { file: 'Wall_Stone_Earthy_B1_Corner_F_2x2.webp', squares: 2, arms: [0, 90] },
+      wideCorner: {
+        file: 'Wall_Stone_Earthy_B1_Corner_H_3x3.webp',
+        squares: 3,
+        arms: [0, 90],
+        pivot: [1 / 3, 1 / 3],
+      },
       ending: { file: 'Wall_Stone_Earthy_B1_Ending_A_1x1.webp', squares: 1, arms: [0] },
       tee: 'Wall_Stone_Earthy_B1_Joint_B_1x1.webp',
       cross: 'Wall_Stone_Earthy_B1_Joint_A_1x1.webp',
@@ -112,8 +119,10 @@ describe('where pieces stand on a wall', () => {
       diagonal: { file: 'd', squares: 1, arms: [0, 135] },
     };
     const turn = [0, 0, 100, 0, 100, 100];
-    expect(placePieces(turn, false, set, true).find((p) => p.x === 100)?.kind).toBe('roundCorner');
-    expect(placePieces(turn, false, set, false).find((p) => p.x === 100)?.kind).toBe('corner');
+    expect(placePieces(turn, false, set, 'round').find((p) => p.x === 100)?.kind).toBe(
+      'roundCorner',
+    );
+    expect(placePieces(turn, false, set, 'sharp').find((p) => p.x === 100)?.kind).toBe('corner');
     // East then north-east: the inside angle is 135.
     expect(placePieces([-100, 0, 0, 0, 70, -70], false, set).find((p) => p.x === 0)?.kind).toBe(
       'diagonal',
@@ -154,5 +163,25 @@ describe('where walls meet', () => {
     expect(
       junctionPieces([{ id: 'a', points: [0, 0, 100, 0, 100, 100], closed: false }]).size,
     ).toBe(0);
+  });
+});
+
+describe('the wide rounded corner', () => {
+  it('is chosen by the wide style and falls back on the rounded one', () => {
+    const wide: WallPieces = {
+      roundCorner: { file: 'r', squares: 2, arms: [0, 90] },
+      wideCorner: { file: 'w', squares: 3, arms: [0, 90], pivot: [1 / 3, 1 / 3] },
+    };
+    const turn = [0, 0, 100, 0, 100, 100];
+    expect(placePieces(turn, false, wide, 'wide').find((p) => p.x === 100)?.kind).toBe(
+      'wideCorner',
+    );
+    expect(placePieces(turn, false, wide, 'round').find((p) => p.x === 100)?.kind).toBe(
+      'roundCorner',
+    );
+    const noWide: WallPieces = { roundCorner: { file: 'r', squares: 2, arms: [0, 90] } };
+    expect(placePieces(turn, false, noWide, 'wide').find((p) => p.x === 100)?.kind).toBe(
+      'roundCorner',
+    );
   });
 });
