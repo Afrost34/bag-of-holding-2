@@ -49,6 +49,22 @@ export function decodeHeights(data: string, length: number): Uint8Array {
 /** The heights of an elevation as bytes. */
 export const heightsOf = (e: Elevation): Uint8Array => decodeHeights(e.data, e.w * e.h);
 
+/**
+ * The heights a cliff can follow: from just above the sea to just below the highest ground (a
+ * contour outside that range finds nothing). `level` is kept inside it.
+ */
+export function cliffRange(
+  e: Pick<Elevation, 'sea'>,
+  heights: Uint8Array,
+  level: number,
+): { min: number; max: number; level: number } {
+  let peak = 0;
+  for (const h of heights) if (h > peak) peak = h;
+  const min = Math.min(250, e.sea + 5);
+  const max = Math.max(min, Math.min(250, peak - 5));
+  return { min, max, level: Math.max(min, Math.min(max, level)) };
+}
+
 /** An elevation for a map of this size: about 200 cells along its longer side, all flat land. */
 export function flatElevation(width: number, height: number): Elevation {
   const cell = Math.max(8, Math.ceil(Math.max(width, height) / 200));

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  cliffRange,
   contourLines,
   decodeHeights,
   encodeHeights,
@@ -205,5 +206,20 @@ describe('cliffs along a contour', () => {
 
   it('leaves out lines shorter than asked', () => {
     expect(contourLines({ w, h, cell: 10 }, heights, 195, 4)).toHaveLength(0);
+  });
+});
+
+describe('cliff heights', () => {
+  it('stay between the sea and the highest ground, so a cliff always finds its height', () => {
+    const heights = Uint8Array.from([90, 120, 150, 140]);
+    expect(cliffRange({ sea: 100 }, heights, 170)).toEqual({ min: 105, max: 145, level: 145 });
+    expect(cliffRange({ sea: 100 }, heights, 50).level).toBe(105);
+    expect(cliffRange({ sea: 100 }, heights, 130).level).toBe(130);
+    // Ground no higher than the sea: one height to pick.
+    expect(cliffRange({ sea: 100 }, Uint8Array.from([80, 90]), 170)).toEqual({
+      min: 105,
+      max: 105,
+      level: 105,
+    });
   });
 });

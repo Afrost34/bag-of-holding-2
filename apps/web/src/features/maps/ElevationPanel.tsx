@@ -1,8 +1,9 @@
 /** Elevation: paint hills and valleys, see them as hill shading, or make terrain from noise. */
 import { Button, cn } from '@boh/ui';
 import { Dices, Mountain, Trash2, Waves } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
+  cliffRange,
   contourLines,
   encodeHeights,
   flatElevation,
@@ -57,7 +58,13 @@ export function ElevationPanel({ doc, commit, elev, setElev, layerId }: MapPanel
       return next;
     });
   };
-  const [cliffLevel, setCliffLevel] = useState(170);
+  const [wantedCliff, setCliffLevel] = useState(170);
+  // Kept between the sea and the highest ground, so a cliff always finds the height.
+  const cliffs = useMemo(
+    () => (e ? cliffRange(e, heightsOf(e), wantedCliff) : null),
+    [e, wantedCliff],
+  );
+  const cliffLevel = cliffs?.level ?? wantedCliff;
   const packEntries = usePacks((s) => s.entries);
   /** Cliffs where the ground crosses the chosen height, as paths with a cliff strip. */
   const makeCliffs = () => {
@@ -206,8 +213,8 @@ export function ElevationPanel({ doc, commit, elev, setElev, layerId }: MapPanel
           <Slider
             label="Cliff height"
             value={cliffLevel}
-            min={Math.min(250, e.sea + 5)}
-            max={250}
+            min={cliffs?.min ?? Math.min(250, e.sea + 5)}
+            max={cliffs?.max ?? 250}
             step={5}
             onChange={setCliffLevel}
           />
