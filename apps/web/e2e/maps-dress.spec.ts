@@ -122,7 +122,37 @@ test('a forest recipe lays trees, then undergrowth at its edge, from the pack', 
   // The dressing just made is picked: other pictures of the same kinds, then another roll.
   await page.getByRole('button', { name: 'Pick again' }).click();
   await page.getByRole('button', { name: 'Roll again' }).click();
-  await waitForSaved(page, 'maps', '"from":"forest:trees"');
+  await waitForSaved(page, 'maps', '"from":"forest:canopy"');
+});
+
+test('tracks follow a trail, pointing the way it goes', async ({ page }, testInfo) => {
+  test.skip(isPhone(page), 'The Creator is used on the desktop.');
+  await installData(page);
+  await newMap(page, 'Wolf Trail');
+  await tool(page, 'Stamp').click();
+  await importPack(page, [
+    'Woodlands/!Wilderness/Decor/Tracks/Tracks_Dirt_02_Wolf_A2_1x1.png',
+    'Woodlands/!Wilderness/Decor/Tracks/Tracks_Dirt_03_Wolf_A2_1x1.png',
+  ]);
+  await tool(page, 'Dress').click();
+  await page
+    .getByRole('radiogroup', { name: 'Edges recipes' })
+    .getByRole('radio', { name: /^Tracks/ })
+    .click();
+  const canvas = page.getByRole('application', { name: 'Map canvas' });
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('no canvas');
+  for (const [x, y] of [
+    [120, 300],
+    [400, 260],
+    [680, 320],
+  ] as const)
+    await page.mouse.click(box.x + x, box.y + y);
+  await page.keyboard.press('Enter');
+  await waitForSaved(page, 'maps', '"recipe":"tracks"');
+  await waitForSaved(page, 'maps', '"turn":90');
+  await page.waitForTimeout(500);
+  await canvas.screenshot({ path: testInfo.outputPath('tracks.png') });
 });
 
 const CORE = '!Core_Settlements/';

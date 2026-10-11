@@ -60,10 +60,17 @@ export function sourceGlow(path: string): Glow | null {
   return null;
 }
 
+/** Lights looked up so far, by picture (a map of a thousand stamps asks for each on every change). */
+const glowCache = new Map<string, Glow | null>();
+
 /** The light a picture reference gives (glyphs and pictures of one's own give none). */
 export function refGlow(ref: string): Glow | null {
+  const known = glowCache.get(ref);
+  if (known !== undefined) return known;
   const parsed = parsePackRef(ref);
-  return parsed ? sourceGlow(parsed.path) : null;
+  const glow = parsed ? sourceGlow(parsed.path) : null;
+  glowCache.set(ref, glow);
+  return glow;
 }
 
 type Stamp = Extract<MapItem, { kind: 'stamp' }>;

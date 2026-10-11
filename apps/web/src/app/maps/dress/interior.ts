@@ -431,6 +431,21 @@ function onAnchors(rule: DressRule, ctx: InteriorContext): Placed[] {
     const A = axes(t);
     const count = rule.count ?? 1;
     const mine: Box[] = [];
+    if (rule.fit) {
+      // As wide as its anchor, on its middle: a tree's shadow.
+      const piece = pickPiece(rule, ctx.rand);
+      const own = ctx.boxOf(rule, piece, size);
+      const k = Math.max(t.w, t.h) / Math.max(1, own.w);
+      const box: Box = {
+        x: t.x,
+        y: t.y,
+        w: own.w * k,
+        h: own.h * k,
+        angle: ctx.rand() * Math.PI * 2,
+      };
+      out.push({ inst: { x: box.x, y: box.y, angle: box.angle, size: size * k, piece }, box });
+      continue;
+    }
     for (let k = 0; k < count * 3 && mine.length < count; k++) {
       const piece = pickPiece(rule, ctx.rand);
       const { w, h } = ctx.boxOf(rule, piece, size);

@@ -118,6 +118,12 @@ export interface DressRule {
   loose?: number;
   /** Lies flat on the floor (a rug): later furniture may stand on it. */
   floor?: boolean;
+  /** Drawn under the pieces of the rules before it (a tree's shadow, placed on the tree). */
+  beneath?: boolean;
+  /** `on`: as wide as the piece it is on (a shadow the size of its tree). */
+  fit?: boolean;
+  /** Degrees added to every piece's turn (a footprint drawn pointing up, laid along a line). */
+  turn?: number;
 }
 
 export interface WaterLook {
