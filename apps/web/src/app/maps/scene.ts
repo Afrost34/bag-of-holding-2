@@ -51,6 +51,7 @@ import { pointInPolygon } from './polygon';
 import { PIXELS_PER_SQUARE } from './packCategories';
 import {
   junctionPieces,
+  pieceFolders,
   piecesFor,
   placePieces,
   type PiecePlace,
@@ -376,13 +377,14 @@ export function stripWallView(
   const drawn: { place: PiecePlace; spec: PieceSpec | undefined; piece: Texture }[] = [];
   if (parsed) {
     const cut = parsed.path.lastIndexOf('/') + 1;
-    const dir = parsed.path.slice(0, cut);
-    // Some sets keep their strips in a `Paths` folder and the pieces in the one above it.
-    const above = dir.endsWith('/Paths/') ? dir.slice(0, -'Paths/'.length) : null;
-    const here = filesBeside(parsed.pack, dir);
-    const up = above ? filesBeside(parsed.pack, above) : [];
-    const set = piecesFor(parsed.path.slice(cut), [...here, ...up]);
-    const folderOf = (file: string) => (up.includes(file) && above ? above : dir);
+    const folders = pieceFolders(parsed.path);
+    const listed = folders.map((dir) => ({ dir, files: filesBeside(parsed.pack, dir) }));
+    const set = piecesFor(
+      parsed.path.slice(cut),
+      listed.flatMap((l) => l.files),
+    );
+    const folderOf = (file: string) =>
+      listed.find((l) => l.files.includes(file))?.dir ?? parsed.path.slice(0, cut);
     // Where other walls meet this one the junction piece stands, not a corner or an ending.
     const own = placePieces(points, closed, set, style).filter(
       (p) => !junctions.all.some((j) => Math.hypot(j.x - p.x, j.y - p.y) <= 4),

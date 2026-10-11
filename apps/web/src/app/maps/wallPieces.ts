@@ -106,6 +106,28 @@ export function piecesFor(stripFile: string, siblings: readonly string[]): WallP
         ...(ending ? { ending: { file: ending, squares: 1, arms: [180], shift: 0.27 } } : {}),
       };
   }
+  // Ceremorph walls: `Ceremorph_Wall_<Colour>_Straight_Path_<L><n>` beside small pieces `..._Corner_<L>1_1x1` (arms west
+  // and south), `..._Diagonal_<L>1_1x1` (west and north-east), `..._Joint_<L>1_1x1` (a cross) and `..._Ending_<L>1_1x1`
+  // (drawn with the wall to the east). The `<L>_Path` strips of `Wall_Paths` are far thicker: no pieces fit them.
+  if (/^Ceremorph_.*_[A-Z]_Path\./.test(stripFile)) return {};
+  const ceremorph = /^(Ceremorph_Wall_.+?_)Straight_Path_([A-Z])\d\.[a-z0-9]+$/.exec(stripFile);
+  if (ceremorph?.[1] && ceremorph[2]) {
+    const [, head, letter] = ceremorph;
+    const find = (name: string) =>
+      siblings.find((f) => f.startsWith(`${head}${name}_${letter}1_1x1.`));
+    const corner = find('Corner');
+    const diagonal = find('Diagonal');
+    const ending = find('Ending');
+    const cross = find('Joint');
+    return {
+      ...(corner
+        ? { corner: { file: corner, squares: 1, arms: [180, 90], pivot: [0.574, 0.475] as const } }
+        : {}),
+      ...(diagonal ? { diagonal: { file: diagonal, squares: 1, arms: [180, 315] } } : {}),
+      ...(ending ? { ending: { file: ending, squares: 1, arms: [0], shift: 0.275 } } : {}),
+      ...(cross ? { cross } : {}),
+    };
+  }
   // Dwarven sets: `<Set>_F_Path` beside `<Set>_Corner_F1_1x1` (arms west and north), `..._Ending_F1_1x1`
   // (the wall to the west, the cap a quarter square past the middle) and `..._Diagonal_F1_1x1`.
   const dwarven = /^(.*_)([A-Z])_Path\.[a-z0-9]+$/i.exec(stripFile);
@@ -117,9 +139,6 @@ export function piecesFor(stripFile: string, siblings: readonly string[]): WallP
     const corner = find('Corner');
     const diagonal = find('Diagonal');
     const ending = find('Ending');
-    // The alien walls of the Ceremorph have an ending drawn with the wall to the east; no tidy corner.
-    if (stripFile.startsWith('Ceremorph') && ending)
-      return { ending: { file: ending, squares: 1, arms: [0], shift: 0.275 } };
     if (corner || diagonal || ending)
       return {
         ...(corner ? { corner: { file: corner, squares: 1, arms: [180, 270] } } : {}),
@@ -392,5 +411,17 @@ export function junctionPieces(walls: readonly WallLine[], reach = 4): Map<strin
     list.push(place);
     out.set(owner, list);
   }
+  return out;
+}
+
+/**
+ * The folders a wall strip's pieces may be in: beside it, or in the folder above a `Paths` folder.
+ * Each ends with a slash.
+ */
+export function pieceFolders(stripPath: string): string[] {
+  const cut = stripPath.lastIndexOf('/') + 1;
+  const dir = stripPath.slice(0, cut);
+  const out = [dir];
+  if (dir.endsWith('/Paths/')) out.push(dir.slice(0, -'Paths/'.length));
   return out;
 }
